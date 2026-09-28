@@ -423,7 +423,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     private static class UnitsPropagationTreeAnnotator extends PropagationTreeAnnotator {
 
-        public UnitsPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        UnitsPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
@@ -586,7 +586,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         public UnitsQualifierHierarchy() {
             super(
                     UnitsAnnotatedTypeFactory.this.getSupportedTypeQualifiers(),
-                    elements,
+                    UnitsAnnotatedTypeFactory.this.elements,
                     UnitsAnnotatedTypeFactory.this);
         }
 
@@ -594,7 +594,8 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         protected QualifierKindHierarchy createQualifierKindHierarchy(
                 @UnderInitialization UnitsQualifierHierarchy this,
                 Collection<Class<? extends Annotation>> qualifierClasses) {
-            return new UnitsQualifierKindHierarchy(qualifierClasses, elements);
+            return new UnitsQualifierKindHierarchy(
+                    qualifierClasses, UnitsAnnotatedTypeFactory.this.elements);
         }
 
         @Override

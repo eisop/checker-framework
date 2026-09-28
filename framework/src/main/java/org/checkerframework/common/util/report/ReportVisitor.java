@@ -29,6 +29,7 @@ import org.checkerframework.common.util.report.qual.ReportWrite;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.util.AnnotatedTypes;
+import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
@@ -37,6 +38,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -53,9 +55,26 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
     /** The modifiers that should be reported; may be null. */
     private final @Nullable EnumSet<Modifier> modifiers;
 
+    /**
+     * The {@link ReportUse#applyToSubpackages()} element, or null if the checker-qual version on
+     * the classpath predates that element.
+     */
+    private final @Nullable ExecutableElement reportUseApplyToSubpackagesElement;
+
+    /**
+     * Creates a ReportVisitor.
+     *
+     * @param checker the checker
+     */
     public ReportVisitor(BaseTypeChecker checker) {
         super(checker);
 
+        reportUseApplyToSubpackagesElement =
+                TreeUtils.getMethodOrNull(
+                        ReportUse.class,
+                        "applyToSubpackages",
+                        0,
+                        checker.getProcessingEnvironment());
         EnumSet<Tree.Kind> treeKindsTmp = EnumSet.noneOf(Tree.Kind.class);
         for (String treeKind : checker.getStringsOption("reportTreeKinds", ',')) {
             treeKindsTmp.add(Tree.Kind.valueOf(treeKind.toUpperCase(Locale.ROOT)));
@@ -87,10 +106,16 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
      * @param member the element from which to start looking
      */
     private void checkReportUse(Tree tree, Element member) {
-        Element loop = member;
-        while (loop != null) {
-            boolean report = this.atypeFactory.getDeclAnnotation(loop, ReportUse.class) != null;
-            if (report) {
+        // Once the walk moves from a package to its parent, an annotation applies only if it
+        // applies to subpackages.  Everything before that -- the member, its enclosing types, and
+        // its own package -- is covered by an annotation written on it.
+        boolean inEnclosingPackage = false;
+        for (Element loop = member; loop != null; ) {
+            AnnotationMirror reportUse = this.atypeFactory.getDeclAnnotation(loop, ReportUse.class);
+            if (reportUse != null
+                    && (!inEnclosingPackage
+                            || AnnotationUtils.appliesToSubpackages(
+                                    reportUse, reportUseApplyToSubpackagesElement))) {
                 checker.reportError(
                         tree,
                         "usage",
@@ -99,15 +124,16 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
                         loop.getKind(),
                         ElementUtils.getQualifiedName(member),
                         member.getKind());
-                break;
-            } else {
-                if (loop.getKind() == ElementKind.PACKAGE) {
-                    loop = ElementUtils.parentPackage((PackageElement) loop, elements);
-                    continue;
-                }
+                return;
             }
-            // Package will always be the last iteration.
-            loop = loop.getEnclosingElement();
+            if (loop.getKind() == ElementKind.PACKAGE) {
+                loop = ElementUtils.parentPackage((PackageElement) loop, elements);
+                inEnclosingPackage = true;
+            } else {
+                // The enclosing element of a top-level type is its package, so once the walk
+                // reaches a package it stays in packages until it runs out.
+                loop = loop.getEnclosingElement();
+            }
         }
     }
 

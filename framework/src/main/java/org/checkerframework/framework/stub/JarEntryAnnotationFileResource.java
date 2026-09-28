@@ -25,6 +25,24 @@ public class JarEntryAnnotationFileResource implements AnnotationFileResource {
         this.entry = entry;
     }
 
+    /**
+     * Returns the underlying JAR file.
+     *
+     * @return the underlying JAR file
+     */
+    public JarFile getJarFile() {
+        return file;
+    }
+
+    /**
+     * Returns the entry within the JAR file.
+     *
+     * @return the entry within the JAR file
+     */
+    public JarEntry getEntry() {
+        return entry;
+    }
+
     @Override
     public String getDescription() {
         return file.getName() + "!" + entry.getName();

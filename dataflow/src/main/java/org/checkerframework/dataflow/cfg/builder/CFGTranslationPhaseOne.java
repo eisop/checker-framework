@@ -144,6 +144,8 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
@@ -160,7 +162,6 @@ import org.checkerframework.javacutil.trees.TreeBuilder;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 import org.plumelib.util.IdentityArraySet;
 
 import java.util.ArrayList;
@@ -523,7 +524,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * @return a PhaseOneResult
      */
     public PhaseOneResult process(CompilationUnitTree root, UnderlyingAST underlyingAST) {
-        // TODO: Isn't this costly? Is there no cache we can reuse?
+        // This Trees.getPath is an uncached full-tree search (a PathFinder scan from the
+        // compilation-unit root down to the body), so calling it once per body is quadratic in
+        // bodies-per-file. The checker pipeline avoids it: CFCFGBuilder.build serves the body
+        // path from the checker's shared TreePathCacher and calls process(TreePath, ...)
+        // directly. This overload is the uncached fallback for callers that have no cacher (the
+        // standalone CFGProcessor tool); there it runs once per body and is not on a hot path.
         TreePath bodyPath = trees.getPath(root, underlyingAST.getCode());
         assert bodyPath != null;
         return process(bodyPath, underlyingAST);
@@ -559,6 +565,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         @SuppressWarnings("interning:not.interned") // Looking for exact match.
         boolean treeIsLeaf = path.getLeaf() != tree;
         if (treeIsLeaf) {
+            // One TreePath is allocated per visited tree to maintain getCurrentPath(). Despite the
+            // volume, this is not a hotspot: a JFR allocation trace attributes only ~0.56% of
+            // TreePath allocation (~0.01% of total) to this line. Materializing the path lazily (a
+            // Tree stack built on demand in getCurrentPath()) was measured to save <0.01% of total
+            // allocation and rejected; see docs/developer/performance-notes.md ("Lazy path stack").
             path = new TreePath(path, tree);
         }
         try {
@@ -725,11 +736,20 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * pre-conversion lookup map. This method is used to update the Tree-Node mapping with
      * conversion nodes.
      *
+     * <p>This is where a tree comes to have two nodes, and so two dataflow values: the one it had
+     * before the conversion and the one the conversion produces. Every conversion does it --
+     * boxing, unboxing, widening, narrowing, string conversion. Which of the two a later query for
+     * the tree receives depends on how much of the CFG has been analyzed, which is harmless for a
+     * type system that preserves the qualifier across the conversion and is not otherwise. See
+     * {@link org.checkerframework.dataflow.analysis.AbstractAnalysis#getValue(Tree)} and
+     * https://github.com/eisop/checker-framework/issues/2127.
+     *
      * @param tree the tree used as a key in the map
      * @param node the node to add to the lookup map
      */
     protected void addToConvertedLookupMap(Tree tree, Node node) {
         assert tree != null;
+        assert node != null;
         assert treeToCfgNodes.containsKey(tree);
         Set<Node> existing = treeToConvertedCfgNodes.get(tree);
         if (existing == null) {
@@ -967,8 +987,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                             Collections.singletonList(node),
                             getCurrentPath());
             boxed.setInSource(false);
-            // Add Throwable to account for unchecked exceptions
+            // The argument tree now has both its own value and the boxed one; see
+            // addToConvertedLookupMap.
             addToConvertedLookupMap(node.getTree(), boxed);
+            // Add Throwable to account for unchecked exceptions.
             insertNodeWithExceptionsAfter(boxed, uncheckedExceptionTypes, valueOfAccess);
             return boxed;
         } else {
@@ -1005,8 +1027,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                             getCurrentPath());
             unboxed.setInSource(false);
 
-            // Add Throwable to account for unchecked exceptions
+            // The receiver tree now has both its own value and the unboxed one; see
+            // addToConvertedLookupMap.  The Interning Checker is a type system for which the two
+            // differ: the unboxed primitive is @Interned and the boxed value is not.
             addToConvertedLookupMap(node.getTree(), unboxed);
+            // Add Throwable to account for unchecked exceptions.
             insertNodeWithExceptionsAfter(unboxed, uncheckedExceptionTypes, primValueAccess);
             return unboxed;
         } else {
@@ -2569,7 +2594,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
          * @return if the switch is a switch expression, then a {@link SwitchExpressionNode};
          *     otherwise, null
          */
-        public @Nullable SwitchExpressionNode build() {
+        @Nullable SwitchExpressionNode build() {
             LabelCell oldBreakTargetLC = breakTargetLC;
             breakTargetLC = new LabelCell(new Label());
             int numCases = caseTrees.size();
@@ -2907,7 +2932,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         extendWithExtendedNode(new UnconditionalJump(merge));
 
         addLabelForNextNode(merge);
-        IPair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
+        Pair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
                 buildVarUseNode(condExprVarTree);
         Node node =
                 new TernaryExpressionNode(
@@ -2928,7 +2953,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      */
     private void extendWithAssignmentForConditionalExpr(
             VariableTree condExprVarTree, ExpressionTree caseExprTree, Node caseExprNode) {
-        IPair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
+        Pair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
                 buildVarUseNode(condExprVarTree);
 
         AssignmentTree assign =
@@ -2950,13 +2975,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * @return a pair whose first element is the synthetic {@link IdentifierTree} for the use, and
      *     whose second element is the {@link LocalVariableNode} representing the use
      */
-    private IPair<IdentifierTree, LocalVariableNode> buildVarUseNode(VariableTree varTree) {
+    private Pair<IdentifierTree, LocalVariableNode> buildVarUseNode(VariableTree varTree) {
         IdentifierTree condExprVarUseTree = treeBuilder.buildVariableUse(varTree);
         handleArtificialTree(condExprVarUseTree);
         LocalVariableNode condExprVarUseNode = new LocalVariableNode(condExprVarUseTree);
         condExprVarUseNode.setInSource(false);
         // Do not actually add the node to the CFG.
-        return IPair.of(condExprVarUseTree, condExprVarUseNode);
+        return Pair.of(condExprVarUseTree, condExprVarUseNode);
     }
 
     @Override
@@ -3428,7 +3453,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             switch (element.getKind()) {
                 case FIELD:
                     // Note that "this"/"super" is a field, but not a field access.
-                    if (element.getSimpleName().contentEquals("this")) {
+                    if (InternalUtils.isThisName(element.getSimpleName())) {
                         node = new ExplicitThisNode(tree);
                     } else {
                         node = new SuperNode(tree);
@@ -3674,7 +3699,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * map is necessary because dataflow does not create a {@code Node} for a {@code
      * ParenthesizedTree}.
      */
-    private final Map<Tree, ParenthesizedTree> parenMapping = new HashMap<>();
+    private final IdentityHashMap<Tree, ParenthesizedTree> parenMapping = new IdentityHashMap<>();
 
     @Override
     public Node visitParenthesized(ParenthesizedTree tree, Void p) {
@@ -3797,10 +3822,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         "start of try statement #" + TreeUtils.treeUids.get(tree),
                         env.getTypeUtils()));
 
-        List<IPair<TypeMirror, Label>> catchLabels =
+        List<Pair<TypeMirror, Label>> catchLabels =
                 CollectionsPlume.mapList(
                         (CatchTree c) ->
-                                IPair.of(TreeUtils.typeOf(c.getParameter().getType()), new Label()),
+                                Pair.of(TreeUtils.typeOf(c.getParameter().getType()), new Label()),
                         catches);
 
         // Store return/break/continue labels, just in case we need them for a finally block.
@@ -4367,7 +4392,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                                         exprType,
                                         uniqueName("tempPostfix"),
                                         TreePathUtil.findNearestEnclosingElement(getCurrentPath()),
-                                        tree.getExpression());
+                                        exprTree);
                         handleArtificialTree(tempVarDecl);
                         VariableDeclarationNode tempVarDeclNode =
                                 new VariableDeclarationNode(tempVarDecl);

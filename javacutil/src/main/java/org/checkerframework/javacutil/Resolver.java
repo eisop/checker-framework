@@ -15,9 +15,11 @@ import com.sun.tools.javac.comp.DeferredAttr;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.comp.Resolve;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Log.DiscardDiagnosticHandler;
 import com.sun.tools.javac.util.Name;
@@ -85,6 +87,23 @@ public class Resolver {
     private static final Method ACCESSERROR_ACCESS;
 
     /**
+     * {@code com.sun.tools.javac.comp.Resolve$MethodResolutionContext} no-arg-style constructor.
+     */
+    private static final Constructor<?> METHOD_RESOLUTION_CONTEXT_CTOR;
+
+    /** {@code Resolve$MethodResolutionContext#attrMode} field. */
+    private static final Field METHOD_RESOLUTION_CONTEXT_ATTR_MODE;
+
+    /** {@code Resolve$MethodResolutionContext#step} field. */
+    private static final Field METHOD_RESOLUTION_CONTEXT_STEP;
+
+    /** {@code Resolve#currentResolutionContext} field. */
+    private static final Field RESOLVE_CURRENT_RESOLUTION_CONTEXT;
+
+    /** {@code Resolve#methodResolutionSteps} field. */
+    private static final Field RESOLVE_METHOD_RESOLUTION_STEPS;
+
+    /**
      * Method for new Log.DiscardDiagnosticHandler. Before JDK 25, DiscardDiagnosticHandler was a
      * static inner class of Log and an instance of log was passed as the first argument. Starting
      * with JDK 25, DiscardDiagnosticHandler is an inner class of log.
@@ -101,6 +120,9 @@ public class Resolver {
     /** Whether we are running on at least Java 23. */
     private static final boolean atLeastJava23 = sourceVersionNumber >= 23;
 
+    /** Whether we are running on at least Java 28. */
+    private static final boolean atLeastJava28 = sourceVersionNumber >= 28;
+
     static {
         try {
             FIND_METHOD =
@@ -115,7 +137,17 @@ public class Resolver {
                             boolean.class);
             FIND_METHOD.setAccessible(true);
 
-            if (atLeastJava23) {
+            if (atLeastJava28) {
+                // Changed in
+                // https://github.com/openjdk/jdk/commit/f1c7c3e9bc0c8794dbf16b4fdc31464d5abe473b
+                FIND_VAR =
+                        Resolve.class.getDeclaredMethod(
+                                "findVar",
+                                DiagnosticPosition.class,
+                                Env.class,
+                                Name.class,
+                                boolean.class);
+            } else if (atLeastJava23) {
                 // Changed in
                 // https://github.com/openjdk/jdk/commit/e227c7e37d4de0656f013f3a936b1acfa56cc2e0
                 FIND_VAR =
@@ -141,7 +173,19 @@ public class Resolver {
             }
             FIND_IDENT.setAccessible(true);
 
-            if (atLeastJava13) {
+            if (atLeastJava28) {
+                // Changed in
+                // https://github.com/openjdk/jdk/commit/850c789a827e21cda3096276d9638f56fae76c3e
+                FIND_IDENT_IN_TYPE =
+                        Resolve.class.getDeclaredMethod(
+                                "findIdentInType",
+                                DiagnosticPosition.class,
+                                Env.class,
+                                Type.class,
+                                Name.class,
+                                KindSelector.class,
+                                JCTree.class);
+            } else if (atLeastJava13) {
                 FIND_IDENT_IN_TYPE =
                         Resolve.class.getDeclaredMethod(
                                 "findIdentInType",
@@ -208,6 +252,33 @@ public class Resolver {
         } catch (NoSuchMethodException e) {
             throw new BugInCF(
                     "Compiler 'Resolve$AccessError' class doesn't contain required 'access' method",
+                    e);
+        }
+
+        try {
+            Class<?> methCtxClss =
+                    Class.forName("com.sun.tools.javac.comp.Resolve$MethodResolutionContext");
+            // TODO: this assumes only one constructor. Could be improved.
+            METHOD_RESOLUTION_CONTEXT_CTOR = methCtxClss.getDeclaredConstructors()[0];
+            METHOD_RESOLUTION_CONTEXT_CTOR.setAccessible(true);
+
+            METHOD_RESOLUTION_CONTEXT_ATTR_MODE = methCtxClss.getDeclaredField("attrMode");
+            METHOD_RESOLUTION_CONTEXT_ATTR_MODE.setAccessible(true);
+
+            METHOD_RESOLUTION_CONTEXT_STEP = methCtxClss.getDeclaredField("step");
+            METHOD_RESOLUTION_CONTEXT_STEP.setAccessible(true);
+
+            RESOLVE_CURRENT_RESOLUTION_CONTEXT =
+                    Resolve.class.getDeclaredField("currentResolutionContext");
+            RESOLVE_CURRENT_RESOLUTION_CONTEXT.setAccessible(true);
+
+            RESOLVE_METHOD_RESOLUTION_STEPS =
+                    Resolve.class.getDeclaredField("methodResolutionSteps");
+            RESOLVE_METHOD_RESOLUTION_STEPS.setAccessible(true);
+        } catch (ClassNotFoundException | NoSuchFieldException e) {
+            throw new BugInCF(
+                    "Compiler 'Resolve$MethodResolutionContext' class or its expected fields could"
+                            + " not be retrieved.",
                     e);
         }
     }
@@ -302,7 +373,17 @@ public class Resolver {
         try {
             Env<AttrContext> env = getEnvForPath(path);
             final Element res;
-            if (atLeastJava13) {
+            if (atLeastJava28) {
+                res =
+                        resolve(
+                                FIND_IDENT_IN_TYPE,
+                                null,
+                                env,
+                                type,
+                                names.fromString(name),
+                                Kinds.KindSelector.VAR,
+                                null);
+            } else if (atLeastJava13) {
                 res =
                         resolve(
                                 FIND_IDENT_IN_TYPE,
@@ -349,7 +430,10 @@ public class Resolver {
             Env<AttrContext> env = getEnvForPath(path);
             // Either a VariableElement or a SymbolNotFoundError.
             Element res;
-            if (atLeastJava23) {
+            if (atLeastJava28) {
+                DiagnosticPosition pos = (DiagnosticPosition) path.getLeaf();
+                res = resolve(FIND_VAR, pos, env, names.fromString(name), false);
+            } else if (atLeastJava23) {
                 DiagnosticPosition pos = (DiagnosticPosition) path.getLeaf();
                 res = resolve(FIND_VAR, pos, env, names.fromString(name));
             } else {
@@ -459,6 +543,11 @@ public class Resolver {
      * @param argumentTypes types of arguments passed to the method call
      * @return the method element (if found)
      */
+    // TODO: handle set calls of reflection API.
+    @SuppressWarnings({
+        "interning:argument.type.incompatible",
+        "nullness:argument.type.incompatible"
+    })
     public @Nullable ExecutableElement findMethod(
             String methodName,
             TypeMirror receiverType,
@@ -470,10 +559,11 @@ public class Resolver {
 
             Type site = (Type) receiverType;
             Name name = names.fromString(methodName);
-            List<Type> argtypes = List.nil();
+            ListBuffer<Type> argtypesBuf = new ListBuffer<>();
             for (TypeMirror a : argumentTypes) {
-                argtypes = argtypes.append((Type) a);
+                argtypesBuf.append((Type) a);
             }
+            List<Type> argtypes = argtypesBuf.toList();
             List<Type> typeargtypes = List.nil();
             boolean allowBoxing = true;
             boolean useVarargs = false;
@@ -482,8 +572,8 @@ public class Resolver {
                 // For some reason we have to set our own method context, which is rather ugly.
                 // TODO: find a nicer way to do this.
                 Object methodContext = buildMethodContext();
-                Object oldContext = getField(resolve, "currentResolutionContext");
-                setField(resolve, "currentResolutionContext", methodContext);
+                Object oldContext = RESOLVE_CURRENT_RESOLUTION_CONTEXT.get(resolve);
+                RESOLVE_CURRENT_RESOLUTION_CONTEXT.set(resolve, methodContext);
                 Element resolveResult =
                         resolve(
                                 FIND_METHOD,
@@ -494,7 +584,7 @@ public class Resolver {
                                 typeargtypes,
                                 allowBoxing,
                                 useVarargs);
-                setField(resolve, "currentResolutionContext", oldContext);
+                RESOLVE_CURRENT_RESOLUTION_CONTEXT.set(resolve, oldContext);
                 ExecutableElement methodResult;
                 if (resolveResult.getKind() == ElementKind.METHOD
                         || resolveResult.getKind() == ElementKind.CONSTRUCTOR) {
@@ -532,59 +622,23 @@ public class Resolver {
      * Build an instance of {@code Resolve$MethodResolutionContext}.
      *
      * @return a MethodResolutionContext
-     * @throws ClassNotFoundException if there is trouble constructing the instance
      * @throws InstantiationException if there is trouble constructing the instance
      * @throws IllegalAccessException if there is trouble constructing the instance
      * @throws InvocationTargetException if there is trouble constructing the instance
-     * @throws NoSuchFieldException if there is trouble constructing the instance
      */
+    // TODO: handle set calls of reflection API.
+    @SuppressWarnings("interning:argument.type.incompatible")
     protected Object buildMethodContext()
-            throws ClassNotFoundException,
-                    InstantiationException,
-                    IllegalAccessException,
-                    InvocationTargetException,
-                    NoSuchFieldException {
+            throws InstantiationException, IllegalAccessException, InvocationTargetException {
         // Class is not accessible, instantiate reflectively.
-        Class<?> methCtxClss =
-                Class.forName("com.sun.tools.javac.comp.Resolve$MethodResolutionContext");
-        Constructor<?> constructor = methCtxClss.getDeclaredConstructors()[0];
-        constructor.setAccessible(true);
-        Object methodContext = constructor.newInstance(resolve);
+        Object methodContext = METHOD_RESOLUTION_CONTEXT_CTOR.newInstance(resolve);
         // we need to also initialize the fields attrMode and step
-        setField(methodContext, "attrMode", DeferredAttr.AttrMode.CHECK);
+        METHOD_RESOLUTION_CONTEXT_ATTR_MODE.set(methodContext, DeferredAttr.AttrMode.CHECK);
         @SuppressWarnings("rawtypes")
-        List<?> phases = (List) getField(resolve, "methodResolutionSteps");
+        List<?> phases = (List) RESOLVE_METHOD_RESOLUTION_STEPS.get(resolve);
         assert phases != null : "@AssumeAssertion(nullness): assumption";
-        setField(methodContext, "step", phases.get(1));
+        METHOD_RESOLUTION_CONTEXT_STEP.set(methodContext, phases.get(1));
         return methodContext;
-    }
-
-    /**
-     * Reflectively set a field.
-     *
-     * @param receiver the receiver in which to set the field
-     * @param fieldName name of field to set
-     * @param value new value for field
-     * @throws NoSuchFieldException if the field does not exist in the receiver
-     * @throws IllegalAccessException if the field is not accessible
-     */
-    @SuppressWarnings({
-        "nullness:argument.type.incompatible",
-        "interning:argument.type.incompatible"
-    }) // assume that the fields all accept null and uninterned values
-    private void setField(Object receiver, String fieldName, @Nullable Object value)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field f = receiver.getClass().getDeclaredField(fieldName);
-        f.setAccessible(true);
-        f.set(receiver, value);
-    }
-
-    /** Reflectively get the value of a field. */
-    private @Nullable Object getField(Object receiver, String fieldName)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field f = receiver.getClass().getDeclaredField(fieldName);
-        f.setAccessible(true);
-        return f.get(receiver);
     }
 
     /**

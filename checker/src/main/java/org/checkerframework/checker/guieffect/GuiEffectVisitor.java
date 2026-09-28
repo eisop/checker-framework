@@ -33,7 +33,6 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
-import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayDeque;
 import java.util.List;
@@ -82,7 +81,9 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     //       for any UI instantiations, safe otherwise
     @Override
     protected void checkMethodInvocability(
-            AnnotatedExecutableType method, MethodInvocationTree tree) {
+            AnnotatedExecutableType method,
+            MethodInvocationTree tree,
+            @Nullable AnnotatedTypeMirror receiverType) {
         // The inherited version of this complains about invoking methods of @UI instantiations of
         // classes, which by default are annotated @AlwaysSafe, which for data type qualifiers is
         // reasonable, but it not what we want, since we want .
@@ -202,7 +203,8 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
 
     @Override
     protected AnnotationMirrorSet getExceptionParameterLowerBoundAnnotations() {
-        return new AnnotationMirrorSet(AnnotationBuilder.fromClass(elements, AlwaysSafe.class));
+        return AnnotationMirrorSet.singleton(
+                AnnotationBuilder.fromClass(elements, AlwaysSafe.class));
     }
 
     @Override
@@ -310,7 +312,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
             // Note: All these checks should be fast in the common case, but happen for every method
             // call inside the anonymous class. Consider a cache here if profiling surfaces this as
             // taking too long.
-            if (TypesUtils.isAnonymous(callerReceiverType)
+            if (ElementUtils.isAnonymous(callerReceiverElt)
                     // Skip if already inferred @UI
                     && !effStack.peek().isUI()
                     // Ignore if explicitly annotated

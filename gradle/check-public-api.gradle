@@ -1,0 +1,290 @@
+/**
+ * Helper script to register a task that fails if a shaded jar exposes any relocated type
+ * in its public or protected API (superclasses, interfaces, field types, method parameter
+ * and return types).
+ */
+
+ext.createCheckPublicApiNoRelocatedTypesTask = { Project targetProject, List jarTasks ->
+    targetProject.tasks.register('checkPublicApiNoRelocatedTypes') {
+        group = 'Verification'
+        description = 'Fails if a shaded jar exposes any relocated type in its public or protected API.'
+        FileCollection jars = targetProject.files(jarTasks)
+        inputs.files(jars).withPropertyName('shadedJars')
+        doLast {
+            // Relocated package prefixes that should not appear in public/protected API
+            def relocatedPattern = ~/(?:org\/checkerframework\/(?:org|com|io|nonapi)|org\/plumelib|com\/google|com\/github\/javaparser)\/[A-Za-z0-9_$]+/
+
+            // 1. Permanent domain-specific exceptions:
+            // JavaParser AST types are domain objects manipulated by ajava and stubifier AST tools.
+            def isJavaParserAllowed = { String className, String relocatedType ->
+                if (relocatedType.contains('javaparser')) {
+                    if (className.startsWith('org/checkerframework/framework/ajava/')
+                        || className.startsWith('org/checkerframework/framework/stubifier/')
+                        || className.startsWith('org/checkerframework/framework/util/JavaParserUtil')
+                        || className == 'org/checkerframework/framework/util/VoidVisitorWithDefaultAction') {
+                        return true
+                    }
+                }
+                return false
+            }
+
+            // 2. TEMPORARY exceptions to be replaced in follow-up issue:
+            // These shadowed types leak into public/protected APIs and must be replaced with
+            // standard JDK types or CF-internal types.
+            def isTemporaryException = { String className, String memberName, String descriptorOrSig ->
+                // TODO: Follow-up issue: Replace Guava Splitter in SystemUtil with standard Java/helper methods
+                if (className == 'org/checkerframework/javacutil/SystemUtil'
+                    && ['DOT_SPLITTER', 'COMMA_SPLITTER', 'COLON_SPLITTER', 'PATH_SEPARATOR_SPLITTER'].contains(memberName)) {
+                    return true
+                }
+                // TODO: Follow-up issue: Replace Guava ImmutableSet in SetOfTypes with java.util.Set
+                if (className == 'org/checkerframework/checker/resourceleak/SetOfTypes'
+                    && memberName == 'anyOfTheseNames') {
+                    return true
+                }
+                // TODO: Follow-up issue: Replace plume-util UnmodifiableIdentityHashMap with java.util.Map in ControlFlowGraph
+                if (className == 'org/checkerframework/dataflow/cfg/ControlFlowGraph'
+                    && ['getTreeLookup', 'getPostfixNodeLookup'].contains(memberName)) {
+                    return true
+                }
+                // TODO: Follow-up issue: Replace plume-util UniqueIdMap in TreeUtils.treeUids
+                if (className == 'org/checkerframework/javacutil/TreeUtils'
+                    && memberName == 'treeUids') {
+                    return true
+                }
+                // TODO: Follow-up issue: Replace plume-util UniqueId interface implementation across CFG and Analysis types
+                if (descriptorOrSig != null && descriptorOrSig.contains('org/checkerframework/org/plumelib/util/UniqueId')) {
+                    if (className in [
+                        'org/checkerframework/framework/flow/CFAbstractStore',
+                        'org/checkerframework/dataflow/analysis/AnalysisResult',
+                        'org/checkerframework/dataflow/analysis/TransferInput',
+                        'org/checkerframework/dataflow/cfg/ControlFlowGraph',
+                        'org/checkerframework/dataflow/cfg/UnderlyingAST',
+                        'org/checkerframework/dataflow/cfg/block/Block',
+                        'org/checkerframework/dataflow/cfg/node/Node',
+                    ]) {
+                        return true
+                    }
+                }
+                return false
+            }
+
+            def isAllowed = { String className, String memberName, String descriptorOrSig ->
+                if (isJavaParserAllowed(className, descriptorOrSig ?: '')) {
+                    return true
+                }
+                if (isTemporaryException(className, memberName, descriptorOrSig)) {
+                    return true
+                }
+                return false
+            }
+
+            def isPublicOrProtected = { int access ->
+                return (access & 0x0001) != 0 || (access & 0x0004) != 0
+            }
+
+            def skipBytesFully = { java.io.DataInputStream stream, int n ->
+                int remaining = n
+                byte[] buffer = new byte[Math.min(remaining, 4096)]
+                while (remaining > 0) {
+                    int read = stream.read(buffer, 0, Math.min(remaining, buffer.length))
+                    if (read < 0) break
+                    remaining -= read
+                }
+            }
+
+            def readUtf8 = { java.io.DataInputStream stream ->
+                int len = stream.readUnsignedShort()
+                byte[] bytes = new byte[len]
+                stream.readFully(bytes)
+                return new String(bytes, 'UTF-8')
+            }
+
+            def problems = []
+
+            jars.each { File jar ->
+                println "checkPublicApiNoRelocatedTypes scanning: " + jar
+                new java.util.zip.ZipFile(jar).withCloseable { zf ->
+                    for (entry in Collections.list(zf.entries())) {
+                        if (!entry.name.endsWith('.class')
+                            || entry.name.startsWith('org/checkerframework/com/')
+                            || entry.name.startsWith('org/checkerframework/org/')
+                            || entry.name.startsWith('org/checkerframework/io/')
+                            || entry.name.startsWith('org/checkerframework/nonapi/')
+                            || !entry.name.startsWith('org/checkerframework/')) {
+                            continue
+                        }
+
+                        zf.getInputStream(entry).withCloseable { is ->
+                            try {
+                                def dis = new java.io.DataInputStream(is)
+                                if ((dis.readInt() & 0xFFFFFFFFL) != 0xCAFEBABEL) return
+                                dis.readUnsignedShort() // minor
+                                dis.readUnsignedShort() // major
+                                int cpCount = dis.readUnsignedShort()
+                                Object[] cp = new Object[cpCount]
+                                int i = 1
+                                while (i < cpCount) {
+                                    int tag = dis.readUnsignedByte()
+                                    switch (tag) {
+                                        case 1:
+                                            cp[i] = readUtf8(dis)
+                                            break
+                                        case 3: case 4:
+                                            skipBytesFully(dis, 4)
+                                            break
+                                        case 5: case 6:
+                                            skipBytesFully(dis, 8)
+                                            i++
+                                            break
+                                        case 7: case 8: case 16: case 19: case 20:
+                                            cp[i] = dis.readUnsignedShort()
+                                            break
+                                        case 9: case 10: case 11: case 12: case 17: case 18:
+                                            skipBytesFully(dis, 4)
+                                            break
+                                        case 15:
+                                            skipBytesFully(dis, 3)
+                                            break
+                                        default:
+                                            throw new IllegalStateException("Unknown constant pool tag: ${tag} in ${entry.name}")
+                                    }
+                                    i++
+                                }
+
+                                int classAccess = dis.readUnsignedShort()
+                                int thisClass = dis.readUnsignedShort()
+                                int superClass = dis.readUnsignedShort()
+                                int ifaceCount = dis.readUnsignedShort()
+                                String className = (cp[thisClass] != null ? cp[cp[thisClass] as int] : null) as String
+                                String superName = (superClass != 0 && cp[superClass] != null ? cp[cp[superClass] as int] : null) as String
+
+                                List<String> ifaceNames = []
+                                for (int j = 0; j < ifaceCount; j++) {
+                                    int ifaceIdx = dis.readUnsignedShort()
+                                    ifaceNames << ((cp[ifaceIdx] != null ? cp[cp[ifaceIdx] as int] : null) as String)
+                                }
+
+                                def fields = []
+                                int fieldsCount = dis.readUnsignedShort()
+                                for (int f = 0; f < fieldsCount; f++) {
+                                    int fAccess = dis.readUnsignedShort()
+                                    String fName = cp[dis.readUnsignedShort()] as String
+                                    String fDesc = cp[dis.readUnsignedShort()] as String
+                                    int attrCount = dis.readUnsignedShort()
+                                    String fSig = null
+                                    for (int a = 0; a < attrCount; a++) {
+                                        String aName = cp[dis.readUnsignedShort()] as String
+                                        int aLen = dis.readInt()
+                                        if (aName == 'Signature') {
+                                            fSig = cp[dis.readUnsignedShort()] as String
+                                        } else {
+                                            skipBytesFully(dis, aLen)
+                                        }
+                                    }
+                                    fields << [access: fAccess, name: fName, desc: fDesc, sig: fSig]
+                                }
+
+                                def methods = []
+                                int methodsCount = dis.readUnsignedShort()
+                                for (int m = 0; m < methodsCount; m++) {
+                                    int mAccess = dis.readUnsignedShort()
+                                    String mName = cp[dis.readUnsignedShort()] as String
+                                    String mDesc = cp[dis.readUnsignedShort()] as String
+                                    int attrCount = dis.readUnsignedShort()
+                                    String mSig = null
+                                    for (int a = 0; a < attrCount; a++) {
+                                        String aName = cp[dis.readUnsignedShort()] as String
+                                        int aLen = dis.readInt()
+                                        if (aName == 'Signature') {
+                                            mSig = cp[dis.readUnsignedShort()] as String
+                                        } else {
+                                            skipBytesFully(dis, aLen)
+                                        }
+                                    }
+                                    methods << [access: mAccess, name: mName, desc: mDesc, sig: mSig]
+                                }
+
+                                int classAttrCount = dis.readUnsignedShort()
+                                String classSig = null
+                                int effectiveClassAccess = classAccess
+                                for (int a = 0; a < classAttrCount; a++) {
+                                    String aName = cp[dis.readUnsignedShort()] as String
+                                    int aLen = dis.readInt()
+                                    if (aName == 'Signature') {
+                                        classSig = cp[dis.readUnsignedShort()] as String
+                                    } else if (aName == 'InnerClasses') {
+                                        int innerClassesCount = dis.readUnsignedShort()
+                                        for (int ic = 0; ic < innerClassesCount; ic++) {
+                                            int innerClassInfo = dis.readUnsignedShort()
+                                            int outerClassInfo = dis.readUnsignedShort()
+                                            int innerName = dis.readUnsignedShort()
+                                            int innerFlags = dis.readUnsignedShort()
+                                            if (innerClassInfo == thisClass) {
+                                                effectiveClassAccess = innerFlags
+                                            }
+                                        }
+                                        int consumed = 2 + innerClassesCount * 8
+                                        if (aLen > consumed) {
+                                            skipBytesFully(dis, aLen - consumed)
+                                        }
+                                    } else {
+                                        skipBytesFully(dis, aLen)
+                                    }
+                                }
+
+                                if (!isPublicOrProtected(effectiveClassAccess)) {
+                                    return
+                                }
+
+                                if (superName != null && superName =~ relocatedPattern && !isAllowed(className, null, superName)) {
+                                    problems << "  ${className} extends relocated ${superName}"
+                                }
+
+                                if (classSig != null && classSig =~ relocatedPattern && !isAllowed(className, null, classSig)) {
+                                    problems << "  ${className} signature: ${classSig}"
+                                }
+
+                                for (iface in ifaceNames) {
+                                    if (iface != null && iface =~ relocatedPattern && !isAllowed(className, null, iface)) {
+                                        problems << "  ${className} implements relocated ${iface}"
+                                    }
+                                }
+
+                                for (f in fields) {
+                                    if (isPublicOrProtected(f.access)) {
+                                        if (f.desc =~ relocatedPattern && !isAllowed(className, f.name, f.desc)) {
+                                            problems << "  Field ${className}.${f.name} (${f.desc})"
+                                        }
+                                        if (f.sig != null && f.sig =~ relocatedPattern && !isAllowed(className, f.name, f.sig)) {
+                                            problems << "  Field ${className}.${f.name} signature: ${f.sig}"
+                                        }
+                                    }
+                                }
+
+                                for (m in methods) {
+                                    if (isPublicOrProtected(m.access)) {
+                                        if (m.desc =~ relocatedPattern && !isAllowed(className, m.name, m.desc)) {
+                                            problems << "  Method ${className}.${m.name} (${m.desc})"
+                                        }
+                                        if (m.sig != null && m.sig =~ relocatedPattern && !isAllowed(className, m.name, m.sig)) {
+                                            problems << "  Method ${className}.${m.name} signature: ${m.sig}"
+                                        }
+                                    }
+                                }
+                            } catch (Throwable t) {
+                                throw new GradleException("Error parsing class file ${entry.name} in ${jar.name}", t)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!problems.isEmpty()) {
+                throw new GradleException(
+                    "Found relocated types in public or protected API of shaded jar:\n"
+                    + problems.unique().join('\n'))
+            }
+        }
+    }
+}

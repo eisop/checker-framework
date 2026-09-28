@@ -46,6 +46,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
@@ -302,7 +303,7 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
         // have information inferred about their receivers.
         if (receiver != null
                 && atypeFactory.wpiShouldInferTypesForReceivers()
-                && !methodElt.getSimpleName().contentEquals("<init>")) {
+                && !InternalUtils.isInitName(methodElt.getSimpleName())) {
             AnnotatedTypeMirror receiverArgATM = atypeFactory.getReceiverType(invocationTree);
             AnnotatedExecutableType methodDeclType = atypeFactory.getAnnotatedType(methodElt);
             AnnotatedTypeMirror receiverParamATM = methodDeclType.getReceiverType();

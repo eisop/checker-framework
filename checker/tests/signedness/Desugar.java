@@ -12,6 +12,33 @@ public class Desugar {
         @Signed Integer box2 = method(box);
     }
 
+    void testDesugared(int x) {
+        int i = getI();
+        Integer box = Integer.valueOf(i);
+        @Signed Integer boxy = box;
+        @Signed Integer box2 = method(box);
+    }
+
+    // A loop makes the boxing node be analyzed more than once, so the node for the valueOf call
+    // already has a value from the previous iteration when the argument tree is queried again.
+    void testBoxingInLoop(boolean c) {
+        int i = getI();
+        while (c) {
+            Integer box = i;
+            @Signed Integer boxy = box;
+            @Signed Integer box2 = method(box);
+        }
+    }
+
+    // Regression coverage for boxing alongside a compound assignment, which evaluates its target
+    // tree more than once within a single pass.  This case passes either way; it is here so that
+    // the combination stays covered.
+    void testRepeatedEvaluation(byte b) {
+        b |= 1;
+        Integer box = getI();
+        @Signed Integer boxy = box;
+    }
+
     @PolySigned Integer method(@PolySigned Integer i) {
         return i;
     }

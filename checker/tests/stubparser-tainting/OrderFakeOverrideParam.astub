@@ -1,0 +1,19 @@
+// See https://github.com/eisop/checker-framework/issues/1862 .
+//
+// OrderFOMidParam's presence-only fake override of m(int) is declared BEFORE
+// OrderFOSuperParam's own stub-provided annotation on m(int)'s parameter, in this same file.
+// A fake override only ever touches a return type, never a parameter (see
+// AnnotationFileParser#processFakeOverride), so applying it must reset OrderFOMidParam's
+// m(int) to a fresh getAnnotatedType(overridden) whose parameter type reflects
+// OrderFOSuperParam's @Untainted annotation below once the whole file has been applied --
+// regardless of the order the two classes are declared in.
+import org.checkerframework.checker.tainting.qual.Untainted;
+
+class OrderFOMidParam {
+    // fake override:
+    void m(int p);
+}
+
+class OrderFOSuperParam {
+    void m(@Untainted int p);
+}

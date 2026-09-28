@@ -206,19 +206,19 @@ public class CaptureBound {
          * beta in the some places in the JLS.) For example {@code a1} in {@code G<a1, ..., an> =
          * capture(G<A1, ..., An>)}.
          */
-        public final CaptureVariable alpha;
+        final CaptureVariable alpha;
 
         /**
          * Type argument in the right hand side for the capture. For example {@code A1} in {@code
          * G<a1, ..., an> = capture(G<A1, ..., An>)}.
          */
-        public final AbstractType capturedTypeArg;
+        final AbstractType capturedTypeArg;
 
         /**
          * Upper bound of one of the type parameters of G that has been substituted using the fresh
          * inference variables.
          */
-        public final AbstractType bound;
+        final AbstractType bound;
 
         /**
          * Creates a tuple.
@@ -242,7 +242,7 @@ public class CaptureBound {
          * @param bound the bound of the type parameter
          * @return a tuple
          */
-        public static CaptureTuple of(
+        static CaptureTuple of(
                 CaptureVariable alpha, AbstractType capturedTypeArg, AbstractType bound) {
             return new CaptureTuple(alpha, capturedTypeArg, bound);
         }

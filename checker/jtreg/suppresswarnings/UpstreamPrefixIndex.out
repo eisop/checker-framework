@@ -1,0 +1,4 @@
+UpstreamPrefixIndex.java:24:28: compiler.err.proc.messager: [value:assignment.type.incompatible] incompatible types in assignment.
+found   : @IntVal(2) int
+required: @IntVal(1L) int
+1 error

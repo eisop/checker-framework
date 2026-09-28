@@ -13,7 +13,7 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -114,10 +114,10 @@ public class OffsetEquation {
             return String.valueOf(intValue);
         }
         List<String> sortedAdds = new ArrayList<>(addedTerms);
-        Collections.sort(sortedAdds);
+        sortedAdds.sort(Comparator.naturalOrder());
 
         List<String> sortedSubs = new ArrayList<>(subtractedTerms);
-        Collections.sort(sortedSubs);
+        sortedSubs.sort(Comparator.naturalOrder());
 
         String adds = String.join(" + ", sortedAdds);
         String minus = String.join(" - ", sortedSubs);

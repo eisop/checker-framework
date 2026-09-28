@@ -179,6 +179,9 @@ public class ObjectCreationNode extends Node {
     @Override
     @Pure
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ObjectCreationNode)) {
             return false;
         }

@@ -258,7 +258,7 @@ This means any unannotated use of \<MyClass> is treated as \<@B MyClass> by the 
 Similarly, the meta-annotation \refqualclass{framework/qual}{DefaultFor} can be used to specify defaults
 for uses of types, using the \<types> element, or type kinds, using the \<typeKinds> elements.
 
-Interaction between qualifier bounds and \<DefaultQualifierForUse>:
+Interaction between qualifier bounds and \<@DefaultQualifierForUse>:
 \begin{itemize}
 \item
   If a type declaration is annotated with a qualifier bound, but not a \<@DefaultQualifierForUse>,
@@ -322,9 +322,22 @@ You may write multiple
 
 If \code{@DefaultQualifier}[\code{s}] is placed on a package (via the
 \<package-info.java> file), then it applies to the given package \emph{and}
-all subpackages.
+all subpackages.  To limit a default to the package it is written on, set
+the \<applyToSubpackages> element to false, as in
+\<@DefaultQualifier(value = NonNull.class, applyToSubpackages = false)>.
 % This is slightly at odds with Java's treatment of packages of different
 % names as essentially unrelated, but is more intuitive and useful.
+
+Locations specified in \refqualclass{framework/qual}{DefaultQualifier} must be
+permitted by the qualifier's \refqualclass{framework/qual}{TargetLocations}
+meta-annotation.  If \code{@DefaultQualifier} specifies a location prohibited
+by the qualifier's \code{@TargetLocations} (or if \code{locations} is omitted
+and the qualifier cannot be applied to all locations), the Checker Framework
+issues a compile-time error.  For example, bottom qualifiers typically
+restrict their target locations to lower and upper bounds (preventing
+programmers from writing them explicitly on parameters, return types, or
+fields); therefore, attempting to set a bottom qualifier as a default on
+those locations via \code{@DefaultQualifier} is an error.
 
 
 %% Don't even bother to bring this up; it will just sow confusion without
@@ -601,8 +614,12 @@ If the checker was not run during the compiler execution that created the
 that the programmer wrote explicitly.  (Furthermore, there is no guarantee
 that these qualifiers are correct, since they have not been checked.)
 In this case, each checker decides what qualifier to use for the
-locations where the programmer did not write an annotation.  Unless otherwise noted, the
-choice is:
+locations where the programmer did not write an annotation.  (However, if the
+class or its package carries an applicable
+\refqualclass{framework/qual}{AnnotatedFor} annotation in bytecode, the code is
+treated as checked code and ordinary defaults apply instead; see
+Section~\ref{AuseConservativeDefaultsForUncheckedCodesource}.)  Unless otherwise
+noted, the choice is:
 
 \begin{itemize}
 \item
@@ -631,6 +648,29 @@ in a classfile would be interpreted as
 \begin{Verbatim}
   @Top String concatenate(@Bottom String p1, @Bottom String p2)
 \end{Verbatim}
+
+Alternatively, the \<-AusePermissiveDefaultsForUncheckedCode=bytecode> option applies
+permissive defaults to unchecked bytecode.  Method parameters and upper bounds default to top;
+method returns, fields, and lower bounds default to bottom.  For example, the method above is
+interpreted as:
+
+\begin{Verbatim}
+  @Bottom String concatenate(@Top String p1, @Top String p2)
+\end{Verbatim}
+
+Permissive defaults reduce false positives but are unsound: they trust unchecked code to accept
+all inputs and return values satisfying every requirement.  When enabled for source code,
+they suppress warnings in unannotated code, like conservative defaults.  A kind of code
+(\code{source} or \code{bytecode}) cannot use both permissive and conservative defaults.
+
+Fields are the one location where neither choice is right, because a single default
+cannot suit both reads and writes.  The conservative top qualifier accepts every write
+to an unannotated field but reports its reads; the permissive bottom qualifier accepts
+every read but reports writes, so \<u.field = x> is rejected unless \<x> itself has the
+bottom qualifier.  Serving both would require defaulting a field differently for reads
+and for writes, which the Checker Framework does not yet do (see the discussion below).
+Until then, annotate the field (see Chapter~\ref{annotating-libraries}) or suppress the
+warning (see Chapter~\ref{suppressing-warnings}).
 
 There is no single possible default that is sound for fields.  In the rare
 circumstance that there is a mutable public field in an unannotated
@@ -1035,7 +1075,7 @@ Calling a method twice might have different results, so facts known about
 one call cannot be relied upon at another call.
 The \refqualclass{dataflow/qual}{Deterministic} annotation indicates that
 the method returns the same result every time it is called on the same
-arguments.
+arguments and in the same environment.
 
 \refqualclass{dataflow/qual}{Pure} means both
 \refqualclass{dataflow/qual}{SideEffectFree} and
@@ -1159,10 +1199,20 @@ declaration of \code{getField}.  The Nullness Checker cannot assume that
 that it returned non-null on the first call.
 
 To indicate that a method returns the same value each time it is called on
-the same arguments, use the \refqualclass{dataflow/qual}{Deterministic} annotation.
+the same arguments and in the same environment, use the
+\refqualclass{dataflow/qual}{Deterministic} annotation.
 Actually, it is necessary to use \refqualclass{dataflow/qual}{Pure} which
-means both \<@Deterministic> and \<@SideEffectFree>, because otherwise the
-first call might change a value that the method depends on.
+means both \<@Deterministic> and \<@SideEffectFree>, because determinism
+alone does not prevent a method from modifying the heap (or having an
+intervening method do so), which may cause subsequent calls to return a
+different value.
+
+(Currently, the Checker Framework optimistically assumes that repeated invocations
+of any \<@Deterministic> method return the same value even if the method is not
+\<@SideEffectFree>. This assumption is sound only when purity checking is enabled
+via \<-AcheckPurityAnnotations>, because purity checking forbids side effects in
+\<@Deterministic> methods. Therefore, do not write \<@Deterministic> on a method
+that has side effects; write \<@Pure> instead.)
 
 If you change the declaration of \code{getField} to
 
@@ -1192,18 +1242,34 @@ enabled or disabled via the \<-ea>, \<-enableassertions>, \<-da>, or
 \<-disableassertions> command-line options to \<java>.
 
 By default, the Checker Framework outputs warnings about any error that
-could happen at run time, whether assertions are enabled or disabled.
+could happen at run time, whether assertions are enabled or disabled.  The
+\<-AassumeAssertions> command-line option states what to assume instead.  It
+takes one of three values:
 
-If you supply the \<-AassumeAssertionsAreEnabled> command-line option, then
-the Checker Framework assumes assertions (that is, Java \<assert>
-statements) are enabled, as if Java is run with the \<-ea> or
-\<-enableassertions> command-line argument.  If you supply the
-\<-AassumeAssertionsAreDisabled> command-line option, then the Checker
-Framework assumes assertions are disabled, as if Java is run with the
-\<-da> or \<-disableassertions> command-line argument.  You may not supply
-both command-line options.  It is uncommon to supply either one.
+\begin{itemize}
+  \item
+  \<-AassumeAssertions=enabled> assumes that assertions (that is, Java
+  \<assert> statements) are enabled, as if Java is run with the \<-ea> or
+  \<-enableassertions> command-line argument.
+  \item
+  \<-AassumeAssertions=disabled> assumes that assertions are disabled, as if
+  Java is run with the \<-da> or \<-disableassertions> command-line argument.
+  \item
+  \<-AassumeAssertions=neither> makes neither assumption.  It accounts for
+  both possibilities, warning about any error that could happen under either
+  one.  This is the default, so supplying \<-AassumeAssertions=neither> is
+  equivalent to supplying no \<-AassumeAssertions> option at all.
+\end{itemize}
 
-These command-line arguments have no effect on processing of \<assert>
+\noindent
+It is uncommon to supply the option.
+
+The \<-AassumeAssertionsAreEnabled> and \<-AassumeAssertionsAreDisabled>
+command-line options are deprecated in favor of \<-AassumeAssertions=enabled>
+and \<-AassumeAssertions=disabled>.  Each is still honored, but supplying one
+issues a warning, and they will be removed in a future release.
+
+This command-line option has no effect on processing of \<assert>
 statements whose message contains the text \<@AssumeAssertion>; see
 Section~\ref{assumeassertion}.
 
@@ -1644,11 +1710,12 @@ class @Marsupial-Animal {
 % LocalWords:  getPouchSize TerminatesExecution myvar myField getField m1
 % LocalWords:  computeValue arg myInt Anno Im InheritedAnnotation package2
 % LocalWords:  AcheckPurityAnnotations AassumeSideEffectFree iMplicit m2
-% LocalWords:  AassumeAssertionsAreEnabled myArray vals propkey forName
+% LocalWords:  AassumeAssertions myArray vals propkey forName
+% LocalWords:  AassumeAssertionsAreEnabled AassumeAssertionsAreDisabled
 % LocalWords:  fenum i18n RequiresQualifier EnsuresQualifier ClassName
 % LocalWords:  EnsuresQualifierIf AsuppressWarnings AinvariantArrays asts
 % LocalWords:  formatter ocals nstanceof plicit ounds wildcard's da
-% LocalWords:  wildcards guieffect AassumeAssertionsAreDisabled readLine
+% LocalWords:  wildcards guieffect readLine
 % LocalWords:  AssumeAssertion AsafeDefaultsForUnannotatedBytecode
 % LocalWords:  I18nFormatFor AunsafeDefaultsForUnannotatedBytecode
 % LocalWords:  AuseConservativeDefaultsForUncheckedCode DefaultFor TypeUseLocation
@@ -1658,4 +1725,4 @@ class @Marsupial-Animal {
 % LocalWords:  Signedness MonotonicNonNull UpperBoundFor enableassertions
 % LocalWords:  getTypeDeclarationBounds identityHashCode disableassertions
 % LocalWords:  AinvocationPreservesArgumentNullness RequiresPresent
-% LocalWords:  EnsuresPresent EnsuresPresentIf
+% LocalWords:  EnsuresPresent EnsuresPresentIf TargetLocations

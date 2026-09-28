@@ -1,0 +1,2 @@
+- compiler.warn.proc.messager: The -AassumeAssertionsAreEnabled option is deprecated and will be removed; it is treated as -AassumeAssertions=enabled.
+1 warning

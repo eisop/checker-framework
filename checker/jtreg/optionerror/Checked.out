@@ -1,0 +1,4 @@
+BadOptionArgument.java:22:34: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @Tainted String
+required: @Untainted String
+1 error

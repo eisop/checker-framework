@@ -46,20 +46,24 @@ abstract class IndexedElementAnnotationApplier extends TargetedElementAnnotation
 
         int paramIndex = getElementIndex();
 
-        // filter out annotations in targeted that don't have the correct parameter index. (i.e the
-        // one's that are on the same method but don't pertain to the parameter element being
-        // processed, see class comments ).  Place these annotations into the valid list.
-        int i = 0;
-        while (i < targeted.size()) {
+        // Filter out annotations in targeted that don't have the correct parameter index (i.e.
+        // the ones that are on the same method but don't pertain to the parameter element being
+        // processed, see class comments). Place these annotations into the valid list.
+        // Single-pass partition: rebuild `targeted` in place to avoid O(n^2) ArrayList.remove(i).
+        int writeIdx = 0;
+        for (int i = 0, n = targeted.size(); i < n; ++i) {
             Attribute.TypeCompound target = targeted.get(i);
             // Annotations on parameters to record constructors are marked as fields so
             // getTypeCompoundIndex does not return paramIndex.
             if (target.position.type != TargetType.FIELD
                     && getTypeCompoundIndex(target) != paramIndex) {
-                valid.add(targeted.remove(i));
+                valid.add(target);
             } else {
-                ++i;
+                targeted.set(writeIdx++, target);
             }
+        }
+        if (writeIdx < targeted.size()) {
+            targeted.subList(writeIdx, targeted.size()).clear();
         }
 
         return targetClassToAnnos;

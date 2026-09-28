@@ -73,4 +73,14 @@ public class AnnotatedForNullness {
         annotatedForNullness(initializedField);
         annotatedForNullnessAndInitialization(initializedField);
     }
+
+    // @SuppressWarnings("nullness") should suppress all nullness diagnostics within the annotated
+    // declaration's scope, including those in nested @AnnotatedFor("nullness") scopes.
+    @SuppressWarnings("nullness")
+    class SuppressWarningsClassWithAnnotatedForMethod {
+        @AnnotatedFor("nullness")
+        @NonNull Object m() {
+            return null;
+        }
+    }
 }

@@ -14,14 +14,15 @@ import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
+import org.checkerframework.framework.qual.ProgrammaticDefaultLocations;
+import org.checkerframework.framework.qual.TargetLocations;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNoType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
@@ -34,17 +35,17 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -56,6 +57,7 @@ import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.Elements;
+import javax.tools.Diagnostic;
 
 /**
  * Determines the default qualifiers on a type. Default qualifiers are specified via the {@link
@@ -92,37 +94,128 @@ public class QualifierDefaults {
     /** The locations() element/field of a @DefaultQualifier annotation. */
     protected final ExecutableElement defaultQualifierLocationsElement;
 
-    /** The applyToSubpackages() element/field of a @DefaultQualifier annotation. */
-    protected final ExecutableElement defaultQualifierApplyToSubpackagesElement;
-
-    /** The value() element/field of a @DefaultQualifier.List annotation. */
-    protected final ExecutableElement defaultQualifierListValueElement;
+    /**
+     * The applyToSubpackages() element/field of a @DefaultQualifier annotation. Null if the version
+     * of {@code @DefaultQualifier} on the classpath predates this element.
+     */
+    protected final @Nullable ExecutableElement defaultQualifierApplyToSubpackagesElement;
 
     /** AnnotatedTypeFactory to use. */
     private final AnnotatedTypeFactory atypeFactory;
 
+    /**
+     * Whether {@code -AwarnBytecodeConflicts} was supplied. It makes a conflict among the
+     * {@code @DefaultQualifier} annotations on an element read from bytecode a warning; without it
+     * such a conflict is silent, since the declaration is not one the user can edit and the set of
+     * bytecode elements examined depends on what this compilation happens to touch.
+     */
+    private final boolean warnBytecodeConflicts;
+
     /** Defaults for checked code. */
     private final DefaultSet checkedCodeDefaults = new DefaultSet();
 
-    /** Defaults for unchecked code. */
-    private final DefaultSet uncheckedCodeDefaults = new DefaultSet();
+    /** Conservative defaults for unchecked code. */
+    private final DefaultSet conservativeUncheckedCodeDefaults = new DefaultSet();
 
-    /** Size for caches. */
-    private static final int CACHE_SIZE = 300;
-
-    /** Mapping from an Element to the bound type. */
-    protected final Map<Element, BoundType> elementToBoundType =
-            CollectionsPlume.createLruCache(CACHE_SIZE);
+    /** Permissive defaults for unchecked code. */
+    private final DefaultSet permissiveUncheckedCodeDefaults = new DefaultSet();
 
     /**
-     * Defaults that apply for a certain Element. On the one hand this is used for caching (an
-     * earlier name for the field was "qualifierCache"). It can also be used by type systems to set
-     * defaults for certain Elements.
+     * Which set of unchecked-code defaults to fold in behind a scope's own defaults. A null mode
+     * means checked code, for which only the checked-code defaults apply. At most one of these sets
+     * applies to any element.
      */
+    private enum UncheckedDefaultsMode {
+        /** Unchecked code, defaulted conservatively. */
+        CONSERVATIVE,
+        /** Unchecked code, defaulted permissively. */
+        PERMISSIVE
+    }
+
+    /**
+     * Cached fused default list for the common case of an empty scope {@link DefaultSet}, checked
+     * code (non-conservative). Lazily built by {@link #fusedDefaultsFor}; reset to {@code null}
+     * whenever a default changes.
+     */
+    private @Nullable List<Default> fusedEmptyChecked = null;
+
+    /**
+     * Cached fused default list for the common case of an empty scope {@link DefaultSet},
+     * conservative (unchecked + checked code defaults). Lazily built; reset whenever a default
+     * changes.
+     */
+    private @Nullable List<Default> fusedEmptyConservative = null;
+
+    /**
+     * Cached fused default list for the common case of an empty scope {@link DefaultSet},
+     * permissive (unchecked + checked code defaults). Lazily built; reset whenever a default
+     * changes.
+     */
+    private @Nullable List<Default> fusedEmptyPermissive = null;
+
+    /**
+     * Memoized fused default lists for non-empty scope {@link DefaultSet}s, checked code
+     * (non-conservative), keyed by {@code DefaultSet} identity. See {@link #fusedDefaultsFor}.
+     */
+    private final IdentityHashMap<DefaultSet, List<Default>> fusedCheckedCache =
+            new IdentityHashMap<>();
+
+    /**
+     * Memoized fused default lists for non-empty scope {@link DefaultSet}s, conservative, keyed by
+     * {@code DefaultSet} identity. See {@link #fusedDefaultsFor}.
+     */
+    private final IdentityHashMap<DefaultSet, List<Default>> fusedConservativeCache =
+            new IdentityHashMap<>();
+
+    /**
+     * Memoized fused default lists for non-empty scope {@link DefaultSet}s, permissive, keyed by
+     * {@code DefaultSet} identity. See {@link #fusedDefaultsFor}.
+     */
+    private final IdentityHashMap<DefaultSet, List<Default>> fusedPermissiveCache =
+            new IdentityHashMap<>();
+
+    /**
+     * Whether any of the six fused-default caches above currently holds an entry. Set when {@link
+     * #fusedDefaultsFor} populates a cache (phase 2), cleared by {@link #invalidateFusedDefaults}.
+     * Lets default registration (phase 1) skip invalidation entirely.
+     */
+    private boolean fusedDefaultsCached = false;
+
+    /** Mapping from an Element to the bound type. */
+    protected final IdentityHashMap<Element, BoundType> elementToBoundType =
+            new IdentityHashMap<>();
+
+    /** Memoization cache for {@link #defaultsAt(Element)}. */
     private final IdentityHashMap<Element, DefaultSet> elementDefaults = new IdentityHashMap<>();
 
-    /** A mapping of Element &rarr; Whether or not that element is AnnotatedFor this type system. */
-    private final IdentityHashMap<Element, Boolean> elementAnnotatedFors = new IdentityHashMap<>();
+    /**
+     * For a package, the defaults it makes available to its own subpackages. This is not {@link
+     * #elementDefaults} filtered by {@code applyToSubpackages}; see {@link #propagatingDefaultsAt},
+     * which computes and caches this and explains why.
+     */
+    private final IdentityHashMap<PackageElement, DefaultSet> packagePropagatingDefaults =
+            new IdentityHashMap<>();
+
+    /**
+     * Defaults added via {@link #addElementDefault}, tracked separately from the {@link
+     * #elementDefaults} memoization cache so that {@link #defaultsAtDirect} can treat a
+     * programmatically-added default as part of an element's own direct contribution -- the same
+     * way it treats a written {@code @DefaultQualifier} -- rather than it being visible only
+     * through {@link #elementDefaults}, which {@link #propagatingDefaultsAt} does not consult (see
+     * that method). Without this, a default added on a package would apply to that package's own
+     * elements but silently fail to reach any of its subpackages, and adding a default on any
+     * element would bypass written annotations and parent defaults.
+     */
+    private final IdentityHashMap<Element, DefaultSet> programmaticElementDefaults =
+            new IdentityHashMap<>();
+
+    /**
+     * For each element, the defaults for which {@link #reportConflictingWrittenDefaults} has
+     * already issued a {@code conflicting.defaults} error. Keeps a conflict from being reported
+     * more than once; see that method.
+     */
+    private final IdentityHashMap<Element, DefaultSet> reportedConflictingDefaults =
+            new IdentityHashMap<>();
 
     /** CLIMB locations whose standard default is top for a given type system. */
     public static final List<TypeUseLocation> STANDARD_CLIMB_DEFAULTS_TOP =
@@ -150,21 +243,56 @@ public class QualifierDefaults {
                             TypeUseLocation.OTHERWISE,
                             TypeUseLocation.ALL));
 
-    /** Standard unchecked default locations that should be top. */
+    /** Conservative unchecked default locations that should be top. */
     // Fields are defaulted to top so that warnings are issued at field reads, which we believe are
     // more common than field writes. Future work is to specify different defaults for field reads
     // and field writes.  (When a field is written to, its type should be bottom.)
-    public static final List<TypeUseLocation> STANDARD_UNCHECKED_DEFAULTS_TOP =
+    // This is the root cause of https://github.com/eisop/checker-framework/issues/1358 : because
+    // TypeUseLocation.FIELD does not distinguish reads from writes, a field write under
+    // conservative defaults is unsoundly checked against the same (read-oriented) top default as a
+    // field read, instead of requiring the bottom qualifier.
+    // GenericAnnotatedTypeFactory#isComputingAnnotatedTypeMirrorOfLhs() is reachable while
+    // defaulting a field write (getAnnotatedTypeLhs disables caching, so defaults are reapplied),
+    // but a sound fix needs a separate write-variant of the unchecked FIELD default rather than
+    // flipping any top FIELD default to bottom: an explicit @DefaultQualifier(locations=FIELD) must
+    // still apply to writes. See the issue for discussion.
+    public static final List<TypeUseLocation> CONSERVATIVE_UNCHECKED_DEFAULTS_TOP =
             Collections.unmodifiableList(
                     Arrays.asList(
                             TypeUseLocation.RETURN,
                             TypeUseLocation.FIELD,
                             TypeUseLocation.UPPER_BOUND));
 
-    /** Standard unchecked default locations that should be bottom. */
-    public static final List<TypeUseLocation> STANDARD_UNCHECKED_DEFAULTS_BOTTOM =
+    /** Conservative unchecked default locations that should be bottom. */
+    public static final List<TypeUseLocation> CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM =
             Collections.unmodifiableList(
                     Arrays.asList(TypeUseLocation.PARAMETER, TypeUseLocation.LOWER_BOUND));
+
+    /**
+     * Permissive unchecked default locations that should be top. These are the mirror image of
+     * {@link #CONSERVATIVE_UNCHECKED_DEFAULTS_TOP}: a call into unchecked code may pass anything,
+     * so its parameters are assumed to accept anything.
+     */
+    public static final List<TypeUseLocation> PERMISSIVE_UNCHECKED_DEFAULTS_TOP =
+            Collections.unmodifiableList(
+                    Arrays.asList(TypeUseLocation.PARAMETER, TypeUseLocation.UPPER_BOUND));
+
+    /**
+     * Permissive unchecked default locations that should be bottom. A value obtained from unchecked
+     * code is assumed to satisfy any requirement, so no error is issued at its use.
+     */
+    public static final List<TypeUseLocation> PERMISSIVE_UNCHECKED_DEFAULTS_BOTTOM =
+            Collections.unmodifiableList(
+                    Arrays.asList(
+                            TypeUseLocation.RETURN,
+                            TypeUseLocation.FIELD,
+                            TypeUseLocation.LOWER_BOUND));
+
+    /** True if permissive defaults should be used in unannotated source code. */
+    private final boolean usePermissiveDefaultsSource;
+
+    /** True if permissive defaults should be used for unannotated bytecode. */
+    private final boolean usePermissiveDefaultsBytecode;
 
     /** True if conservative defaults should be used in unannotated source code. */
     private final boolean useConservativeDefaultsSource;
@@ -188,19 +316,32 @@ public class QualifierDefaults {
     public QualifierDefaults(Elements elements, AnnotatedTypeFactory atypeFactory) {
         this.elements = elements;
         this.atypeFactory = atypeFactory;
+        this.warnBytecodeConflicts = atypeFactory.getChecker().hasOption("warnBytecodeConflicts");
         this.useConservativeDefaultsBytecode =
                 atypeFactory.getChecker().useConservativeDefault("bytecode");
         this.useConservativeDefaultsSource =
                 atypeFactory.getChecker().useConservativeDefault("source");
+        this.usePermissiveDefaultsSource = atypeFactory.getChecker().usePermissiveDefault("source");
+        this.usePermissiveDefaultsBytecode =
+                atypeFactory.getChecker().usePermissiveDefault("bytecode");
         ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         this.defaultQualifierValueElement =
                 TreeUtils.getMethod(DefaultQualifier.class, "value", 0, processingEnv);
         this.defaultQualifierLocationsElement =
                 TreeUtils.getMethod(DefaultQualifier.class, "locations", 0, processingEnv);
         this.defaultQualifierApplyToSubpackagesElement =
-                TreeUtils.getMethod(DefaultQualifier.class, "applyToSubpackages", 0, processingEnv);
-        this.defaultQualifierListValueElement =
-                TreeUtils.getMethod(DefaultQualifier.List.class, "value", 0, processingEnv);
+                TreeUtils.getMethodOrNull(
+                        DefaultQualifier.class, "applyToSubpackages", 0, processingEnv);
+        if (this.defaultQualifierApplyToSubpackagesElement == null) {
+            atypeFactory
+                    .getChecker()
+                    .message(
+                            Diagnostic.Kind.NOTE,
+                            "The @DefaultQualifier annotation on the classpath does not define the"
+                                    + " applyToSubpackages element; package defaults will apply to"
+                                    + " subpackages. Use the EISOP checker-qual artifact to control this"
+                                    + " behavior.");
+        }
     }
 
     @Override
@@ -209,10 +350,14 @@ public class QualifierDefaults {
         return StringsPlume.joinLines(
                 "Checked code defaults: ",
                 StringsPlume.joinLines(checkedCodeDefaults),
-                "Unchecked code defaults: ",
-                StringsPlume.joinLines(uncheckedCodeDefaults),
+                "Conservative unchecked code defaults: ",
+                StringsPlume.joinLines(conservativeUncheckedCodeDefaults),
+                "Permissive unchecked code defaults: ",
+                StringsPlume.joinLines(permissiveUncheckedCodeDefaults),
                 "useConservativeDefaultsSource: " + useConservativeDefaultsSource,
-                "useConservativeDefaultsBytecode: " + useConservativeDefaultsBytecode);
+                "useConservativeDefaultsBytecode: " + useConservativeDefaultsBytecode,
+                "usePermissiveDefaultsSource: " + usePermissiveDefaultsSource,
+                "usePermissiveDefaultsBytecode: " + usePermissiveDefaultsBytecode);
     }
 
     /**
@@ -229,29 +374,198 @@ public class QualifierDefaults {
         return false;
     }
 
-    /** Add standard unchecked defaults that do not conflict with previously added defaults. */
+    /**
+     * Returns the unchecked-code defaults for a mode.
+     *
+     * @param mode the unchecked defaulting mode
+     * @return the mode's unchecked-code defaults
+     */
+    private DefaultSet defaultsFor(UncheckedDefaultsMode mode) {
+        switch (mode) {
+            case CONSERVATIVE:
+                return conservativeUncheckedCodeDefaults;
+            case PERMISSIVE:
+                return permissiveUncheckedCodeDefaults;
+        }
+        throw new BugInCF("Unhandled unchecked defaults mode: " + mode);
+    }
+
+    /**
+     * Adds the defaults for unchecked code of each mode the command-line options enable: {@link
+     * #addConservativeDefaultsForUncheckedCode} and {@link #addPermissiveDefaultsForUncheckedCode}.
+     */
     public void addUncheckedStandardDefaults() {
+        if (useConservativeDefaultsSource || useConservativeDefaultsBytecode) {
+            addConservativeDefaultsForUncheckedCode();
+        }
+        if (usePermissiveDefaultsSource || usePermissiveDefaultsBytecode) {
+            addPermissiveDefaultsForUncheckedCode();
+        }
+    }
+
+    /**
+     * Adds the conservative defaults for unchecked code, which {@code
+     * -AuseConservativeDefaultsForUncheckedCode} (e.g., with {@code source} or {@code bytecode})
+     * enables: the top qualifier at {@link #CONSERVATIVE_UNCHECKED_DEFAULTS_TOP} and the bottom
+     * qualifier at {@link #CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM}, at each location the checker
+     * has not already given a conservative default. To add a checker-specific default instead, use
+     * {@link #addConservativeUncheckedCodeDefault}.
+     */
+    public void addConservativeDefaultsForUncheckedCode() {
+        addDefaultsForUncheckedCode(
+                UncheckedDefaultsMode.CONSERVATIVE,
+                CONSERVATIVE_UNCHECKED_DEFAULTS_TOP,
+                CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM);
+    }
+
+    /**
+     * Adds the permissive defaults for unchecked code, which {@code
+     * -AusePermissiveDefaultsForUncheckedCode} (e.g., with {@code source} or {@code bytecode})
+     * enables: the top qualifier at {@link #PERMISSIVE_UNCHECKED_DEFAULTS_TOP} and the bottom
+     * qualifier at {@link #PERMISSIVE_UNCHECKED_DEFAULTS_BOTTOM}, at each location the checker has
+     * not already given a permissive default. To add a checker-specific default instead, use {@link
+     * #addPermissiveUncheckedCodeDefault}.
+     */
+    public void addPermissiveDefaultsForUncheckedCode() {
+        addDefaultsForUncheckedCode(
+                UncheckedDefaultsMode.PERMISSIVE,
+                PERMISSIVE_UNCHECKED_DEFAULTS_TOP,
+                PERMISSIVE_UNCHECKED_DEFAULTS_BOTTOM);
+    }
+
+    /**
+     * Adds a mode's defaults for unchecked code: the top qualifiers at {@code topLocations} and the
+     * bottom qualifiers at {@code bottomLocations}.
+     *
+     * @param mode the unchecked defaulting mode
+     * @param topLocations locations that should default to top
+     * @param bottomLocations locations that should default to bottom
+     */
+    private void addDefaultsForUncheckedCode(
+            UncheckedDefaultsMode mode,
+            List<TypeUseLocation> topLocations,
+            List<TypeUseLocation> bottomLocations) {
         QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
-        AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
-        AnnotationMirrorSet bottoms = qualHierarchy.getBottomAnnotations();
+        addDefaultsForUncheckedCodeAtLocations(
+                mode, qualHierarchy.getTopAnnotations(), topLocations);
+        addDefaultsForUncheckedCodeAtLocations(
+                mode, qualHierarchy.getBottomAnnotations(), bottomLocations);
+    }
 
-        for (TypeUseLocation loc : STANDARD_UNCHECKED_DEFAULTS_TOP) {
-            // Only add standard defaults in locations where a default has not be specified.
-            for (AnnotationMirror top : tops) {
-                if (!conflictsWithExistingDefaults(uncheckedCodeDefaults, top, loc)) {
-                    addUncheckedCodeDefault(top, loc);
+    /**
+     * Adds a mode's default for unchecked code for each of the given qualifiers at each of the
+     * given locations. Skips a location that already has a default in the qualifier's hierarchy and
+     * a location that the qualifier's {@link TargetLocations} or {@link
+     * ProgrammaticDefaultLocations} forbids.
+     *
+     * @param mode the unchecked defaulting mode
+     * @param qualifiers qualifiers to add as defaults
+     * @param locations locations for the defaults
+     */
+    private void addDefaultsForUncheckedCodeAtLocations(
+            UncheckedDefaultsMode mode,
+            AnnotationMirrorSet qualifiers,
+            List<TypeUseLocation> locations) {
+        DefaultSet defaults = defaultsFor(mode);
+        for (TypeUseLocation location : locations) {
+            for (AnnotationMirror qualifier : qualifiers) {
+                if (!permittedAtProgrammaticLocation(qualifier, location)) {
+                    continue;
                 }
+                if (conflictsWithExistingDefaults(defaults, qualifier, location)) {
+                    continue;
+                }
+                addUncheckedCodeDefault(mode, qualifier, location, true);
             }
         }
+    }
 
-        for (TypeUseLocation loc : STANDARD_UNCHECKED_DEFAULTS_BOTTOM) {
-            for (AnnotationMirror bottom : bottoms) {
-                // Only add standard defaults in locations where a default has not be specified.
-                if (!conflictsWithExistingDefaults(uncheckedCodeDefaults, bottom, loc)) {
-                    addUncheckedCodeDefault(bottom, loc);
-                }
+    /**
+     * Does {@code anno}'s {@link TargetLocations} meta-annotation permit it at {@code location}?
+     *
+     * <p>A qualifier can restrict where it may be written via {@link TargetLocations}. Defaulting a
+     * qualifier onto a prohibited location causes type validation errors on code the user did not
+     * write.
+     *
+     * @param anno a qualifier
+     * @param location a type use location
+     * @return true if {@code anno} may be applied at {@code location}
+     */
+    public boolean permittedAtLocation(AnnotationMirror anno, TypeUseLocation location) {
+        Element qualElt = anno.getAnnotationType().asElement();
+        TargetLocations targetLocations = qualElt.getAnnotation(TargetLocations.class);
+        // No @TargetLocations means the qualifier may be written on any type use.
+        if (targetLocations == null) {
+            return true;
+        }
+        return matchesTargetLocations(targetLocations.value(), location);
+    }
+
+    /**
+     * Returns true if {@code anno} may be applied at {@code location} as a programmatic default
+     * (e.g., via {@link #addCheckedCodeDefault}, {@link #addUncheckedCodeDefault}, or {@link
+     * #addElementDefault}).
+     *
+     * <p>If {@code anno} carries a {@link ProgrammaticDefaultLocations} meta-annotation, its
+     * locations are checked. Otherwise, falls back to {@link #permittedAtLocation(AnnotationMirror,
+     * TypeUseLocation)}.
+     *
+     * <p>A qualifier may explicitly specify its allowed programmatic default locations via {@link
+     * ProgrammaticDefaultLocations}. If omitted, top and bottom qualifiers in the qualifier
+     * hierarchy are permitted at all locations for programmatic defaults (as the canonical bounds
+     * of the lattice), while other qualifiers fall back to {@link #permittedAtLocation}.
+     *
+     * @param anno the annotation mirror to check
+     * @param location the location
+     * @return true if {@code anno} may be used as a programmatic default at {@code location}
+     */
+    public boolean permittedAtProgrammaticLocation(
+            AnnotationMirror anno, TypeUseLocation location) {
+        Element qualElt = anno.getAnnotationType().asElement();
+        ProgrammaticDefaultLocations progLocations =
+                qualElt.getAnnotation(ProgrammaticDefaultLocations.class);
+        if (progLocations != null) {
+            return matchesTargetLocations(progLocations.value(), location);
+        }
+        QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
+        if (qualHierarchy != null && (qualHierarchy.isTop(anno) || qualHierarchy.isBottom(anno))) {
+            return true;
+        }
+        return permittedAtLocation(anno, location);
+    }
+
+    /**
+     * Returns true if {@code location} matches any of {@code permittedLocations}, taking into
+     * account location hierarchies (such as UPPER_BOUND and LOWER_BOUND).
+     *
+     * @param permittedLocations the permitted locations
+     * @param location the location to test
+     * @return true if permitted
+     */
+    private boolean matchesTargetLocations(
+            TypeUseLocation[] permittedLocations, TypeUseLocation location) {
+        for (TypeUseLocation permitted : permittedLocations) {
+            if (permitted == location || permitted == TypeUseLocation.ALL) {
+                return true;
+            }
+            if (permitted == TypeUseLocation.UPPER_BOUND
+                    && (location == TypeUseLocation.EXPLICIT_UPPER_BOUND
+                            || location == TypeUseLocation.IMPLICIT_UPPER_BOUND
+                            || location == TypeUseLocation.EXPLICIT_TYPE_PARAMETER_UPPER_BOUND
+                            || location == TypeUseLocation.IMPLICIT_TYPE_PARAMETER_UPPER_BOUND
+                            || location == TypeUseLocation.EXPLICIT_WILDCARD_UPPER_BOUND
+                            || location == TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND
+                            || location == TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND_NO_SUPER
+                            || location == TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND_SUPER)) {
+                return true;
+            }
+            if (permitted == TypeUseLocation.LOWER_BOUND
+                    && (location == TypeUseLocation.EXPLICIT_LOWER_BOUND
+                            || location == TypeUseLocation.IMPLICIT_LOWER_BOUND)) {
+                return true;
             }
         }
+        return false;
     }
 
     /** Add standard CLIMB defaults that do not conflict with previously added defaults. */
@@ -293,8 +607,14 @@ public class QualifierDefaults {
             AnnotationMirror absoluteDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
+        if (!permittedAtProgrammaticLocation(absoluteDefaultAnno, location)) {
+            throw new TypeSystemError(
+                    "The default qualifier %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
+                    absoluteDefaultAnno, location);
+        }
         checkDuplicates(checkedCodeDefaults, absoluteDefaultAnno, location);
         checkedCodeDefaults.add(new Default(absoluteDefaultAnno, location, applyToSubpackages));
+        invalidateFusedDefaults();
     }
 
     /**
@@ -310,42 +630,175 @@ public class QualifierDefaults {
     }
 
     /**
-     * Add a default annotation for unchecked elements.
+     * Add a conservative default annotation for unchecked elements.
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
      * @param applyToSubpackages whether the default should be inherited by subpackages
      */
-    public void addUncheckedCodeDefault(
+    public void addConservativeUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
-        checkDuplicates(uncheckedCodeDefaults, uncheckedDefaultAnno, location);
-        checkIsValidUncheckedCodeLocation(uncheckedDefaultAnno, location);
-
-        uncheckedCodeDefaults.add(new Default(uncheckedDefaultAnno, location, applyToSubpackages));
+        addUncheckedCodeDefault(
+                UncheckedDefaultsMode.CONSERVATIVE,
+                uncheckedDefaultAnno,
+                location,
+                applyToSubpackages);
     }
 
     /**
-     * Add a default annotation for unchecked elements that also applies to subpackages, if
-     * applicable.
+     * Add a conservative default annotation for unchecked elements that also applies to
+     * subpackages, if applicable.
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
      */
-    public void addUncheckedCodeDefault(
+    public void addConservativeUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
-        addUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
     }
 
-    /** Sets the default annotation for unchecked elements, with specific locations. */
-    public void addUncheckedCodeDefaults(
+    /**
+     * Add a permissive default annotation for unchecked elements.
+     *
+     * @param uncheckedDefaultAnno the default annotation mirror
+     * @param location the type use location
+     * @param applyToSubpackages whether the default should be inherited by subpackages
+     */
+    public void addPermissiveUncheckedCodeDefault(
+            AnnotationMirror uncheckedDefaultAnno,
+            TypeUseLocation location,
+            boolean applyToSubpackages) {
+        addUncheckedCodeDefault(
+                UncheckedDefaultsMode.PERMISSIVE,
+                uncheckedDefaultAnno,
+                location,
+                applyToSubpackages);
+    }
+
+    /**
+     * Add a permissive default annotation for unchecked elements that also applies to subpackages,
+     * if applicable.
+     *
+     * @param uncheckedDefaultAnno the default annotation mirror
+     * @param location the type use location
+     */
+    public void addPermissiveUncheckedCodeDefault(
+            AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
+        addPermissiveUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+    }
+
+    /**
+     * Adds an unchecked-code default for a mode.
+     *
+     * @param mode the unchecked defaulting mode
+     * @param uncheckedDefaultAnno the default annotation mirror
+     * @param location the type use location
+     * @param applyToSubpackages whether the default should be inherited by subpackages
+     */
+    private void addUncheckedCodeDefault(
+            UncheckedDefaultsMode mode,
+            AnnotationMirror uncheckedDefaultAnno,
+            TypeUseLocation location,
+            boolean applyToSubpackages) {
+        if (!permittedAtProgrammaticLocation(uncheckedDefaultAnno, location)) {
+            throw new TypeSystemError(
+                    "The unchecked code default qualifier %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
+                    uncheckedDefaultAnno, location);
+        }
+        DefaultSet defaults = defaultsFor(mode);
+        checkDuplicates(defaults, uncheckedDefaultAnno, location);
+        checkIsValidUncheckedCodeLocation(uncheckedDefaultAnno, location);
+        defaults.add(new Default(uncheckedDefaultAnno, location, applyToSubpackages));
+        invalidateFusedDefaults();
+    }
+
+    /**
+     * Adds a conservative default annotation for unchecked elements, at each of the given
+     * locations.
+     *
+     * @param absoluteDefaultAnno the default annotation mirror
+     * @param locations the type use locations to apply the default to
+     */
+    public void addConservativeUncheckedCodeDefaults(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
         for (TypeUseLocation location : locations) {
-            addUncheckedCodeDefault(absoluteDefaultAnno, location);
+            addConservativeUncheckedCodeDefault(absoluteDefaultAnno, location);
         }
     }
 
+    /**
+     * Adds a permissive default annotation for unchecked elements, at each of the given locations.
+     *
+     * @param absoluteDefaultAnno the default annotation mirror
+     * @param locations the type use locations to apply the default to
+     */
+    public void addPermissiveUncheckedCodeDefaults(
+            AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
+        for (TypeUseLocation location : locations) {
+            addPermissiveUncheckedCodeDefault(absoluteDefaultAnno, location);
+        }
+    }
+
+    /**
+     * Add an unchecked-code default annotation for unchecked elements that also applies to
+     * subpackages, if applicable.
+     *
+     * @param uncheckedDefaultAnno the default annotation mirror
+     * @param location the type use location
+     * @param applyToSubpackages whether the default should be inherited by subpackages
+     * @deprecated Use {@link #addConservativeUncheckedCodeDefault(AnnotationMirror,
+     *     TypeUseLocation, boolean)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
+     *     TypeUseLocation, boolean)}.
+     */
+    @Deprecated
+    public void addUncheckedCodeDefault(
+            AnnotationMirror uncheckedDefaultAnno,
+            TypeUseLocation location,
+            boolean applyToSubpackages) {
+        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, applyToSubpackages);
+    }
+
+    /**
+     * Add an unchecked-code default annotation for unchecked elements that also applies to
+     * subpackages.
+     *
+     * @param uncheckedDefaultAnno the default annotation mirror
+     * @param location the type use location
+     * @deprecated Use {@link #addConservativeUncheckedCodeDefault(AnnotationMirror,
+     *     TypeUseLocation)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
+     *     TypeUseLocation)}.
+     */
+    @Deprecated
+    public void addUncheckedCodeDefault(
+            AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
+        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+    }
+
+    /**
+     * Adds an unchecked-code default annotation for unchecked elements, at each of the given
+     * locations.
+     *
+     * @param absoluteDefaultAnno the default annotation mirror
+     * @param locations the type use locations to apply the default to
+     * @deprecated Use {@link #addConservativeUncheckedCodeDefaults(AnnotationMirror,
+     *     TypeUseLocation[])} or {@link #addPermissiveUncheckedCodeDefaults(AnnotationMirror,
+     *     TypeUseLocation[])}.
+     */
+    @Deprecated
+    public void addUncheckedCodeDefaults(
+            AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
+        addConservativeUncheckedCodeDefaults(absoluteDefaultAnno, locations);
+    }
+
+    /**
+     * Adds a default annotation, at each of the given locations. A programmer may override it by
+     * writing the @DefaultQualifier annotation on an element.
+     *
+     * @param absoluteDefaultAnno the default annotation mirror
+     * @param locations the type use locations to apply the default to
+     */
     public void addCheckedCodeDefaults(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
         for (TypeUseLocation location : locations) {
@@ -356,33 +809,79 @@ public class QualifierDefaults {
     /**
      * Sets the default annotations for a certain Element.
      *
+     * <p>This default is combined with any written {@code @DefaultQualifier} annotations on the
+     * element and inherits the defaults of enclosing elements, no matter in which order the
+     * defaults of {@code elem}, of its enclosing elements, or of its members were queried while the
+     * type factory was being initialized.
+     *
+     * <p>This is an initialization-time API: it must be called while the type factory is being
+     * created, such as from {@link
+     * org.checkerframework.framework.type.GenericAnnotatedTypeFactory#createQualifierDefaults} or
+     * {@link
+     * org.checkerframework.framework.type.GenericAnnotatedTypeFactory#addCheckedCodeDefaults}.
+     * Calling it after type checking has begun throws a {@link TypeSystemError}, because types that
+     * have already been computed and dataflow results that have already been produced are never
+     * recomputed, and diagnostics that have already been issued cannot be retracted, so the new
+     * default would apply to some of the program and not to the rest of it.
+     *
+     * <p>If the registered default conflicts with a {@code @DefaultQualifier} written on {@code
+     * elem} -- same {@code location} and same qualifier hierarchy, but a different qualifier --
+     * then a {@link TypeSystemError} is thrown later, when {@code elem}'s defaults are computed.
+     * Only one qualifier from a hierarchy can be the default for a location, so a type system must
+     * not register one that contradicts what a user is permitted to write.
+     *
      * @param elem the scope to set the default within
      * @param elementDefaultAnno the default to set
      * @param location the location to apply the default to
-     */
-    /*
-     * TODO(cpovirk): This method looks dangerous for a type system to call early: If it "adds" a
-     * default for an Element before defaultsAt runs for that Element, that looks like it would
-     * prevent any @DefaultQualifier or similar annotation from having any effect (because
-     * defaultsAt would short-circuit after discovering that an entry already exists for the
-     * Element). Maybe this method should run defaultsAt before inserting its own entry? Or maybe
-     * it's too early to run defaultsAt? Or maybe we'd see new problems in existing code because
-     * we'd start running checkDuplicates to look for overlap between the @DefaultQualifier defaults
-     * and addElementDefault defaults?
+     * @throws TypeSystemError if called after type checking has begun
      */
     public void addElementDefault(
             Element elem, AnnotationMirror elementDefaultAnno, TypeUseLocation location) {
-        DefaultSet prevset = elementDefaults.get(elem);
-        if (prevset != null) {
-            checkDuplicates(prevset, elementDefaultAnno, location);
+        if (!permittedAtProgrammaticLocation(elementDefaultAnno, location)) {
+            throw new TypeSystemError(
+                    "The default qualifier %s on %s %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
+                    elementDefaultAnno, elem.getKind(), elem, location);
+        }
+        if (atypeFactory.getRoot() != null) {
+            // getRoot() is null while the type factory is being constructed and initialized
+            // (including while annotation files are parsed) and becomes non-null when the first
+            // compilation unit is handed to AnnotatedTypeFactory#setRoot.
+            throw new TypeSystemError(
+                    "QualifierDefaults.addElementDefault(%s, %s, %s) was called after type"
+                            + " checking began. Programmatic element defaults must be registered"
+                            + " while the type factory is being initialized: already-computed"
+                            + " types and already-computed dataflow results are not recomputed"
+                            + " and already-issued diagnostics cannot be retracted, so a default"
+                            + " added now would apply to only part of the program.",
+                    elem, elementDefaultAnno, location);
+        }
+        DefaultSet progSet = programmaticElementDefaults.get(elem);
+        if (progSet != null) {
+            checkDuplicates(progSet, elementDefaultAnno, location);
         } else {
-            prevset = new DefaultSet();
+            progSet = new DefaultSet();
+            programmaticElementDefaults.put(elem, progSet);
         }
         // TODO: expose applyToSubpackages
-        prevset.add(new Default(elementDefaultAnno, location, true));
-        elementDefaults.put(elem, prevset);
+        Default d = new Default(elementDefaultAnno, location, true);
+        progSet.add(d);
+        // Clear cached element defaults so subsequent queries recompute and merge with written
+        // annotations and enclosing/parent defaults.
+        elementDefaults.clear();
+        if (elem instanceof PackageElement) {
+            // Invalidate cached propagating defaults so subpackage lookups see the new default.
+            packagePropagatingDefaults.clear();
+        }
+        invalidateFusedDefaults();
     }
 
+    /**
+     * Throws {@link BugInCF} if {@code location} is not one of {@link
+     * #validLocationsForUncheckedCodeDefaults}.
+     *
+     * @param uncheckedDefaultAnno the unchecked code default annotation, for the error message
+     * @param location the location to check
+     */
     private void checkIsValidUncheckedCodeLocation(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
         boolean isValidUntypeLocation = false;
@@ -402,6 +901,15 @@ public class QualifierDefaults {
         }
     }
 
+    /**
+     * Throws {@link BugInCF} if making {@code newAnno} the default at {@code newLoc} would conflict
+     * with one of {@code previousDefaults}, as {@link #findConflictingDefault} defines conflict:
+     * only one qualifier from a hierarchy can be the default for a location.
+     *
+     * @param previousDefaults the defaults that {@code newAnno} is about to be added to
+     * @param newAnno the annotation to make the default
+     * @param newLoc the location to make it the default for
+     */
     private void checkDuplicates(
             DefaultSet previousDefaults, AnnotationMirror newAnno, TypeUseLocation newLoc) {
         if (conflictsWithExistingDefaults(previousDefaults, newAnno, newLoc)) {
@@ -424,17 +932,159 @@ public class QualifierDefaults {
      */
     private boolean conflictsWithExistingDefaults(
             DefaultSet previousDefaults, AnnotationMirror newAnno, TypeUseLocation newLoc) {
+        return findConflictingDefault(previousDefaults, newAnno, newLoc) != null;
+    }
+
+    /**
+     * Reports that {@code newDefault}, from a {@code @DefaultQualifier} that {@code elt} carries,
+     * conflicts with {@code conflicting}, which {@code elt} already sets for the same location and
+     * qualifier hierarchy.
+     *
+     * <p>Reports each conflict on an element at most once. {@link #defaultsAtDirect} runs again for
+     * an element whenever {@link #elementDefaults} or {@link #packagePropagatingDefaults} has been
+     * cleared, and for a package it runs once per caller: {@link #defaultsAt} and {@link
+     * #propagatingDefaultsAt} both call it.
+     *
+     * @param elt the element whose {@code @DefaultQualifier} annotations conflict
+     * @param newDefault the default that is discarded because of the conflict
+     * @param conflicting the default it conflicts with, which stays in effect
+     * @param isError whether to report an error rather than a warning; true for a declaration in
+     *     source, which the user can edit, and false for one read from bytecode
+     */
+    private void reportConflictingWrittenDefaults(
+            Element elt, Default newDefault, Default conflicting, boolean isError) {
+        DefaultSet alreadyReported =
+                reportedConflictingDefaults.computeIfAbsent(elt, key -> new DefaultSet());
+        if (!alreadyReported.add(newDefault)) {
+            return;
+        }
+        if (isError) {
+            atypeFactory
+                    .getChecker()
+                    .reportError(elt, "conflicting.defaults", elt, newDefault, conflicting);
+        } else {
+            atypeFactory
+                    .getChecker()
+                    .reportWarning(elt, "conflicting.defaults", elt, newDefault, conflicting);
+        }
+    }
+
+    /**
+     * Checks @DefaultQualifier annotations on {@code elt} for conflicting defaults and for
+     * locations prohibited by the qualifier's {@link TargetLocations} meta-annotation.
+     *
+     * @param elt a declaration in source
+     */
+    public void checkDefaultQualifiers(Element elt) {
+        checkTargetLocations(elt);
+        checkConflictingDefaults(elt);
+    }
+
+    /**
+     * Reports an error for each written @DefaultQualifier annotation on {@code elt} that specifies
+     * a {@link TypeUseLocation} prohibited by the qualifier's {@link TargetLocations}
+     * meta-annotation.
+     *
+     * @param elt an element that may carry @DefaultQualifier annotations
+     */
+    public void checkTargetLocations(Element elt) {
+        List<AnnotationMirror> dqAnnos = atypeFactory.getDefaultQualifierAnnotations(elt);
+        if (dqAnnos.isEmpty()) {
+            return;
+        }
+        for (AnnotationMirror dq : dqAnnos) {
+            @SuppressWarnings("unchecked")
+            Name cls = AnnotationUtils.getElementValueClassName(dq, defaultQualifierValueElement);
+            AnnotationMirror anno = AnnotationBuilder.fromName(elements, cls);
+            if (anno == null) {
+                continue;
+            }
+            anno = atypeFactory.asSupportedQualifier(anno);
+            if (anno == null) {
+                continue;
+            }
+            TypeUseLocation[] locations =
+                    AnnotationUtils.getElementValueEnumArray(
+                            dq,
+                            defaultQualifierLocationsElement,
+                            TypeUseLocation.class,
+                            defaultQualifierValueDefault);
+            for (TypeUseLocation loc : locations) {
+                if (!permittedAtLocation(anno, loc)) {
+                    atypeFactory
+                            .getChecker()
+                            .reportError(elt, "default.qualifier.prohibited.location", anno, loc);
+                }
+            }
+        }
+    }
+
+    /**
+     * Reports each pair of {@code elt}'s own written {@code @DefaultQualifier} annotations that set
+     * the same {@link TypeUseLocation} in the same qualifier hierarchy to different qualifiers.
+     *
+     * <p>Called by the visitor for a declaration in source, so that the diagnostic does not depend
+     * on whether anything happened to ask for {@code elt}'s defaults: {@link #defaultsAtDirect}
+     * runs on a cache miss, and for a package whose {@code package-info.java} is the only file
+     * compiled it never runs at all. The winner is decided by source order, as it is there.
+     *
+     * @param elt a declaration in source
+     */
+    public void checkConflictingDefaults(Element elt) {
+        List<AnnotationMirror> dqAnnos = atypeFactory.getDefaultQualifierAnnotations(elt);
+        if (dqAnnos.size() < 2) {
+            // A single @DefaultQualifier cannot conflict with itself: its locations are distinct
+            // and it names one qualifier.
+            return;
+        }
+        DefaultSet qualifiers = null;
+        for (int i = 0, n = dqAnnos.size(); i < n; ++i) {
+            DefaultSet p = fromDefaultQualifier(dqAnnos.get(i));
+            if (p == null) {
+                continue;
+            }
+            if (qualifiers == null) {
+                qualifiers = p;
+                continue;
+            }
+            for (Default d : p) {
+                Default conflicting = findConflictingDefault(qualifiers, d.anno, d.location);
+                if (conflicting == null) {
+                    qualifiers.add(d);
+                } else {
+                    reportConflictingWrittenDefaults(elt, d, conflicting, true);
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns an element of {@code previousDefaults} that conflicts with making {@code newAnno} the
+     * default at {@code newLoc}, or null if there is none.
+     *
+     * <p>Two defaults conflict when they are for the same {@link TypeUseLocation} and the same
+     * qualifier hierarchy but are different qualifiers: only one qualifier from a hierarchy can be
+     * the default for a location. Two defaults that are the same qualifier are redundant, not
+     * conflicting, and are permitted.
+     *
+     * @param previousDefaults the previous defaults
+     * @param newAnno the new annotation
+     * @param newLoc the location of the type use
+     * @return a conflicting element of {@code previousDefaults}, or null if there is none
+     */
+    private @Nullable Default findConflictingDefault(
+            DefaultSet previousDefaults, AnnotationMirror newAnno, TypeUseLocation newLoc) {
         QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
 
         for (Default previous : previousDefaults) {
             if (!AnnotationUtils.areSame(newAnno, previous.anno) && previous.location == newLoc) {
                 AnnotationMirror previousTop = qualHierarchy.getTopAnnotation(previous.anno);
                 if (qualHierarchy.isSubtypeQualifiersOnly(newAnno, previousTop)) {
-                    return true;
+                    return previous;
                 }
             }
         }
-        return false;
+        return null;
     }
 
     /**
@@ -617,69 +1267,29 @@ public class QualifierDefaults {
             return null;
         }
 
-        if (!atypeFactory.isSupportedQualifier(anno)) {
-            anno = atypeFactory.canonicalAnnotation(anno);
-        }
-
-        if (atypeFactory.isSupportedQualifier(anno)) {
-            TypeUseLocation[] locations =
-                    AnnotationUtils.getElementValueEnumArray(
-                            dq,
-                            defaultQualifierLocationsElement,
-                            TypeUseLocation.class,
-                            defaultQualifierValueDefault);
-            boolean applyToSubpackages =
-                    AnnotationUtils.getElementValue(
-                            dq, defaultQualifierApplyToSubpackagesElement, Boolean.class, true);
-
-            DefaultSet ret = new DefaultSet();
-            for (TypeUseLocation loc : locations) {
-                ret.add(new Default(anno, loc, applyToSubpackages));
-            }
-            return ret;
-        } else {
+        anno = atypeFactory.asSupportedQualifier(anno);
+        if (anno == null) {
             return null;
         }
-    }
 
-    private boolean isElementAnnotatedForThisChecker(Element elt) {
-        boolean elementAnnotatedForThisChecker = false;
+        TypeUseLocation[] locations =
+                AnnotationUtils.getElementValueEnumArray(
+                        dq,
+                        defaultQualifierLocationsElement,
+                        TypeUseLocation.class,
+                        defaultQualifierValueDefault);
+        boolean applyToSubpackages =
+                defaultQualifierApplyToSubpackagesElement == null
+                        || AnnotationUtils.getElementValue(
+                                dq, defaultQualifierApplyToSubpackagesElement, Boolean.class, true);
 
-        if (elt == null) {
-            throw new BugInCF(
-                    "Call of QualifierDefaults.isElementAnnotatedForThisChecker with null");
-        }
-
-        if (elementAnnotatedFors.containsKey(elt)) {
-            return elementAnnotatedFors.get(elt);
-        }
-
-        AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
-
-        if (annotatedFor != null) {
-            elementAnnotatedForThisChecker =
-                    atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor);
-        }
-
-        if (!elementAnnotatedForThisChecker) {
-            Element parent;
-            if (elt.getKind() == ElementKind.PACKAGE) {
-                // TODO: should AnnotatedFor apply to subpackages??
-                // elt.getEnclosingElement() on a package is null; therefore,
-                // use the dedicated method.
-                parent = ElementUtils.parentPackage((PackageElement) elt, elements);
-            } else {
-                parent = elt.getEnclosingElement();
-            }
-
-            if (parent != null && isElementAnnotatedForThisChecker(parent)) {
-                elementAnnotatedForThisChecker = true;
+        DefaultSet ret = new DefaultSet();
+        for (TypeUseLocation loc : locations) {
+            if (permittedAtLocation(anno, loc)) {
+                ret.add(new Default(anno, loc, applyToSubpackages));
             }
         }
-
-        elementAnnotatedFors.put(elt, elementAnnotatedForThisChecker);
-
-        return elementAnnotatedForThisChecker;
+        return ret;
     }
 
     /**
@@ -694,21 +1304,17 @@ public class QualifierDefaults {
             return DefaultSet.EMPTY;
         }
 
-        if (elementDefaults.containsKey(elt)) {
-            return elementDefaults.get(elt);
+        DefaultSet cached = elementDefaults.get(elt);
+        if (cached != null) {
+            return cached;
         }
 
         DefaultSet qualifiers = defaultsAtDirect(elt);
         DefaultSet parentDefaults;
         if (elt.getKind() == ElementKind.PACKAGE) {
-            Element parent = ElementUtils.parentPackage((PackageElement) elt, elements);
-            DefaultSet origParentDefaults = defaultsAt(parent);
-            parentDefaults = new DefaultSet();
-            for (Default d : origParentDefaults) {
-                if (d.applyToSubpackages) {
-                    parentDefaults.add(d);
-                }
-            }
+            // Not defaultsAt(parent) filtered by applyToSubpackages; see propagatingDefaultsAt.
+            PackageElement parent = ElementUtils.parentPackage((PackageElement) elt, elements);
+            parentDefaults = propagatingDefaultsAt(parent);
         } else {
             Element parent = elt.getEnclosingElement();
             parentDefaults = defaultsAt(parent);
@@ -717,68 +1323,212 @@ public class QualifierDefaults {
         if (qualifiers == null || qualifiers.isEmpty()) {
             qualifiers = parentDefaults;
         } else {
-            // TODO(cpovirk): What should happen with conflicts?
-            qualifiers.addAll(parentDefaults);
+            qualifiers = mergeShadowing(qualifiers, parentDefaults);
         }
 
-        /* TODO: it would seem more efficient to also cache null/empty as the result.
-         * However, doing so causes KeyFor tests to fail.
-               if (qualifiers == null) {
-                   qualifiers = DefaultSet.EMPTY;
-               }
-
-               elementDefaults.put(elt, qualifiers);
-               return qualifiers;
-        */
-        if (qualifiers != null && !qualifiers.isEmpty()) {
+        if (!qualifiers.isEmpty()) {
             elementDefaults.put(elt, qualifiers);
             return qualifiers;
         } else {
-            return DefaultSet.EMPTY;
+            // Cache a per-element fresh empty DefaultSet (not the shared DefaultSet.EMPTY) so
+            // subsequent calls for this element short-circuit on the cache lookup instead of
+            // re-walking the entire enclosing-element chain.
+            DefaultSet emptyForElt = new DefaultSet();
+            elementDefaults.put(elt, emptyForElt);
+            return emptyForElt;
         }
     }
 
     /**
-     * Returns the defaults that apply directly to the given Element, without considering enclosing
-     * Elements.
+     * Returns the defaults that {@code pkg} makes available to its own subpackages: its own direct
+     * defaults with {@code applyToSubpackages = true}, merged with what its parent package makes
+     * available to it.
      *
-     * @param elt the element
-     * @return the defaults
+     * <p>This is not {@link #defaultsAt}({@code pkg}) filtered by {@code applyToSubpackages};
+     * computing it that way is <a
+     * href="https://github.com/eisop/checker-framework/issues/2037">eisop#2037</a>. Shadowing is a
+     * statement about one scope: a nearer default that does not itself apply to subpackages wins at
+     * {@code pkg} only, so it must not discard the farther default it shadowed there -- deeper
+     * packages, where nothing shadows it, still need it. So a default replaces a farther one here
+     * only if it too has {@code applyToSubpackages = true}. It still wins at {@code pkg} itself,
+     * via {@link #defaultsAt}, which merges {@code pkg}'s own defaults over this method's result.
+     *
+     * @param pkg a package, or null for no package
+     * @return the defaults {@code pkg} makes available to its own subpackages
      */
-    private DefaultSet defaultsAtDirect(Element elt) {
-        DefaultSet qualifiers = null;
-
-        // Handle DefaultQualifier
-        AnnotationMirror dqAnno = atypeFactory.getDeclAnnotation(elt, DefaultQualifier.class);
-
-        if (dqAnno != null) {
-            Set<Default> p = fromDefaultQualifier(dqAnno);
-
-            if (p != null) {
-                qualifiers = new DefaultSet();
-                qualifiers.addAll(p);
-            }
+    private DefaultSet propagatingDefaultsAt(@Nullable PackageElement pkg) {
+        if (pkg == null) {
+            return DefaultSet.EMPTY;
         }
 
-        // Handle DefaultQualifier.List
-        AnnotationMirror dqListAnno =
-                atypeFactory.getDeclAnnotation(elt, DefaultQualifier.List.class);
-        if (dqListAnno != null) {
-            if (qualifiers == null) {
-                qualifiers = new DefaultSet();
-            }
-            List<AnnotationMirror> values =
-                    AnnotationUtils.getElementValueArray(
-                            dqListAnno, defaultQualifierListValueElement, AnnotationMirror.class);
-            for (AnnotationMirror dqlAnno : values) {
-                Set<Default> p = fromDefaultQualifier(dqlAnno);
-                if (p != null) {
-                    // TODO(cpovirk): What should happen with conflicts?
-                    qualifiers.addAll(p);
+        DefaultSet cached = packagePropagatingDefaults.get(pkg);
+        if (cached != null) {
+            return cached;
+        }
+
+        DefaultSet direct = defaultsAtDirect(pkg);
+        DefaultSet ownPropagating;
+        if (direct == null || direct.isEmpty()) {
+            ownPropagating = DefaultSet.EMPTY;
+        } else {
+            ownPropagating = new DefaultSet();
+            for (Default d : direct) {
+                if (d.applyToSubpackages) {
+                    ownPropagating.add(d);
                 }
             }
         }
+
+        PackageElement parent = ElementUtils.parentPackage(pkg, elements);
+        DefaultSet parentPropagating = propagatingDefaultsAt(parent);
+
+        DefaultSet result = mergeShadowing(ownPropagating, parentPropagating);
+        packagePropagatingDefaults.put(pkg, result);
+        return result;
+    }
+
+    /**
+     * Returns {@code nearer} plus every element of {@code farther} whose (location, qualifier
+     * hierarchy) {@code nearer} does not already set -- {@code nearer}'s elements shadow {@code
+     * farther}'s for the same (location, hierarchy), rather than both coexisting in the (location,
+     * annotation)-ordered {@link DefaultSet} and the winner being decided by annotation ordering
+     * instead of scope distance.
+     *
+     * <p>Does not mutate either argument: the result may be one of them unchanged (when the other
+     * is empty) or a newly allocated set.
+     *
+     * @param nearer defaults at a nearer scope; every one of them is kept
+     * @param farther defaults at a farther scope; kept only where {@code nearer} does not set the
+     *     same (location, qualifier hierarchy)
+     * @return the merged set
+     */
+    private DefaultSet mergeShadowing(DefaultSet nearer, DefaultSet farther) {
+        if (farther.isEmpty()) {
+            return nearer;
+        }
+        if (nearer.isEmpty()) {
+            return farther;
+        }
+        DefaultSet result = new DefaultSet();
+        result.addAll(nearer);
+        QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+        for (Default d : farther) {
+            boolean shadowed = false;
+            AnnotationMirror fartherTop = qualHierarchy.getTopAnnotation(d.anno);
+            for (Default n : nearer) {
+                if (n.location == d.location) {
+                    AnnotationMirror nearerTop = qualHierarchy.getTopAnnotation(n.anno);
+                    if (AnnotationUtils.areSame(fartherTop, nearerTop)) {
+                        shadowed = true;
+                        break;
+                    }
+                }
+            }
+            if (!shadowed) {
+                result.add(d);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Returns the defaults that apply directly to the given Element, without considering enclosing
+     * Elements. This includes both defaults derived from a written {@code @DefaultQualifier} (or
+     * {@code @DefaultQualifier.List}) annotation and any added programmatically via {@link
+     * #addElementDefault}: both are equally {@code elt}'s own direct contribution, just installed
+     * through different mechanisms.
+     *
+     * <p>Two of {@code elt}'s own defaults conflict if they set the same {@link TypeUseLocation} in
+     * the same qualifier hierarchy to different qualifiers. That is reported rather than merged,
+     * because merging leaves the winner to {@link DefaultSet}'s (location, annotation) ordering,
+     * which is arbitrary and silent. Written-against-written is a {@code conflicting.defaults}
+     * error on {@code elt}, resolved by source order: of the conflicting {@code @DefaultQualifier}
+     * annotations that apply to {@code elt}, the one appearing first in the source wins and each
+     * later one is discarded. An annotation that is an alias for {@code @DefaultQualifier} (such as
+     * {@code @NullMarked}) participates at its own source position, so reordering the annotations
+     * on a declaration changes which one wins. Written against {@link #addElementDefault} is a
+     * {@link TypeSystemError}, since only a type system, not a user, can cause it.
+     *
+     * @param elt the element
+     * @return the defaults that apply directly to {@code elt}, or null if it has none
+     */
+    private @Nullable DefaultSet defaultsAtDirect(Element elt) {
+        DefaultSet qualifiers = null;
+
+        // Handle @DefaultQualifier, including the @DefaultQualifier.List container that javac
+        // produces for two or more written at the same location, and any alias for either.
+        // getDefaultQualifierAnnotations returns them all in source order, which is what decides
+        // a conflict below; getDeclAnnotation cannot be used here, since it returns at most one
+        // annotation and prefers a written one over an aliased one regardless of source order.
+        List<AnnotationMirror> dqAnnos = atypeFactory.getDefaultQualifierAnnotations(elt);
+        for (int i = 0, n = dqAnnos.size(); i < n; ++i) {
+            DefaultSet p = fromDefaultQualifier(dqAnnos.get(i));
+            if (p == null) {
+                continue;
+            }
+            if (qualifiers == null) {
+                // One @DefaultQualifier cannot conflict with itself: its locations are distinct
+                // and it names a single qualifier. fromDefaultQualifier allocates a fresh
+                // DefaultSet, so take ownership directly rather than allocating a second one and
+                // copying. This is the overwhelmingly common case: at most one @DefaultQualifier.
+                qualifiers = p;
+                continue;
+            }
+            for (Default d : p) {
+                Default conflicting = findConflictingDefault(qualifiers, d.anno, d.location);
+                if (conflicting == null) {
+                    qualifiers.add(d);
+                } else {
+                    // Discard the later default rather than adding it and letting DefaultSet's
+                    // (location, annotation) ordering pick the winner.  Reporting is not done
+                    // here: for an element in source the visitor calls checkConflictingDefaults,
+                    // which reports with a source position and does not depend on whether this
+                    // method happens to run.  An element read from bytecode has no declaration to
+                    // visit, so it is reported here instead, and only when asked for.
+                    if (warnBytecodeConflicts && !ElementUtils.isElementFromSourceCode(elt)) {
+                        reportConflictingWrittenDefaults(elt, d, conflicting, false);
+                    }
+                }
+            }
+        }
+
+        // Handle defaults added via addElementDefault.
+        DefaultSet programmatic = programmaticElementDefaults.get(elt);
+        if (programmatic != null) {
+            if (qualifiers == null) {
+                qualifiers = new DefaultSet();
+            }
+            for (Default d : programmatic) {
+                Default conflicting = findConflictingDefault(qualifiers, d.anno, d.location);
+                if (conflicting != null) {
+                    throw new TypeSystemError(
+                            "Conflicting defaults on %s %s: %s, registered by this type system via"
+                                    + " QualifierDefaults.addElementDefault, conflicts with %s, which"
+                                    + " comes from a @DefaultQualifier written on that declaration."
+                                    + " Only one qualifier from a hierarchy can be the default for a"
+                                    + " location.",
+                            elt.getKind(), elt, d, conflicting);
+                }
+                qualifiers.add(d);
+            }
+        }
+
         return qualifiers;
+    }
+
+    /**
+     * Given an element, returns whether the permissive default should be applied for it. Handles
+     * elements from bytecode or source code.
+     *
+     * <p>At most one of this and {@link #applyConservativeDefaults} returns true for an element: a
+     * kind of code cannot be defaulted both permissively and conservatively, which {@link
+     * org.checkerframework.framework.source.SourceChecker} rejects at startup.
+     *
+     * @param annotationScope the element that the permissive default might apply to
+     * @return whether the permissive default applies to the given element
+     */
+    public boolean applyPermissiveDefaults(Element annotationScope) {
+        return applyUncheckedDefaults(annotationScope, UncheckedDefaultsMode.PERMISSIVE);
     }
 
     /**
@@ -789,39 +1539,199 @@ public class QualifierDefaults {
      * @return whether the conservative default applies to the given element
      */
     public boolean applyConservativeDefaults(Element annotationScope) {
+        return applyUncheckedDefaults(annotationScope, UncheckedDefaultsMode.CONSERVATIVE);
+    }
+
+    /**
+     * Returns whether a mode's unchecked defaults apply to an element.
+     *
+     * @param annotationScope the element that the defaults might apply to
+     * @param mode the unchecked defaulting mode
+     * @return whether the mode's defaults apply to the element
+     */
+    private boolean applyUncheckedDefaults(Element annotationScope, UncheckedDefaultsMode mode) {
         if (annotationScope == null) {
             return false;
         }
 
-        if (uncheckedCodeDefaults.isEmpty()) {
+        boolean useBytecode =
+                mode == UncheckedDefaultsMode.CONSERVATIVE
+                        ? useConservativeDefaultsBytecode
+                        : usePermissiveDefaultsBytecode;
+        boolean useSource =
+                mode == UncheckedDefaultsMode.CONSERVATIVE
+                        ? useConservativeDefaultsSource
+                        : usePermissiveDefaultsSource;
+
+        if ((!useBytecode && !useSource) || defaultsFor(mode).isEmpty()) {
             return false;
         }
 
-        // TODO: I would expect this:
-        //   atypeFactory.isFromByteCode(annotationScope)) {
-        // to work instead of the
-        // isElementFromByteCode/declarationFromElement/isFromStubFile calls,
-        // but it doesn't work correctly and tests fail.
-
-        boolean isFromStubFile = atypeFactory.isFromStubFile(annotationScope);
-        boolean isBytecode =
-                ElementUtils.isElementFromByteCode(annotationScope)
-                        && atypeFactory.declarationFromElement(annotationScope) == null
-                        && !isFromStubFile;
-        if (isBytecode) {
-            return useConservativeDefaultsBytecode
-                    && !isElementAnnotatedForThisChecker(annotationScope);
-        } else if (isFromStubFile) {
-            // TODO: Types in stub files not annotated for a particular checker should be
-            // treated as unchecked bytecode.  For now, all types in stub files are treated as
-            // checked code. Eventually, @AnnotatedFor("checker") will be programmatically added
-            // to methods in stub files supplied via the @StubFiles annotation.  Stub files will
-            // be treated like unchecked code except for methods in the scope of an @AnnotatedFor.
+        // Skip the unchecked-defaults check while annotation files are being parsed, to
+        // avoid an initialization cycle. During GenericAnnotatedTypeFactory.postInit(),
+        // parseAnnotationFiles() runs the stub/ajava parser, which asks the type factory for
+        // defaulted types. That reaches here and would call
+        // checker.isElementAnnotatedForThisCheckerOrUpstreamChecker(...), which routes through
+        // BaseTypeChecker.getTypeFactory() -- but the visitor (and thus the type factory) is not
+        // yet installed on the checker, causing an NPE. Eagerly-parsed annotation files (checker
+        // @StubFiles, command-line stubs, ajava files, annotated-JDK package-info.java) are the
+        // risky cases; most JDK class stubs are only parsed lazily after init completes.
+        // Stub-file elements are still treated as checked code by the isFromStubFile check below
+        // once parsing has finished.
+        if (atypeFactory.isParsingAnnotationFile()) {
             return false;
-        } else if (useConservativeDefaultsSource) {
-            return !isElementAnnotatedForThisChecker(annotationScope);
         }
-        return false;
+
+        // TODO: Types in stub files not annotated for a particular checker should be
+        // treated as unchecked bytecode.  For now, all types in stub files are treated as
+        // checked code. Eventually, @AnnotatedFor("checker") will be programmatically added
+        // to methods in stub files supplied via the @StubFiles annotation.  Stub files will
+        // be treated like unchecked code except for methods in the scope of an @AnnotatedFor.
+        // This check must precede the isFromByteCode test below: isFromByteCode is false for a
+        // stub-file element, which would therefore be defaulted as source code.
+        if (atypeFactory.isFromStubFile(annotationScope)) {
+            return false;
+        }
+
+        boolean applies = atypeFactory.isFromByteCode(annotationScope) ? useBytecode : useSource;
+        return applies
+                && !atypeFactory
+                        .getChecker()
+                        .isElementAnnotatedForThisCheckerOrUpstreamChecker(annotationScope);
+    }
+
+    /** Discards any cached fused default lists. Called whenever a default changes. */
+    private void invalidateFusedDefaults() {
+        // Defaults are normally all registered (phase 1) before any are applied (phase 2, which is
+        // what populates these caches via fusedDefaultsFor). While defaults are being configured
+        // nothing is cached, so skip the work -- the add* methods call this many times during setup
+        // and IdentityHashMap.clear() nulls its entire backing table even when empty. Only a
+        // default added after application has begun reaches the clears (clear(), not reallocation,
+        // because the maps are final and hold few entries).
+        if (!fusedDefaultsCached) {
+            return;
+        }
+        fusedEmptyChecked = null;
+        fusedEmptyConservative = null;
+        fusedEmptyPermissive = null;
+        fusedCheckedCache.clear();
+        fusedConservativeCache.clear();
+        fusedPermissiveCache.clear();
+        fusedDefaultsCached = false;
+    }
+
+    /**
+     * Returns the defaults to apply, in precedence order, for the given scope {@code DefaultSet}:
+     * the in-scope defaults, then (per {@code mode}) the conservative or permissive unchecked-code
+     * defaults, then the checked-code defaults, with checked/unchecked {@code TYPE_VARIABLE_USE}
+     * defaults dropped when the scope already has one.
+     *
+     * <p>The result is memoized. The empty-scope case (no
+     * {@code @DefaultQualifier}/{@code @NullMarked} in scope) is by far the most common in
+     * unannotated code and is served from two shared constants. Non-empty scopes are memoized in an
+     * identity-keyed cache: {@link #defaultsAt} hands back a stable per-scope {@code DefaultSet}
+     * object that is shared across every member of the scope, so identity keying hits well. As
+     * JSpecify {@code @NullMarked}/{@code @NullUnmarked} annotations spread (each aliases to a
+     * {@code @DefaultQualifier}), the non-empty case becomes the common one, and this cache — not
+     * the empty fast-path — carries the savings. Identity (not content) keying is used because
+     * {@link #defaultsAt} caches and hands back a stable {@code DefaultSet} instance per scope,
+     * avoiding costly content-based hashing of the set.
+     *
+     * <p>A {@code DefaultSet} that reaches this cache must never be mutated afterwards. The sets in
+     * {@link #programmaticElementDefaults} are mutated in place, by {@link #addElementDefault}, but
+     * they never reach it: {@link #defaultsAtDirect} copies their contents into a set of its own
+     * rather than handing one of them out.
+     *
+     * @param defaults the scope's defaults
+     * @param mode which set of unchecked-code defaults to include, or null for none
+     * @return the fused, ordered default list (shared and read-only; callers must not mutate it)
+     */
+    private List<Default> fusedDefaultsFor(
+            DefaultSet defaults, @Nullable UncheckedDefaultsMode mode) {
+        // Every path below caches what it returns, so the caches are now non-empty (phase 2).
+        fusedDefaultsCached = true;
+        if (defaults.isEmpty()) {
+            // The fused list for an empty scope is just the (unchecked-, per mode, then)
+            // checked-code defaults: identical across every such call and constant until the code
+            // defaults change. typeVarUseDef is false for an empty set, so no filtering applies.
+            if (mode == null) {
+                if (fusedEmptyChecked == null) {
+                    fusedEmptyChecked = buildFusedDefaults(defaults, mode);
+                }
+                return fusedEmptyChecked;
+            }
+            switch (mode) {
+                case CONSERVATIVE:
+                    if (fusedEmptyConservative == null) {
+                        fusedEmptyConservative = buildFusedDefaults(defaults, mode);
+                    }
+                    return fusedEmptyConservative;
+                case PERMISSIVE:
+                    if (fusedEmptyPermissive == null) {
+                        fusedEmptyPermissive = buildFusedDefaults(defaults, mode);
+                    }
+                    return fusedEmptyPermissive;
+            }
+            throw new BugInCF("Unhandled unchecked defaults mode: " + mode);
+        }
+        IdentityHashMap<DefaultSet, List<Default>> cache;
+        if (mode == null) {
+            cache = fusedCheckedCache;
+        } else {
+            switch (mode) {
+                case CONSERVATIVE:
+                    cache = fusedConservativeCache;
+                    break;
+                case PERMISSIVE:
+                    cache = fusedPermissiveCache;
+                    break;
+                default:
+                    throw new BugInCF("Unhandled unchecked defaults mode: " + mode);
+            }
+        }
+        List<Default> cached = cache.get(defaults);
+        if (cached == null) {
+            cached = buildFusedDefaults(defaults, mode);
+            cache.put(defaults, cached);
+        }
+        return cached;
+    }
+
+    /**
+     * Builds the precedence-ordered fused default list from scratch. {@link #fusedDefaultsFor}
+     * memoizes the result; call that, not this.
+     *
+     * @param defaults the scope's defaults
+     * @param mode which set of unchecked-code defaults to include, or null for none
+     * @return the fused, ordered default list
+     */
+    private List<Default> buildFusedDefaults(
+            DefaultSet defaults, @Nullable UncheckedDefaultsMode mode) {
+        // If there is a default for type variable uses, do not also apply checked/unchecked code
+        // defaults to type variables. Otherwise, the default in scope could decide not to annotate
+        // the type variable use, whereas the checked/unchecked code default could add an
+        // annotation.
+        boolean typeVarUseDef = false;
+        for (Default def : defaults) {
+            typeVarUseDef |= (def.location == TypeUseLocation.TYPE_VARIABLE_USE);
+        }
+        List<Default> fused = new ArrayList<>();
+        for (Default def : defaults) {
+            fused.add(def);
+        }
+        if (mode != null) {
+            for (Default def : defaultsFor(mode)) {
+                if (!typeVarUseDef || def.location != TypeUseLocation.TYPE_VARIABLE_USE) {
+                    fused.add(def);
+                }
+            }
+        }
+        for (Default def : checkedCodeDefaults) {
+            if (!typeVarUseDef || def.location != TypeUseLocation.TYPE_VARIABLE_USE) {
+                fused.add(def);
+            }
+        }
+        return fused;
     }
 
     /**
@@ -845,33 +1755,17 @@ public class QualifierDefaults {
                 createDefaultApplierElement(atypeFactory, annotationScope, type, fromTree);
 
         DefaultSet defaults = defaultsAt(annotationScope);
-
-        // If there is a default for type variable uses, do not also apply checked/unchecked code
-        // defaults to type variables. Otherwise, the default in scope could decide not to annotate
-        // the type variable use, whereas the checked/unchecked code default could add an
-        // annotation.
-        // TODO: the checked/unchecked defaults should be added to `defaults` and then only one
-        // iteration through the defaults should be necessary.
-        boolean typeVarUseDef = false;
-
-        for (Default def : defaults) {
-            applier.applyDefault(def);
-            typeVarUseDef |= (def.location == TypeUseLocation.TYPE_VARIABLE_USE);
-        }
-
+        UncheckedDefaultsMode mode;
         if (applyConservativeDefaults(annotationScope)) {
-            for (Default def : uncheckedCodeDefaults) {
-                if (!typeVarUseDef || def.location != TypeUseLocation.TYPE_VARIABLE_USE) {
-                    applier.applyDefault(def);
-                }
-            }
+            mode = UncheckedDefaultsMode.CONSERVATIVE;
+        } else if (applyPermissiveDefaults(annotationScope)) {
+            mode = UncheckedDefaultsMode.PERMISSIVE;
+        } else {
+            // Checked code: fold in no unchecked-code defaults.
+            mode = null;
         }
 
-        for (Default def : checkedCodeDefaults) {
-            if (!typeVarUseDef || def.location != TypeUseLocation.TYPE_VARIABLE_USE) {
-                applier.applyDefault(def);
-            }
-        }
+        applier.applyDefaults(fusedDefaultsFor(defaults, mode));
     }
 
     /**
@@ -889,6 +1783,52 @@ public class QualifierDefaults {
             AnnotatedTypeMirror type,
             boolean fromTree) {
         return new DefaultApplierElement(atypeFactory, annotationScope, type, fromTree);
+    }
+
+    /**
+     * A reusable {@link DefaultApplierElementImpl} scanner, parked here between uses. Constructing
+     * a scanner per {@link DefaultApplierElement#applyDefaults} call was a major allocation source:
+     * a realistic single-compilation ({@code checkNullness}) JFR trace attributed ~8% of all TLAB
+     * events to the eagerly pre-sized {@code visitedNodes} {@code IdentityHashMap} each scanner
+     * then held. ({@code visitedNodes} is now lazily allocated by {@link AnnotatedTypeScanner}, so
+     * reuse mainly saves the per-call scanner object.) Defaulting is not re-entrant into {@code
+     * applyDefaults} (the scan only reads caches and adds annotations), so one scanner can be
+     * reused across applications; {@link AnnotatedTypeScanner#visit} resets all scan state on each
+     * call. The field is {@code null} exactly while the scanner is borrowed, which doubles as a
+     * re-entrancy guard: a (hypothetical) nested borrow sees {@code null} and falls back to
+     * allocating a fresh scanner, so correctness never depends on non-re-entrancy. Confined to the
+     * javac main thread, like the other caches on this object.
+     */
+    private @Nullable DefaultApplierElementImpl pooledApplierImpl;
+
+    /**
+     * Returns a {@link DefaultApplierElementImpl} bound to {@code outer}, reusing the pooled
+     * instance if one is available (the common case) or allocating a fresh one if the pool is empty
+     * (first call, or a re-entrant borrow). Pair every call with {@link #returnApplierImpl}.
+     *
+     * @param outer the element supplying the per-application state for this defaulting pass
+     * @return a scanner whose {@code outer} is {@code outer}
+     */
+    private DefaultApplierElementImpl borrowApplierImpl(DefaultApplierElement outer) {
+        DefaultApplierElementImpl impl = pooledApplierImpl;
+        if (impl == null) {
+            return new DefaultApplierElementImpl(outer);
+        }
+        // Mark the pool empty so a re-entrant borrow allocates its own scanner instead of
+        // corrupting this one's state.
+        pooledApplierImpl = null;
+        impl.outer = outer;
+        return impl;
+    }
+
+    /**
+     * Returns a scanner borrowed from {@link #borrowApplierImpl} to the pool so the next defaulting
+     * pass can reuse it.
+     *
+     * @param impl the scanner to park
+     */
+    private void returnApplierImpl(DefaultApplierElementImpl impl) {
+        pooledApplierImpl = impl;
     }
 
     /** A default applier element. */
@@ -921,9 +1861,6 @@ public class QualifierDefaults {
          */
         protected TypeUseLocation location;
 
-        /** The default element applier implementation. */
-        protected final DefaultApplierElementImpl impl;
-
         /**
          * Create an instance.
          *
@@ -946,35 +1883,51 @@ public class QualifierDefaults {
                     (atypeFactory instanceof GenericAnnotatedTypeFactory<?, ?, ?, ?>)
                             && ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory)
                                     .getShouldDefaultTypeVarLocals();
-            this.impl = new DefaultApplierElementImpl(this);
         }
 
+        /** The defaults to apply, in precedence order; set by {@link #applyDefaults}. */
+        private List<Default> fusedDefaults;
+
         /**
-         * Apply default to the type.
+         * Apply all of {@code defaults} (in precedence order) to the type in a single traversal,
+         * rather than scanning the whole type once per default. {@code addMissingAnnotation} only
+         * adds an annotation when the hierarchy is unannotated, so a single ordered pass reproduces
+         * the precedence of the old per-default scans.
          *
-         * @param def default to apply
+         * @param defaults the defaults to apply, in precedence order
          */
-        public void applyDefault(Default def) {
-            this.location = def.location;
-            impl.visit(type, def.anno);
+        public void applyDefaults(List<Default> defaults) {
+            this.fusedDefaults = defaults;
+            DefaultApplierElementImpl impl = borrowApplierImpl(this);
+            try {
+                impl.visit(type, null);
+            } finally {
+                returnApplierImpl(impl);
+            }
         }
 
         /**
          * Returns true if the given qualifier should be applied to the given type. Currently we do
-         * not apply defaults to void types, packages, wildcards, and type variables.
+         * not apply defaults to void types, none types, wildcards, type variables, packages, and
+         * modules.
          *
          * @param type type to which qual would be applied
          * @return true if this application should proceed
          */
         protected boolean shouldBeAnnotated(AnnotatedTypeMirror type) {
-            return type != null
-                    // TODO: executables themselves should not be annotated
-                    // For some reason h1h2checker-tests fails with this.
-                    // || type.getKind() == TypeKind.EXECUTABLE
-                    && type.getKind() != TypeKind.NONE
-                    && type.getKind() != TypeKind.WILDCARD
-                    && type.getKind() != TypeKind.TYPEVAR
-                    && !(type instanceof AnnotatedNoType);
+            if (type == null) {
+                return false;
+            }
+            // TODO: executables themselves should not be annotated
+            // For some reason h1h2checker-tests fails with this:
+            // || k == TypeKind.EXECUTABLE
+            TypeKind k = type.getKind();
+            return k != TypeKind.NONE
+                    && k != TypeKind.WILDCARD
+                    && k != TypeKind.TYPEVAR
+                    && k != TypeKind.VOID
+                    && k != TypeKind.PACKAGE
+                    && k != TypeKind.MODULE;
         }
 
         /**
@@ -992,24 +1945,79 @@ public class QualifierDefaults {
         }
     }
 
+    /** The implementation of default application as an annotated type scanner. */
     // Only reason this cannot be `static` is call to `getBoundType`.
-    protected class DefaultApplierElementImpl extends AnnotatedTypeScanner<Void, AnnotationMirror> {
-        private final DefaultApplierElement outer;
+    protected class DefaultApplierElementImpl extends AnnotatedTypeScanner<Void, Void> {
+        /**
+         * The element holding the per-application state (type, scope, location). Not final: a
+         * single instance is reused across {@link DefaultApplierElement#applyDefaults} calls (see
+         * {@link QualifierDefaults#borrowApplierImpl}), with {@code outer} re-pointed at each
+         * borrow.
+         */
+        private DefaultApplierElement outer;
 
+        /**
+         * Construct a new instance.
+         *
+         * @param outer the outer instance to use
+         */
         protected DefaultApplierElementImpl(DefaultApplierElement outer) {
             this.outer = outer;
         }
 
         @Override
-        public Void scan(@FindDistinct AnnotatedTypeMirror t, AnnotationMirror qual) {
+        public Void scan(@FindDistinct AnnotatedTypeMirror t, Void unusedQual) {
             if (!outer.shouldBeAnnotated(t)) {
                 // Type variables and wildcards are separately handled in the corresponding visitors
                 // below.
-                return super.scan(t, qual);
+                return super.scan(t, null);
             }
 
-            // Some defaults only apply to the top level type.
+            if (t.getKind() == TypeKind.INTERSECTION
+                    && isUpperBound
+                    && boundType == BoundType.TYPEVAR_UPPER) {
+                // A type variable's own intersection upper bound is also handled specially:
+                // applying a default directly to the intersection here would homogenize it onto
+                // every bound (see AnnotatedIntersectionType#addAnnotation) before a
+                // bound-specific default (e.g. @DefaultQualifierForUse) got a chance to apply to
+                // that bound on its own. Recurse into the bounds first -- scanning a bound
+                // applies its own defaults normally, since a bound is not itself an intersection
+                // -- then summarize the individually defaulted bounds into the intersection's
+                // primary annotation. See AnnotatedIntersectionType#summarizeBounds.
+                Void result = super.scan(t, null);
+                ((AnnotatedIntersectionType) t).summarizeBounds();
+                return result;
+            }
+
             boolean isTopLevelType = t == outer.type;
+            // Fused defaulting: apply every default in one traversal instead of one scan per
+            // default. addMissingAnnotation only adds an annotation when the type's hierarchy is
+            // unannotated, so applying the defaults in their precedence order produces the same
+            // result as the old per-default scans.
+            List<Default> fused = outer.fusedDefaults;
+            for (int defIdx = 0; defIdx < fused.size(); defIdx++) {
+                Default def = fused.get(defIdx);
+                // A parametric qualifier never annotates a type variable or its bounds (see
+                // visitTypeVariable); preserve that when scanning inside type-variable bounds.
+                if (inTypeVarBound && outer.qualHierarchy.isParametricQualifier(def.anno)) {
+                    continue;
+                }
+                outer.location = def.location;
+                applyOneAtNode(t, def.anno, isTopLevelType);
+            }
+            return super.scan(t, null);
+        }
+
+        /**
+         * Applies a single default (whose location is {@code outer.location}) at node {@code t},
+         * without recursing. Reads the bound-state fields and {@code isTopLevelType}.
+         *
+         * @param t the type node
+         * @param qual the default's annotation
+         * @param isTopLevelType whether {@code t} is the top-level type
+         */
+        private void applyOneAtNode(
+                AnnotatedTypeMirror t, AnnotationMirror qual, boolean isTopLevelType) {
             switch (outer.location) {
                 case FIELD:
                     if (outer.scope != null
@@ -1017,7 +2025,7 @@ public class QualifierDefaults {
                             && isTopLevelType) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case LOCAL_VARIABLE:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.LOCAL_VARIABLE
@@ -1025,14 +2033,14 @@ public class QualifierDefaults {
                         // TODO: how do we determine that we are in a cast or instanceof type?
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case RESOURCE_VARIABLE:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.RESOURCE_VARIABLE
                             && isTopLevelType) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case EXCEPTION_PARAMETER:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.EXCEPTION_PARAMETER
@@ -1046,7 +2054,7 @@ public class QualifierDefaults {
                             }
                         }
                     }
-                    break;
+                    return;
                 case PARAMETER:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.PARAMETER
@@ -1064,12 +2072,12 @@ public class QualifierDefaults {
                             }
                         }
                     }
-                    break;
+                    return;
                 case RECEIVER:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.PARAMETER
                             && isTopLevelType
-                            && outer.scope.getSimpleName().contentEquals("this")) {
+                            && InternalUtils.isThisName(outer.scope.getSimpleName())) {
                         // TODO: comparison against "this" is ugly, won't work
                         // for all possible names for receiver parameter.
                         // Comparison to Names._this might be a bit faster.
@@ -1085,7 +2093,7 @@ public class QualifierDefaults {
                             outer.addAnnotation(receiver, qual);
                         }
                     }
-                    break;
+                    return;
                 case RETURN:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.METHOD
@@ -1097,7 +2105,7 @@ public class QualifierDefaults {
                             outer.addAnnotation(returnType, qual);
                         }
                     }
-                    break;
+                    return;
                 case CONSTRUCTOR_RESULT:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.CONSTRUCTOR
@@ -1111,7 +2119,7 @@ public class QualifierDefaults {
                             outer.addAnnotation(returnType, qual);
                         }
                     }
-                    break;
+                    return;
                 case IMPLICIT_LOWER_BOUND:
                     if (isLowerBound
                             && (boundType == BoundType.TYPEVAR_UNBOUNDED
@@ -1121,19 +2129,19 @@ public class QualifierDefaults {
                         // TODO: split type variables and wildcards?
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case EXPLICIT_LOWER_BOUND:
                     if (isLowerBound && boundType == BoundType.WILDCARD_LOWER) {
                         // TODO: split type variables and wildcards?
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case LOWER_BOUND:
                     if (isLowerBound) {
                         // TODO: split type variables and wildcards?
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case IMPLICIT_UPPER_BOUND:
                     if (isUpperBound
                             && (boundType == BoundType.TYPEVAR_UNBOUNDED
@@ -1141,76 +2149,81 @@ public class QualifierDefaults {
                                     || boundType == BoundType.WILDCARD_LOWER)) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case IMPLICIT_TYPE_PARAMETER_UPPER_BOUND:
                     if (isUpperBound && boundType == BoundType.TYPEVAR_UNBOUNDED) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case IMPLICIT_WILDCARD_UPPER_BOUND_NO_SUPER:
                     if (isUpperBound && boundType == BoundType.WILDCARD_UNBOUNDED) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case IMPLICIT_WILDCARD_UPPER_BOUND_SUPER:
                     if (isUpperBound && boundType == BoundType.WILDCARD_LOWER) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case IMPLICIT_WILDCARD_UPPER_BOUND:
                     if (isUpperBound
                             && (boundType == BoundType.WILDCARD_UNBOUNDED
                                     || boundType == BoundType.WILDCARD_LOWER)) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case EXPLICIT_UPPER_BOUND:
                     if (isUpperBound
                             && (boundType == BoundType.TYPEVAR_UPPER
                                     || boundType == BoundType.WILDCARD_UPPER)) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case EXPLICIT_TYPE_PARAMETER_UPPER_BOUND:
                     if (isUpperBound && boundType == BoundType.TYPEVAR_UPPER) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case EXPLICIT_WILDCARD_UPPER_BOUND:
                     if (isUpperBound && boundType == BoundType.WILDCARD_UPPER) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case UPPER_BOUND:
                     if (isUpperBound) {
                         // TODO: split type variables and wildcards?
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case OTHERWISE:
                 case ALL:
                     // TODO: forbid ALL if anything else was given.
                     outer.addAnnotation(t, qual);
-                    break;
+                    return;
                 case TYPE_VARIABLE_USE:
                     // This location is handled in visitTypeVariable below. Do nothing here.
-                    break;
-                default:
-                    throw new BugInCF(
-                            "QualifierDefaults.DefaultApplierElement: unhandled location: "
-                                    + outer.location);
+                    return;
             }
-
-            return super.scan(t, qual);
+            throw new BugInCF(
+                    "QualifierDefaults.DefaultApplierElement: unhandled location: "
+                            + outer.location);
         }
 
         @Override
         public void reset() {
             super.reset();
+            inTypeVarBound = false;
             isLowerBound = false;
             isUpperBound = false;
             boundType = BoundType.TYPEVAR_UNBOUNDED;
         }
+
+        /**
+         * Are we currently inside a type variable's bounds? Used to exclude parametric qualifiers
+         * there (they never annotate a type variable or its bounds), matching the per-default
+         * behavior of {@link #visitTypeVariable}. Not set for wildcard bounds.
+         */
+        private boolean inTypeVarBound = false;
 
         /** Are we currently defaulting the lower bound of a type variable or wildcard? */
         private boolean isLowerBound = false;
@@ -1222,53 +2235,54 @@ public class QualifierDefaults {
         private BoundType boundType = BoundType.TYPEVAR_UNBOUNDED;
 
         @Override
-        public Void visitTypeVariable(
-                @FindDistinct AnnotatedTypeVariable type, AnnotationMirror qual) {
-            if (visitedNodes.containsKey(type)) {
-                return null;
-            }
-            if (outer.qualHierarchy.isParametricQualifier(qual)) {
-                // Parametric qualifiers are only applicable to type variables and have no effect on
-                // their type. Therefore, do nothing.
+        public Void visitTypeVariable(@FindDistinct AnnotatedTypeVariable type, Void unusedQual) {
+            if (hasVisited(type)) {
                 return null;
             }
             if (type.isDeclaration()) {
                 // For a type variable declaration, apply the defaults to the bounds. Do not apply
-                // `TYPE_VARIALBE_USE` defaults.
-                visitBounds(type, type.getUpperBound(), type.getLowerBound(), qual);
+                // `TYPE_VARIABLE_USE` defaults.
+                visitBounds(type, type.getUpperBound(), type.getLowerBound(), true);
                 return null;
             }
+
+            // Always descend into the bounds FIRST so the bound/OTHERWISE defaults apply there
+            // before any primary defaults (e.g., LOCAL_VARIABLE) can be smeared onto them.
+            visitBounds(type, type.getUpperBound(), type.getLowerBound(), true);
 
             boolean isTopLevelType = type == outer.type;
             boolean isLocalVariable =
                     outer.scope != null && ElementUtils.isLocalVariable(outer.scope);
 
-            if (isTopLevelType && isLocalVariable) {
-                if (outer.shouldDefaultTypeVarLocals
-                        && outer.fromTree
-                        && outer.location == TypeUseLocation.LOCAL_VARIABLE) {
-                    outer.addAnnotation(type, qual);
-                } else {
-                    // TODO: Should `TYPE_VARIABLE_USE` default apply to top-level local variables,
-                    // if they should not be defaulted according to `shouldDefaultTypeVarLocals`?
-                    visitBounds(type, type.getUpperBound(), type.getLowerBound(), qual);
+            // Apply the use-site defaults (TYPE_VARIABLE_USE, or LOCAL_VARIABLE for a top-level
+            // type-variable local) at the use node. Parametric qualifiers are only applicable to
+            // type-variable *declarations* and have no effect on a use or its bounds, so they are
+            // skipped here and (via inTypeVarBound) when scanning the bounds below.
+            List<Default> fused = outer.fusedDefaults;
+            for (int defIdx = 0; defIdx < fused.size(); defIdx++) {
+                Default def = fused.get(defIdx);
+                if (outer.qualHierarchy.isParametricQualifier(def.anno)) {
+                    continue;
                 }
-            } else {
-                if (outer.location == TypeUseLocation.TYPE_VARIABLE_USE) {
-                    outer.addAnnotation(type, qual);
-                } else {
-                    visitBounds(type, type.getUpperBound(), type.getLowerBound(), qual);
+                if (isTopLevelType && isLocalVariable) {
+                    if (outer.shouldDefaultTypeVarLocals
+                            && outer.fromTree
+                            && def.location == TypeUseLocation.LOCAL_VARIABLE) {
+                        outer.addAnnotation(type, def.anno);
+                    }
+                } else if (def.location == TypeUseLocation.TYPE_VARIABLE_USE) {
+                    outer.addAnnotation(type, def.anno);
                 }
             }
             return null;
         }
 
         @Override
-        public Void visitWildcard(AnnotatedWildcardType type, AnnotationMirror qual) {
-            if (visitedNodes.containsKey(type)) {
+        public Void visitWildcard(AnnotatedWildcardType type, Void unusedQual) {
+            if (hasVisited(type)) {
                 return null;
             }
-            visitBounds(type, type.getExtendsBound(), type.getSuperBound(), qual);
+            visitBounds(type, type.getExtendsBound(), type.getSuperBound(), false);
             return null;
         }
 
@@ -1281,26 +2295,34 @@ public class QualifierDefaults {
                 AnnotatedTypeMirror boundedType,
                 AnnotatedTypeMirror upperBound,
                 AnnotatedTypeMirror lowerBound,
-                AnnotationMirror qual) {
+                boolean isTypeVar) {
+            boolean prevInTypeVarBound = inTypeVarBound;
             boolean prevIsUpperBound = isUpperBound;
             boolean prevIsLowerBound = isLowerBound;
             BoundType prevBoundType = boundType;
 
+            // Type-variable bound scope is sticky: once inside a type variable's bounds, a nested
+            // wildcard's bounds are still "inside the type variable" for parametric-qualifier
+            // exclusion. Wildcard bounds alone do not set it.
+            if (isTypeVar) {
+                inTypeVarBound = true;
+            }
             boundType = getBoundType(boundedType);
 
             try {
                 isLowerBound = true;
                 isUpperBound = false;
-                scanAndReduce(lowerBound, qual, null);
+                scanAndReduce(lowerBound, null, null);
 
-                visitedNodes.put(boundedType, null);
+                markVisited(boundedType, null);
 
                 isLowerBound = false;
                 isUpperBound = true;
-                scanAndReduce(upperBound, qual, null);
+                scanAndReduce(upperBound, null, null);
 
-                visitedNodes.put(boundedType, null);
+                markVisited(boundedType, null);
             } finally {
+                inTypeVarBound = prevInTypeVarBound;
                 isUpperBound = prevIsUpperBound;
                 isLowerBound = prevIsLowerBound;
                 boundType = prevBoundType;
@@ -1321,6 +2343,20 @@ public class QualifierDefaults {
          * Neither bound is specified, BOTH are implicit. (If a type variable is declared in
          * bytecode and the type of the upper bound is Object, then the checker assumes that the
          * bound was not explicitly written in source code.)
+         *
+         * <p>A primary annotation written directly on such a type variable, as in {@code <@NonNull
+         * T>}, sets only the <em>lower</em> bound. The implicit {@code Object} upper bound is
+         * defaulted independently to the top qualifier (see the {@code IMPLICIT_UPPER_BOUND} and
+         * {@code IMPLICIT_TYPE_PARAMETER_UPPER_BOUND} cases in {@code applyOneAtNode}). The primary
+         * annotation must <em>not</em> be copied onto the upper bound: {@code <@NonNull T>} is not
+         * equivalent to {@code <@NonNull T extends @NonNull Object>}, but to {@code <@NonNull T
+         * extends @TopQual Object>}. This is the CLIMB-to-top rule documented in the manual
+         * sections "Syntax for upper and lower bounds" and "Defaults" (labels {@code
+         * generics-bounds-syntax} and {@code generics-defaults}). The Map Key Checker's {@code
+         * <@KeyForBottom E>} lower-bound idiom, and the {@code <@KeyForBottom T> @Nullable T[]
+         * toArray(@PolyNull T[])} override in {@code Collection}, depend on the upper bound staying
+         * at top; copying the primary annotation up would make such overrides fail compatibility
+         * checks.
          */
         TYPEVAR_UNBOUNDED,
 

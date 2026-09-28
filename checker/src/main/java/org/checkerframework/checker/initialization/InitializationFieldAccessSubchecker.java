@@ -1,10 +1,14 @@
 package org.checkerframework.checker.initialization;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
+import org.checkerframework.checker.nullness.NullnessChecker;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.framework.source.SupportedOptions;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Part of the freedom-before-commitment type system.
@@ -20,10 +24,23 @@ import java.util.List;
  *
  * @see InitializationChecker
  */
+@SupportedOptions({"assumeInitialized"})
 public class InitializationFieldAccessSubchecker extends BaseTypeChecker {
 
     /** Default constructor for InitializationFieldAccessSubchecker. */
     public InitializationFieldAccessSubchecker() {}
+
+    @Override
+    protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {
+        super.addOptionsForMode(mode, activeOptions);
+        switch (mode) {
+            case NullnessChecker.MODE_JSPECIFY:
+                activeOptions.putIfAbsent("assumeInitialized", null);
+                break;
+            default:
+                break;
+        }
+    }
 
     /**
      * Also handle {@code AnnotatedFor} annotations for the {@link InitializationChecker}. See
@@ -42,13 +59,14 @@ public class InitializationFieldAccessSubchecker extends BaseTypeChecker {
     // Suppress all errors and warnings, since they are also reported by the InitializationChecker
 
     @Override
-    public void reportError(Object source, @CompilerMessageKey String messageKey, Object... args) {
+    public void reportError(
+            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
         // do nothing
     }
 
     @Override
     public void reportWarning(
-            Object source, @CompilerMessageKey String messageKey, Object... args) {
+            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
         // do nothing
     }
 }

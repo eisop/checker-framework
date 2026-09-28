@@ -447,7 +447,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
          * @param mustCallMethod the method that must be called
          * @param exitKind when the method must be called
          */
-        public DestructorObligation(
+        DestructorObligation(
                 String mustCallMethod, MustCallConsistencyAnalyzer.MethodExitKind exitKind) {
             this.mustCallMethod = mustCallMethod;
             this.exitKind = exitKind;
@@ -515,16 +515,16 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
 
         if (enclosingMustCallValues == null) {
             error =
-                    " The enclosing element "
+                    "the enclosing element "
                             + ElementUtils.getQualifiedName(enclosingElement)
-                            + " doesn't have a @MustCall annotation";
+                            + " does not have a @MustCall annotation";
         } else if (enclosingMustCallValues.isEmpty()) {
             error =
-                    " The enclosing element "
+                    "the enclosing element "
                             + ElementUtils.getQualifiedName(enclosingElement)
                             + " has an empty @MustCall annotation";
         } else {
-            error = " [[checkOwningField() did not find a reason!]]"; // should be reassigned
+            error = "[[checkOwningField() did not find a reason!]]"; // should be reassigned
             List<? extends Element> siblingsOfOwningField = enclosingElement.getEnclosedElements();
             for (Element siblingElement : siblingsOfOwningField) {
                 if (siblingElement.getKind() == ElementKind.METHOD
@@ -582,7 +582,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
                         // This variable could be set immediately before reporting the error, but
                         // IMO it is more clear to set it here.
                         error =
-                                "Postconditions written on MustCall methods are missing: "
+                                "postconditions written on MustCall methods are missing: "
                                         + formatMissingMustCallMethodPostconditions(
                                                 field, unsatisfiedMustCallObligationsOfOwningField);
                     }
@@ -643,7 +643,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
      * @param mustCallVal the list of must-call strings
      * @return a formatted string
      */
-    /*package-private*/ static String formatMissingMustCallMethodPostconditions(
+    private static String formatMissingMustCallMethodPostconditions(
             Element field, Set<DestructorObligation> mustCallVal) {
         int size = mustCallVal.size();
         if (size == 0) {
@@ -675,8 +675,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
                 return "@EnsuresCalledMethods";
             case EXCEPTIONAL_EXIT:
                 return "@EnsuresCalledMethodsOnException";
-            default:
-                throw new UnsupportedOperationException(exitKind.toString());
         }
+        throw new UnsupportedOperationException(exitKind.toString());
     }
 }

@@ -50,8 +50,8 @@ public class ListTreeAnnotator extends TreeAnnotator {
 
     @Override
     public Void defaultAction(Tree tree, AnnotatedTypeMirror type) {
-        for (TreeAnnotator annotator : annotators) {
-            annotator.visit(tree, type);
+        for (int i = 0, n = annotators.size(); i < n; ++i) {
+            annotators.get(i).visit(tree, type);
         }
 
         return null;

@@ -7,7 +7,6 @@ import org.checkerframework.javacutil.AnnotationProvider;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.StringJoiner;
 
 import javax.lang.model.element.ElementKind;
@@ -105,8 +104,15 @@ public class MethodCall extends JavaExpression {
         // implementation changed.
         // There is no need to check that the method is deterministic, because a MethodCall is
         // only created for deterministic methods.
-        return receiver.isModifiableByOtherCode()
-                || arguments.stream().anyMatch(JavaExpression::isModifiableByOtherCode);
+        if (receiver.isModifiableByOtherCode()) {
+            return true;
+        }
+        for (int i = 0, n = arguments.size(); i < n; ++i) {
+            if (arguments.get(i).isModifiableByOtherCode()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -167,13 +173,25 @@ public class MethodCall extends JavaExpression {
                 && arguments.equals(other.arguments);
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        if (method.getKind() == ElementKind.CONSTRUCTOR) {
-            // No two constructor instances have the same hashcode.
-            return System.identityHashCode(this);
+        if (hashCodeCache == 0) {
+            int h;
+            if (method.getKind() == ElementKind.CONSTRUCTOR) {
+                // No two constructor instances have the same hashcode.
+                h = System.identityHashCode(this);
+            } else {
+                h = 1;
+                h = 31 * h + (method != null ? method.hashCode() : 0);
+                h = 31 * h + (receiver != null ? receiver.hashCode() : 0);
+                h = 31 * h + (arguments != null ? arguments.hashCode() : 0);
+            }
+            hashCodeCache = h == 0 ? 1 : h;
         }
-        return Objects.hash(method, receiver, arguments);
+        return hashCodeCache;
     }
 
     @Override

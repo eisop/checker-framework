@@ -338,8 +338,7 @@ public abstract class AbstractTypeInformationPresenter implements TypeInformatio
 
             AnnotatedTypeMirror ret = null;
             if (enclosing instanceof MethodTree) {
-                MethodTree enclosingMethod = TreePathUtil.enclosingMethod(getCurrentPath());
-                ret = atypeFactory.getMethodReturnType(enclosingMethod, tree);
+                ret = atypeFactory.getMethodReturnType((MethodTree) enclosing, tree);
             } else {
                 AnnotatedExecutableType result =
                         atypeFactory.getFunctionTypeFromTree((LambdaExpressionTree) enclosing);

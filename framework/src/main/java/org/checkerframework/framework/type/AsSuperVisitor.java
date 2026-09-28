@@ -16,6 +16,7 @@ import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -122,7 +123,7 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
             AnnotationMirrorSet lubs = null;
             for (AnnotatedDeclaredType altern : annotatedUnionType.getAlternatives()) {
                 if (lubs == null) {
-                    lubs = altern.getAnnotations();
+                    lubs = altern.getAnnotationsField();
                 } else {
                     TypeMirror typeMirror = type.getUnderlyingType();
                     AnnotationMirrorSet newLubs = new AnnotationMirrorSet();
@@ -156,8 +157,9 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
 
     private AnnotatedTypeMirror copyPrimaryAnnos(AnnotatedTypeMirror from, AnnotatedTypeMirror to) {
         // There may have been annotations added by a recursive call to asSuper, so replace existing
-        // annotations
-        to.replaceAnnotations(new ArrayList<>(from.getAnnotations()));
+        // annotations.
+        // TODO: Use from.getAnnotations() to avoid a concurrent modification problem.
+        to.replaceAnnotations(from.getAnnotations());
         // if to is a Typevar or Wildcard, then replaceAnnotations also sets primary annotations on
         // the bounds to from.getAnnotations()
 
@@ -166,7 +168,7 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
             // Alternatives cannot have type arguments, so asSuper isn't called recursively
             AnnotatedUnionType unionType = (AnnotatedUnionType) to;
             for (AnnotatedDeclaredType altern : unionType.getAlternatives()) {
-                altern.addMissingAnnotations(unionType.getAnnotations());
+                altern.addMissingAnnotations(unionType.getAnnotationsField());
             }
         }
         return to;
@@ -275,16 +277,17 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
     }
 
     /** The fully-qualified names of java.lang.Cloneable and java.io.Serializable. */
-    private static List<String> cloneableOrSerializable =
-            Arrays.asList("java.lang.Cloneable", "java.io.Serializable");
+    private static final List<String> cloneableOrSerializable =
+            Collections.unmodifiableList(
+                    Arrays.asList("java.lang.Cloneable", "java.io.Serializable"));
 
     @Override
     public AnnotatedTypeMirror visitArray_Intersection(
             AnnotatedArrayType type, AnnotatedIntersectionType superType, Void p) {
         for (AnnotatedTypeMirror bounds : superType.getBounds()) {
-            if (!(TypesUtils.isObject(bounds.getUnderlyingType())
-                    || TypesUtils.isDeclaredOfName(
-                            bounds.getUnderlyingType(), cloneableOrSerializable))) {
+            TypeMirror boundsTM = bounds.getUnderlyingType();
+            if (!(TypesUtils.isObject(boundsTM)
+                    || TypesUtils.isDeclaredOfName(boundsTM, cloneableOrSerializable))) {
                 return errorTypeNotErasedSubtypeOfSuperType(type, superType, p);
             }
             copyPrimaryAnnos(type, bounds);

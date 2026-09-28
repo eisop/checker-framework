@@ -21,6 +21,7 @@ public class AinferNullnessJaifsValidationTest extends CheckerFrameworkPerDirect
         super(testFiles, NullnessChecker.class, "nullness");
     }
 
+    @SuppressWarnings("JUnitMethodInvoked")
     @Override
     public void run() {
         // Only run if annotated files have been created.

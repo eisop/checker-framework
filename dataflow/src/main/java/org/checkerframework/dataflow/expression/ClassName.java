@@ -4,8 +4,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
 import org.checkerframework.javacutil.AnnotationProvider;
 
-import java.util.Objects;
-
 import javax.lang.model.type.TypeMirror;
 
 /**
@@ -35,6 +33,9 @@ public class ClassName extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ClassName)) {
             return false;
         }
@@ -44,7 +45,7 @@ public class ClassName extends JavaExpression {
 
     @Override
     public int hashCode() {
-        return Objects.hash(typeString);
+        return typeString.hashCode();
     }
 
     @Override

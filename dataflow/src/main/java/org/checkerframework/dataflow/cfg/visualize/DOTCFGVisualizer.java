@@ -346,7 +346,7 @@ public class DOTCFGVisualizer<
         // Open for append, in case of multiple sub-checkers.
         try (Writer fstream =
                         Files.newBufferedWriter(
-                                Paths.get(outDir + "/methods.txt"),
+                                Paths.get(outDir, "methods.txt"),
                                 StandardCharsets.UTF_8,
                                 StandardOpenOption.CREATE,
                                 StandardOpenOption.APPEND);

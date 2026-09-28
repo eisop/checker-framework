@@ -44,9 +44,6 @@ import javax.tools.Diagnostic;
     "permitInitializationLeak",
     ResourceLeakChecker.COUNT_MUST_CALL,
     ResourceLeakChecker.IGNORED_EXCEPTIONS,
-    MustCallChecker.NO_CREATES_MUSTCALLFOR,
-    MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP,
-    MustCallChecker.NO_RESOURCE_ALIASES,
     // NO-AFU    ResourceLeakChecker.ENABLE_WPI_FOR_RLC,
     ResourceLeakChecker.ENABLE_RETURNS_RECEIVER
 })
@@ -226,7 +223,9 @@ public class ResourceLeakChecker extends AggregateChecker {
      * @return the set of ignored exceptions
      */
     protected SetOfTypes parseIgnoredExceptions(String ignoredExceptionsOptionValue) {
-        String[] exceptions = COMMAS.split(ignoredExceptionsOptionValue);
+        // Use limit -1 so a trailing comma produces an empty token that
+        // parseExceptionSpecifier will reject with a clear warning.
+        String[] exceptions = COMMAS.split(ignoredExceptionsOptionValue, -1);
         List<SetOfTypes> sets = new ArrayList<>();
         for (String e : exceptions) {
             SetOfTypes set = parseExceptionSpecifier(e, ignoredExceptionsOptionValue);
@@ -283,7 +282,7 @@ public class ResourceLeakChecker extends AggregateChecker {
                         ? SetOfTypes.allSubtypes(type)
                         : SetOfTypes.singleton(type);
             }
-        } else if (!exceptionSpecifier.trim().isEmpty()) {
+        } else {
             message(
                     Diagnostic.Kind.WARNING,
                     "The string '%s' appears in the -A%s=%s option,"

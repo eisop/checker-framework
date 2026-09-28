@@ -1,0 +1,48 @@
+// Boxing and unboxing preserve the fake enum of the value being converted.  Without these
+// annotations the conversion goes through a declaration whose parameter and receiver default to
+// @FenumUnqualified, so a @Fenum value could not be boxed or unboxed.  The CFG desugars the
+// conversion into a call to one of these methods; see BaseTypeVisitor#checkSyntheticMethodInvocations.
+
+package java.lang;
+
+import org.checkerframework.checker.fenum.qual.PolyFenum;
+
+class Boolean {
+    static @PolyFenum Boolean valueOf(@PolyFenum boolean b);
+    @PolyFenum boolean booleanValue(@PolyFenum Boolean this);
+}
+
+class Byte {
+    static @PolyFenum Byte valueOf(@PolyFenum byte b);
+    @PolyFenum byte byteValue(@PolyFenum Byte this);
+}
+
+class Character {
+    static @PolyFenum Character valueOf(@PolyFenum char c);
+    @PolyFenum char charValue(@PolyFenum Character this);
+}
+
+class Double {
+    static @PolyFenum Double valueOf(@PolyFenum double d);
+    @PolyFenum double doubleValue(@PolyFenum Double this);
+}
+
+class Float {
+    static @PolyFenum Float valueOf(@PolyFenum float f);
+    @PolyFenum float floatValue(@PolyFenum Float this);
+}
+
+class Integer {
+    static @PolyFenum Integer valueOf(@PolyFenum int i);
+    @PolyFenum int intValue(@PolyFenum Integer this);
+}
+
+class Long {
+    static @PolyFenum Long valueOf(@PolyFenum long l);
+    @PolyFenum long longValue(@PolyFenum Long this);
+}
+
+class Short {
+    static @PolyFenum Short valueOf(@PolyFenum short s);
+    @PolyFenum short shortValue(@PolyFenum Short this);
+}

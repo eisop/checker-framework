@@ -35,7 +35,7 @@ public class FormatUtil {
          * @param index the index in the argument list
          * @param c the conversion character
          */
-        public Conversion(char c, int index) {
+        Conversion(char c, int index) {
             this.index = index;
             this.cath = ConversionCategory.fromConversionChar(c);
         }

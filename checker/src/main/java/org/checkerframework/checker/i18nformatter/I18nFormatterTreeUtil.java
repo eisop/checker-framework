@@ -32,6 +32,7 @@ import org.checkerframework.framework.util.JavaExpressionParseUtil;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.List;
@@ -574,7 +575,7 @@ public class I18nFormatterTreeUtil {
                                         @SuppressWarnings(
                                                 "signature") // https://tinyurl.com/cfissue/658:
                                         // Name.toString should be @PolySignature
-                                        @BinaryName String cname = te.getQualifiedName().toString();
+                                        @BinaryName String cname = ElementUtils.getQualifiedName(te);
                                         return Class.forName(cname);
                                     } catch (ClassNotFoundException e) {
                                         // The lookup should work for all the classes we care about.

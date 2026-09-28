@@ -1,9 +1,9 @@
 package org.checkerframework.framework.stub;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 
 /** {@link File}-based implementation of {@link AnnotationFileResource}. */
 public class FileAnnotationFileResource implements AnnotationFileResource {
@@ -20,6 +20,15 @@ public class FileAnnotationFileResource implements AnnotationFileResource {
         this.file = file;
     }
 
+    /**
+     * Returns the underlying file.
+     *
+     * @return the underlying file
+     */
+    public File getFile() {
+        return file;
+    }
+
     @Override
     public String getDescription() {
         return file.getAbsolutePath();
@@ -27,6 +36,6 @@ public class FileAnnotationFileResource implements AnnotationFileResource {
 
     @Override
     public InputStream getInputStream() throws IOException {
-        return new FileInputStream(file);
+        return Files.newInputStream(file.toPath());
     }
 }

@@ -45,10 +45,10 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 
 import java.io.File;
 import java.io.IOException;
@@ -391,13 +391,14 @@ public class WholeProgramInferenceScenesStorage
      */
     public AnnotatedTypeMirror getPreconditionDeclaredType(AMethod m, String expression) {
         String key = m.methodSignature + expression;
-        if (!preconditionsToDeclaredTypes.containsKey(key)) {
+        AnnotatedTypeMirror result = preconditionsToDeclaredTypes.get(key);
+        if (result == null) {
             throw new BugInCF(
                     "attempted to retrieve the declared type of a precondition expression for which"
                             + "nothing was inferred: "
                             + key);
         }
-        return preconditionsToDeclaredTypes.get(key);
+        return result;
     }
 
     /**
@@ -410,13 +411,14 @@ public class WholeProgramInferenceScenesStorage
      */
     public AnnotatedTypeMirror getPostconditionDeclaredType(AMethod m, String expression) {
         String key = m.methodSignature + expression;
-        if (!postconditionsToDeclaredTypes.containsKey(key)) {
+        AnnotatedTypeMirror result = postconditionsToDeclaredTypes.get(key);
+        if (result == null) {
             throw new BugInCF(
                     "attempted to retrieve the declared type of a postcondition expression for which"
                             + "nothing was inferred: "
                             + key);
         }
-        return postconditionsToDeclaredTypes.get(key);
+        return result;
     }
 
     @Override
@@ -530,23 +532,22 @@ public class WholeProgramInferenceScenesStorage
      * @return the Scene read from the file, or an empty Scene if the file does not exist
      */
     private ASceneWrapper getScene(String jaifPath) {
-        AScene scene;
-        if (!scenes.containsKey(jaifPath)) {
-            File jaifFile = new File(jaifPath);
-            scene = new AScene();
-            if (jaifFile.exists()) {
-                try {
-                    IndexFileParser.parseFile(jaifPath, scene);
-                } catch (IOException e) {
-                    throw new UserError("Problem while reading %s: %s", jaifPath, e.getMessage());
-                }
-            }
-            ASceneWrapper wrapper = new ASceneWrapper(scene);
-            scenes.put(jaifPath, wrapper);
-            return wrapper;
-        } else {
-            return scenes.get(jaifPath);
+        ASceneWrapper existing = scenes.get(jaifPath);
+        if (existing != null) {
+            return existing;
         }
+        AScene scene = new AScene();
+        File jaifFile = new File(jaifPath);
+        if (jaifFile.exists()) {
+            try {
+                IndexFileParser.parseFile(jaifPath, scene);
+            } catch (IOException e) {
+                throw new UserError("Problem while reading %s: %s", jaifPath, e.getMessage());
+            }
+        }
+        ASceneWrapper wrapper = new ASceneWrapper(scene);
+        scenes.put(jaifPath, wrapper);
+        return wrapper;
     }
 
     /**
@@ -1009,7 +1010,7 @@ public class WholeProgramInferenceScenesStorage
             // firstKey works as a unique identifier for each annotation
             // that should not be inserted in source code
             String firstKey = aTypeElementToString(typeToUpdate);
-            IPair<String, TypeUseLocation> key = IPair.of(firstKey, defLoc);
+            Pair<String, TypeUseLocation> key = Pair.of(firstKey, defLoc);
             Set<String> annosIgnored = annosToIgnore.get(key);
             if (annosIgnored == null) {
                 annosIgnored = new HashSet<>(CollectionsPlume.mapCapacity(1));
@@ -1036,7 +1037,7 @@ public class WholeProgramInferenceScenesStorage
      * TypeUseLocation to a set of names of annotations.
      */
     public static class AnnotationsInContexts
-            extends HashMap<IPair<String, TypeUseLocation>, Set<String>> {
+            extends HashMap<Pair<String, TypeUseLocation>, Set<String>> {
         private static final long serialVersionUID = 20200321L;
     }
 

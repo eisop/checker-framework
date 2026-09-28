@@ -2,8 +2,8 @@ package org.checkerframework.framework.test.diagnostics;
 
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.javacutil.Pair;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -117,7 +117,7 @@ public class TestDiagnosticUtils {
         // Since we want to match the error messages reported by javac exactly, we must parse.
         // diagnostic.getCode() returns "compiler.warn.prob.found.req" for "[unchecked]" messages,
         // but not clear how to map from one to the other.
-        IPair<String, Path> trimmed = formatJavaxToolString(diagnosticString);
+        Pair<String, Path> trimmed = formatJavaxToolString(diagnosticString);
         return fromPatternMatching(
                 DIAGNOSTIC_PATTERN,
                 DIAGNOSTIC_WARNING_PATTERN,
@@ -154,7 +154,7 @@ public class TestDiagnosticUtils {
 
         Matcher diagnosticMatcher = diagnosticPattern.matcher(diagnosticString);
         if (diagnosticMatcher.matches()) {
-            IPair<DiagnosticKind, Boolean> categoryToFixable =
+            Pair<DiagnosticKind, Boolean> categoryToFixable =
                     parseCategoryString(diagnosticMatcher.group("kind"));
             kind = categoryToFixable.first;
             isFixable = categoryToFixable.second;
@@ -168,8 +168,16 @@ public class TestDiagnosticUtils {
                 kind = DiagnosticKind.Warning;
                 isFixable = false;
                 message = warningMatcher.group("message").trim();
-                if (lineNumber == null && diagnosticMatcher.group("linenogroup") != null) {
-                    lineNo = Long.parseLong(diagnosticMatcher.group("lineno"));
+                // The warningPattern may not define a "linenogroup" group (e.g.
+                // DIAGNOSTIC_WARNING_IN_JAVA_PATTERN), so guard the lookup.
+                if (lineNumber == null) {
+                    try {
+                        if (warningMatcher.group("linenogroup") != null) {
+                            lineNo = Long.parseLong(warningMatcher.group("lineno"));
+                        }
+                    } catch (IllegalArgumentException e) {
+                        // warningPattern does not define a "linenogroup" group.
+                    }
                 }
             } else if (diagnosticString.startsWith("warning:")) {
                 kind = DiagnosticKind.Warning;
@@ -213,11 +221,24 @@ public class TestDiagnosticUtils {
 
             // (3) the diagnostic position, given by the format (startPosition, endPosition);
             String pairParens = diagnosticStrings[lastAdditionalToken];
-            // remove the leading and trailing parentheses and spaces
-            String pair = pairParens.substring(2, pairParens.length() - 2);
-            String[] diagPositionString = pair.split(", ");
-            long startPosition = Long.parseLong(diagPositionString[0]);
-            long endPosition = Long.parseLong(diagPositionString[1]);
+            long startPosition = -1;
+            long endPosition = -1;
+            if (pairParens.length() >= 4) {
+                // remove the leading and trailing parentheses and spaces
+                String pair = pairParens.substring(2, pairParens.length() - 2);
+                // Splitting on the fixed two-character literal ", "; Pattern.quote prevents regex
+                // interpretation. Trailing empty strings cannot occur in "(start, end)" format.
+                @SuppressWarnings("StringSplitter")
+                String[] diagPositionString = pair.split(Pattern.quote(", "));
+                if (diagPositionString.length == 2) {
+                    try {
+                        startPosition = Long.parseLong(diagPositionString[0]);
+                        endPosition = Long.parseLong(diagPositionString[1]);
+                    } catch (NumberFormatException e) {
+                        // If parsing fails, leave positions at -1
+                    }
+                }
+            }
 
             // (4) the human-readable diagnostic message.
             String readableMessage = diagnosticStrings[lastAdditionalToken + 1];
@@ -240,14 +261,14 @@ public class TestDiagnosticUtils {
     /**
      * Given a javax diagnostic, return a pair of (trimmed, file), where "trimmed" is the message
      * without the leading filename and the file path. As an example: "foo/bar/Baz.java:49: My error
-     * message" is turned into {@code IPair.of(":49: My error message", Path("foo/bar/Baz.java"))}.
+     * message" is turned into {@code Pair.of(":49: My error message", Path("foo/bar/Baz.java"))}.
      * If the file path cannot be determined, it uses {@code ""}. This is necessary to make writing
      * the expected warnings easy.
      *
      * @param original a javax diagnostic
      * @return the diagnostic, split into message and file
      */
-    public static IPair<String, Path> formatJavaxToolString(String original) {
+    public static Pair<String, Path> formatJavaxToolString(String original) {
         String firstline;
         // In TestDiagnostic we manually check for "\r\n" and "\n". Here, we only use
         // `firstline` to find the file name. Using the system line separator is not
@@ -273,7 +294,7 @@ public class TestDiagnosticUtils {
             trimmed = original;
         }
 
-        return IPair.of(trimmed, file);
+        return Pair.of(trimmed, file);
     }
 
     /**
@@ -283,7 +304,7 @@ public class TestDiagnosticUtils {
      * @param category a category string
      * @return the corresponding diagnostic kind and whether it is fixable
      */
-    private static IPair<DiagnosticKind, Boolean> parseCategoryString(String category) {
+    private static Pair<DiagnosticKind, Boolean> parseCategoryString(String category) {
         String fixable = "fixable-";
         boolean isFixable = category.startsWith(fixable);
         if (isFixable) {
@@ -294,7 +315,7 @@ public class TestDiagnosticUtils {
             throw new Error("Unparsable category: " + category);
         }
 
-        return IPair.of(categoryEnum, isFixable);
+        return Pair.of(categoryEnum, isFixable);
     }
 
     /**

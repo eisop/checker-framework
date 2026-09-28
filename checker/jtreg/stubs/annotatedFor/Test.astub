@@ -10,4 +10,10 @@ public class Test<T> {
     public void method2(T t){}
     @AnnotatedFor("nullness")
     public Object method3() {}
+    // Repeated @AnnotatedFor: the first entry names an unrelated checker, so recognizing that
+    // this stub entry also applies to nullness requires checking every entry, not just the
+    // first.
+    @AnnotatedFor("tainting")
+    @AnnotatedFor("nullness")
+    public void method4(T t){}
 }

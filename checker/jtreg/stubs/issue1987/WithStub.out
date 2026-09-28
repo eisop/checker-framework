@@ -1,0 +1,4 @@
+- compiler.warn.proc.messager: Lib.astub:(line 5,col 1): stub file provides annotations for source class issue1987.Lib; either remove the class from the stub file, remove the file from -Astubs, or pass -AmergeStubsWithSource to merge them
+Use.java:18:36: compiler.err.proc.messager: (assignment.type.incompatible)
+1 error
+1 warning

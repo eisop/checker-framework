@@ -12,8 +12,8 @@ import org.plumelib.util.CollectionsPlume;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
@@ -590,14 +590,17 @@ public class CheckerMain {
             String errorMessage = null;
 
             try {
-                @SuppressWarnings("builder:required.method.not.called") // called when needed
+                @SuppressWarnings({
+                    "builder:required.method.not.called", // called when needed
+                    "JdkObsolete"
+                })
                 PrintWriter writer =
                         (outputFilename.equals("-")
                                 ? new PrintWriter(
                                         new BufferedWriter(
                                                 new OutputStreamWriter(
                                                         System.out, StandardCharsets.UTF_8)))
-                                : new PrintWriter(outputFilename, "UTF-8"));
+                                : new PrintWriter(outputFilename, StandardCharsets.UTF_8.name()));
                 for (int i = 0; i < args.size(); i++) {
                     String arg = args.get(i);
 
@@ -744,6 +747,7 @@ public class CheckerMain {
         }
 
         try {
+            @SuppressWarnings("JdkObsolete")
             String fileName =
                     URLDecoder.decode(
                             uri.substring("jar:file:".length(), idx),
@@ -862,7 +866,7 @@ public class CheckerMain {
      */
     private List<@FullyQualifiedName String> getAllCheckerClassNames() {
         ArrayList<@FullyQualifiedName String> checkerClassNames = new ArrayList<>();
-        try (FileInputStream fis = new FileInputStream(checkerJar);
+        try (InputStream fis = Files.newInputStream(checkerJar.toPath());
                 JarInputStream checkerJarIs = new JarInputStream(fis)) {
             ZipEntry entry;
             while ((entry = checkerJarIs.getNextEntry()) != null) {

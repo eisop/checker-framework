@@ -52,7 +52,6 @@ public class CFGTranslationPhaseThree {
      *     not allowed to read or modify {@code cfg} after the call to {@code process} any more.
      * @return the resulting control flow graph
      */
-    @SuppressWarnings("nullness") // TODO: successors
     public static ControlFlowGraph process(ControlFlowGraph cfg) {
         Set<Block> worklist = cfg.getAllBlocks();
 
@@ -354,9 +353,8 @@ public class CFGTranslationPhaseThree {
             case REGULAR_BLOCK:
                 RegularBlockImpl r = (RegularBlockImpl) pred;
                 return singleSuccessorHolder(r, cur);
-            default:
-                throw new BugInCF("Unexpected block type " + pred.getType());
         }
+        throw new BugInCF("Unexpected block type " + pred.getType());
     }
 
     /**

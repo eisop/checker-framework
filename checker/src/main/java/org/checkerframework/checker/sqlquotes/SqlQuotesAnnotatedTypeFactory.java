@@ -82,7 +82,7 @@ public class SqlQuotesAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          *
          * @param atypeFactory the type factory
          */
-        public SqlQuotesPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        SqlQuotesPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
@@ -118,7 +118,7 @@ public class SqlQuotesAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          *
          * @param atypeFactory the annotated type factory
          */
-        public SqlQuotesTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        SqlQuotesTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 

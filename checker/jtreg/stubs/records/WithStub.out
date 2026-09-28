@@ -1,0 +1,2 @@
+- compiler.warn.proc.messager: Rec.astub:(line 5,col 1): stub file provides annotations for source class records.Rec; either remove the class from the stub file, remove the file from -Astubs, or pass -AmergeStubsWithSource to merge them
+1 warning

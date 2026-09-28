@@ -13,6 +13,7 @@ import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 
+import java.util.Properties;
 import java.util.Set;
 
 /**
@@ -32,6 +33,19 @@ public class RLCCalledMethodsChecker extends CalledMethodsChecker {
     @Override
     protected BaseTypeVisitor<?> createSourceVisitor() {
         return new RLCCalledMethodsVisitor(this);
+    }
+
+    @Override
+    public Properties getMessagesProperties() {
+        Properties result = super.getMessagesProperties();
+        // RLCCalledMethodsVisitor reports keys that only the Resource Leak Checker's
+        // messages.properties defines -- required.method.not.called and owning.override.return
+        // among them.  getMessagesProperties walks this checker's *class* hierarchy
+        // (RLCCalledMethodsChecker, CalledMethodsChecker, AccumulationChecker, ...), which does
+        // not include ResourceLeakChecker, since this checker is its subchecker rather than its
+        // subclass.  Without this, every such message is printed as its bare key.
+        result.putAll(getProperties(ResourceLeakChecker.class, MSGS_FILE, true));
+        return result;
     }
 
     /**

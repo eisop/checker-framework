@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  JFR settings tuned for profiling the EISOP Checker Framework.
+
+  Differences from the stock `profile.jfc`:
+
+  - Method sampling kept at 10 ms (the documented MIN_SAMPLE_PERIOD floor;
+    asking for less is silently clamped).
+  - Stack depth: CF stacks routinely exceed 64 frames through visitor +
+    dataflow + qualifier-hierarchy layers, and the default depth (64)
+    truncates the most interesting top frames. Stack depth is NOT a .jfc
+    setting and CANNOT be set here or on -XX:StartFlightRecording (the JVM
+    warns "The .jfc option/setting 'stackdepth' doesn't exist." and falls
+    back to 64). It must be set via -XX:FlightRecorderOptions=stackdepth=256,
+    which record-jfr.sh does.
+  - Allocation sampling disabled. It is the most expensive event in
+    `profile.jfc` and produces multi-megabyte output without giving
+    finer-grained data than `jdk.ObjectAllocationInNewTLAB` (kept).
+  - `jdk.GCPhaseParallel` and `jdk.PromoteObjectInNewPLAB` disabled —
+    high-volume GC instrumentation that dominates file size for CF runs
+    without adding actionable signal for our workload.
+  - `jdk.JavaErrorThrow` disabled — CF uses exceptions internally for
+    control flow; the resulting 80k+ events per minute bloats the trace.
+  - `jdk.SocketRead`/`jdk.SocketWrite`/`jdk.FileRead`/`jdk.FileWrite`
+    disabled — CF is CPU-bound on the workloads we care about.
+
+  Usage (prefer record-jfr.sh, which assembles these flags correctly):
+      -XX:FlightRecorderOptions=stackdepth=256 \
+      -XX:StartFlightRecording=settings=checker/bin-devel/profile-cf.jfc,\
+       filename=/abs/path/cf-%p.jfr,dumponexit=true
+
+  Analyze with .claude/skills/cf-performance/jfr-analyze.java: `jfr print`/`jfr view`
+  crash on JDK 25 (ValueFormatter.formatMethod) and cannot be used.
+-->
+<configuration version="2.0" label="EISOP CF profile" description="CF-tuned profiling"
+               provider="EISOP">
+
+  <event name="jdk.ExecutionSample">
+    <setting name="enabled">true</setting>
+    <setting name="period">10 ms</setting>
+  </event>
+
+  <event name="jdk.NativeMethodSample">
+    <setting name="enabled">true</setting>
+    <setting name="period">10 ms</setting>
+  </event>
+
+  <event name="jdk.ObjectAllocationInNewTLAB">
+    <setting name="enabled">true</setting>
+    <setting name="stackTrace">true</setting>
+  </event>
+
+  <event name="jdk.ObjectAllocationOutsideTLAB">
+    <setting name="enabled">true</setting>
+    <setting name="stackTrace">true</setting>
+  </event>
+
+  <event name="jdk.ObjectAllocationSample">
+    <setting name="enabled">false</setting>
+  </event>
+
+  <event name="jdk.GCPhaseParallel">
+    <setting name="enabled">false</setting>
+  </event>
+
+  <event name="jdk.PromoteObjectInNewPLAB">
+    <setting name="enabled">false</setting>
+  </event>
+
+  <event name="jdk.PromoteObjectOutsidePLAB">
+    <setting name="enabled">false</setting>
+  </event>
+
+  <event name="jdk.JavaErrorThrow">
+    <setting name="enabled">false</setting>
+  </event>
+
+  <event name="jdk.JavaExceptionThrow">
+    <setting name="enabled">false</setting>
+  </event>
+
+  <event name="jdk.SocketRead">
+    <setting name="enabled">false</setting>
+  </event>
+
+  <event name="jdk.SocketWrite">
+    <setting name="enabled">false</setting>
+  </event>
+
+  <event name="jdk.FileRead">
+    <setting name="enabled">false</setting>
+  </event>
+
+  <event name="jdk.FileWrite">
+    <setting name="enabled">false</setting>
+  </event>
+
+  <event name="jdk.GarbageCollection">
+    <setting name="enabled">true</setting>
+  </event>
+
+  <event name="jdk.OldGarbageCollection">
+    <setting name="enabled">true</setting>
+  </event>
+
+  <event name="jdk.YoungGarbageCollection">
+    <setting name="enabled">true</setting>
+  </event>
+
+  <event name="jdk.GCHeapSummary">
+    <setting name="enabled">true</setting>
+  </event>
+
+  <event name="jdk.ThreadCPULoad">
+    <setting name="enabled">true</setting>
+    <setting name="period">1 s</setting>
+  </event>
+
+  <event name="jdk.CPULoad">
+    <setting name="enabled">true</setting>
+    <setting name="period">1 s</setting>
+  </event>
+
+  <event name="jdk.JavaMonitorEnter">
+    <setting name="enabled">true</setting>
+    <setting name="threshold">10 ms</setting>
+    <setting name="stackTrace">true</setting>
+  </event>
+
+  <event name="jdk.JavaMonitorWait">
+    <setting name="enabled">true</setting>
+    <setting name="threshold">10 ms</setting>
+    <setting name="stackTrace">true</setting>
+  </event>
+
+</configuration>
