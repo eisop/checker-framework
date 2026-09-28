@@ -991,25 +991,23 @@ public abstract class InitializationParentAnnotatedTypeFactory
             if (TreeUtils.isConstructor(tree)) {
                 assert p instanceof AnnotatedExecutableType;
                 AnnotatedExecutableType exeType = (AnnotatedExecutableType) p;
-                DeclaredType underlyingType =
-                        (DeclaredType) exeType.getReturnType().getUnderlyingType();
+                AnnotatedDeclaredType returnType = (AnnotatedDeclaredType) exeType.getReturnType();
+                DeclaredType underlyingType = returnType.getUnderlyingType();
                 AnnotationMirror a = getUnderInitializationAnnotationOfSuperType(underlyingType);
-                exeType.getReturnType().replaceAnnotation(a);
+                returnType.replaceAnnotation(a);
 
-                // ReturnType does not capture the annotation information of the enclosing receiver
-                // of constructor, which can be specified in the signature by outer.this identifier.
-                // If enclosing receiver's type is specified, we should not assign default
-                // annotation but the specified one, which is captured in ReceiverType.
-                if (exeType.getReceiverType() != null
-                        && exeType.getReceiverType().hasAnnotationInHierarchy(a)) {
-                    AnnotationMirror enclAnno =
-                            exeType.getReceiverType().getAnnotationInHierarchy(a);
-                    AnnotatedDeclaredType ret = (AnnotatedDeclaredType) exeType.getReturnType();
-                    if (ret.getEnclosingType() != null) {
-                        // The return type of constructor will never be explicitly written;
-                        // therefore the return type will always have no annotation; therefore using
-                        // `addAnnotation` here instead of `replaceAnnotation` is always correct.
-                        ret.getEnclosingType().addAnnotation(enclAnno);
+                // The return type of an inner class constructor does not capture the explicit
+                // annotation of the enclosing receiver parameter (e.g. Outer Outer.this).
+                // If the enclosing receiver's type is specified, annotate the return type's
+                // enclosing type with that qualifier.
+                AnnotatedDeclaredType returnEnclosingType = returnType.getEnclosingType();
+                if (returnEnclosingType != null) {
+                    AnnotatedDeclaredType receiverType = exeType.getReceiverType();
+                    if (receiverType != null) {
+                        AnnotationMirror enclAnno = receiverType.getAnnotationInHierarchy(a);
+                        if (enclAnno != null) {
+                            returnEnclosingType.replaceAnnotation(enclAnno);
+                        }
                     }
                 }
             }

@@ -23,9 +23,9 @@ public class NullnessEnclosingExprTest extends CheckerFrameworkPerDirectoryTest 
     }
 
     /**
-     * Find the path to the actual test case
+     * Find the path to the actual test case.
      *
-     * @return path to test case in checker/tests.
+     * @return path to test case in checker/tests
      */
     @Parameters
     public static String[] getTestDirs() {
