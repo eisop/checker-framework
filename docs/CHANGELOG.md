@@ -41,30 +41,30 @@ Lombok/codehaus `@NotNull`/`@Nullable` and `@org.plumelib.options.Option`)
 are fixed; and shaded jars are ~2 MB smaller, no longer bundling a stray
 `module-info.class` or jsr305 classes.
 
-Receiver type-argument subtyping is now checked: annotations on a method
-receiver's type arguments (e.g., `void test(Box<@NonNull T> this)`) were
-previously ignored.
-
-`-AcheckCastElementType` now requires array components to be invariant in
-array casts and `instanceof` binding patterns, closing an unsoundness:
-array components are mutable and qualifiers are not reified.
-
-When an intersection type's bounds carry conflicting qualifiers
-(e.g. `<T extends @NonNull Object & @Nullable Serializable>`), the first
-bound's qualifier now wins (homogenization); override
-`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
-customize.
-
-Issues `annotation.on.supertype` for a main annotation on a superclass or
-interface in `extends`/`implements` (type-argument annotations remain
-permitted); override `BaseTypeVisitor#checkAnnotationOnSupertype` to allow it.
-
-Anonymous class creation is now checked more consistently: `new @A AClass() {}`
-validates against the superclass's declaration bound on Java 8-11 too (not
-just 12+); `new AClass() {}` is defaulted using the supertype's declaration
-bound and `@DefaultQualifierForUse`; and `new @A AIface() {}` no longer
-reports `cast.unsafe.constructor.invocation` when `@A` matches the
-interface's declaration bound.
+Type-checking and subtyping improvements:
+- Receiver type-argument subtyping is now checked: annotations on a method
+  receiver's type arguments (e.g., `void test(Box<@NonNull T> this)`) were
+  previously ignored.
+- `-AcheckCastElementType` now requires array components to be invariant in
+  array casts and `instanceof` binding patterns, closing an unsoundness:
+  array components are mutable and qualifiers are not reified.
+- When an intersection type's bounds carry conflicting qualifiers
+  (e.g. `<T extends @NonNull Object & @Nullable Serializable>`), the first
+  bound's qualifier now wins (homogenization); override
+  `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
+  customize.
+- Issues `annotation.on.supertype` for a main annotation on a superclass or
+  interface in `extends`/`implements` (type-argument annotations remain
+  permitted); override `BaseTypeVisitor#checkAnnotationOnSupertype` to allow it.
+- Anonymous class creation is now checked more consistently: `new @A AClass() {}`
+  validates against the superclass's declaration bound on Java 8-11 too (not
+  just 12+); `new AClass() {}` is defaulted using the supertype's declaration
+  bound and `@DefaultQualifierForUse`; and `new @A AIface() {}` no longer
+  reports `cast.unsafe.constructor.invocation` when `@A` matches the
+  interface's declaration bound.
+- CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
+  try-with-resources) are now type-checked, with diagnostics pointing at the
+  source construct.
 
 JSpecify support in the Nullness Checker:
 - Dropped JSpecify's pre-1.0 `org.jspecify.nullness` package -- use
@@ -132,10 +132,6 @@ Command-line option additions and changes:
   by subcheckers; more specific options take precedence.
 - Invalid option arguments (e.g. malformed regex) now produce compiler errors
   instead of stack traces.
-
-CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
-try-with-resources) are now type-checked, with diagnostics pointing at the
-source construct.
 
 **Implementation details:**
 
