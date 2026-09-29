@@ -467,6 +467,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private final boolean assumePureGetters;
 
+    /**
+     * True if only the annotations written in the source code, not the qualifiers inferred by
+     * defaulting, should be stored into the class file. See {@link #postProcessClassTree}.
+     */
+    private final boolean noBytecodeStorage;
+
     /** True if -AmergeStubsWithSource was provided on the command line. */
     private final boolean mergeStubsWithSource;
 
@@ -742,6 +748,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.assumeDeterministic =
                 checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
         this.assumePureGetters = checker.hasOption("assumePureGetters");
+        this.noBytecodeStorage = checker.hasOption("noBytecodeStorage");
 
         this.trees = Trees.instance(processingEnv);
         this.elements = processingEnv.getElementUtils();
@@ -1994,7 +2001,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param tree the ClassTree that has been processed
      */
     public void postProcessClassTree(ClassTree tree) {
-        if (!checker.hasOption("noBytecodeStorage")) {
+        if (!noBytecodeStorage) {
             TypesIntoElements.store(processingEnv, this, tree);
             DeclarationsIntoElements.store(processingEnv, this, tree);
         }

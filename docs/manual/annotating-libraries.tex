@@ -527,6 +527,9 @@ above:  the \<.class> file then contains only the annotations that appear in
 the source code, not the qualifiers the checker inferred by defaulting.  Use
 it when the defaults of the compilation that writes the \<.class> file should
 not be baked into it.
+The option also suppresses the storage of declaration annotations that a
+method inherits from the methods it overrides; only the declaration annotations
+written in the source code are stored.
 
 There are two reasons to want this.  First, the stored qualifiers are read by
 other tools, which may reject them:  a stored \<@NonNull> on a class type
