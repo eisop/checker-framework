@@ -530,6 +530,10 @@ not be baked into it.
 The option also suppresses the storage of declaration annotations that a
 method inherits from the methods it overrides; only the declaration annotations
 written in the source code are stored.
+It likewise omits qualifiers supplied by an ajava file (\<-Aajava>) or, under
+\<-AmergeStubsWithSource>, by a stub file.  Unlike inherited declaration
+annotations, which a later compilation recomputes, those are seen by a later
+compilation only if it is given the same ajava or stub files.
 
 There are two reasons to want this.  First, the stored qualifiers are read by
 other tools, which may reject them:  a stored \<@NonNull> on a class type
@@ -548,6 +552,13 @@ compilation can still tell which classes were annotated:  a class that is not
 in the scope of a relevant \<@AnnotatedFor> is defaulted conservatively under
 \<-AuseConservativeDefaultsForUncheckedCode=bytecode>, which yields more
 warnings than the annotations that would have been stored.
+
+This also applies to a project's own classes.  An incremental build reads
+the classes it does not recompile from their \<.class> files, which under
+\<-AstoreInBytecode=false> carry no defaulted qualifiers; if bytecode is
+defaulted differently from source code, as under
+\<-AuseConservativeDefaultsForUncheckedCode=bytecode> alone, an incremental
+build can issue different warnings than a clean build.
 
 
 \sectionAndLabel{Using stub classes}{stub}

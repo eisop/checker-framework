@@ -119,8 +119,8 @@ The Fenum Checker preserves a fake enum across boxing/unboxing via
 
 Command-line option additions and changes:
 - `-AstoreInBytecode=false`: writes only source-code annotations to the `.class`
-  file, not the qualifiers inferred by defaulting, which can break downstream
-  tools (Kotlin treats a stored
+  file, not the qualifiers inferred by defaulting or read from ajava or merged
+  stub files, which can break downstream tools (Kotlin treats a stored
   `@NonNull` on a class type parameter as non-nullable; `javac` 25 reports
   "cannot attach type annotations" if the annotation's type is off the
   classpath). Implied by `-Amode=jspecify`.
