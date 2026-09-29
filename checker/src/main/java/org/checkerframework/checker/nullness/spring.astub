@@ -1,0 +1,94 @@
+// Nullness annotations for the Spring Framework utility methods that callers use as null
+// guards.  Spring declares these with its own @Contract (org.springframework.lang.Contract),
+// which the Nullness Checker does not read, so without this file every dereference guarded by
+// one of them is reported.  The translations are:
+//
+//   @Contract("null -> true")     null implies true,  so false implies non-null
+//   @Contract("null -> false")    null implies false, so true  implies non-null
+//   @Contract("null, _ -> fail")  null throws,        so a normal return implies non-null
+//
+// Scope: every method in these classes whose @Contract says the argument is non-null
+// afterwards, and that callers therefore use as a null guard.  Contracts of other shapes
+// (@Contract("null -> null"), "!null -> !null") describe the return value rather than an
+// argument; they want @PolyNull on the return type, which is a separate change.
+
+package org.springframework.util;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.function.Supplier;
+
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+public abstract class ObjectUtils {
+    @EnsuresNonNullIf(expression = "#1", result = false)
+    public static boolean isEmpty(@Nullable Object @Nullable [] array);
+
+    @EnsuresNonNullIf(expression = "#1", result = false)
+    public static boolean isEmpty(@Nullable Object obj);
+}
+
+public abstract class CollectionUtils {
+    @EnsuresNonNullIf(expression = "#1", result = false)
+    public static boolean isEmpty(@Nullable Collection<?> collection);
+
+    @EnsuresNonNullIf(expression = "#1", result = false)
+    public static boolean isEmpty(@Nullable Map<?, ?> map);
+}
+
+public abstract class StringUtils {
+    @EnsuresNonNullIf(expression = "#1", result = false)
+    public static boolean isEmpty(@Nullable Object str);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean hasLength(@Nullable CharSequence str);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean hasLength(@Nullable String str);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean hasText(@Nullable CharSequence str);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean hasText(@Nullable String str);
+}
+
+public abstract class Assert {
+    @EnsuresNonNull("#1")
+    public static void notNull(@Nullable Object object, String message);
+
+    @EnsuresNonNull("#1")
+    public static void notNull(@Nullable Object object, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#1")
+    public static void hasLength(@Nullable String text, String message);
+
+    @EnsuresNonNull("#1")
+    public static void hasLength(@Nullable String text, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#1")
+    public static void hasText(@Nullable String text, String message);
+
+    @EnsuresNonNull("#1")
+    public static void hasText(@Nullable String text, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#1")
+    public static void notEmpty(@Nullable Object @Nullable [] array, String message);
+
+    @EnsuresNonNull("#1")
+    public static void notEmpty(Object @Nullable [] array, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#1")
+    public static void notEmpty(@Nullable Collection<?> collection, String message);
+
+    @EnsuresNonNull("#1")
+    public static void notEmpty(@Nullable Collection<?> collection, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#1")
+    public static void notEmpty(@Nullable Map<?, ?> map, String message);
+
+    @EnsuresNonNull("#1")
+    public static void notEmpty(@Nullable Map<?, ?> map, Supplier<String> messageSupplier);
+}
