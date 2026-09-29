@@ -99,9 +99,11 @@ dependencies {
     testImplementation 'com.ryanharter.auto.value:auto-value-parcel:0.2.9'
     testImplementation "org.projectlombok:lombok:${versions.lombok}"
 
-    // Called Methods Checker support for detecting misuses of AWS APIs
-    testImplementation 'com.amazonaws:aws-java-sdk-ec2'
-    testImplementation 'com.amazonaws:aws-java-sdk-kms'
+    // Called Methods Checker support for detecting misuses of AWS APIs.
+    // Declared non-transitively to avoid pulling Jackson onto the test classpath, which generates Dependabot alerts.
+    testImplementation('com.amazonaws:aws-java-sdk-ec2') { transitive = false }
+    testImplementation('com.amazonaws:aws-java-sdk-kms') { transitive = false }
+    testImplementation('com.amazonaws:aws-java-sdk-core') { transitive = false }
     // The AWS SDK is used for testing the Called Methods Checker.
     testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.797')
     // For the Resource Leak Checker's support for JavaEE.
