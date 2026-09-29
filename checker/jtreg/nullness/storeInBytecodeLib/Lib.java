@@ -1,4 +1,4 @@
-package nobytecodestoragelib;
+package storeinbytecodelib;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;

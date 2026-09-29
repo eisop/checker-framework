@@ -468,10 +468,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private final boolean assumePureGetters;
 
     /**
-     * True if only the annotations written in the source code, not the qualifiers inferred by
-     * defaulting, should be stored into the class file. See {@link #postProcessClassTree}.
+     * True unless {@code -AstoreInBytecode=false} was supplied: whether to store into the class
+     * file the qualifiers that do not appear in the source code. See {@link #postProcessClassTree}.
      */
-    private final boolean noBytecodeStorage;
+    private final boolean storeInBytecode;
 
     /** True if -AmergeStubsWithSource was provided on the command line. */
     private final boolean mergeStubsWithSource;
@@ -748,7 +748,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.assumeDeterministic =
                 checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
         this.assumePureGetters = checker.hasOption("assumePureGetters");
-        this.noBytecodeStorage = checker.hasOption("noBytecodeStorage");
+        this.storeInBytecode = checker.getBooleanOption("storeInBytecode", true);
 
         this.trees = Trees.instance(processingEnv);
         this.elements = processingEnv.getElementUtils();
@@ -1994,14 +1994,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * type checked.
      *
      * <p>The default implementation uses this to store the defaulted AnnotatedTypeMirrors and
-     * inherited declaration annotations back into the corresponding Elements, unless the {@code
-     * -AnoBytecodeStorage} command-line option was supplied. Subclasses might want to override this
-     * method if storing defaulted types is not desirable.
+     * inherited declaration annotations back into the corresponding Elements, unless {@code
+     * -AstoreInBytecode=false} was supplied. Subclasses might want to override this method if
+     * storing defaulted types is not desirable.
      *
      * @param tree the ClassTree that has been processed
      */
     public void postProcessClassTree(ClassTree tree) {
-        if (!noBytecodeStorage) {
+        if (storeInBytecode) {
             TypesIntoElements.store(processingEnv, this, tree);
             DeclarationsIntoElements.store(processingEnv, this, tree);
         }

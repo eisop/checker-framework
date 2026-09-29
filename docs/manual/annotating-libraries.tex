@@ -516,14 +516,14 @@ Whenever you compile a class using the Checker Framework, including when
 using the \<-AuseConservativeDefaultsForUncheckedCode=source,bytecode> command-line
 argument, the resulting \<.class> files are fully-annotated; each type use
 in the \<.class> file has an explicit type qualifier for any checker that
-is run.  Section~\ref{AnoBytecodeStorage} explains how to suppress this.
+is run.  Section~\ref{AstoreInBytecode} explains how to suppress this.
 \end{sloppypar}
 
 
-\subsectionAndLabel{The \<-AnoBytecodeStorage> command-line argument}{AnoBytecodeStorage}
+\subsectionAndLabel{The \<-AstoreInBytecode> command-line argument}{AstoreInBytecode}
 
-Command-line argument \<-AnoBytecodeStorage> suppresses the storage described
-above:  the \<.class> file then contains only the annotations that appear in
+Command-line argument \<-AstoreInBytecode=false> suppresses the storage
+described above:  the \<.class> file then contains only the annotations that appear in
 the source code, not the qualifiers the checker inferred by defaulting.  Use
 it when the defaults of the compilation that writes the \<.class> file should
 not be baked into it.
@@ -539,7 +539,7 @@ mentioned by a stored annotation is not on the classpath, though \<javac> 21
 accepts the same class file.  Second, the stored qualifiers are the writing
 compilation's, so a later compilation cannot apply its own.
 
-The \<.class> file of a class compiled with \<-AnoBytecodeStorage> is
+The \<.class> file of a class compiled with \<-AstoreInBytecode=false> is
 partially annotated, like that of a library compiled without running a
 checker, and a later compilation applies its own defaults to the type uses
 that carry no annotation.  Because \<@AnnotatedFor> and \<@UnannotatedFor>
