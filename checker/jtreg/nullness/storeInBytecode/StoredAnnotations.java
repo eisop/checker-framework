@@ -7,6 +7,7 @@
  *          nullness diagnostics alone cannot see them.
  *
  * @compile -processor org.checkerframework.checker.nullness.NullnessChecker ../storeInBytecodeLib/DefaultStorage.java
+ * @compile -processor org.checkerframework.checker.nullness.NullnessChecker -AstoreInBytecode=false ../storeInBytecodeLib/ExplicitFalseStorage.java
  * @compile -processor org.checkerframework.checker.nullness.NullnessChecker -Amode=jspecify ../storeInBytecodeLib/ModeStorage.java
  * @compile -processor org.checkerframework.checker.nullness.NullnessChecker -Amode=jspecify -AstoreInBytecode ../storeInBytecodeLib/ModeBareFlag.java
  * @run main StoredAnnotations
@@ -38,6 +39,13 @@ public class StoredAnnotations {
         require(stored.contains(NULLABLE), "DefaultStorage: source @Nullable missing", stored);
         require(stored.contains(INITIALIZED), "DefaultStorage: no @Initialized stored", stored);
         require(stored.contains(NONNULL), "DefaultStorage: no @NonNull stored", stored);
+
+        // -AstoreInBytecode=false, without a mode, omits them for every checker too.
+        List<String> off = annotations("storeinbytecodelib.ExplicitFalseStorage");
+        require(off.contains(NULLABLE), "ExplicitFalseStorage: source @Nullable missing", off);
+        require(!off.contains(INITIALIZED), "ExplicitFalseStorage: @Initialized stored", off);
+        require(!off.contains(NONNULL), "ExplicitFalseStorage: @NonNull stored", off);
+        require(!off.contains(UNKNOWNKEYFOR), "ExplicitFalseStorage: @UnknownKeyFor stored", off);
 
         // -Amode=jspecify implies -AstoreInBytecode=false for every checker it runs.
         List<String> mode = annotations("storeinbytecodelib.ModeStorage");
