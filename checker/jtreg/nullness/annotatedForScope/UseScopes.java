@@ -3,11 +3,20 @@
  * @summary Test that the search for an applicable AnnotatedFor annotation walks the enclosing
  *          elements of a bytecode element: method, nested class, outer class, and package,
  *          and that a nested UnannotatedFor opts back out of an enclosing AnnotatedFor.
- *          The library is compiled by plain javac, without the Checker Framework, which is how
- *          a partially-annotated library is normally built.
+ *          The library is first compiled by plain javac, without the Checker Framework, which is
+ *          how a partially-annotated library is normally built.  It is then compiled by the
+ *          Checker Framework with -AstoreInBytecode=false, which leaves the same information in
+ *          the class files and so gives the same diagnostics, and with the default storage, where
+ *          the stored defaulted qualifiers make the AnnotatedFor search irrelevant.
  *
  * @compile ../annotatedForScopeLib/package-info.java ../annotatedForScopeLib/InPkg.java ../annotatedForScopeLib/Nesting.java ../annotatedForScopeLib/AnnotatedOuter.java ../annotatedForScopeLib/MethodScope.java ../annotatedForScopeLib/OtherChecker.java
  * @compile/fail/ref=UseScopes.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=bytecode UseScopes.java
+ *
+ * @compile -processor org.checkerframework.checker.nullness.NullnessChecker -AstoreInBytecode=false ../annotatedForScopeLib/package-info.java ../annotatedForScopeLib/InPkg.java ../annotatedForScopeLib/Nesting.java ../annotatedForScopeLib/AnnotatedOuter.java ../annotatedForScopeLib/MethodScope.java ../annotatedForScopeLib/OtherChecker.java
+ * @compile/fail/ref=UseScopes.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=bytecode UseScopes.java
+ *
+ * @compile -processor org.checkerframework.checker.nullness.NullnessChecker ../annotatedForScopeLib/package-info.java ../annotatedForScopeLib/InPkg.java ../annotatedForScopeLib/Nesting.java ../annotatedForScopeLib/AnnotatedOuter.java ../annotatedForScopeLib/MethodScope.java ../annotatedForScopeLib/OtherChecker.java
+ * @compile -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=bytecode UseScopes.java
  */
 
 import org.checkerframework.checker.nullness.qual.NonNull;
