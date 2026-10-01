@@ -1525,16 +1525,16 @@ public abstract class GenericAnnotatedTypeFactory<
               if (initializer != null) {
                 boolean isStatic = vt.getModifiers().getFlags().contains(Modifier.STATIC);
                 ControlFlowGraph cfg =
-                analyze(
-                    classQueue,
-                    lambdaQueue,
-                    new CFGStatement(vt, ct),
-                    fieldValues,
+                    analyze(
+                        classQueue,
+                        lambdaQueue,
+                        new CFGStatement(vt, ct),
+                        fieldValues,
                         null,
-                    true,
-                    true,
-                    isStatic,
-                    capturedStore);
+                        true,
+                        true,
+                        isStatic,
+                        capturedStore);
                 postAnalyzeWithBodyPath(cfg);
                 Value initializerValue = flowResult.getValue(initializer);
                 if (initializerValue != null) {
@@ -1548,16 +1548,16 @@ public abstract class GenericAnnotatedTypeFactory<
             case BLOCK:
               BlockTree b = (BlockTree) m;
               ControlFlowGraph cfg =
-              analyze(
-                  classQueue,
-                  lambdaQueue,
-                  new CFGStatement(b, ct),
-                  fieldValues,
+                  analyze(
+                      classQueue,
+                      lambdaQueue,
+                      new CFGStatement(b, ct),
+                      fieldValues,
                       null,
-                  true,
-                  true,
-                  b.isStatic(),
-                  capturedStore);
+                      true,
+                      true,
+                      b.isStatic(),
+                      capturedStore);
               postAnalyzeWithBodyPath(cfg);
               break;
             default:
@@ -1579,16 +1579,16 @@ public abstract class GenericAnnotatedTypeFactory<
               (MethodTree)
                   TreePathUtil.enclosingOfKind(getPath(lambdaPair.first), Tree.Kind.METHOD);
           ControlFlowGraph cfg =
-          analyze(
-              classQueue,
-              lambdaQueue,
+              analyze(
+                  classQueue,
+                  lambdaQueue,
                   new CFGLambda(lambdaPair.first, ct, mt),
-              fieldValues,
+                  fieldValues,
                   null,
-              false,
-              false,
-              false,
-              lambdaPair.second);
+                  false,
+                  false,
+                  false,
+                  lambdaPair.second);
           postAnalyzeWithBodyPath(cfg);
         }
 
@@ -1814,12 +1814,13 @@ public abstract class GenericAnnotatedTypeFactory<
     }
     // Point the visitor path at the body being analyzed. getPath() -- used by, e.g.,
     // type-argument inference triggered during the analysis below -- uses visitorTreePath as a
-    // search-start hint. performFlowAnalysis sets it to the enclosing *class*, so a lookup for
+    // search-start hint. performFlowAnalysisForClass sets it to the enclosing *class*, so a lookup
+    // for
     // a tree inside this body rescans the whole class subtree, which is quadratic in the number
     // of members. The body's path was just cached by CFCFGBuilder.build above, so this is a
     // cache hit; query the cacher directly (not getPath) so this does not itself depend on
     // visitorTreePath. Restored in the finally so the class path is back in place for the rest
-    // of performFlowAnalysis.
+    // of performFlowAnalysisForClass.
     TreePath prevVisitorTreePath = getVisitorTreePath();
     setVisitorTreePath(checker.getTreePathCacher().getPath(this.getRoot(), ast.getCode()));
     try {
@@ -2404,7 +2405,7 @@ public abstract class GenericAnnotatedTypeFactory<
     // alone consumed more than 10% of execution time.  See
     // BaseTypeVisitor.visitClass for the call to getAnnotatedType that
     // triggers analysis.
-      if (!scannedClasses.containsKey(classTree)) {
+    if (!scannedClasses.containsKey(classTree)) {
       performFlowAnalysisForClass(classTree);
     }
   }

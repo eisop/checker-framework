@@ -51,7 +51,7 @@ public class InitializationFieldAccessAnnotatedTypeFactory
    * </pre>
    *
    * Note that flowResult contains analysis results for Trees from multiple classes which are
-   * produced by multiple calls to performFlowAnalysis.
+   * produced by multiple calls to performFlowAnalysisForClass.
    *
    * @return the result of the flow analysis
    * @see #getAnalysis()

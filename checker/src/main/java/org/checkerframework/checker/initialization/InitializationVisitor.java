@@ -188,7 +188,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
     // field must be initialized.  Java forbids uninitialized variables and static initializer
     // blocks.
     if (nodeKind != Tree.Kind.INTERFACE && nodeKind != Tree.Kind.ANNOTATION_TYPE) {
-      // See GenericAnnotatedTypeFactory.performFlowAnalysis for why we use
+      // See GenericAnnotatedTypeFactory.performFlowAnalysisForClass for why we use
       // the regular exit store of the class here.
       InitializationStore store = atypeFactory.getRegularExitStore(tree);
       if (store != null) {
