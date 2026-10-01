@@ -356,6 +356,10 @@ In `CFGVisualizeOptions`:
 Dataflow Framework:
  * In `playground` package, renamed `*Playground.java` to `*Pdf.java`
 
+(EISOP note: `CFGVisualizeLauncher.generateMethodCFG(String file, String clas, String method)` was
+replaced by `generateMethodCFG(String file, String method, String clas, Analysis analysis)`, which
+takes `method` before `clas`, and an analysis to perform, or null.)
+
 **Closed issues:**
 
 #7229, #7241, #7248, #7258.
