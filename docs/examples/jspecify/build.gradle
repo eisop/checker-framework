@@ -3,15 +3,15 @@
 //
 
 plugins {
-    id 'java'
-    id 'net.ltgt.errorprone' version '5.1.1'
+    id "java"
+    id "net.ltgt.errorprone" version "5.1.1"
     // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '1.0.2'
+    id "org.checkerframework" version "1.0.2"
 }
 
 ext {
     versions = [
-        eisopVersion: '3.49.5-eisop1',
+        eisopVersion: "3.49.5-eisop1",
     ]
 }
 
@@ -21,9 +21,9 @@ dependencies {
     checkerQual("io.github.eisop:checker-qual:${versions.eisopVersion}")
     checkerFramework("io.github.eisop:checker:${versions.eisopVersion}")
 
-    compileOnly 'org.jspecify:jspecify:1.0.1'
+    compileOnly "org.jspecify:jspecify:1.0.1"
     if (JavaVersion.current() >= JavaVersion.VERSION_21) {
-        errorprone 'com.google.errorprone:error_prone_core:2.50.0'
+        errorprone "com.google.errorprone:error_prone_core:2.50.0"
     }
 }
 
@@ -34,7 +34,7 @@ repositories {
 checkerFramework {
     version = "dependencies"
     checkers = [
-        'org.checkerframework.checker.nullness.NullnessChecker',
+        "org.checkerframework.checker.nullness.NullnessChecker",
     ]
-    extraJavacArgs = ['-Aversion']
+    extraJavacArgs = ["-Aversion"]
 }
