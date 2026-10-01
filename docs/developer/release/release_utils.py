@@ -331,17 +331,10 @@ def is_repo_cleaned_and_updated(repo):
         return is_clean and is_updated
 
 
-<<<<<<< HEAD
 def check_repos(repos, fail_on_error, is_intermediate_repo_list):
     """Fail if the repository is not clean and up to date."""
     for repo in repos:
         if git_repo_exists_at_path(repo) and not is_repo_cleaned_and_updated(repo):
-=======
-def check_repo(repo: Path, fail_on_error: bool, is_intermediate_repo_list: bool) -> None:
-    """Fail if the repository is not clean and up to date."""
-    if git_repo_exists_at_path(repo):
-        if not is_repo_cleaned_and_updated(repo):
->>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
             if is_intermediate_repo_list:
                 print(
                     "\nWARNING: Intermediate repository "

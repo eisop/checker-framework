@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 Version 3.49.5-eisop2 (June ?, 2026)
 -----------------------------------
-=======
-Version 3.49.6 (2025-08-??)
------------------------------
->>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
 
 **User-visible changes:**
 
@@ -641,9 +636,6 @@ Version 3.46.0 (August 1, 2024)
 -------------------------------
 
 **User-visible changes:**
-
-The new SqlQuotesChecker prevents errors in quoting in SQL queries.  It prevents
-injection attacks that exploit quoting errors.
 
 Renamed `@EnsuresCalledMethodsVarArgs`to `@EnsuresCalledMethodsVarargs`.
 
