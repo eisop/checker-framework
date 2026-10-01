@@ -1,38 +1,38 @@
 @SuppressWarnings("all") // Just check for crashes.
 public class Quarkus1 {
-  void method(ModifiableModelEx libraryModel) {
-    ApplicationManager.getApplication()
-        .invokeAndWait(
-            () -> {
-              WriteAction.run(libraryModel::commit);
-            });
-  }
-
-  public static class ApplicationManager {
-    protected static Application ourApplication;
-
-    public static Application getApplication() {
-      return ourApplication;
+    void method(ModifiableModelEx libraryModel) {
+        ApplicationManager.getApplication()
+                .invokeAndWait(
+                        () -> {
+                            WriteAction.run(libraryModel::commit);
+                        });
     }
-  }
 
-  public interface Application { // extends ComponentManager {}
-    void invokeAndWait(Runnable runnable);
-  }
+    public static class ApplicationManager {
+        protected static Application ourApplication;
 
-  public abstract static class WriteAction<T> extends BaseActionRunnable<T> {
-    public static <E extends Throwable> void run(ThrowableRunnable<E> action) throws E {
-      throw new RuntimeException();
+        public static Application getApplication() {
+            return ourApplication;
+        }
     }
-  }
 
-  public abstract static class BaseActionRunnable<T> {}
+    public interface Application { // extends ComponentManager {}
+        void invokeAndWait(Runnable runnable);
+    }
 
-  public interface ThrowableRunnable<T extends Throwable> {
-    void run() throws T;
-  }
+    public abstract static class WriteAction<T> extends BaseActionRunnable<T> {
+        public static <E extends Throwable> void run(ThrowableRunnable<E> action) throws E {
+            throw new RuntimeException();
+        }
+    }
 
-  interface ModifiableModelEx {
-    void commit();
-  }
+    public abstract static class BaseActionRunnable<T> {}
+
+    public interface ThrowableRunnable<T extends Throwable> {
+        void run() throws T;
+    }
+
+    interface ModifiableModelEx {
+        void commit();
+    }
 }

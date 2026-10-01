@@ -6,9 +6,9 @@ import org.jspecify.annotations.Nullable;
 // this nested subpackage. Package pkg's AnnotatedFor applies to subpackages and still reaches
 // here, so this code is checked and its warnings are issued.
 public class Deep {
-  void take(Object nn) {}
+    void take(Object nn) {}
 
-  void m(@Nullable Object nble) {
-    take(nble);
-  }
+    void m(@Nullable Object nble) {
+        take(nble);
+    }
 }

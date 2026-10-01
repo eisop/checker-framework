@@ -81,6 +81,6 @@ import org.checkerframework.framework.source.SuppressWarningsPrefix;
 @SuppressWarningsPrefix({"index"})
 public class IndexChecker extends UpperBoundChecker {
 
-  /** Creates the Index Checker. */
-  public IndexChecker() {}
+    /** Creates the Index Checker. */
+    public IndexChecker() {}
 }

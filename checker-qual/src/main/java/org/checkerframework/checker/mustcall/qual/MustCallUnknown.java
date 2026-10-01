@@ -1,10 +1,11 @@
 package org.checkerframework.checker.mustcall.qual;
 
+import org.checkerframework.framework.qual.SubtypeOf;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * The top qualifier in the Must Call type hierarchy. It represents a type that might have an

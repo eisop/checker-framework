@@ -1,10 +1,11 @@
 package org.checkerframework.framework.type;
 
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.type.TypeKind;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 
 /**
  * SyntheticArrays exists solely to fix AnnotatedTypeMirrors that need to be adapted from Array type
@@ -13,36 +14,37 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
  */
 public final class SyntheticArrays {
 
-  /** Do not instantiate. */
-  private SyntheticArrays() {
-    throw new AssertionError("Class SyntheticArrays cannot be instantiated.");
-  }
+    /** Do not instantiate. */
+    private SyntheticArrays() {
+        throw new AssertionError("Class SyntheticArrays cannot be instantiated.");
+    }
 
-  /**
-   * Returns true if this combination of type/elem represents an array.clone.
-   *
-   * @param type a type with a method/field of elem
-   * @param elem an element which is a member of type
-   * @return true if this combination of type/elem represents an array.clone
-   */
-  public static boolean isArrayClone(AnnotatedTypeMirror type, Element elem) {
-    return type.getKind() == TypeKind.ARRAY
-        && elem.getKind() == ElementKind.METHOD
-        && elem.getSimpleName().contentEquals("clone");
-  }
+    /**
+     * Returns true if this combination of type/elem represents an array.clone.
+     *
+     * @param type a type with a method/field of elem
+     * @param elem an element which is a member of type
+     * @return true if this combination of type/elem represents an array.clone
+     */
+    public static boolean isArrayClone(AnnotatedTypeMirror type, Element elem) {
+        return type.getKind() == TypeKind.ARRAY
+                && elem.getKind() == ElementKind.METHOD
+                && elem.getSimpleName().contentEquals("clone");
+    }
 
-  /**
-   * Returns the annotated type of methodElem with its return type replaced by newReturnType.
-   *
-   * @param methodElem identifies a method that should have an AnnotatedArrayType as its return type
-   * @param newReturnType identifies a type that should replace methodElem's return type
-   * @return the annotated type of methodElem with its return type replaced by newReturnType
-   */
-  public static AnnotatedExecutableType replaceReturnType(
-      Element methodElem, AnnotatedArrayType newReturnType) {
-    AnnotatedExecutableType method =
-        (AnnotatedExecutableType) newReturnType.atypeFactory.getAnnotatedType(methodElem);
-    method.setReturnType(newReturnType);
-    return method;
-  }
+    /**
+     * Returns the annotated type of methodElem with its return type replaced by newReturnType.
+     *
+     * @param methodElem identifies a method that should have an AnnotatedArrayType as its return
+     *     type
+     * @param newReturnType identifies a type that should replace methodElem's return type
+     * @return the annotated type of methodElem with its return type replaced by newReturnType
+     */
+    public static AnnotatedExecutableType replaceReturnType(
+            Element methodElem, AnnotatedArrayType newReturnType) {
+        AnnotatedExecutableType method =
+                (AnnotatedExecutableType) newReturnType.atypeFactory.getAnnotatedType(methodElem);
+        method.setReturnType(newReturnType);
+        return method;
+    }
 }

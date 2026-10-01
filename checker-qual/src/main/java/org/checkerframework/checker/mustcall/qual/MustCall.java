@@ -1,13 +1,14 @@
 package org.checkerframework.checker.mustcall.qual;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
 import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.qual.TypeUseLocation;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  * An expression of type {@code @MustCall({"m1", "m2"})} may be obligated to call {@code m1()}
@@ -29,10 +30,10 @@ import org.checkerframework.framework.qual.TypeUseLocation;
 @DefaultQualifierInHierarchy
 @DefaultFor({TypeUseLocation.EXCEPTION_PARAMETER, TypeUseLocation.UPPER_BOUND})
 public @interface MustCall {
-  /**
-   * Methods that might need to be called on the expression whose type is annotated.
-   *
-   * @return methods that might need to be called
-   */
-  public String[] value() default {};
+    /**
+     * Methods that might need to be called on the expression whose type is annotated.
+     *
+     * @return methods that might need to be called
+     */
+    public String[] value() default {};
 }

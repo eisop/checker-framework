@@ -21,17 +21,19 @@ import org.junit.Test;
  */
 public class BinaryStubClasspathTest {
 
-  /**
-   * Asserts that the binary form of the framework's built-in {@code jdk11.astub} (parsed via {@code
-   * parseOneStubFile(this.getClass(), ...)} in {@link AnnotationFileElementTypes#parseStubFiles},
-   * i.e. relative to {@link AnnotationFileElementTypes}'s own package) is present on the classpath.
-   */
-  @Test
-  public void frameworkBuiltinStubBinaryIsOnClasspath() {
-    Assert.assertNotNull(
-        "framework/src/main/java/org/checkerframework/framework/stub/jdk11.astub.bin.gz"
-            + " is missing from the classpath; generateBinaryStubFiles output is not"
-            + " wired into resources (see commit 278a3e3b)",
-        AnnotationFileElementTypes.class.getResource("jdk11.astub" + BinaryStubData.BIN_SUFFIX));
-  }
+    /**
+     * Asserts that the binary form of the framework's built-in {@code jdk11.astub} (parsed via
+     * {@code parseOneStubFile(this.getClass(), ...)} in {@link
+     * AnnotationFileElementTypes#parseStubFiles}, i.e. relative to {@link
+     * AnnotationFileElementTypes}'s own package) is present on the classpath.
+     */
+    @Test
+    public void frameworkBuiltinStubBinaryIsOnClasspath() {
+        Assert.assertNotNull(
+                "framework/src/main/java/org/checkerframework/framework/stub/jdk11.astub.bin.gz"
+                        + " is missing from the classpath; generateBinaryStubFiles output is not"
+                        + " wired into resources (see commit 278a3e3b)",
+                AnnotationFileElementTypes.class.getResource(
+                        "jdk11.astub" + BinaryStubData.BIN_SUFFIX));
+    }
 }

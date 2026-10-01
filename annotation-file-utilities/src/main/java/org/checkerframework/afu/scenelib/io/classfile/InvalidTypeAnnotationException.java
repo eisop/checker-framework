@@ -6,14 +6,14 @@ package org.checkerframework.afu.scenelib.io.classfile;
  * offset information.
  */
 public class InvalidTypeAnnotationException extends RuntimeException {
-  static final long serialVersionUID = 20060712L; // Today's date.
+    static final long serialVersionUID = 20060712L; // Today's date.
 
-  /**
-   * Constructs a new {@code InvalidTypeAnnotationException} with the given error message.
-   *
-   * @param msg a message describing what was wrong with the extended annotation
-   */
-  public InvalidTypeAnnotationException(String msg) {
-    super(msg);
-  }
+    /**
+     * Constructs a new {@code InvalidTypeAnnotationException} with the given error message.
+     *
+     * @param msg a message describing what was wrong with the extended annotation
+     */
+    public InvalidTypeAnnotationException(String msg) {
+        super(msg);
+    }
 }

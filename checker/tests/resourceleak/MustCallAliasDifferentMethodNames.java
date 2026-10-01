@@ -9,38 +9,38 @@ import org.checkerframework.checker.mustcall.qual.Owning;
 
 class MustCallAliasDifferentMethodNames {
 
-  @InheritableMustCall("a")
-  static class Foo {
-    void a() {}
-  }
-
-  @InheritableMustCall("b")
-  static class FooField {
-    private final @Owning Foo finalOwningFoo;
-
-    public @MustCallAlias FooField(@MustCallAlias Foo f) {
-      this.finalOwningFoo = f;
+    @InheritableMustCall("a")
+    static class Foo {
+        void a() {}
     }
 
-    @EnsuresCalledMethods(
-        value = {"this.finalOwningFoo"},
-        methods = {"a"})
-    void b() {
-      this.finalOwningFoo.a();
+    @InheritableMustCall("b")
+    static class FooField {
+        private final @Owning Foo finalOwningFoo;
+
+        public @MustCallAlias FooField(@MustCallAlias Foo f) {
+            this.finalOwningFoo = f;
+        }
+
+        @EnsuresCalledMethods(
+                value = {"this.finalOwningFoo"},
+                methods = {"a"})
+        void b() {
+            this.finalOwningFoo.a();
+        }
     }
-  }
 
-  void testField1() {
-    Foo f = new Foo();
-    FooField fooFieldWrapper = new FooField(f);
-    // Either calling f.a() or fooFieldWrapper.b() satisfies the obligation
-    fooFieldWrapper.b();
-  }
+    void testField1() {
+        Foo f = new Foo();
+        FooField fooFieldWrapper = new FooField(f);
+        // Either calling f.a() or fooFieldWrapper.b() satisfies the obligation
+        fooFieldWrapper.b();
+    }
 
-  void testField2() {
-    Foo f = new Foo();
-    FooField fooFieldWrapper = new FooField(f);
-    // Either calling f.a() or fooFieldWrapper.b() satisfies the obligation
-    f.a();
-  }
+    void testField2() {
+        Foo f = new Foo();
+        FooField fooFieldWrapper = new FooField(f);
+        // Either calling f.a() or fooFieldWrapper.b() satisfies the obligation
+        f.a();
+    }
 }

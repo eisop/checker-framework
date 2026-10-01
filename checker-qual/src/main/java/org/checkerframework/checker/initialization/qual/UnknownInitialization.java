@@ -1,14 +1,15 @@
 package org.checkerframework.checker.initialization.qual;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.framework.qual.DefaultFor;
+import org.checkerframework.framework.qual.SubtypeOf;
+import org.checkerframework.framework.qual.TypeUseLocation;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.framework.qual.DefaultFor;
-import org.checkerframework.framework.qual.SubtypeOf;
-import org.checkerframework.framework.qual.TypeUseLocation;
 
 /**
  * This type qualifier indicates how much of an object has been fully initialized. An object is
@@ -50,12 +51,12 @@ import org.checkerframework.framework.qual.TypeUseLocation;
 @SubtypeOf({})
 @DefaultFor({TypeUseLocation.LOCAL_VARIABLE, TypeUseLocation.RESOURCE_VARIABLE})
 public @interface UnknownInitialization {
-  /**
-   * The type-frame down to which the expression (of this type) has been initialized at least
-   * (inclusive). That is, an expression of type {@code @UnknownInitialization(T.class)} has all
-   * type-frames initialized starting at {@code Object} down to (and including) {@code T}.
-   *
-   * @return the type whose fields are fully initialized
-   */
-  Class<?> value() default Object.class;
+    /**
+     * The type-frame down to which the expression (of this type) has been initialized at least
+     * (inclusive). That is, an expression of type {@code @UnknownInitialization(T.class)} has all
+     * type-frames initialized starting at {@code Object} down to (and including) {@code T}.
+     *
+     * @return the type whose fields are fully initialized
+     */
+    Class<?> value() default Object.class;
 }

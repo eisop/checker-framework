@@ -2,6 +2,7 @@ package org.checkerframework.afu.annotator.find;
 
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
+
 import org.checkerframework.afu.annotator.scanner.InitBlockScanner;
 import org.checkerframework.afu.annotator.scanner.TreePathUtil;
 import org.checkerframework.checker.interning.qual.FindDistinct;
@@ -9,49 +10,49 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Criterion for being within a specific initializer. */
 public class InInitBlockCriterion implements Criterion {
-  public final int blockID;
-  public final boolean isStatic;
-  public final Criterion notInMethodCriterion;
+    public final int blockID;
+    public final boolean isStatic;
+    public final Criterion notInMethodCriterion;
 
-  public InInitBlockCriterion(int blockID, boolean isStatic) {
-    this.blockID = blockID;
-    this.isStatic = isStatic;
-    this.notInMethodCriterion = Criteria.notInMethod();
-  }
-
-  @Override
-  public boolean isSatisfiedBy(@Nullable TreePath path, @FindDistinct Tree leaf) {
-    if (path == null) {
-      return false;
+    public InInitBlockCriterion(int blockID, boolean isStatic) {
+        this.blockID = blockID;
+        this.isStatic = isStatic;
+        this.notInMethodCriterion = Criteria.notInMethod();
     }
-    assert path.getLeaf() == leaf;
-    return isSatisfiedBy(path);
-  }
 
-  @Override
-  public boolean isSatisfiedBy(@Nullable TreePath path) {
-    while (path != null) {
-      if (TreePathUtil.isInitBlock(path, isStatic)) {
-        int indexInSource = InitBlockScanner.indexOfInitTree(path, isStatic);
-        return indexInSource == blockID;
-      }
-      path = path.getParentPath();
+    @Override
+    public boolean isSatisfiedBy(@Nullable TreePath path, @FindDistinct Tree leaf) {
+        if (path == null) {
+            return false;
+        }
+        assert path.getLeaf() == leaf;
+        return isSatisfiedBy(path);
     }
-    return false;
-  }
 
-  @Override
-  public boolean isOnlyTypeAnnotationCriterion() {
-    return false;
-  }
+    @Override
+    public boolean isSatisfiedBy(@Nullable TreePath path) {
+        while (path != null) {
+            if (TreePathUtil.isInitBlock(path, isStatic)) {
+                int indexInSource = InitBlockScanner.indexOfInitTree(path, isStatic);
+                return indexInSource == blockID;
+            }
+            path = path.getParentPath();
+        }
+        return false;
+    }
 
-  @Override
-  public Kind getKind() {
-    return isStatic ? Kind.IN_STATIC_INIT : Kind.IN_INSTANCE_INIT;
-  }
+    @Override
+    public boolean isOnlyTypeAnnotationCriterion() {
+        return false;
+    }
 
-  @Override
-  public String toString() {
-    return "In " + (isStatic ? "static" : "instance") + " initializer with index " + blockID;
-  }
+    @Override
+    public Kind getKind() {
+        return isStatic ? Kind.IN_STATIC_INIT : Kind.IN_INSTANCE_INIT;
+    }
+
+    @Override
+    public String toString() {
+        return "In " + (isStatic ? "static" : "instance") + " initializer with index " + blockID;
+    }
 }

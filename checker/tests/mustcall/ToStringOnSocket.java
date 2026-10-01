@@ -4,15 +4,15 @@
 import java.net.Socket;
 
 class ToStringOnSocket {
-  void log(String string) {
-    System.out.println(string);
-  }
+    void log(String string) {
+        System.out.println(string);
+    }
 
-  void test(Socket socket) {
-    log("bad socket: " + socket);
-  }
+    void test(Socket socket) {
+        log("bad socket: " + socket);
+    }
 
-  void test2(Socket socket) {
-    log("bad socket: " + socket.toString());
-  }
+    void test2(Socket socket) {
+        log("bad socket: " + socket.toString());
+    }
 }

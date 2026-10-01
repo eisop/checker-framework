@@ -7,5 +7,5 @@
 // declaration sits within that stub file relative to the fake override.
 public class OrderFOSuperParam {
 
-  public void m(int p) {}
+    public void m(int p) {}
 }

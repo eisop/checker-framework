@@ -7,19 +7,19 @@ import java.util.Optional;
  */
 public class Marks2 {
 
-  class Customer {
-    int getID() {
-      return 42;
+    class Customer {
+        int getID() {
+            return 42;
+        }
+
+        String getName() {
+            return "Fozzy Bear";
+        }
     }
 
-    String getName() {
-      return "Fozzy Bear";
+    String customerNameByID(List<Customer> custList, int custID) {
+        Optional<Customer> opt = custList.stream().filter(c -> c.getID() == custID).findFirst();
+        // :: error: (method.invocation.invalid)
+        return opt.get().getName();
     }
-  }
-
-  String customerNameByID(List<Customer> custList, int custID) {
-    Optional<Customer> opt = custList.stream().filter(c -> c.getID() == custID).findFirst();
-    // :: error: (method.invocation.invalid)
-    return opt.get().getName();
-  }
 }

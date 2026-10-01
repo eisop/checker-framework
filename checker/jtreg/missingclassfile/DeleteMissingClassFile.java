@@ -9,11 +9,11 @@ import java.nio.file.Paths;
  */
 public class DeleteMissingClassFile {
 
-  public static void main(String[] args) throws IOException {
-    Path classes = Paths.get(System.getProperty("test.classes", "."));
-    Path missing = classes.resolve("lib").resolve("Missing.class");
-    if (!Files.deleteIfExists(missing)) {
-      throw new AssertionError("did not find " + missing + " to delete");
+    public static void main(String[] args) throws IOException {
+        Path classes = Paths.get(System.getProperty("test.classes", "."));
+        Path missing = classes.resolve("lib").resolve("Missing.class");
+        if (!Files.deleteIfExists(missing)) {
+            throw new AssertionError("did not find " + missing + " to delete");
+        }
     }
-  }
 }
