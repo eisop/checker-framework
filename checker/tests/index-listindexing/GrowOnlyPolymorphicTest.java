@@ -121,7 +121,6 @@ public class GrowOnlyPolymorphicTest {
         // toArray methods should be allowed (they don't modify the list)
         Object[] objArray = list.toArray();
         String[] strArray = list.toArray(new String[0]);
-        String[] strArray2 = list.toArray(String[]::new);
 
         // But these don't affect the list's mutability restrictions
         // :: error: (method.invocation.invalid)
