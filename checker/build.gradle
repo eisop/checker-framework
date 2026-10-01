@@ -1154,7 +1154,7 @@ tasks.register('wpiManyTest', Exec) {
                 || line.startsWith('DEBUG: ')
                 || line.startsWith('warning: DEBUG: ')
                 || line.contains('warning: [DEBUG: ')) {
-          return
+                    return;
                 }
                 if (!line.trim().equals('')) {
                     println("======== start of contents of ${filename}, which is TYPECHECKING output, not WPI output ========")
