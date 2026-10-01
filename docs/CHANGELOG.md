@@ -257,9 +257,6 @@ Other improvements and bug fixes:
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
 
-Dataflow Framework:
- * In `playground` package, renamed `*Playground.java` to `*Pdf.java`
-
 **Closed issues:**
 
 eisop#104,
@@ -345,6 +342,23 @@ typetools#399,
 typetools#2816,
 typetools#3203,
 typetools#8055.
+
+
+Version 3.51.0 (2025-09-10)
+---------------------------
+
+**Implementation details:**
+
+In `CFGVisualizeOptions`:
+ * renamed `isPDF()` to `isPdfOutput()`
+ * renamed `isString()` to `isStringOutput()`
+
+Dataflow Framework:
+ * In `playground` package, renamed `*Playground.java` to `*Pdf.java`
+
+**Closed issues:**
+
+#7229, #7241, #7248, #7258.
 
 
 Version 3.50.0 (August 28, 2025)
