@@ -208,8 +208,8 @@ public final class CFGVisualizeLauncher {
      * @param outputDir source output directory
      * @param pdf also generate a PDF
      * @param verbose show verbose information in CFG
-     * @param analysis analysis to perform before the visualization (or {@code null} if no analysis
-     *     is to be performed)
+     * @param analysis an analysis that has already been performed on {@code cfg}, whose results are
+     *     shown in the visualization (or {@code null} if no analysis results are to be shown)
      */
     public static <V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
             void generateDOTofCFG(
