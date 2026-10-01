@@ -2005,6 +2005,7 @@ final sharedPublicationConfiguration(publication) {
         }
     }
 }
+
 tasks.register('printJavaVersion') {
     description = "Prints the Java version used to run Gradle."
     doLast {
