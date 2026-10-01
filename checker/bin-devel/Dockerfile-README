@@ -60,9 +60,6 @@ function create_upload_docker_image {
   (echo "*****"; echo "*****"; echo "FAILURE in $DOCKERIMAGE"; echo "*****"; echo "*****"; exit 1)
 }
 
-Use numbered JDK releases for versions that should be supported longer term.
-jdk-latest is for the latest release and jdk-next is for pre-releases of
-the upcoming release.
 
 ## Run sequentially.
 (create_upload_docker_image cf ubuntu jdk11 && \
@@ -77,6 +74,31 @@ create_upload_docker_image cf ubuntu jdk24-plus) && \
 create_upload_docker_image cf ubuntu jdk25-plus) && \
 git push && \
 echo "success"
+
+
+## This version might be faster with an SSD.  It might not be with a spinning disk.
+# These first few need not be uploaded, just created and locally cached.
+(create_upload_docker_image cf ubuntu jdkbase && \
+create_upload_docker_image cf ubuntu jdkplus) &
+(create_upload_docker_image cf ubunturolling jdkbase && \
+create_upload_docker_image cf ubunturolling jdkplus) &
+sleep 1
+wait
+(create_upload_docker_image cf ubuntu jdk11 && \
+create_upload_docker_image cf ubuntu jdk11-plus) &
+(create_upload_docker_image cf ubuntu jdk17 && \
+create_upload_docker_image cf ubuntu jdk17-plus) &
+(create_upload_docker_image cf ubuntu jdk21 && \
+create_upload_docker_image cf ubuntu jdk21-plus) &
+(create_upload_docker_image cf ubuntu jdk24 && \
+create_upload_docker_image cf ubuntu jdk24-plus) &
+(create_upload_docker_image cf ubuntu jdk25 && \
+create_upload_docker_image cf ubuntu jdk25-plus) &
+sleep 1
+wait && \
+git push && \
+echo "success"
+
 
 
 Note: when updating to a newer version of the JDK, it is necessary to
