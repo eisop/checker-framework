@@ -26,10 +26,10 @@ public class InitializationFieldAccessAnnotatedTypeFactory
   }
 
   @Override
-  protected void performFlowAnalysis(ClassTree classTree) {
+  protected void performFlowAnalysisForClass(ClassTree classTree) {
     // Only perform the analysis if initialization checking is turned on.
     if (!assumeInitialized) {
-      super.performFlowAnalysis(classTree);
+      super.performFlowAnalysisForClass(classTree);
     }
   }
 
