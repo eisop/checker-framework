@@ -35,6 +35,6 @@ public class CFAnalysis extends CFAbstractAnalysis<CFValue, CFStore, CFTransfer>
     @Override
     public @Nullable CFValue createAbstractValue(
             AnnotationMirrorSet annotations, TypeMirror underlyingType) {
-        return getCfValue(this, annotations, underlyingType);
+        return defaultCreateAbstractValue(this, annotations, underlyingType);
     }
 }

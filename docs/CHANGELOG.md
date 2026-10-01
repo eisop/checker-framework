@@ -356,6 +356,9 @@ Version 3.52.0 (2025-11-04)
 
 In `CFAbstractAnalysis`, renamed `defaultCreateAbstractValue` to `getCfValue`
 
+EISOP: `CFAbstractAnalysis#defaultCreateAbstractValue` keeps its name, because it is a
+default implementation of `createAbstractValue`, not a getter.
+
 In `GenericAnnotatedTypeFactory`:
 * renamed `performFlowAnalysis` to `performFlowAnalysisForClass`
 * renamed `checkAndPerformFlowAnalysis` to `performFlowAnalysisForClassOnce`

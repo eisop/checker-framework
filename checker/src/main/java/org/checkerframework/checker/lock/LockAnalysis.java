@@ -45,6 +45,6 @@ public class LockAnalysis extends CFAbstractAnalysis<CFValue, LockStore, LockTra
     @Override
     public @Nullable CFValue createAbstractValue(
             AnnotationMirrorSet annotations, TypeMirror underlyingType) {
-        return getCfValue(this, annotations, underlyingType);
+        return defaultCreateAbstractValue(this, annotations, underlyingType);
     }
 }
