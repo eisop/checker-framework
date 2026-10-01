@@ -269,7 +269,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     /**
-     * Get the effect of a method call at its callsite, acknowledging polymorphic instantiation
+     * Returns the effect of a method call at its callsite, acknowledging polymorphic instantiation
      * using type use annotations.
      *
      * @param tree the method invocation as an AST node
@@ -312,7 +312,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     /**
-     * Get the inferred effect of a lambda expression based on the type annotations of its
+     * Returns the inferred effect of a lambda expression based on the type annotations of its
      * functional interface and the effects of the calls in its body.
      *
      * <p>This relies on GuiEffectVisitor to perform the actual inference step and mark lambdas
@@ -343,7 +343,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
      * #getAnnotatedType(Tree)} instead.
      *
      * @param tree the tree to check
-     * @return whether it is a lambda expression or new class marked as UI by inference
+     * @return true if it is a lambda expression or new class marked as UI by inference
      */
     public boolean isDirectlyMarkedUIThroughInference(Tree tree) {
         if (tree instanceof LambdaExpressionTree) {
@@ -411,7 +411,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
      *
      * @param declaringType the type declaring the override
      * @param overridingMethod the method override itself
-     * @param issueConflictWarning whether or not to issue warnings
+     * @param issueConflictWarning if true, issue warnings
      * @param errorTree the method declaration AST node; used for reporting errors
      * @return the min and max inherited effects, or null if none were discovered
      */

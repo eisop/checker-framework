@@ -1,0 +1,272 @@
+import java.nio.file.Files
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
+ext {
+    // The version of the next EISOP release, such as '1.2.3-eisop4'.  This is the single source of
+    // truth for the version: build.gradle derives the build's version from it, and the
+    // updateVersionNumbers task writes it into the documentation.
+    //
+    // Increment the minor version (second number) rather than just the patch
+    // level (third number) if:
+    //   * any new checkers have been added, or
+    //   * backward-incompatible changes have been made to APIs or elsewhere.
+    //
+    // A build is a snapshot of this release, with version "${releaseVersion}-SNAPSHOT", unless it
+    // is run with -Prelease=true.  To make a snapshot release: ./gradlew publish
+    // To make a release: see docs/developer/release/README-release-process.html.
+    releaseVersion = '3.49.5-eisop2'
+
+    // Matches a released version, including EISOP's "-eisopN" suffix: 1.2.3, 1.2.3.4, 1.2.3-eisop4.
+    releaseVersionRegex = "\\d\\.\\d+\\.\\d+(?:\\.\\d)?(?:-eisop\\d+)?"
+
+    // The format of the release date in the documentation, e.g. "22 Apr 2026".
+    releaseDatePattern = 'd MMM yyyy'
+}
+
+// Note about update tasks:
+// It's not possible to update the version numbers in place, so first
+// updateVersionNumbersInDocs (and, once the Annotation File Utilities are a subproject,
+// updateVersionNumbersAFU) copies to a temporary directory with a filter to do replacement, then
+// updateVersionNumbers copies the changed files back to their original locations.
+//
+// docs/examples is deliberately not touched here.  Renovate bumps the Checker Framework version in
+// those builds once the release is on Maven Central; see .github/renovate.json.  Doing it in both
+// places would fight: Renovate rewrites a pom property in place and drops any marker comments
+// around it.  BazelExample is a further exception, as its files also carry checksums; re-run `pin`.
+
+tasks.register('updateVersionNumbers', Copy) {
+    description = 'Updates the version number and release date in the documentation to releaseVersion.'
+    // See documentation above.
+    dependsOn('updateVersionNumbersInDocs')
+    // NO-AFU dependsOn('updateVersionNumbersAFU')
+    from layout.buildDirectory.dir('updateVersionNumbers')
+    into layout.projectDirectory
+}
+
+/* NO-AFU
+ tasks.register('updateVersionNumbersAFU', Copy) {
+ // See documentation above.
+ String classFileReader = 'src/main/java/org/checkerframework/afu/scenelib/io/classfile/ClassFileReader.java'
+ File classFileReaderFile = file("annotation-file-utilities/${classFileReader}")
+ String version = releaseVersion
+ String versionRegex = releaseVersionRegex
+ inputs.property('releaseVersion', version)
+ doFirst {
+ if (!classFileReaderFile.exists()) {
+ throw new GradleException("File ${classFileReaderFile} not found.")
+ }
+ }
+ into layout.buildDirectory.dir('updateVersionNumbers/annotation-file-utilities')
+ from 'annotation-file-utilities'
+ include classFileReader
+ filter { String line ->
+ line.replaceAll("Annotation File Utilities v${versionRegex}", "Annotation File Utilities v${version}")
+ }
+ }
+ */
+
+tasks.register('updateVersionNumbersInDocs', Copy) {
+    description = 'Copies the documentation to the build directory, with releaseVersion and today\'s date filled in.'
+    // See documentation above.
+
+    // Resolve script values at configuration time; the filters run at execution time.
+    String version = releaseVersion
+    String versionRegex = releaseVersionRegex
+    String datePattern = releaseDatePattern
+    // Today's date is computed when the task runs, not when it is configured: the configuration
+    // cache would otherwise keep using the date of the day the cache entry was stored.  For the
+    // same reason, and because Gradle does not see the values the filters use, always run.
+    outputs.upToDateWhen { false }
+
+    // Every file this task rewrites, and the marker text that each rewrite keys off.  A Copy task
+    // silently skips a missing file, and a filter that matches nothing silently leaves the old
+    // version in place, so check both up front.  Keep these in sync with the rules below.
+    String zipMarker = '<!-- checker-framework-zip-version -->'
+    String dateMarker = '<!-- checker-framework-date -->'
+    Map<String, List<String>> requiredMarkers = [
+        'checker-framework-webpage.html': [zipMarker, dateMarker],
+        'checker-framework-quick-start.html': [zipMarker],
+        'manual/introduction.tex': [],
+        'manual/external-tools.tex': [],
+        'manual/manual.tex': ['ReleaseVersion}{', 'ReleaseInfo}{'],
+        // NO-AFU 'annotation-file-utilities/annotation-file-utilities.html': [],
+    ]
+    File docsDir = file('docs')
+    doFirst {
+        requiredMarkers.each { String path, List<String> markers ->
+            File f = new File(docsDir, path)
+            if (!f.exists()) {
+                throw new GradleException("File to update does not exist: ${f}")
+            }
+            String text = f.text
+            markers.each { String marker ->
+                if (!text.contains(marker)) {
+                    throw new GradleException("Marker not found in ${f}: ${marker}")
+                }
+            }
+        }
+    }
+
+    into layout.buildDirectory.dir('updateVersionNumbers/docs')
+    from('docs') {
+        include 'checker-framework-quick-start.html',
+                'checker-framework-webpage.html',
+                // NO-AFU 'annotation-file-utilities/annotation-file-utilities.html',
+                'manual/introduction.tex'
+
+        filter { String line ->
+            String date = LocalDate.now().format(DateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH))
+            line = line.replaceAll("checker-framework-${versionRegex}", "checker-framework-${version}")
+            String releaseDatePrefix = '<!-- checker-framework-date -->'
+            String releaseDateSuffix = '<!-- /checker-framework-date -->'
+            line.replaceAll("${releaseDatePrefix}(.*?)${releaseDateSuffix}", releaseDatePrefix + date + releaseDateSuffix)
+        }
+    }
+
+    from('docs') {
+        include 'manual/external-tools.tex'
+        filter { String line ->
+            line = line.replaceAll("checker(|-framework|-qual|-util)([-/])${versionRegex}") { "checker${it[1]}${it[2]}${version}" }
+
+            line = line.replaceAll("/${versionRegex}/jar", "/${version}/jar")
+
+            line = line.replaceAll("ext.checkerFrameworkVersion = '${versionRegex}'", "ext.checkerFrameworkVersion = '${version}'")
+
+            line.replaceAll("eisopVersion: '${versionRegex}'", "eisopVersion: '${version}'")
+        }
+    }
+
+    from('docs') {
+        include 'manual/manual.tex'
+
+        filter { String line ->
+            String date = LocalDate.now().format(DateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH))
+            line = line.replaceAll("ReleaseInfo\\}\\{(.*)\\}", "ReleaseInfo}{${version} (${date})}")
+            line.replaceAll("ReleaseVersion\\}\\{(.*)\\}", "ReleaseVersion}{${version}}")
+        }
+    }
+}
+
+tasks.register('zipMavenExamples', Zip) {
+    description = 'Creates a zip archive for the Maven examples.'
+    archiveFileName = 'mvn-examples.zip'
+    destinationDirectory = layout.projectDirectory.dir(providers.gradleProperty('cfWebsite'))
+    from('docs/examples/MavenExample')
+}
+
+tasks.register('copyToWebsite', Copy) {
+    description = 'Copy files to location set in the property cfWebsite.'
+    dependsOn(':allJavadoc', ':manual', ':dataflow:manual', ':zip', 'zipMavenExamples')
+
+    def website = providers.gradleProperty('cfWebsite')
+    into website // affects all `into` clauses
+
+    from tasks.named('zip')
+    from('docs') {
+        include('checker-framework-webpage.html', 'CHANGELOG.md')
+    }
+
+    from('docs/logo/Logo/CFLogo.png') {
+        into 'tutorial/'
+    }
+    from('docs/logo/Logo/CFLogo.png') {
+        into 'tutorial/webpages'
+    }
+    from('docs/logo/Logo/CFLogo.png') {
+        into 'manual'
+    }
+
+    // Copy favicon
+    from('docs/logo/Checkmark/CFCheckmark_favicon.png') {
+        rename('CFCheckmark_favicon.png', 'favicon-checkerframework.png')
+    }
+    from('docs/logo/Checkmark/CFCheckmark_favicon.png') {
+        into 'manual'
+        rename('CFCheckmark_favicon.png', 'favicon-checkerframework.png')
+    }
+
+    // Copy manual files
+    from('docs/manual') {
+        into 'manual'
+        include 'manual.html',
+                'manual.pdf',
+                '*.svg',
+                'manual001.png'
+    }
+
+    // Copy developer docs
+    from('docs/developer') {
+        into 'manual'
+        include 'developer-manual.html',
+                'gsoc-ideas.html',
+                'new-contributor-projects.html'
+    }
+
+    // Copy Dataflow manual
+    from('dataflow/manual/checker-framework-dataflow-manual.pdf') {
+        into 'manual'
+    }
+
+    // Copy tutorial
+    from('docs/tutorial') {
+        into 'tutorial'
+    }
+
+    // Copy Javadoc
+    from('docs/api') {
+        into 'api'
+    }
+
+    /* NO-AFU
+     from('docs/annotation-file-utilities') {
+     include 'annotation-file-utilities.html'
+     include 'annotation-file-format.html'
+     include 'annotation-file-format.pdf'
+     include 'figures/*.svg'
+     include 'figures/*.png'
+     include 'figures/*.gif'
+     into 'annotation-file-utilities'
+     }
+     */
+
+    // Resolve the directory at configuration time; the action below runs at execution time.
+    def projectDirPath = layout.projectDirectory.asFile.toPath()
+    doLast {
+        def destDir = projectDirPath.resolve(website.get())
+        def symlink = { String link, String target ->
+            def linkPath = destDir.resolve(link)
+            Files.deleteIfExists(linkPath)
+            Files.createSymbolicLink(linkPath, linkPath.fileSystem.getPath(target))
+        }
+        symlink('index.html', 'checker-framework-webpage.html')
+        symlink('manual/index.html', 'manual.html')
+        // NO-AFU symlink('annotation-file-utilities/index.html', 'annotation-file-utilities.html')
+    }
+}
+
+tasks.register('updateCopyMavenExample', Copy) {
+    // This task is used during the release in "sanity_checks.py" to check that the Maven artifacts were uploaded correctly.
+    description = 'Copies the Maven example to the location in property destDir, using this build\'s version.'
+    def destDir = layout.projectDirectory.dir(providers.gradleProperty('destDir')).map { it.dir('MavenExample') }
+    into destDir
+    from 'docs/examples/MavenExample'
+
+    // Match the pom property itself rather than marker comments around its value: Renovate
+    // rewrites this property in place and drops any such markers.
+    String cfVersion = project.version.toString()
+    String versionElement = "<checkerFrameworkVersion>${cfVersion}</checkerFrameworkVersion>"
+    // The filter below uses the version, but Gradle does not see it.
+    inputs.property('version', cfVersion)
+    filter { String line ->
+        line.replaceAll('<checkerFrameworkVersion>.*</checkerFrameworkVersion>', versionElement)
+    }
+
+    // A silently-failed rewrite would sanity-check the previous release.
+    doLast {
+        File pom = destDir.get().file('pom.xml').asFile
+        if (!pom.text.contains(versionElement)) {
+            throw new GradleException("${pom} does not contain ${versionElement}")
+        }
+    }
+}

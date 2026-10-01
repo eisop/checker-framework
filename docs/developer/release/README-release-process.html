@@ -136,8 +136,13 @@ miss a step if you only read the paragraph asking you to say 'yes'.
         at <a href="#content_guidelines">content guidelines</a>.
       </li>
       <li> <b>Update the Checker Framework version number</b>
-        in <code>checker-framework/build.gradle</code>,
-        in the <code>allprojects</code> block.
+        in <code>checker-framework/release.gradle</code>,
+        in the <code>ext</code> block: set <code>releaseVersion</code> to the version
+        being released, such as <code>1.2.3-eisop4</code>, without <code>-SNAPSHOT</code>.
+        (Usually it already is: it is set to the next release after each release.)
+        The build's version is <code>releaseVersion</code> when Gradle is run
+        with <code>-Prelease=true</code>, as the release scripts do,
+        and <code>releaseVersion</code> followed by <code>-SNAPSHOT</code> otherwise.
 
         <p>
         Update the minor version (middle number in the version number)
@@ -175,8 +180,12 @@ TreeAnnotator
       </li>
       <li>
         <b>Update the Annotation Tools version number</b>, again <em>in the <code>master</code> branch</em>,
-        in <code>annotation-file-utilities/build.gradle</code>.
+        in <code>annotation-file-utilities/build.gradle</code> of the
+        <a href="https://github.com/eisop/annotation-tools">eisop/annotation-tools</a> repository.
         (TODO: Are any other replacements necessary?)
+        <!-- NO-AFU: The Annotation File Utilities are released from eisop/annotation-tools until
+             they are built as part of this repository.  Then, remove this step and the other
+             Annotation File Utilities steps. -->
       </li>
       <li>
         <b>Commit and push</b> these changes to eisop/master.
@@ -200,7 +209,7 @@ TreeAnnotator
       <strong>In a user-specific temporary directory, clone/update the Checker Framework repository (it contains the release scripts).</strong><br/>
       <!-- This isn't a <pre> block because that formats differently than commands. -->
       <code>mkdir -p /tmp/$USER/cf-release<br/></code>
-      <code>chown -R types_www /tmp/$USER/cf-release<br/></code>
+      <code>chown -R :types_www /tmp/$USER/cf-release<br/></code>
       <code>chmod -R g+rw /tmp/$USER/cf-release<br/></code>
       <code>cd /tmp/$USER/cf-release<br/></code>
       <code>test -d checker-framework && (cd checker-framework && git pull --ff-only --quiet) || git clone --quiet https://github.com/eisop/checker-framework.git<br/></code>
@@ -208,11 +217,12 @@ TreeAnnotator
     (The release scripts will checkout and build all dependencies.)
   </li>
   <li><strong>Run release_build</strong> to create the release artifacts and place them in the development website<br/>
-      <code>git pull && python3 release_build.py all</code><br/><br/>
+      <code>git pull && python3 release_build.py</code><br/><br/>
       For verbose debugging output, use the <code>--debug</code> option.<br/><br/>
-      <strong>Note:</strong> The &quot;all&quot; argument specifies that all projects should be built.
-      There has been some work done in order to select only specific projects (AFU and Checker Framework)
-      to be built but more work still needs to be done.  Just pass &quot;all&quot; for now.
+      <strong>Note:</strong> release_build deploys the release to your local Maven repository
+      (for the Maven sanity check in release_push) with <code>-Prelease=true</code>, which signs
+      the artifacts.  Set up your signing key, as for the Maven Central publish step below,
+      before running it.
   </li>
   <li>
       <strong>Run release_push</strong> to run a few tests and move release artifacts from the development website to the live site<br/>
@@ -230,7 +240,10 @@ TreeAnnotator
   <li>
       <strong>Publish to Maven Central.</strong>  The release scripts do not do this.  In a
       checkout of the release commit, on JDK 21 or later, run<br/>
-      <code>./gradlew publish -Prelease=true --no-parallel</code><br/><br/>
+      <code>./gradlew publish -Prelease=true --no-parallel</code><br/>
+      (<code>-Prelease=true</code> makes the version <code>releaseVersion</code> from
+      <code>release.gradle</code> rather than a <code>-SNAPSHOT</code> version, and signs the
+      artifacts.)<br/><br/>
       Then log in to
       <a href="https://central.sonatype.com/publishing/deployments">https://central.sonatype.com/publishing/deployments</a>
       and publish the deployment.  See
@@ -244,7 +257,7 @@ TreeAnnotator
   </li>
   <li><strong>Update the Annotation Tools' use of the Checker Framework</strong>
     by making a pull request that changes two occurrences of the old version number in
-    <code>annotation-file-utilities/build.gradle</code>.
+    <code>annotation-file-utilities/build.gradle</code> of the eisop/annotation-tools repository.
   </li>
   <li> <strong>Make Daikon use the latest Checker Framework version.</strong>
 
@@ -282,9 +295,9 @@ TreeAnnotator
   </p>
 
   <p>
-    Often, the version number in <code>checker-framework/build.gradle</code>
-    (in <code>allprojects { version ... }</code>) will end
-    in <code>-SNAPSHOT</code>, but this is not a requirement.  Regardless of the
+    Unless you pass <code>-Prelease=true</code>, the version number is
+    <code>releaseVersion</code> from <code>checker-framework/release.gradle</code>
+    followed by <code>-SNAPSHOT</code>.  Regardless of the
     version number, beware that you may get different results than on other
     computers that have not deployed the same commit of the Checker Framework to
     their local Maven repository.
@@ -299,10 +312,11 @@ TreeAnnotator
       and your user token key in <code>SONATYPE_NEXUS_PASSWORD</code>.
     </li>
     <li>
-      Ensure that the version number in <code>checker-framework/build.gradle</code> (in <code>allprojects { version ... }</code>) ends in <code>-SNAPSHOT</code>.
-    </li>
-    <li>
-      Run <code>./gradlew publish</code> in <code>checker-framework</code>.
+      Run <code>./gradlew publish</code> in <code>checker-framework</code>, without
+      <code>-Prelease=true</code>, so that the version
+      is <code>releaseVersion</code> from <code>release.gradle</code>
+      followed by <code>-SNAPSHOT</code>.
+      (The <code>Publish snapshot</code> GitHub workflow does this daily.)
     </li>
   </ol>
 
@@ -580,10 +594,13 @@ git config --global user.email you@example.com</pre>
         </td>
       </tr>
       <tr>
-        <td>release.xml</td>
-        <td>The previous release script used Ant to do a number of tasks.  Rather than
-          reimplement them all, we still use the targets from this script.
-          They are called from release_push and release_build.
+        <td>release.gradle</td>
+        <td>In the top-level directory of the repository.  It defines <code>releaseVersion</code>
+          and the Gradle tasks that the release scripts call: <code>updateVersionNumbers</code>,
+          which writes the new version and date into the documentation and fails if a file it
+          rewrites has moved; <code>copyToWebsite</code>; and <code>updateCopyMavenExample</code>.
+          The <code>zip</code> task, which creates the release zip file, is in
+          <code>build.gradle</code>.
         </td>
       </tr>
     </table>

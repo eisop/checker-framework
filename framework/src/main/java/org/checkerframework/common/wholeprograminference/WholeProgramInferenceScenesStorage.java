@@ -189,7 +189,7 @@ public class WholeProgramInferenceScenesStorage
     }
 
     /**
-     * Get the annotations for a class.
+     * Returns the annotations for a class.
      *
      * @param className the name of the class, in binary form
      * @param file the path to the file that represents the class
@@ -206,7 +206,7 @@ public class WholeProgramInferenceScenesStorage
     }
 
     /**
-     * Get the annotations for a method or constructor.
+     * Returns the annotations for a method or constructor.
      *
      * @param methodElt the method or constructor
      * @return the annotations for a method or constructor
@@ -222,7 +222,7 @@ public class WholeProgramInferenceScenesStorage
     }
 
     /**
-     * Get the annotations for a field.
+     * Returns the annotations for a field.
      *
      * @param fieldElt the field
      * @return the annotations for a field

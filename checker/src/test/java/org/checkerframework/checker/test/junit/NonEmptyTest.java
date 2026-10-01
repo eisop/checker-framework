@@ -6,7 +6,7 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** JUnit tests for the Non-Empty Checker */
+/** JUnit tests for the Non-Empty Checker. */
 public class NonEmptyTest extends CheckerFrameworkPerDirectoryTest {
 
     /**

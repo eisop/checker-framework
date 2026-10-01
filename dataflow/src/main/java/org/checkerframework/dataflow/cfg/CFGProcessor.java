@@ -60,7 +60,7 @@ public class CFGProcessor extends BasicTypeProcessor {
     }
 
     /**
-     * Get the CFG process result.
+     * Returns the CFG process result.
      *
      * @return result of cfg process
      */

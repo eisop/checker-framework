@@ -19,16 +19,16 @@ import java.util.Objects;
  */
 public class TernaryExpressionNode extends Node {
 
-    /** The {@code ConditionalExpressionTree} corresponding to this node */
+    /** The {@code ConditionalExpressionTree} corresponding to this node. */
     protected final ConditionalExpressionTree tree;
 
-    /** Node representing the condition checked by the expression */
+    /** Node representing the condition checked by the expression. */
     protected final Node condition;
 
-    /** Node representing the "then" case of the expression */
+    /** Node representing the "then" case of the expression. */
     protected final Node thenOperand;
 
-    /** Node representing the "else" case of the expression */
+    /** Node representing the "else" case of the expression. */
     protected final Node elseOperand;
 
     /**
@@ -63,7 +63,7 @@ public class TernaryExpressionNode extends Node {
     }
 
     /**
-     * Gets the node representing the conditional operand for this node
+     * Gets the node representing the conditional operand for this node.
      *
      * @return the condition operand node
      */
@@ -72,7 +72,7 @@ public class TernaryExpressionNode extends Node {
     }
 
     /**
-     * Gets the node representing the "then" operand for this node
+     * Gets the node representing the "then" operand for this node.
      *
      * @return the "then" operand node
      */
@@ -81,7 +81,7 @@ public class TernaryExpressionNode extends Node {
     }
 
     /**
-     * Gets the node representing the "else" operand for this node
+     * Gets the node representing the "else" operand for this node.
      *
      * @return the "else" operand node
      */

@@ -24,6 +24,7 @@ plugins {
     id 'com.diffplug.spotless' version '8.10.2'
     id 'io.github.andygoossens.modernizer' version '2.0.0' apply false
 }
+apply from: rootProject.file('release.gradle')
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
 repositories {
@@ -159,12 +160,9 @@ allprojects { currentProj ->
         eisopFormatting = rootProject.ext.eisopFormatting
     }
 
-    // Increment the minor version (second number) rather than just the patch
-    // level (third number) if:
-    //   * any new checkers have been added, or
-    //   * backward-incompatible changes have been made to APIs or elsewhere.
-    // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
-    version = '3.49.5-eisop2-SNAPSHOT'
+    // Update releaseVersion in release.gradle.  A build is a snapshot of the next release unless it
+    // is run with -Prelease=true, which a release does (see gradle-mvn-push.gradle).
+    version = (findProperty('release') == 'true') ? releaseVersion : "${releaseVersion}-SNAPSHOT".toString()
     group = 'io.github.eisop'
 
     apply plugin: 'java'
@@ -263,7 +261,7 @@ allprojects { currentProj ->
         // exported, not opened; com.sun.tools.javac.comp is opened because the Checker Framework
         // reflectively accesses its private members.
         def javacExportedPackages = [
-            'api', 'code', 'file', 'main', 'model', 'processing', 'tree', 'util',
+            'api', 'code', 'file', 'main', 'model', 'parser', 'processing', 'tree', 'util',
         ]
         def javacOpenedPackages = ['comp']
         // Expose the bare package-name lists so other tasks (e.g. the Javadoc --add-exports below)
@@ -349,6 +347,12 @@ allprojects { currentProj ->
             if (currentProj != currentProj.rootProject) {
                 // not the root project; format all .java and .ajava files in the sub-project
                 target '**/*.java', '**/*.ajava'
+            } else {
+                // The Annotation File Utilities are not a Gradle subproject here, so the root
+                // project formats their sources.  Their tests/ directory is not formatted: it
+                // holds test inputs whose expected outputs (the .goal files) depend on the exact
+                // formatting of the input.
+                target 'annotation-file-utilities/src/**/*.java'
             }
             targetExclude doNotFormat
 
@@ -561,6 +565,8 @@ allprojects { currentProj ->
                     '--add-exports',
                     'jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED',
                     '--add-exports',
+                    'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+                    '--add-exports',
                     'jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
                     '--add-exports',
                     'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
@@ -647,6 +653,8 @@ allprojects { currentProj ->
                     // Would require @CanIgnoreReturnValue (EP annotation).
                     // It would be great if Error Prone recognized the @This annotation.
                     '-Xep:CanIgnoreReturnValueSuggester:OFF',
+                    // Would require @DoNotCall (EP annotation).
+                    '-Xep:DoNotCallSuggester:OFF',
 
                     // -------------------------------------------------------------------------
                     // Enabled checks: standard EP checks, severity raised to ERROR.
@@ -873,6 +881,7 @@ def javadocDirs = [
     project(':framework').sourceSets.test.allJava,
     project(':framework-test').sourceSets.main.allJava,
     project(':framework-test').sourceSets.test.allJava,
+    // NO-AFU project(':annotation-file-utilities').sourceSets.main.allJava,
     project(':javacutil').sourceSets.main.allJava
 ]
 
@@ -974,9 +983,101 @@ tasks.register('cleanManual', Exec) {
     description = 'Clean the manual'
     commandLine 'make', '-C', 'docs/manual', 'clean'
 }
+/* NO-AFU
+ tasks.register('cleanAfuManual', Exec) {
+ description = 'Clean the Annotation File Utilities manual'
+ commandLine 'make', '-C', 'docs/annotation-file-utilities/', 'clean'
+ }
+ */
 tasks.named('clean') {
     dependsOn 'cleanManual'
+    // NO-AFU dependsOn 'cleanAfuManual'
     delete(file("${rootDir}/docs/api"))
+}
+
+tasks.register('zip', Zip) {
+    description = 'Creates a zip archive for the Checker Framework.'
+    dependsOn('buildAll')
+    archiveFileName = "checker-framework-${version}.zip"
+    destinationDirectory = layout.buildDirectory
+    into "checker-framework-${version}"
+
+    from(layout.projectDirectory) {
+        exclude 'api/**',
+                'checker/bin/README',
+                'checker/dist/*.asc',
+                'docs/tutorial/tests/**',
+                'docs/tutorial/src/**',
+                'docs/tutorial/test/**',
+                'docs/tutorial/Makefile',
+                'docs/tutorial/README'
+
+        include 'README.md',
+                'LICENSE.txt',
+                // NO-AFU 'annotation-file-utilities/bin/**',
+                // NO-AFU 'annotation-file-utilities/dist/**',
+                // NO-AFU 'annotation-file-utilities/LICENSE.txt',
+                'checker/bin/**',
+                'checker/dist/**',
+                'checker/resources/**',
+                'docs/CHANGELOG.md',
+                'docs/checker-framework-quick-start.html',
+                'docs/checker-framework-webpage.html',
+                // NO-AFU 'docs/annotation-file-utilities/annotation-file-utilities.html',
+                // NO-AFU 'docs/annotation-file-utilities/annotation-file-format.pdf',
+                // NO-AFU 'docs/annotation-file-utilities/annotation-file-format.html',
+                // NO-AFU 'docs/annotation-file-utilities/*.png',
+                'docs/manual/manual.html',
+                'docs/manual/manual.pdf',
+                'docs/manual/*.svg',
+                'docs/manual/manual001.png',
+                'docs/examples/InterningExample.java',
+                'docs/examples/InterningExampleWithWarnings.java',
+                'docs/examples/NullnessExample.java',
+                'docs/examples/NullnessExampleWithWarnings.java',
+                'docs/examples/NullnessReleaseTests.java',
+                'docs/examples/units-extension/UnitsExtensionDemo.java',
+                'docs/examples/units-extension/Expected.txt',
+                'docs/examples/units-extension/qual/**',
+                'docs/examples/units-extension/Makefile',
+                'docs/examples/units-extension/README',
+                'docs/examples/MavenExample/pom.xml',
+                'docs/examples/MavenExample/README',
+                'docs/examples/MavenExample/src/main/java/org/checkerframework/example/MavenExample.java',
+                'docs/tutorial/**'
+    }
+
+    // Archive tasks do not keep file-system permissions, but the javac wrapper must be executable.
+    filesMatching('checker/bin/javac') {
+        permissions {
+            unix('rwxr-xr-x')
+        }
+    }
+
+    // The front page references the favicon next to itself; it lives under docs/logo,
+    // so give it the name and location the page expects.
+    from('docs/logo/Checkmark/CFCheckmark_favicon.png') {
+        into 'docs/'
+        rename('CFCheckmark_favicon.png', 'favicon-checkerframework.png')
+    }
+
+    // Place the dataflow manual under docs/manual/ so the website generator, which lifts that
+    // whole directory, surfaces it at cf/manual/checker-framework-dataflow-manual.pdf.
+    from('dataflow/manual/checker-framework-dataflow-manual.pdf') {
+        into 'docs/manual/'
+    }
+
+    from('docs/logo/Logo/CFLogo.png') {
+        into 'docs/manual/'
+    }
+
+    from('docs/logo/Logo/CFLogo.png') {
+        into 'docs/tutorial/'
+    }
+
+    from('docs/logo/Logo/CFLogo.png') {
+        into 'docs/tutorial/webpages'
+    }
 }
 
 configurations {
@@ -1046,8 +1147,20 @@ createJavadocTask('javadocDoclintAll', 'Runs javadoc with -Xdoclint:all option.'
 tasks.register('manual', Exec) {
     group = 'Documentation'
     description = 'Build the manual'
+    // `make all` runs `./gradlew allJavadoc` unless docs/api already exists, and a nested Gradle
+    // build in the same directory fails; so when both are requested (as by buildAll), make sure
+    // the Javadoc already exists.
+    mustRunAfter('allJavadoc')
     commandLine 'make', '-C', 'docs/manual', 'all'
 }
+
+/* NO-AFU
+ tasks.register('makeAfuManual', Exec) {
+ description = 'Make documentation: annotation-file-format.{html,pdf}.'
+ executable 'make'
+ args '-C', 'docs/annotation-file-utilities/'
+ }
+ */
 
 // No group so it does not show up in the output of `gradlew tasks`
 tasks.register('downloadJtreg', Download) {
@@ -1351,7 +1464,9 @@ subprojects {
         // The checkNullness task runs on all code, but it only *checks* the following code:
         //  * All files outside the 'framework' and 'checker' subprojects.
         //  * In the 'framework' and 'checker' subprojects, files with `@AnnotatedFor("nullness")`.
-        if (isFramework || isChecker) {
+        // To check all code in all subprojects, pass `-PnullnessAll`.
+        boolean nullnessAll = project.hasProperty('nullnessAll')
+        if (!nullnessAll && (isFramework || isChecker)) {
             rootProject.createCheckTypeTask(project.name,'Nullness',
                     'org.checkerframework.checker.nullness.NullnessChecker',
                     [
@@ -1671,7 +1786,7 @@ tasks.named('assemble') {
 
 tasks.register('buildAll') {
     group = 'Build'
-    description = 'Build all jar files, including source and javadoc jars'
+    description = 'Build all jar files and the manuals, including source and javadoc jars'
     dependsOn('allJavadoc')
     subprojects { Project subproject ->
         dependsOn("${subproject.name}:assemble")
@@ -1680,22 +1795,8 @@ tasks.register('buildAll') {
     }
     dependsOn('framework:allJavadocJar', 'framework:allSourcesJar', 'checker:allJavadocJar', 'checker:allSourcesJar', 'checker-qual:jar', 'checker-util:jar')
     dependsOn('checker:assembleForJavac')
-}
-
-tasks.register('releaseBuild') {
-    group = 'Build'
-    description = 'Cleans, then builds everything required for a release'
-    dependsOn(clean)
-    dependsOn('buildAll')
-}
-
-// No group so it does not show up in the output of `gradlew tasks`
-tasks.register('releaseAndTest') {
-    description = 'Build everything required for a release and run allTests'
-    dependsOn('releaseBuild')
-    subprojects { Project subproject ->
-        dependsOn("${subproject.name}:allTests")
-    }
+    dependsOn('manual', ':dataflow:manual')
+    // NO-AFU dependsOn('makeAfuManual')
 }
 
 // Don't create an empty checker-framework-VERSION.jar

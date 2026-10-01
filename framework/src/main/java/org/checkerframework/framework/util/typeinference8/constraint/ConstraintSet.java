@@ -66,7 +66,7 @@ public class ConstraintSet implements ReductionResult {
     /** Fast O(1) lookup set to accompany the list. */
     private HashSet<Constraint> fastLookup;
 
-    /** Whether inference failed because the qualifiers where not in the correct relationship. */
+    /** True if inference failed because the qualifiers where not in the correct relationship. */
     private boolean annotationFailure = false;
 
     /**
@@ -135,9 +135,9 @@ public class ConstraintSet implements ReductionResult {
     }
 
     /**
-     * Return whether or not this constraint set is empty.
+     * Returns true if this constraint set is empty.
      *
-     * @return whether or not this constraint set is empty
+     * @return true if this constraint set is empty
      */
     public boolean isEmpty() {
         return list.isEmpty();
@@ -331,7 +331,7 @@ public class ConstraintSet implements ReductionResult {
     }
 
     /**
-     * Return all variables mentioned by any constraint in this set.
+     * Returns all variables mentioned by any constraint in this set.
      *
      * @return all variables mentioned by any constraint in this set
      */
@@ -349,7 +349,7 @@ public class ConstraintSet implements ReductionResult {
     }
 
     /**
-     * Return all input variables for all constraints in this set.
+     * Returns all input variables for all constraints in this set.
      *
      * @return all input variables for all constraints in this set
      */

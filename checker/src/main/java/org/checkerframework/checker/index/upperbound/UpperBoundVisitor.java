@@ -21,13 +21,14 @@ import org.checkerframework.common.value.ValueAnnotatedTypeFactory;
 import org.checkerframework.common.value.ValueCheckerUtils;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
+import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.expression.ValueLiteral;
+import org.checkerframework.framework.source.DiagMessage;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
-import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
@@ -135,7 +136,7 @@ public class UpperBoundVisitor extends BaseTypeVisitor<UpperBoundAnnotatedTypeFa
                     StringToJavaExpression.atTypeDecl(
                             s, TreeUtils.elementFromDeclaration(classTree), checker);
         } catch (JavaExpressionParseException e) {
-            checker.report(whereToReportError, e.getDiagMessage());
+            checker.report(whereToReportError, new DiagMessage(e));
             return;
         }
         Element element = null;
@@ -291,7 +292,7 @@ public class UpperBoundVisitor extends BaseTypeVisitor<UpperBoundAnnotatedTypeFa
     }
 
     /**
-     * Returns whether the assignment is legal based on the relaxed assignment rules.
+     * Returns true if the assignment is legal based on the relaxed assignment rules.
      *
      * <p>The relaxed assignment rules are the following: Assuming the varType (left-hand side) is
      * less than the length of some array given some offset
@@ -512,7 +513,7 @@ public class UpperBoundVisitor extends BaseTypeVisitor<UpperBoundAnnotatedTypeFa
     }
 
     /**
-     * Tests whether replacing any of the arrays in sameLenArrays with arrayName makes expQual
+     * Returns true if replacing any of the arrays in sameLenArrays with arrayName makes expQual
      * equivalent to varQual.
      */
     private boolean testSameLen(

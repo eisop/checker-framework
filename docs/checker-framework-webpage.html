@@ -24,9 +24,9 @@ docs/checker-framework-quick-start.html, which the generator renames),
 api/checker-javadoc/ (the zip has checker/dist/checker-javadoc.jar, which the
 generator unpacks), and CFLogo.png (the generator copies it up from tutorial/).
 
-The version and date, and the AFU zip name and date, are stamped in at release
-time by update-checker-framework-versions in docs/developer/release/release.xml,
-which keys off the marker comments below.  Do not remove a marker.
+The version and date are stamped in at release time by the updateVersionNumbers
+task in release.gradle, which keys off the marker comments below.  Do not remove
+a marker.
 -->
 <html>
 <head><link rel="icon" type="image/png" href="favicon-checkerframework.png" />
@@ -126,9 +126,7 @@ href="manual/manual.html#type-inference-tools">a list of inference tools</a>.
           the <code>.class</code> file.  The tools support both Java 5
           declaration annotations and Java 8 type annotations.
         <ul>
-          <li><a href="/afu/annotation-tools-3.49.5-eisop1.zip"><!-- annotation-tools-zip-version -->annotation-tools-3.49.5-eisop1.zip<!-- /annotation-tools-zip-version --></a> (<!-- afu-date -->22 Apr 2026<!-- /afu-date -->)
-          </li>
-          <li><a href="https://github.com/eisop/annotation-tools/">source code repository</a>
+          <li> It is distributed with the Checker Framework.
           </li>
           <li><a href="/afu/annotation-file-utilities.html">Documentation</a>
               is included in the zip archive and in the repository.

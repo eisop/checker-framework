@@ -211,9 +211,9 @@ public class InvocationType {
     }
 
     /**
-     * Whether this method has type variables.
+     * Returns true if this method has type variables.
      *
-     * @return whether this method has type variables
+     * @return true if this method has type variables
      */
     public boolean hasTypeVariables() {
         return !annotatedExecutableType.getTypeVariables().isEmpty();
@@ -238,9 +238,9 @@ public class InvocationType {
     }
 
     /**
-     * Whether this method is void.
+     * Returns true if this method is void.
      *
-     * @return whether this method is void
+     * @return true if this method is void
      */
     public boolean isVoid() {
         return annotatedExecutableType.getReturnType().getKind() == TypeKind.VOID;

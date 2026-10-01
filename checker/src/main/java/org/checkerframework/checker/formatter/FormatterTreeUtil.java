@@ -93,7 +93,7 @@ public class FormatterTreeUtil {
          * <blockquote>
          *
          * <pre>
-         * Object[] a = new Object[]{"Example",7};
+         * Object[] a = new Object[] {"Example",7};
          * String.format("%s %d", a);
          * </pre>
          *

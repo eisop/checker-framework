@@ -193,7 +193,7 @@ public class CFGTranslationPhaseThree {
      *
      * @param start the starting point of the search (an empty, regular basic block)
      * @param emptyBlocks a set to be filled by this method with all empty basic blocks found
-     *     (including {@code start}).
+     *     (including {@code start})
      * @param predecessors a set to be filled by this method with all predecessors
      * @return the single successor of the set of the empty basic blocks
      */
@@ -235,7 +235,7 @@ public class CFGTranslationPhaseThree {
      *
      * @param start the starting point of the search (an empty, regular basic block)
      * @param emptyBlocks a set to be filled by this method with all empty basic blocks found
-     *     (including {@code start}).
+     *     (including {@code start})
      * @param predecessors a set to be filled by this method with all predecessors
      */
     protected static void computeNeighborhoodOfEmptyBlockBackwards(
@@ -277,7 +277,7 @@ public class CFGTranslationPhaseThree {
     }
 
     /**
-     * Return a predecessor holder that can be used to set the successor of {@code pred} in the
+     * Returns a predecessor holder that can be used to set the successor of {@code pred} in the
      * place where previously the edge pointed to {@code cur}. Additionally, the predecessor holder
      * also takes care of unlinking (i.e., removing the {@code pred} from {@code cur's}
      * predecessors).

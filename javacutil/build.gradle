@@ -2,10 +2,6 @@ plugins {
     id 'java-library'
 }
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     // Guava is used from main sources on unconditional code paths (SystemUtil's Splitter
     // fields are initialized at class load), so it must be an `implementation` dependency:

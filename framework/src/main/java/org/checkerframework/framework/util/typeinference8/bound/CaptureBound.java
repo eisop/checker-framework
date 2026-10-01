@@ -32,7 +32,7 @@ import javax.lang.model.type.TypeKind;
  * may be types or wildcards and may mention inference variables).
  */
 public class CaptureBound {
-    /** {@code G<A1, ..., An>} sometimes called the right hand side */
+    /** {@code G<A1, ..., An>} sometimes called the right hand side. */
     private final AbstractType capturedType;
 
     /**
@@ -163,7 +163,7 @@ public class CaptureBound {
     }
 
     /**
-     * Return all variables on the left-hand side of this capture.
+     * Returns all variables on the left-hand side of this capture.
      *
      * @return all variables on the left-hand side of this capture
      */
@@ -172,7 +172,7 @@ public class CaptureBound {
     }
 
     /**
-     * Return all variables on the right-hand side of this capture.
+     * Returns all variables on the right-hand side of this capture.
      *
      * @return all variables on the right-hand side of this capture
      */
@@ -181,10 +181,10 @@ public class CaptureBound {
     }
 
     /**
-     * Returns whether this bound contains any {@code variables}.
+     * Returns true if this bound contains any {@code variables}.
      *
      * @param variables inference variables
-     * @return whether this bound contains any {@code variables}
+     * @return true if this bound contains any {@code variables}
      */
     public boolean isCaptureMentionsAny(Collection<Variable> variables) {
         for (Variable a : variables) {

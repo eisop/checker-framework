@@ -294,9 +294,9 @@ class ValueTreeAnnotator extends TreeAnnotator {
     }
 
     /**
-     * Get the "value" element/field of the annotation on {@code type}, casted to the given type.
-     * Empty list means no value is possible (dead code). Null means no information is known -- any
-     * value is possible.
+     * Returns the "value" element/field of the annotation on {@code type}, casted to the given
+     * type. Empty list means no value is possible (dead code). Null means no information is known
+     * -- any value is possible.
      *
      * @param type the type with a Value Checker annotation
      * @param castTo the type to cast to
@@ -307,9 +307,9 @@ class ValueTreeAnnotator extends TreeAnnotator {
     }
 
     /**
-     * Get the "value" element/field of the annotation on {@code type}, casted to the given type.
-     * Empty list means no value is possible (dead code). Null means no information is known -- any
-     * value is possible.
+     * Returns the "value" element/field of the annotation on {@code type}, casted to the given
+     * type. Empty list means no value is possible (dead code). Null means no information is known
+     * -- any value is possible.
      *
      * @param type the type with a Value Checker annotation
      * @param castTo the type to cast to

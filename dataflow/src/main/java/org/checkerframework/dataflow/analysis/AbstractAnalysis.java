@@ -161,7 +161,7 @@ public abstract class AbstractAnalysis<
      * @param node the node of the target block
      * @param currentInput the current transfer input
      * @param flowRule the flow rule being used
-     * @param addToWorklistAgain whether the block should be added to {@link #worklist} again
+     * @param addToWorklistAgain true if the block should be added to {@link #worklist} again
      */
     protected abstract void propagateStoresTo(
             Block nextBlock,
@@ -314,7 +314,7 @@ public abstract class AbstractAnalysis<
     }
 
     /**
-     * Get the set of {@link Node}s for a given {@link Tree}. Returns null for trees that don't
+     * Returns the set of {@link Node}s for a given {@link Tree}. Returns null for trees that don't
      * produce a value.
      *
      * @param t the given tree
@@ -385,8 +385,8 @@ public abstract class AbstractAnalysis<
     }
 
     /**
-     * Get the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a {@link
-     * Node} in the CFG or {@code null} otherwise.
+     * Returns the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a
+     * {@link Node} in the CFG or {@code null} otherwise.
      *
      * @param t the given tree
      * @return the contained method tree of the given tree
@@ -398,8 +398,8 @@ public abstract class AbstractAnalysis<
     }
 
     /**
-     * Get the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a {@link
-     * Node} in the CFG or {@code null} otherwise.
+     * Returns the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a
+     * {@link Node} in the CFG or {@code null} otherwise.
      *
      * @param t the given tree
      * @return the contained method tree of the given tree
@@ -412,8 +412,8 @@ public abstract class AbstractAnalysis<
     }
 
     /**
-     * Get the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a {@link
-     * Node} in the CFG or {@code null} otherwise.
+     * Returns the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a
+     * {@link Node} in the CFG or {@code null} otherwise.
      *
      * @param t the given tree
      * @return the contained class tree of the given tree
@@ -425,8 +425,8 @@ public abstract class AbstractAnalysis<
     }
 
     /**
-     * Get the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a {@link
-     * Node} in the CFG or {@code null} otherwise.
+     * Returns the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a
+     * {@link Node} in the CFG or {@code null} otherwise.
      *
      * @param t the given tree
      * @return the contained class tree of the given tree

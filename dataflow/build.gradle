@@ -15,6 +15,8 @@ dependencies {
     // To build with JDK 22+, we need to redeclare that dependency here.
     implementation "org.plumelib:hashmap-util:${versions.hashmapUtil}"
 
+    testImplementation "junit:junit:${versions.junit}"
+
     // External dependencies:
     // If you add an external dependency, you must shadow its packages both in the dataflow-shaded
     // artifact (see shadowJar block below) and also in checker.jar (see the comment in
@@ -76,13 +78,13 @@ tasks.register('manual', Exec) {
     commandLine 'make', '-C', 'manual'
 }
 
+tasks.named('clean') {
+    delete('manual/checker-framework-dataflow-manual.aux', 'manual/checker-framework-dataflow-manual.log', 'manual/checker-framework-dataflow-manual.out', 'manual/checker-framework-dataflow-manual.pdf')
+}
+
 tasks.withType(Test).configureEach {
-    // Disable the gradle generated test task as the dataflow framework does not use JUnit for testing. If it were kept enabled (which is the default), gradlew would produce a deprecation warning.
-    // The `allDataflowTests` task dependency is still enabled.
-    enabled = false
+    // The `test` task runs the JUnit tests and also the dataflow analysis tests in `allDataflowTests`.
     dependsOn('allDataflowTests')
-    // The tests are run by allDataflowTests.
-    exclude '**/*'
 }
 
 tasks.register('allDataflowTests') {
@@ -154,6 +156,8 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
                 'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
                 '--add-opens',
                 'jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+                '--add-opens',
+                'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
                 '--add-opens',
                 'jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
                 '--add-opens',

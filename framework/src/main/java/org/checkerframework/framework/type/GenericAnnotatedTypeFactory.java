@@ -39,6 +39,7 @@ import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.cfg.visualize.DOTCFGVisualizer;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
+import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
@@ -80,7 +81,6 @@ import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.Contract;
 import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.DefaultContractsFromMethod;
-import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.NoContractsFromMethod;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
@@ -198,7 +198,7 @@ public abstract class GenericAnnotatedTypeFactory<
     public final @Nullable Set<TypeMirror> relevantJavaTypes;
 
     /**
-     * Whether users may write type annotations on arrays. Ignored unless {@link #relevantJavaTypes}
+     * True if users may write type annotations on arrays. Ignored unless {@link #relevantJavaTypes}
      * is non-null.
      */
     protected final boolean arraysAreRelevant;
@@ -350,7 +350,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * Creates a type factory. Its compilation unit is not yet set.
      *
      * @param checker the checker to which this type factory belongs
-     * @param useFlow whether flow analysis should be performed
+     * @param useFlow true if flow analysis should be performed
      */
     @SuppressWarnings("this-escape")
     protected GenericAnnotatedTypeFactory(BaseTypeChecker checker, boolean useFlow) {
@@ -1369,7 +1369,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Return the first {@link Node} for a given {@link Tree} that has class {@code kind}.
+     * Returns the first {@link Node} for a given {@link Tree} that has class {@code kind}.
      *
      * <p>You probably don't want to use this function: iterate over the result of {@link
      * #getNodesForTree(Tree)} yourself or ask for a conservative approximation of the store using
@@ -1849,7 +1849,7 @@ public abstract class GenericAnnotatedTypeFactory<
         handleCFGViz(cfg);
     }
 
-    /** Whether handling CFG visualization is necessary. */
+    /** True if handling CFG visualization is necessary. */
     private final boolean handleCFGViz;
 
     /**
@@ -2991,7 +2991,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Return the type of the default value of the given type. The default value is 0, false, or
+     * Returns the type of the default value of the given type. The default value is 0, false, or
      * null.
      *
      * @param typeMirror a type
@@ -3237,7 +3237,7 @@ public abstract class GenericAnnotatedTypeFactory<
      *     value of {@code preOrPost})
      * @param declaredType the declared type of the expression, which is used to determine if the
      *     inferred type supplies no additional information beyond the declared type
-     * @param preOrPost whether to return preconditions or postconditions
+     * @param preOrPost what to return: preconditions or postconditions
      * @param preconds the precondition annotations for the method; used to suppress redundant
      *     postconditions; non-null exactly when {@code preOrPost} is {@code AFTER}
      * @return precondition or postcondition annotations for the element (possibly an empty list)
@@ -3317,7 +3317,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param qualifier the qualifier that must be present
      * @param declaredType the declared type of the expression, which is used to avoid inferring
      *     redundant pre- or postcondition annotations
-     * @param preOrPost whether to return a precondition or postcondition annotation
+     * @param preOrPost what to return: a precondition or postcondition annotation
      * @param preconds the list of precondition annotations; used to suppress redundant
      *     postconditions; non-null exactly when {@code preOrPost} is {@code BeforeOrAfter.BEFORE}
      * @return a {@code RequiresQualifier("...")} or {@code EnsuresQualifier("...")} annotation for
@@ -3362,7 +3362,7 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * @param tree the source code corresponding to cfg
      * @param cfg the control flow graph to use for tree
-     * @return whether a shared CFG was found to actually add to (duplicate keys also return true)
+     * @return true if a shared CFG was found to actually add to (duplicate keys also return true)
      */
     public boolean addSharedCFGForTree(Tree tree, ControlFlowGraph cfg) {
         if (!shouldCache) {
@@ -3394,7 +3394,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Get the shared control flow graph used for {@code tree} by this checker's topmost
+     * Returns the shared control flow graph used for {@code tree} by this checker's topmost
      * superchecker. Returns null if no information is available about the given tree, or if this
      * checker has a parent checker that does not have a GenericAnnotatedTypeFactory.
      *
