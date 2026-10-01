@@ -67,6 +67,9 @@ Type-checking and subtyping improvements:
 - CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
   try-with-resources) are now type-checked, with diagnostics pointing at the
   source construct.
+- Repeated `@RequiresNonEmpty` annotations on one method are now enforced:
+  the container annotation `RequiresNonEmpty.List` was missing
+  `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
 
 JSpecify support in the Nullness Checker:
 - Dropped JSpecify's pre-1.0 `org.jspecify.nullness` package -- use

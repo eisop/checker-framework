@@ -91,6 +91,7 @@ public @interface RequiresNonEmpty {
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.METHOD, ElementType.PARAMETER})
+    @PreconditionAnnotation(qualifier = NonEmpty.class)
     @interface List {
         /**
          * Returns the repeatable annotations.
