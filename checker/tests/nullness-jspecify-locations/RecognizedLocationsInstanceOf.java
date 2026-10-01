@@ -6,7 +6,7 @@
 // syntax in checker/tests/nullness/java17/NullnessInstanceOf.java.
 
 public class RecognizedLocationsInstanceOf {
-  void instanceOf(Object o) {
-    if (o instanceof String[] unannotated) {}
-  }
+    void instanceOf(Object o) {
+        if (o instanceof String[] unannotated) {}
+    }
 }

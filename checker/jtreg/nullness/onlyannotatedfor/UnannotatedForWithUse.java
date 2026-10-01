@@ -14,28 +14,28 @@ import org.checkerframework.framework.qual.UnannotatedFor;
 @AnnotatedFor("nullness")
 public class UnannotatedForWithUse {
 
-  // Excluded from the enclosing AnnotatedFor scope, so its unannotated signature is defaulted
-  // as unchecked code: conservatively under -AuseConservativeDefaultsForUncheckedCode=source,
-  // permissively under -Amode=jspecify, and with the CLIMB defaults otherwise -- an effect of
-  // UnannotatedFor invisible from inside the excluded scope.  Numbered comments in use() below
-  // refer to the four @compile runs, in the order they are declared above.
-  @UnannotatedFor("nullness")
-  static class Excluded {
-    Object get() {
-      return null;
+    // Excluded from the enclosing AnnotatedFor scope, so its unannotated signature is defaulted
+    // as unchecked code: conservatively under -AuseConservativeDefaultsForUncheckedCode=source,
+    // permissively under -Amode=jspecify, and with the CLIMB defaults otherwise -- an effect of
+    // UnannotatedFor invisible from inside the excluded scope.  Numbered comments in use() below
+    // refer to the four @compile runs, in the order they are declared above.
+    @UnannotatedFor("nullness")
+    static class Excluded {
+        Object get() {
+            return null;
+        }
+
+        void set(Object of) {}
     }
 
-    void set(Object of) {}
-  }
-
-  void use(Excluded e) {
-    // 1: OK, 2: OK, 3: OK, 4: Err -- only conservative defaults make the return @Nullable.
-    // -Amode=jspecify implies -AonlyAnnotatedFor, which suppresses warnings in the excluded
-    // scope; its permissive defaults leave the return @NonNull, so run 3 matches run 2.
-    e.get().toString();
-    // 1: Err, 2: Err, 3: OK, 4: Err -- only the permissive defaults of -Amode=jspecify make
-    // the parameter @Nullable.  Conservative defaults protect field and method *reads*, not
-    // arguments; this matches the unannotated-code baseline in AnnotatedForWithUse.java.
-    e.set(null);
-  }
+    void use(Excluded e) {
+        // 1: OK, 2: OK, 3: OK, 4: Err -- only conservative defaults make the return @Nullable.
+        // -Amode=jspecify implies -AonlyAnnotatedFor, which suppresses warnings in the excluded
+        // scope; its permissive defaults leave the return @NonNull, so run 3 matches run 2.
+        e.get().toString();
+        // 1: Err, 2: Err, 3: OK, 4: Err -- only the permissive defaults of -Amode=jspecify make
+        // the parameter @Nullable.  Conservative defaults protect field and method *reads*, not
+        // arguments; this matches the unannotated-code baseline in AnnotatedForWithUse.java.
+        e.set(null);
+    }
 }

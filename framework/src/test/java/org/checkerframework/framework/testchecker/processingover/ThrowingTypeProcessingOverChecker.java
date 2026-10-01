@@ -14,11 +14,11 @@ import org.checkerframework.javacutil.UserError;
 @SupportedOptions("throwInTypeProcessingOver")
 public class ThrowingTypeProcessingOverChecker extends VariableNameDefaultChecker {
 
-  @Override
-  public void typeProcessingOver() {
-    if (hasOption("throwInTypeProcessingOver")) {
-      throw new UserError("Simulated error from typeProcessingOver.");
+    @Override
+    public void typeProcessingOver() {
+        if (hasOption("throwInTypeProcessingOver")) {
+            throw new UserError("Simulated error from typeProcessingOver.");
+        }
+        super.typeProcessingOver();
     }
-    super.typeProcessingOver();
-  }
 }

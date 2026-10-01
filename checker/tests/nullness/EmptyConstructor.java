@@ -4,11 +4,11 @@
 import org.checkerframework.dataflow.qual.*;
 
 public class SuperClass {
-  static int count = 0;
+    static int count = 0;
 
-  public SuperClass() {
-    count++;
-  }
+    public SuperClass() {
+        count++;
+    }
 }
 
 // The error message is very confusing:
@@ -20,6 +20,6 @@ public class SuperClass {
 // to non-side-effect-free superclass constructor not allowed in side-effect-free constructor"
 
 public class EmptyConstructor extends SuperClass {
-  @SideEffectFree
-  public EmptyConstructor() {}
+    @SideEffectFree
+    public EmptyConstructor() {}
 }

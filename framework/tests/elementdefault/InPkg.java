@@ -5,10 +5,10 @@ package elementdefault.pkg;
  * FIELD locations to Bottom. An unqualified value is not assignable to a Bottom-defaulted field.
  */
 public class InPkg {
-  Object f;
+    Object f;
 
-  void use() {
-    // :: error: (assignment.type.incompatible)
-    f = new Object();
-  }
+    void use() {
+        // :: error: (assignment.type.incompatible)
+        f = new Object();
+    }
 }

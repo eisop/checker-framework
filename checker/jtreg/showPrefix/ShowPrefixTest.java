@@ -8,7 +8,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class ShowPrefixTest {
-  @NonNull Object foo(@Nullable Object nble) {
-    return nble;
-  }
+    @NonNull Object foo(@Nullable Object nble) {
+        return nble;
+    }
 }

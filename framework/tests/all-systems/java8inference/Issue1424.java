@@ -3,23 +3,23 @@
 
 @SuppressWarnings({"unchecked", "all"}) // Just check for crashes.
 abstract class Issue1424 {
-  class Box<T> {}
+    class Box<T> {}
 
-  interface Callable<V> {
-    V call() throws Exception;
-  }
-
-  class MyCallable<T> implements Callable<T> {
-    MyCallable(Callable<T> delegate) {}
-
-    public T call() throws Exception {
-      throw new RuntimeException();
+    interface Callable<V> {
+        V call() throws Exception;
     }
-  }
 
-  abstract <T> Box<T> submit(Callable<T> t);
+    class MyCallable<T> implements Callable<T> {
+        MyCallable(Callable<T> delegate) {}
 
-  Box<Boolean> foo() {
-    return submit(new MyCallable(() -> true));
-  }
+        public T call() throws Exception {
+            throw new RuntimeException();
+        }
+    }
+
+    abstract <T> Box<T> submit(Callable<T> t);
+
+    Box<Boolean> foo() {
+        return submit(new MyCallable(() -> true));
+    }
 }

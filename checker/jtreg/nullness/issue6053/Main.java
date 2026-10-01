@@ -5,5 +5,5 @@
  * @compile/ref=Main.out -XDrawDiagnostics -Anomsgtext -processor org.checkerframework.checker.nullness.NullnessChecker -Astubs=stubs.jar Main.java
  */
 public class Main {
-  public static void main(String[] args) {}
+    public static void main(String[] args) {}
 }

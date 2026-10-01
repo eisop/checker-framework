@@ -19,6 +19,6 @@ import java.lang.annotation.Target;
 // its incremental mode.
 @Retention(RetentionPolicy.CLASS)
 public @interface ServiceImpl {
-  /** The service implemented by this class. */
-  Class<?> value();
+    /** The service implemented by this class. */
+    Class<?> value();
 }

@@ -1,16 +1,18 @@
 package org.checkerframework.framework.stub;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.javacutil.ElementUtils;
+
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
+
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.javacutil.ElementUtils;
 
 /**
  * The shared "fake override" search that both stub-annotation loaders use to bind a stub-declared
@@ -44,113 +46,118 @@ import org.checkerframework.javacutil.ElementUtils;
  */
 final class FakeOverrideResolver {
 
-  /** Do not instantiate. */
-  private FakeOverrideResolver() {
-    throw new AssertionError("Class FakeOverrideResolver cannot be instantiated.");
-  }
+    /** Do not instantiate. */
+    private FakeOverrideResolver() {
+        throw new AssertionError("Class FakeOverrideResolver cannot be instantiated.");
+    }
 
-  /**
-   * Decides, for one class at a time, which method (if any) that class itself declares matches the
-   * fake override being resolved. This is the only part of the search that differs between the text
-   * and binary loaders; {@link FakeOverrideResolver#findFakeOverridden} supplies the shared
-   * traversal over the class hierarchy that repeatedly calls it.
-   */
-  @FunctionalInterface
-  interface FakeOverrideMatcher {
     /**
-     * Returns the method that {@code typeElt} itself declares that matches the fake override being
-     * resolved, or {@code null} if it declares none (including when the match is ambiguous, i.e.
-     * two of {@code typeElt}'s overloads match: annotating whichever javac enumerates first would
-     * be arbitrary, so this returns {@code null}). This inspects only {@code typeElt}'s own
-     * declared methods, never its supertypes'; the shared traversal walks the hierarchy.
-     *
-     * @param typeElt the class whose own declared methods to search
-     * @param typevarLenient if true, a candidate parameter whose type in {@code typeElt} is a type
-     *     variable matches whatever the fake override spells in that position; if false, every
-     *     parameter must match exactly
-     * @return the method {@code typeElt} declares that matches, or {@code null} if none does or the
-     *     match is ambiguous
+     * Decides, for one class at a time, which method (if any) that class itself declares matches
+     * the fake override being resolved. This is the only part of the search that differs between
+     * the text and binary loaders; {@link FakeOverrideResolver#findFakeOverridden} supplies the
+     * shared traversal over the class hierarchy that repeatedly calls it.
      */
-    @Nullable ExecutableElement matchDeclaredMethod(TypeElement typeElt, boolean typevarLenient);
-  }
-
-  /**
-   * Returns the method that a fake override declared on {@code typeElt} overrides or implements, or
-   * {@code null} if none matches. As Java does, this prefers a method in a superclass to one in an
-   * interface, and a class's own method to an inherited one.
-   *
-   * <p>Runs the exact pass first over the whole hierarchy, then the lenient pass; see the class
-   * Javadoc for why. The {@code matcher} performs the per-class leaf comparison.
-   *
-   * @param typeElt the class the fake override is declared on
-   * @param matcher the loader-specific per-class leaf comparison
-   * @return the method the fake override overrides or implements, or {@code null} if none matches
-   */
-  static @Nullable ExecutableElement findFakeOverridden(
-      TypeElement typeElt, FakeOverrideMatcher matcher) {
-    ExecutableElement exact =
-        findFakeOverridden(typeElt, matcher, /* typevarLenient= */ false, newVisitedSet());
-    if (exact != null) {
-      return exact;
-    }
-    return findFakeOverridden(typeElt, matcher, /* typevarLenient= */ true, newVisitedSet());
-  }
-
-  /**
-   * Searches {@code typeElt} and its supertypes for a method matching the fake override in the
-   * given mode: {@code typeElt}'s own declared methods first, then (recursively) its superclass,
-   * then (recursively) its interfaces.
-   *
-   * @param typeElt the class to search, together with its supertypes
-   * @param matcher the loader-specific per-class leaf comparison
-   * @param typevarLenient whether a candidate type-variable parameter matches any spelled type; see
-   *     {@link FakeOverrideMatcher#matchDeclaredMethod}
-   * @param visited interfaces already searched in this pass, so a shared ancestor interface
-   *     reachable by more than one path (diamond inheritance) is searched only once
-   * @return the matching method, or {@code null} if none matches in this subtree
-   */
-  private static @Nullable ExecutableElement findFakeOverridden(
-      TypeElement typeElt,
-      FakeOverrideMatcher matcher,
-      boolean typevarLenient,
-      Set<TypeElement> visited) {
-    ExecutableElement own = matcher.matchDeclaredMethod(typeElt, typevarLenient);
-    if (own != null) {
-      return own;
+    @FunctionalInterface
+    interface FakeOverrideMatcher {
+        /**
+         * Returns the method that {@code typeElt} itself declares that matches the fake override
+         * being resolved, or {@code null} if it declares none (including when the match is
+         * ambiguous, i.e. two of {@code typeElt}'s overloads match: annotating whichever javac
+         * enumerates first would be arbitrary, so this returns {@code null}). This inspects only
+         * {@code typeElt}'s own declared methods, never its supertypes'; the shared traversal walks
+         * the hierarchy.
+         *
+         * @param typeElt the class whose own declared methods to search
+         * @param typevarLenient if true, a candidate parameter whose type in {@code typeElt} is a
+         *     type variable matches whatever the fake override spells in that position; if false,
+         *     every parameter must match exactly
+         * @return the method {@code typeElt} declares that matches, or {@code null} if none does or
+         *     the match is ambiguous
+         */
+        @Nullable ExecutableElement matchDeclaredMethod(
+                TypeElement typeElt, boolean typevarLenient);
     }
 
-    TypeElement superClass = ElementUtils.getSuperClass(typeElt);
-    if (superClass != null) {
-      ExecutableElement result = findFakeOverridden(superClass, matcher, typevarLenient, visited);
-      if (result != null) {
-        return result;
-      }
+    /**
+     * Returns the method that a fake override declared on {@code typeElt} overrides or implements,
+     * or {@code null} if none matches. As Java does, this prefers a method in a superclass to one
+     * in an interface, and a class's own method to an inherited one.
+     *
+     * <p>Runs the exact pass first over the whole hierarchy, then the lenient pass; see the class
+     * Javadoc for why. The {@code matcher} performs the per-class leaf comparison.
+     *
+     * @param typeElt the class the fake override is declared on
+     * @param matcher the loader-specific per-class leaf comparison
+     * @return the method the fake override overrides or implements, or {@code null} if none matches
+     */
+    static @Nullable ExecutableElement findFakeOverridden(
+            TypeElement typeElt, FakeOverrideMatcher matcher) {
+        ExecutableElement exact =
+                findFakeOverridden(typeElt, matcher, /* typevarLenient= */ false, newVisitedSet());
+        if (exact != null) {
+            return exact;
+        }
+        return findFakeOverridden(typeElt, matcher, /* typevarLenient= */ true, newVisitedSet());
     }
 
-    for (TypeMirror interfaceType : typeElt.getInterfaces()) {
-      if (interfaceType.getKind() != TypeKind.DECLARED) {
-        continue;
-      }
-      Element interfaceElt = ((DeclaredType) interfaceType).asElement();
-      if (!(interfaceElt instanceof TypeElement) || !visited.add((TypeElement) interfaceElt)) {
-        continue;
-      }
-      ExecutableElement result =
-          findFakeOverridden((TypeElement) interfaceElt, matcher, typevarLenient, visited);
-      if (result != null) {
-        return result;
-      }
+    /**
+     * Searches {@code typeElt} and its supertypes for a method matching the fake override in the
+     * given mode: {@code typeElt}'s own declared methods first, then (recursively) its superclass,
+     * then (recursively) its interfaces.
+     *
+     * @param typeElt the class to search, together with its supertypes
+     * @param matcher the loader-specific per-class leaf comparison
+     * @param typevarLenient whether a candidate type-variable parameter matches any spelled type;
+     *     see {@link FakeOverrideMatcher#matchDeclaredMethod}
+     * @param visited interfaces already searched in this pass, so a shared ancestor interface
+     *     reachable by more than one path (diamond inheritance) is searched only once
+     * @return the matching method, or {@code null} if none matches in this subtree
+     */
+    private static @Nullable ExecutableElement findFakeOverridden(
+            TypeElement typeElt,
+            FakeOverrideMatcher matcher,
+            boolean typevarLenient,
+            Set<TypeElement> visited) {
+        ExecutableElement own = matcher.matchDeclaredMethod(typeElt, typevarLenient);
+        if (own != null) {
+            return own;
+        }
+
+        TypeElement superClass = ElementUtils.getSuperClass(typeElt);
+        if (superClass != null) {
+            ExecutableElement result =
+                    findFakeOverridden(superClass, matcher, typevarLenient, visited);
+            if (result != null) {
+                return result;
+            }
+        }
+
+        for (TypeMirror interfaceType : typeElt.getInterfaces()) {
+            if (interfaceType.getKind() != TypeKind.DECLARED) {
+                continue;
+            }
+            Element interfaceElt = ((DeclaredType) interfaceType).asElement();
+            if (!(interfaceElt instanceof TypeElement)
+                    || !visited.add((TypeElement) interfaceElt)) {
+                continue;
+            }
+            ExecutableElement result =
+                    findFakeOverridden(
+                            (TypeElement) interfaceElt, matcher, typevarLenient, visited);
+            if (result != null) {
+                return result;
+            }
+        }
+
+        return null;
     }
 
-    return null;
-  }
-
-  /**
-   * Returns a fresh, identity-keyed set for tracking already-searched interfaces within one pass.
-   *
-   * @return a fresh mutable set of {@link TypeElement}, using identity comparison
-   */
-  private static Set<TypeElement> newVisitedSet() {
-    return Collections.newSetFromMap(new IdentityHashMap<>());
-  }
+    /**
+     * Returns a fresh, identity-keyed set for tracking already-searched interfaces within one pass.
+     *
+     * @return a fresh mutable set of {@link TypeElement}, using identity comparison
+     */
+    private static Set<TypeElement> newVisitedSet() {
+        return Collections.newSetFromMap(new IdentityHashMap<>());
+    }
 }

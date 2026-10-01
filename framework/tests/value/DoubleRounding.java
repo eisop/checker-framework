@@ -3,9 +3,9 @@
 
 public class DoubleRounding {
 
-  final double FLOATING_POINT_DELTA = 1e-15;
+    final double FLOATING_POINT_DELTA = 1e-15;
 
-  void round() {
-    float f = (float) FLOATING_POINT_DELTA;
-  }
+    void round() {
+        float f = (float) FLOATING_POINT_DELTA;
+    }
 }
