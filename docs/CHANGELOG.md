@@ -118,6 +118,12 @@ The Fenum Checker preserves a fake enum across boxing/unboxing via
 `@PolyFenum` on wrapper `valueOf` and `xxxValue` methods.
 
 Command-line option additions and changes:
+- `-AstoreInBytecode=false`: writes only source-code annotations to the `.class`
+  file, not the qualifiers inferred by defaulting or read from ajava or merged
+  stub files, which can break downstream tools (Kotlin treats a stored
+  `@NonNull` on a class type parameter as non-nullable; `javac` 25 reports
+  "cannot attach type annotations" if the annotation's type is off the
+  classpath). Implied by `-Amode=jspecify`.
 - `-AignoreDeadCode`: skips checking unreachable code (e.g. `if (false)`
   branches, catch blocks for unthrown exceptions).
 - `-AassumeAssertions=enabled|disabled|neither` (default `neither`): replaces
@@ -277,6 +283,7 @@ eisop#1198,
 eisop#1217,
 eisop#1243,
 eisop#1244,
+eisop#1291,
 eisop#1292,
 eisop#1299,
 eisop#1315,

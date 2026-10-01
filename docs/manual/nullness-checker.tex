@@ -223,6 +223,10 @@ command-line option.)
   It also assumes that every called method is pure
   (Section~\ref{purity-suppress-warnings}) and that assertions are enabled
   (Section~\ref{type-refinement-assertions}).
+  It writes only source-code annotations into the \<.class> file
+  (Section~\ref{AstoreInBytecode}):  the qualifiers the checker infers by
+  defaulting are not part of the JSpecify specification of the code, and storing
+  them breaks downstream tools.
   Code outside the scope of a \code{@NullMarked} or \code{@AnnotatedFor} has what
   JSpecify calls unspecified nullness.  JSpecify leaves it to each tool how to treat
   unspecified nullness, from strict to lenient (see the
@@ -231,12 +235,13 @@ command-line option.)
   permissive defaults (Section~\ref{defaults-classfile}) for both source code and bytecode.
   This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
   -AassumeKeyFor -AjspecifyUnrecognizedLocations -AassumePure
-  -AassumeAssertions=enabled
+  -AstoreInBytecode=false -AassumeAssertions=enabled
   -AusePermissiveDefaultsForUncheckedCode=source,bytecode}.  The first five are on/off
   flags with no negative form, so there is currently no way to enable this mode but turn
   one of them back off.
-  The last two take a value, so writing one together with
+  The last three take a value, so writing one together with
   \code{-Amode=jspecify} overrides what the mode assumes; for example,
+  \code{-AstoreInBytecode=true} stores the defaulted qualifiers after all,
   \code{-AassumeAssertions=neither} restores the default treatment of \code{assert}
   statements (Section~\ref{type-refinement-assertions}), and
   \code{-AusePermissiveDefaultsForUncheckedCode=-source,-bytecode} restores the ordinary

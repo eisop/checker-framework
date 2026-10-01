@@ -363,6 +363,12 @@ import javax.tools.Diagnostic;
     // stub files will be glb'd with those in the source code before local inference begins.
     "mergeStubsWithSource",
 
+    // Whether to write into the .class file the qualifiers that the checker computed but that do
+    // not appear in the source code: those inferred by defaulting, and those supplied by -Aajava
+    // files or by stub files under -AmergeStubsWithSource. Defaults to true.
+    // org.checkerframework.framework.type.AnnotatedTypeFactory.postProcessClassTree
+    "storeInBytecode",
+
     // Already listed above, but worth noting again in this section:
     // "useConservativeDefaultsForUncheckedCode"
 

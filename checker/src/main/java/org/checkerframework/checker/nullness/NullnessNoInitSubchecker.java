@@ -81,6 +81,11 @@ public class NullnessNoInitSubchecker extends BaseTypeChecker {
                 activeOptions.putIfAbsent("assumeKeyFor", null);
                 activeOptions.putIfAbsent("jspecifyUnrecognizedLocations", null);
                 activeOptions.putIfAbsent("assumePure", null);
+                // Not putIfAbsent: a bare -AstoreInBytecode maps to null, which putIfAbsent would
+                // overwrite, turning storage off where the flag means to leave it on.
+                if (!activeOptions.containsKey("storeInBytecode")) {
+                    activeOptions.put("storeInBytecode", "false");
+                }
                 activeOptions.putIfAbsent("assumeAssertions", "enabled");
                 // Conservative defaults written on the command line replace the mode's permissive
                 // ones, which would otherwise conflict with them.
