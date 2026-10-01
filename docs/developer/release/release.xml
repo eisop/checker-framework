@@ -200,11 +200,12 @@
                         includes="docs/logo/Checkmark/CFCheckmark_favicon.png"
                         fullpath="checker-framework-${version}/docs/favicon-checkerframework.png"/>
 
-            <!-- release_build.py runs `make` in dataflow/manual, so dataflow.pdf exists by now.
+            <!-- release_build.py runs `make` in dataflow/manual, so
+                 checker-framework-dataflow-manual.pdf exists by now.
                  Place it under docs/manual/ so the website generator, which lifts that whole
                  directory, surfaces it at cf/manual/checker-framework-dataflow-manual.pdf. -->
             <zipfileset dir="${checkerframework}"
-                        includes="dataflow/manual/dataflow.pdf"
+                        includes="dataflow/manual/checker-framework-dataflow-manual.pdf"
                         fullpath="checker-framework-${version}/docs/manual/checker-framework-dataflow-manual.pdf"/>
 
             <zipfileset dir="${checkerframework}"
@@ -277,7 +278,7 @@
         <symlink link="${dest.dir.manual}/index.html" resource="${manual.name}.html" />
         <copy file="${checker.manual}/manual.pdf"  tofile="${dest.dir.manual}/${manual.name}.pdf"/>
 
-        <copy file="${dataflow.manual}/dataflow.pdf"  tofile="${dest.dir.manual}/${dataflow.manual.name}.pdf" failonerror="false"/>
+        <copy file="${dataflow.manual}/checker-framework-dataflow-manual.pdf"  tofile="${dest.dir.manual}/${dataflow.manual.name}.pdf" failonerror="false"/>
         <copy file="${developer.dir}/developer-manual.html"  tofile="${dest.dir.manual}/developer-manual.html" failonerror="false"/>
         <copy file="${developer.dir}/gsoc-ideas.html"  tofile="${dest.dir.manual}/gsoc-ideas.html" failonerror="false"/>
         <copy file="${developer.dir}/new-contributor-projects.html"  tofile="${dest.dir.manual}/new-contributor-projects.html" failonerror="false"/>
