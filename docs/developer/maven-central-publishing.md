@@ -20,7 +20,11 @@ A release is made with
 ./gradlew publish -Prelease=true --no-parallel
 ````
 
-which uploads to a staging repository. The release is **not** live until a human
+`-Prelease=true` also selects the release version: without it, the version is
+`releaseVersion` (in [`release.gradle`](../../release.gradle)) followed by
+`-SNAPSHOT`.
+
+The command uploads to a staging repository. The release is **not** live until a human
 opens <https://central.sonatype.com/publishing/deployments> and clicks Publish.
 
 Snapshots need no publishing configuration of their own: the snapshot URL is

@@ -97,13 +97,18 @@ published from the Central Portal, which today means opening
 [`maven-central-publishing.md`](maven-central-publishing.md) describes the
 single API call that would remove that step.
 
-A release also updates the version in files other than `build.gradle` -- two of
-the examples under `docs/examples/`, and several places in the manual -- so that
-what readers are told to depend on is the version just released.  That is done
-by the Ant target `update-checker-framework-versions` in
-`docs/developer/release/release.xml`, which lists the files it rewrites and
-fails if one of them has moved.  The remaining `docs/examples/` versions are
-bumped by Renovate once the release is on Maven Central.
+The version is `releaseVersion` in `release.gradle`.  A build's version is
+`releaseVersion` followed by `-SNAPSHOT`, unless Gradle is run with
+`-Prelease=true` as above; so `./gradlew publish` without it publishes a
+snapshot.
+
+A release also updates the version in files other than `release.gradle` --
+the front page, the quick-start page, and several places in the manual -- so
+that what readers are told to depend on is the version just released.  That is
+done by the Gradle task `updateVersionNumbers` in `release.gradle`, which lists
+the files it rewrites and fails if one of them has moved.  The
+`docs/examples/` versions are bumped by Renovate once the release is on Maven
+Central.
 
 If there are problems with the configuration cache, pass `--no-configuration-cache`.
 

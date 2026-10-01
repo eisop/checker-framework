@@ -24,9 +24,9 @@ docs/checker-framework-quick-start.html, which the generator renames),
 api/checker-javadoc/ (the zip has checker/dist/checker-javadoc.jar, which the
 generator unpacks), and CFLogo.png (the generator copies it up from tutorial/).
 
-The version and date, and the AFU zip name and date, are stamped in at release
-time by update-checker-framework-versions in docs/developer/release/release.xml,
-which keys off the marker comments below.  Do not remove a marker.
+The version and date are stamped in at release time by the updateVersionNumbers
+task in release.gradle, which keys off the marker comments below.  Do not remove
+a marker.
 -->
 <html>
 <head><link rel="icon" type="image/png" href="favicon-checkerframework.png" />
