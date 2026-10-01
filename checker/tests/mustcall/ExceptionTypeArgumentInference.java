@@ -1,36 +1,35 @@
 // Earlier versions of the Checker Framework would report cryptic type inference errors on this
 // code.
 
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.IOException;
+import org.checkerframework.checker.mustcall.qual.*;
 
 public class ExceptionTypeArgumentInference {
 
-    interface ThrowingRunnable<E extends Throwable> {
-        void run() throws E;
-    }
+  interface ThrowingRunnable<E extends Throwable> {
+    void run() throws E;
+  }
 
-    <E extends Throwable> void run(ThrowingRunnable<E> job) throws E {
-        job.run();
-    }
+  <E extends Throwable> void run(ThrowingRunnable<E> job) throws E {
+    job.run();
+  }
 
-    void testRunNoThrow() {
-        this.run(() -> {});
-    }
+  void testRunNoThrow() {
+    this.run(() -> {});
+  }
 
-    void testRunThrowIOException() throws IOException {
-        this.run(
-                () -> {
-                    throw new IOException();
-                });
-    }
+  void testRunThrowIOException() throws IOException {
+    this.run(
+        () -> {
+          throw new IOException();
+        });
+  }
 
-    void testRunNoThrowMethodReference() {
-        this.run(this::testRunNoThrow);
-    }
+  void testRunNoThrowMethodReference() {
+    this.run(this::testRunNoThrow);
+  }
 
-    void testRunThrowIOExceptionMethodReference() throws IOException {
-        this.run(this::testRunThrowIOException);
-    }
+  void testRunThrowIOExceptionMethodReference() throws IOException {
+    this.run(this::testRunThrowIOException);
+  }
 }

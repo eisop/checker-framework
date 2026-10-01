@@ -1,11 +1,10 @@
 package org.checkerframework.framework.test.junit;
 
+import java.io.File;
+import java.util.List;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.checkerframework.framework.testchecker.nodefaulttypevar.NoDefaultTypeVarChecker;
 import org.junit.runners.Parameterized.Parameters;
-
-import java.io.File;
-import java.util.List;
 
 /**
  * Test case for reproducing and verifying the fix for the NullPointerException in
@@ -13,22 +12,22 @@ import java.util.List;
  */
 public class NoDefaultTypeVarTest extends CheckerFrameworkPerDirectoryTest {
 
-    /**
-     * Creates a new NoDefaultTypeVarTest.
-     *
-     * @param testFiles the test files
-     */
-    public NoDefaultTypeVarTest(List<File> testFiles) {
-        super(testFiles, NoDefaultTypeVarChecker.class, "nodefaulttypevar", "-nowarn");
-    }
+  /**
+   * Creates a new NoDefaultTypeVarTest.
+   *
+   * @param testFiles the test files
+   */
+  public NoDefaultTypeVarTest(List<File> testFiles) {
+    super(testFiles, NoDefaultTypeVarChecker.class, "nodefaulttypevar", "-nowarn");
+  }
 
-    /**
-     * Returns the test directories.
-     *
-     * @return the test directories
-     */
-    @Parameters
-    public static String[] getTestDirs() {
-        return new String[] {"nodefaulttypevar"};
-    }
+  /**
+   * Returns the test directories.
+   *
+   * @return the test directories
+   */
+  @Parameters
+  public static String[] getTestDirs() {
+    return new String[] {"nodefaulttypevar"};
+  }
 }

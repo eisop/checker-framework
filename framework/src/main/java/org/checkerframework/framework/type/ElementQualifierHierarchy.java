@@ -1,5 +1,16 @@
 package org.checkerframework.framework.type;
 
+import java.lang.annotation.Annotation;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.Elements;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -15,19 +26,6 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypeSystemError;
 
-import java.lang.annotation.Annotation;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.util.Elements;
-
 /**
  * A {@link QualifierHierarchy} where qualifiers may be represented by annotations with elements.
  *
@@ -42,313 +40,306 @@ import javax.lang.model.util.Elements;
 @AnnotatedFor("nullness")
 public abstract class ElementQualifierHierarchy extends QualifierHierarchy {
 
-    /** {@link org.checkerframework.javacutil.ElementUtils}. */
-    protected final Elements elements;
+  /** {@link org.checkerframework.javacutil.ElementUtils}. */
+  protected final Elements elements;
 
-    /** {@link QualifierKindHierarchy}. */
-    protected final QualifierKindHierarchy qualifierKindHierarchy;
+  /** {@link QualifierKindHierarchy}. */
+  protected final QualifierKindHierarchy qualifierKindHierarchy;
 
-    // The following fields duplicate information in qualifierKindHierarchy, but using
-    // AnnotationMirrors instead of QualifierKinds.
+  // The following fields duplicate information in qualifierKindHierarchy, but using
+  // AnnotationMirrors instead of QualifierKinds.
 
-    /** A mapping from top QualifierKinds to their corresponding AnnotationMirror. */
-    protected final Map<QualifierKind, AnnotationMirror> topsMap;
+  /** A mapping from top QualifierKinds to their corresponding AnnotationMirror. */
+  protected final Map<QualifierKind, AnnotationMirror> topsMap;
 
-    /** The set of top annotation mirrors. */
-    protected final AnnotationMirrorSet tops;
+  /** The set of top annotation mirrors. */
+  protected final AnnotationMirrorSet tops;
 
-    /** A mapping from bottom QualifierKinds to their corresponding AnnotationMirror. */
-    protected final Map<QualifierKind, AnnotationMirror> bottomsMap;
+  /** A mapping from bottom QualifierKinds to their corresponding AnnotationMirror. */
+  protected final Map<QualifierKind, AnnotationMirror> bottomsMap;
 
-    /** The set of bottom annotation mirrors. */
-    protected final AnnotationMirrorSet bottoms;
+  /** The set of bottom annotation mirrors. */
+  protected final AnnotationMirrorSet bottoms;
 
-    /**
-     * A mapping from an annotation's declaring {@link TypeElement} to its {@link QualifierKind}.
-     * See {@link NoElementQualifierHierarchy#elementToQualifierKind} for the full rationale.
-     *
-     * <p>For annotations with elements (e.g., {@code @IntRange}), multiple distinct {@code
-     * AnnotationMirror} instances share the same declaring TypeElement, and that TypeElement maps
-     * to the single corresponding QualifierKind. The identity lookup thus resolves the kind in O(1)
-     * without comparing annotation element values, which is exactly what the kind-level hierarchy
-     * operations require.
-     */
-    protected final IdentityHashMap<TypeElement, QualifierKind> elementToQualifierKind;
+  /**
+   * A mapping from an annotation's declaring {@link TypeElement} to its {@link QualifierKind}. See
+   * {@link NoElementQualifierHierarchy#elementToQualifierKind} for the full rationale.
+   *
+   * <p>For annotations with elements (e.g., {@code @IntRange}), multiple distinct {@code
+   * AnnotationMirror} instances share the same declaring TypeElement, and that TypeElement maps to
+   * the single corresponding QualifierKind. The identity lookup thus resolves the kind in O(1)
+   * without comparing annotation element values, which is exactly what the kind-level hierarchy
+   * operations require.
+   */
+  protected final IdentityHashMap<TypeElement, QualifierKind> elementToQualifierKind;
 
-    /**
-     * A mapping from an annotation's declaring {@link QualifierKind} to its {@link
-     * AnnotationMirror}, for qualifiers that have no elements. Not used for element-bearing
-     * qualifiers.
-     */
-    protected final Map<QualifierKind, AnnotationMirror> kindToElementlessQualifier;
+  /**
+   * A mapping from an annotation's declaring {@link QualifierKind} to its {@link AnnotationMirror},
+   * for qualifiers that have no elements. Not used for element-bearing qualifiers.
+   */
+  protected final Map<QualifierKind, AnnotationMirror> kindToElementlessQualifier;
 
-    /**
-     * Creates a ElementQualifierHierarchy from the given classes.
-     *
-     * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
-     * @param elements element utils
-     * @param atypeFactory the associated type factory
-     */
-    @SuppressWarnings("this-escape")
-    protected ElementQualifierHierarchy(
-            Collection<Class<? extends Annotation>> qualifierClasses,
-            Elements elements,
-            GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
-        super(atypeFactory);
+  /**
+   * Creates a ElementQualifierHierarchy from the given classes.
+   *
+   * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
+   * @param elements element utils
+   * @param atypeFactory the associated type factory
+   */
+  @SuppressWarnings("this-escape")
+  protected ElementQualifierHierarchy(
+      Collection<Class<? extends Annotation>> qualifierClasses,
+      Elements elements,
+      GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
+    super(atypeFactory);
 
-        this.elements = elements;
-        this.qualifierKindHierarchy = createQualifierKindHierarchy(qualifierClasses);
+    this.elements = elements;
+    this.qualifierKindHierarchy = createQualifierKindHierarchy(qualifierClasses);
 
-        this.topsMap = Collections.unmodifiableMap(createTopsMap());
-        this.tops = AnnotationMirrorSet.unmodifiableSet(topsMap.values());
+    this.topsMap = Collections.unmodifiableMap(createTopsMap());
+    this.tops = AnnotationMirrorSet.unmodifiableSet(topsMap.values());
 
-        this.bottomsMap = Collections.unmodifiableMap(createBottomsMap());
-        this.bottoms = AnnotationMirrorSet.unmodifiableSet(bottomsMap.values());
+    this.bottomsMap = Collections.unmodifiableMap(createBottomsMap());
+    this.bottoms = AnnotationMirrorSet.unmodifiableSet(bottomsMap.values());
 
-        this.kindToElementlessQualifier =
-                Collections.unmodifiableMap(createElementlessQualifierMap());
-        this.elementToQualifierKind = createElementToQualifierKindMap();
+    this.kindToElementlessQualifier = Collections.unmodifiableMap(createElementlessQualifierMap());
+    this.elementToQualifierKind = createElementToQualifierKindMap();
+  }
+
+  @Override
+  public boolean isValid() {
+    for (AnnotationMirror top : tops) {
+      // This throws an error if poly is a qualifier that has an element.
+      getPolymorphicAnnotation(top);
     }
+    return true;
+  }
 
-    @Override
-    public boolean isValid() {
-        for (AnnotationMirror top : tops) {
-            // This throws an error if poly is a qualifier that has an element.
-            getPolymorphicAnnotation(top);
+  /**
+   * Create the {@link QualifierKindHierarchy}. (Subclasses may override to return a subclass of
+   * QualifierKindHierarchy.)
+   *
+   * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
+   * @return the newly created qualifier kind hierarchy
+   */
+  protected QualifierKindHierarchy createQualifierKindHierarchy(
+      @UnderInitialization ElementQualifierHierarchy this,
+      Collection<Class<? extends Annotation>> qualifierClasses) {
+    return new DefaultQualifierKindHierarchy(qualifierClasses);
+  }
+
+  /**
+   * Creates a mapping from QualifierKind to AnnotationMirror for all qualifiers whose annotations
+   * do not have elements.
+   *
+   * @return the mapping
+   */
+  @RequiresNonNull({"this.qualifierKindHierarchy", "this.elements"})
+  protected Map<QualifierKind, AnnotationMirror> createElementlessQualifierMap(
+      @UnderInitialization ElementQualifierHierarchy this) {
+    Map<QualifierKind, AnnotationMirror> quals = new TreeMap<>();
+    for (QualifierKind kind : qualifierKindHierarchy.allQualifierKinds()) {
+      if (!kind.hasElements()) {
+        quals.put(kind, AnnotationBuilder.fromClass(elements, kind.getAnnotationClass()));
+      }
+    }
+    return quals;
+  }
+
+  /**
+   * Creates a mapping from TypeElement to QualifierKind identity map covering all qualifier kinds.
+   *
+   * @return the mapping
+   */
+  @RequiresNonNull({
+    "this.qualifierKindHierarchy",
+    "this.elements",
+    "this.kindToElementlessQualifier",
+    "this.topsMap",
+    "this.bottomsMap"
+  })
+  protected IdentityHashMap<TypeElement, QualifierKind> createElementToQualifierKindMap(
+      @UnderInitialization ElementQualifierHierarchy this) {
+    IdentityHashMap<TypeElement, QualifierKind> teMap = new IdentityHashMap<>();
+    // Elementless qualifiers: TypeElement available directly from the AnnotationMirror.
+    for (Map.Entry<QualifierKind, AnnotationMirror> entry : kindToElementlessQualifier.entrySet()) {
+      TypeElement te = (TypeElement) entry.getValue().getAnnotationType().asElement();
+      teMap.put(te, entry.getKey());
+    }
+    // Tops and bottoms (may be element-bearing in some subclass configurations).
+    for (Map.Entry<QualifierKind, AnnotationMirror> entry : topsMap.entrySet()) {
+      teMap.put((TypeElement) entry.getValue().getAnnotationType().asElement(), entry.getKey());
+    }
+    for (Map.Entry<QualifierKind, AnnotationMirror> entry : bottomsMap.entrySet()) {
+      teMap.put((TypeElement) entry.getValue().getAnnotationType().asElement(), entry.getKey());
+    }
+    // Element-bearing qualifiers not yet in the map: look up TypeElement by class name.
+    // teMap at this point uses TypeElement keys; checking coverage via teMap.values() would
+    // be O(n) per element. Collect covered QualifierKinds first.
+    Set<QualifierKind> coveredKinds = new HashSet<>(teMap.values());
+    for (QualifierKind kind : qualifierKindHierarchy.allQualifierKinds()) {
+      if (kind.hasElements() && !coveredKinds.contains(kind)) {
+        String className = kind.getName();
+        TypeElement te = elements.getTypeElement(className);
+        if (te != null) {
+          teMap.put(te, kind);
         }
-        return true;
+      }
     }
+    return teMap;
+  }
 
-    /**
-     * Create the {@link QualifierKindHierarchy}. (Subclasses may override to return a subclass of
-     * QualifierKindHierarchy.)
-     *
-     * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
-     * @return the newly created qualifier kind hierarchy
-     */
-    protected QualifierKindHierarchy createQualifierKindHierarchy(
-            @UnderInitialization ElementQualifierHierarchy this,
-            Collection<Class<? extends Annotation>> qualifierClasses) {
-        return new DefaultQualifierKindHierarchy(qualifierClasses);
+  /**
+   * Creates a mapping from QualifierKind to AnnotationMirror, where the QualifierKind is top and
+   * the AnnotationMirror is top in their respective hierarchies.
+   *
+   * <p>This implementation works if the top annotation has no elements, or if it has elements,
+   * provides a default, and that default is the top. Otherwise, subclasses must override this.
+   *
+   * @return a mapping from top QualifierKind to top AnnotationMirror
+   */
+  @RequiresNonNull({"this.qualifierKindHierarchy", "this.elements"})
+  protected Map<QualifierKind, AnnotationMirror> createTopsMap(
+      @UnderInitialization ElementQualifierHierarchy this) {
+    Map<QualifierKind, AnnotationMirror> topsMap = new TreeMap<>();
+    for (QualifierKind kind : qualifierKindHierarchy.getTops()) {
+      topsMap.put(kind, AnnotationBuilder.fromClass(elements, kind.getAnnotationClass()));
     }
+    return topsMap;
+  }
 
-    /**
-     * Creates a mapping from QualifierKind to AnnotationMirror for all qualifiers whose annotations
-     * do not have elements.
-     *
-     * @return the mapping
-     */
-    @RequiresNonNull({"this.qualifierKindHierarchy", "this.elements"})
-    protected Map<QualifierKind, AnnotationMirror> createElementlessQualifierMap(
-            @UnderInitialization ElementQualifierHierarchy this) {
-        Map<QualifierKind, AnnotationMirror> quals = new TreeMap<>();
-        for (QualifierKind kind : qualifierKindHierarchy.allQualifierKinds()) {
-            if (!kind.hasElements()) {
-                quals.put(kind, AnnotationBuilder.fromClass(elements, kind.getAnnotationClass()));
-            }
-        }
-        return quals;
+  /**
+   * Creates a mapping from QualifierKind to AnnotationMirror, where the QualifierKind is bottom and
+   * the AnnotationMirror is bottom in their respective hierarchies.
+   *
+   * <p>This implementation works if the bottom annotation has no elements, or if it has elements,
+   * provides a default, and that default is the bottom. Otherwise, subclasses must override this.
+   *
+   * @return a mapping from bottom QualifierKind to bottom AnnotationMirror
+   */
+  @RequiresNonNull({"this.qualifierKindHierarchy", "this.elements"})
+  protected Map<QualifierKind, AnnotationMirror> createBottomsMap(
+      @UnderInitialization ElementQualifierHierarchy this) {
+    Map<QualifierKind, AnnotationMirror> bottomsMap = new TreeMap<>();
+    for (QualifierKind kind : qualifierKindHierarchy.getBottoms()) {
+      bottomsMap.put(kind, AnnotationBuilder.fromClass(elements, kind.getAnnotationClass()));
     }
+    return bottomsMap;
+  }
 
-    /**
-     * Creates a mapping from TypeElement to QualifierKind identity map covering all qualifier
-     * kinds.
-     *
-     * @return the mapping
-     */
-    @RequiresNonNull({
-        "this.qualifierKindHierarchy",
-        "this.elements",
-        "this.kindToElementlessQualifier",
-        "this.topsMap",
-        "this.bottomsMap"
-    })
-    protected IdentityHashMap<TypeElement, QualifierKind> createElementToQualifierKindMap(
-            @UnderInitialization ElementQualifierHierarchy this) {
-        IdentityHashMap<TypeElement, QualifierKind> teMap = new IdentityHashMap<>();
-        // Elementless qualifiers: TypeElement available directly from the AnnotationMirror.
-        for (Map.Entry<QualifierKind, AnnotationMirror> entry :
-                kindToElementlessQualifier.entrySet()) {
-            TypeElement te = (TypeElement) entry.getValue().getAnnotationType().asElement();
-            teMap.put(te, entry.getKey());
-        }
-        // Tops and bottoms (may be element-bearing in some subclass configurations).
-        for (Map.Entry<QualifierKind, AnnotationMirror> entry : topsMap.entrySet()) {
-            teMap.put(
-                    (TypeElement) entry.getValue().getAnnotationType().asElement(), entry.getKey());
-        }
-        for (Map.Entry<QualifierKind, AnnotationMirror> entry : bottomsMap.entrySet()) {
-            teMap.put(
-                    (TypeElement) entry.getValue().getAnnotationType().asElement(), entry.getKey());
-        }
-        // Element-bearing qualifiers not yet in the map: look up TypeElement by class name.
-        // teMap at this point uses TypeElement keys; checking coverage via teMap.values() would
-        // be O(n) per element. Collect covered QualifierKinds first.
-        Set<QualifierKind> coveredKinds = new HashSet<>(teMap.values());
-        for (QualifierKind kind : qualifierKindHierarchy.allQualifierKinds()) {
-            if (kind.hasElements() && !coveredKinds.contains(kind)) {
-                String className = kind.getName();
-                TypeElement te = elements.getTypeElement(className);
-                if (te != null) {
-                    teMap.put(te, kind);
-                }
-            }
-        }
-        return teMap;
+  /**
+   * Returns the qualifier kind for the given annotation, using a TypeElement identity lookup.
+   *
+   * @param anno an annotation mirror that is in this hierarchy
+   * @return the qualifier kind for the given annotation
+   */
+  protected QualifierKind getQualifierKind(AnnotationMirror anno) {
+    TypeElement te = (TypeElement) anno.getAnnotationType().asElement();
+    QualifierKind kind = elementToQualifierKind.get(te);
+    if (kind != null) {
+      return kind;
     }
+    // Defensive fallback for AnnotationMirrors from a different compilation context.
+    String name = AnnotationUtils.annotationName(anno);
+    QualifierKind result = getQualifierKind(name);
+    if (result == null) {
+      throw new BugInCF("No qualifier kind for " + anno);
+    }
+    return result;
+  }
 
-    /**
-     * Creates a mapping from QualifierKind to AnnotationMirror, where the QualifierKind is top and
-     * the AnnotationMirror is top in their respective hierarchies.
-     *
-     * <p>This implementation works if the top annotation has no elements, or if it has elements,
-     * provides a default, and that default is the top. Otherwise, subclasses must override this.
-     *
-     * @return a mapping from top QualifierKind to top AnnotationMirror
-     */
-    @RequiresNonNull({"this.qualifierKindHierarchy", "this.elements"})
-    protected Map<QualifierKind, AnnotationMirror> createTopsMap(
-            @UnderInitialization ElementQualifierHierarchy this) {
-        Map<QualifierKind, AnnotationMirror> topsMap = new TreeMap<>();
-        for (QualifierKind kind : qualifierKindHierarchy.getTops()) {
-            topsMap.put(kind, AnnotationBuilder.fromClass(elements, kind.getAnnotationClass()));
+  /**
+   * Returns the qualifier kind for the annotation with the canonical name {@code name}.
+   *
+   * @param name fully qualified annotation name
+   * @return the qualifier kind for the annotation named {@code name}
+   */
+  protected QualifierKind getQualifierKind(@CanonicalName String name) {
+    QualifierKind kind = qualifierKindHierarchy.getQualifierKind(name);
+    if (kind == null) {
+      throw new BugInCF("QualifierKind %s not in hierarchy", name);
+    }
+    return kind;
+  }
+
+  @Override
+  public AnnotationMirrorSet getTopAnnotations() {
+    return tops;
+  }
+
+  @Override
+  public AnnotationMirror getTopAnnotation(AnnotationMirror start) {
+    QualifierKind kind = getQualifierKind(start);
+    @SuppressWarnings("nullness:assignment.type.incompatible") // All tops are a key for topsMap.
+    @NonNull AnnotationMirror result = topsMap.get(kind.getTop());
+    return result;
+  }
+
+  @Override
+  public AnnotationMirrorSet getBottomAnnotations() {
+    return bottoms;
+  }
+
+  @Override
+  public @Nullable AnnotationMirror getPolymorphicAnnotation(AnnotationMirror start) {
+    QualifierKind polyKind = getQualifierKind(start).getPolymorphic();
+    if (polyKind == null) {
+      return null;
+    }
+    AnnotationMirror poly = kindToElementlessQualifier.get(polyKind);
+    if (poly == null) {
+      throw new TypeSystemError(
+          "Poly %s has an element. Override"
+              + " ElementQualifierHierarchy#getPolymorphicAnnotation.",
+          polyKind);
+    }
+    return poly;
+  }
+
+  @Override
+  public boolean isPolymorphicQualifier(AnnotationMirror qualifier) {
+    return getQualifierKind(qualifier).isPoly();
+  }
+
+  @Override
+  public AnnotationMirror getBottomAnnotation(AnnotationMirror start) {
+    QualifierKind kind = getQualifierKind(start);
+    @SuppressWarnings(
+        "nullness:assignment.type.incompatible") // All bottoms are keys for bottomsMap.
+    @NonNull AnnotationMirror result = bottomsMap.get(kind.getBottom());
+    return result;
+  }
+
+  @Override
+  public @Nullable AnnotationMirror findAnnotationInSameHierarchy(
+      Collection<? extends AnnotationMirror> annos, AnnotationMirror annotationMirror) {
+    if (annos.isEmpty()) {
+      return null;
+    }
+    QualifierKind kind = getQualifierKind(annotationMirror);
+    if (annos instanceof AnnotationMirrorSet) {
+      // Iterate by index to avoid allocating an Iterator on this hot path.
+      AnnotationMirrorSet set = (AnnotationMirrorSet) annos;
+      for (int i = 0, n = set.size(); i < n; ++i) {
+        AnnotationMirror candidate = set.get(i);
+        if (getQualifierKind(candidate).isInSameHierarchyAs(kind)) {
+          return candidate;
         }
-        return topsMap;
+      }
+      return null;
     }
+    for (AnnotationMirror candidate : annos) {
+      QualifierKind candidateKind = getQualifierKind(candidate);
+      if (candidateKind.isInSameHierarchyAs(kind)) {
+        return candidate;
+      }
+    }
+    return null;
+  }
 
-    /**
-     * Creates a mapping from QualifierKind to AnnotationMirror, where the QualifierKind is bottom
-     * and the AnnotationMirror is bottom in their respective hierarchies.
-     *
-     * <p>This implementation works if the bottom annotation has no elements, or if it has elements,
-     * provides a default, and that default is the bottom. Otherwise, subclasses must override this.
-     *
-     * @return a mapping from bottom QualifierKind to bottom AnnotationMirror
-     */
-    @RequiresNonNull({"this.qualifierKindHierarchy", "this.elements"})
-    protected Map<QualifierKind, AnnotationMirror> createBottomsMap(
-            @UnderInitialization ElementQualifierHierarchy this) {
-        Map<QualifierKind, AnnotationMirror> bottomsMap = new TreeMap<>();
-        for (QualifierKind kind : qualifierKindHierarchy.getBottoms()) {
-            bottomsMap.put(kind, AnnotationBuilder.fromClass(elements, kind.getAnnotationClass()));
-        }
-        return bottomsMap;
-    }
-
-    /**
-     * Returns the qualifier kind for the given annotation, using a TypeElement identity lookup.
-     *
-     * @param anno an annotation mirror that is in this hierarchy
-     * @return the qualifier kind for the given annotation
-     */
-    protected QualifierKind getQualifierKind(AnnotationMirror anno) {
-        TypeElement te = (TypeElement) anno.getAnnotationType().asElement();
-        QualifierKind kind = elementToQualifierKind.get(te);
-        if (kind != null) {
-            return kind;
-        }
-        // Defensive fallback for AnnotationMirrors from a different compilation context.
-        String name = AnnotationUtils.annotationName(anno);
-        QualifierKind result = getQualifierKind(name);
-        if (result == null) {
-            throw new BugInCF("No qualifier kind for " + anno);
-        }
-        return result;
-    }
-
-    /**
-     * Returns the qualifier kind for the annotation with the canonical name {@code name}.
-     *
-     * @param name fully qualified annotation name
-     * @return the qualifier kind for the annotation named {@code name}
-     */
-    protected QualifierKind getQualifierKind(@CanonicalName String name) {
-        QualifierKind kind = qualifierKindHierarchy.getQualifierKind(name);
-        if (kind == null) {
-            throw new BugInCF("QualifierKind %s not in hierarchy", name);
-        }
-        return kind;
-    }
-
-    @Override
-    public AnnotationMirrorSet getTopAnnotations() {
-        return tops;
-    }
-
-    @Override
-    public AnnotationMirror getTopAnnotation(AnnotationMirror start) {
-        QualifierKind kind = getQualifierKind(start);
-        @SuppressWarnings(
-                "nullness:assignment.type.incompatible") // All tops are a key for topsMap.
-        @NonNull AnnotationMirror result = topsMap.get(kind.getTop());
-        return result;
-    }
-
-    @Override
-    public AnnotationMirrorSet getBottomAnnotations() {
-        return bottoms;
-    }
-
-    @Override
-    public @Nullable AnnotationMirror getPolymorphicAnnotation(AnnotationMirror start) {
-        QualifierKind polyKind = getQualifierKind(start).getPolymorphic();
-        if (polyKind == null) {
-            return null;
-        }
-        AnnotationMirror poly = kindToElementlessQualifier.get(polyKind);
-        if (poly == null) {
-            throw new TypeSystemError(
-                    "Poly %s has an element. Override"
-                            + " ElementQualifierHierarchy#getPolymorphicAnnotation.",
-                    polyKind);
-        }
-        return poly;
-    }
-
-    @Override
-    public boolean isPolymorphicQualifier(AnnotationMirror qualifier) {
-        return getQualifierKind(qualifier).isPoly();
-    }
-
-    @Override
-    public AnnotationMirror getBottomAnnotation(AnnotationMirror start) {
-        QualifierKind kind = getQualifierKind(start);
-        @SuppressWarnings(
-                "nullness:assignment.type.incompatible") // All bottoms are keys for bottomsMap.
-        @NonNull AnnotationMirror result = bottomsMap.get(kind.getBottom());
-        return result;
-    }
-
-    @Override
-    public @Nullable AnnotationMirror findAnnotationInSameHierarchy(
-            Collection<? extends AnnotationMirror> annos, AnnotationMirror annotationMirror) {
-        if (annos.isEmpty()) {
-            return null;
-        }
-        QualifierKind kind = getQualifierKind(annotationMirror);
-        if (annos instanceof AnnotationMirrorSet) {
-            // Iterate by index to avoid allocating an Iterator on this hot path.
-            AnnotationMirrorSet set = (AnnotationMirrorSet) annos;
-            for (int i = 0, n = set.size(); i < n; ++i) {
-                AnnotationMirror candidate = set.get(i);
-                if (getQualifierKind(candidate).isInSameHierarchyAs(kind)) {
-                    return candidate;
-                }
-            }
-            return null;
-        }
-        for (AnnotationMirror candidate : annos) {
-            QualifierKind candidateKind = getQualifierKind(candidate);
-            if (candidateKind.isInSameHierarchyAs(kind)) {
-                return candidate;
-            }
-        }
-        return null;
-    }
-
-    @Override
-    public @Nullable AnnotationMirror findAnnotationInHierarchy(
-            Collection<? extends AnnotationMirror> annos, AnnotationMirror top) {
-        return findAnnotationInSameHierarchy(annos, top);
-    }
+  @Override
+  public @Nullable AnnotationMirror findAnnotationInHierarchy(
+      Collection<? extends AnnotationMirror> annos, AnnotationMirror top) {
+    return findAnnotationInSameHierarchy(annos, top);
+  }
 }

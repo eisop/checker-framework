@@ -5,20 +5,20 @@ import java.util.Map;
 import java.util.Set;
 
 public class TestFieldGeneric<T> {
-    String s;
-    List<String> list;
-    Set<TestFieldGeneric> set;
-    TestFieldGeneric<T> testFieldGeneric = new TestFieldGeneric<>();
+  String s;
+  List<String> list;
+  Set<TestFieldGeneric> set;
+  TestFieldGeneric<T> testFieldGeneric = new TestFieldGeneric<>();
 
-    public TestFieldGeneric() {}
+  public TestFieldGeneric() {}
 
-    Set<String> otherSet;
+  Set<String> otherSet;
 
-    public String toString() {
-        return s;
-    }
+  public String toString() {
+    return s;
+  }
 
-    Set<TestFieldGeneric<Set<TestFieldGeneric>>> nestedSet;
+  Set<TestFieldGeneric<Set<TestFieldGeneric>>> nestedSet;
 
-    Map<Set<TestFieldGeneric>, TestFieldGeneric<T>> nestedMap;
+  Map<Set<TestFieldGeneric>, TestFieldGeneric<T>> nestedMap;
 }

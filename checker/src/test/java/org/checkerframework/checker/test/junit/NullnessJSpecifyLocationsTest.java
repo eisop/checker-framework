@@ -1,35 +1,34 @@
 package org.checkerframework.checker.test.junit;
 
-import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
-import org.junit.runners.Parameterized.Parameters;
-
 import java.io.File;
 import java.util.List;
+import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
+import org.junit.runners.Parameterized.Parameters;
 
 /** JUnit tests for the Nullness Checker when -AjspecifyUnrecognizedLocations is used. */
 public class NullnessJSpecifyLocationsTest extends CheckerFrameworkPerDirectoryTest {
 
-    /**
-     * Create a NullnessJSpecifyLocationsTest.
-     *
-     * @param testFiles the files containing test code, which will be type-checked
-     */
-    public NullnessJSpecifyLocationsTest(List<File> testFiles) {
-        super(
-                testFiles,
-                org.checkerframework.checker.nullness.NullnessChecker.class,
-                "nullness",
-                "-AjspecifyUnrecognizedLocations");
-    }
+  /**
+   * Create a NullnessJSpecifyLocationsTest.
+   *
+   * @param testFiles the files containing test code, which will be type-checked
+   */
+  public NullnessJSpecifyLocationsTest(List<File> testFiles) {
+    super(
+        testFiles,
+        org.checkerframework.checker.nullness.NullnessChecker.class,
+        "nullness",
+        "-AjspecifyUnrecognizedLocations");
+  }
 
-    /**
-     * This method returns the directories containing test code. Each directory will be type-checked
-     * with {@code -AjspecifyUnrecognizedLocations}.
-     *
-     * @return the directories containing test code
-     */
-    @Parameters
-    public static String[] getTestDirs() {
-        return new String[] {"nullness-jspecify-locations"};
-    }
+  /**
+   * This method returns the directories containing test code. Each directory will be type-checked
+   * with {@code -AjspecifyUnrecognizedLocations}.
+   *
+   * @return the directories containing test code
+   */
+  @Parameters
+  public static String[] getTestDirs() {
+    return new String[] {"nullness-jspecify-locations"};
+  }
 }

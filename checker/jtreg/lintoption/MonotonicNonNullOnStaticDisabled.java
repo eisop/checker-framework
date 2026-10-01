@@ -10,8 +10,8 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 public class MonotonicNonNullOnStaticDisabled {
 
-    // No warning here: the lint option is not enabled.
-    static @MonotonicNonNull Object staticField;
+  // No warning here: the lint option is not enabled.
+  static @MonotonicNonNull Object staticField;
 
-    @MonotonicNonNull Object instanceField;
+  @MonotonicNonNull Object instanceField;
 }
