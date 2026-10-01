@@ -1,11 +1,10 @@
 package org.checkerframework.checker.test.junit;
 
+import java.io.File;
+import java.util.List;
 import org.checkerframework.checker.interning.InterningChecker;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.junit.runners.Parameterized.Parameters;
-
-import java.io.File;
-import java.util.List;
 
 /**
  * JUnit test for the configurable Java 8 type-argument-inference work budget. Runs with a small
@@ -15,22 +14,22 @@ import java.util.List;
  */
 public class InferenceBudgetTest extends CheckerFrameworkPerDirectoryTest {
 
-    /**
-     * Create an InferenceBudgetTest.
-     *
-     * @param testFiles the files containing test code, which will be type-checked
-     */
-    public InferenceBudgetTest(List<File> testFiles) {
-        super(testFiles, InterningChecker.class, "interning", "-AinferenceWorkBudget=2000");
-    }
+  /**
+   * Create an InferenceBudgetTest.
+   *
+   * @param testFiles the files containing test code, which will be type-checked
+   */
+  public InferenceBudgetTest(List<File> testFiles) {
+    super(testFiles, InterningChecker.class, "interning", "-AinferenceWorkBudget=2000");
+  }
 
-    /**
-     * Returns the directories containing test code.
-     *
-     * @return the directories containing test code
-     */
-    @Parameters
-    public static String[] getTestDirs() {
-        return new String[] {"inference-budget"};
-    }
+  /**
+   * Returns the directories containing test code.
+   *
+   * @return the directories containing test code
+   */
+  @Parameters
+  public static String[] getTestDirs() {
+    return new String[] {"inference-budget"};
+  }
 }

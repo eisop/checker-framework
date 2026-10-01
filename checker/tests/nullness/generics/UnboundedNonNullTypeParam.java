@@ -15,32 +15,32 @@ import org.checkerframework.checker.nullness.qual.*;
 // (e.g. Collection's `<@KeyForBottom T> @Nullable T[] toArray(@PolyNull T[] a)`), which depends on
 // the upper bound staying at top.  This test locks down the intended behavior.
 public class UnboundedNonNullTypeParam {
-    // Bare primary annotation: lower bound @NonNull, upper bound defaults to top (@Nullable
-    // Object).
-    static class MyList1<@NonNull T> {}
+  // Bare primary annotation: lower bound @NonNull, upper bound defaults to top (@Nullable
+  // Object).
+  static class MyList1<@NonNull T> {}
 
-    // Explicit upper bound: the type argument must be @NonNull.
-    static class MyList2<@NonNull T extends @NonNull Object> {}
+  // Explicit upper bound: the type argument must be @NonNull.
+  static class MyList2<@NonNull T extends @NonNull Object> {}
 
-    void testUnbounded() {
-        // Accepted: the upper bound defaulted to @Nullable Object, so a @Nullable argument is
-        // legal.
-        MyList1<@Nullable String> x1 = null;
-        MyList1<@NonNull String> y1 = null;
-    }
+  void testUnbounded() {
+    // Accepted: the upper bound defaulted to @Nullable Object, so a @Nullable argument is
+    // legal.
+    MyList1<@Nullable String> x1 = null;
+    MyList1<@NonNull String> y1 = null;
+  }
 
-    void testExplicitBound() {
-        // Rejected: the explicit @NonNull upper bound forbids a @Nullable argument.
-        // :: error: (type.argument.type.incompatible)
-        MyList2<@Nullable String> x2 = null;
-        MyList2<@NonNull String> y2 = null;
-    }
+  void testExplicitBound() {
+    // Rejected: the explicit @NonNull upper bound forbids a @Nullable argument.
+    // :: error: (type.argument.type.incompatible)
+    MyList2<@Nullable String> x2 = null;
+    MyList2<@NonNull String> y2 = null;
+  }
 
-    // A method type parameter behaves the same way: the implicit upper bound is top.
-    static <@NonNull U> void m(U u) {}
+  // A method type parameter behaves the same way: the implicit upper bound is top.
+  static <@NonNull U> void m(U u) {}
 
-    void testMethod() {
-        m("hello");
-        m((@Nullable String) null);
-    }
+  void testMethod() {
+    m("hello");
+    m((@Nullable String) null);
+  }
 }

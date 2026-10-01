@@ -8,6 +8,6 @@
 // expects no diagnostics.
 
 public class BinaryStubDiffPlaceholder {
-    /** An arbitrary method so the file is not empty. */
-    void method() {}
+  /** An arbitrary method so the file is not empty. */
+  void method() {}
 }

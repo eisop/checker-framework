@@ -8,39 +8,39 @@ class AliasedAnnotationChecksBase {}
 // :: error: (annotation.on.supertype)
 public class AliasedAnnotationChecks extends @Nullable AliasedAnnotationChecksBase {
 
-    void instanceOf(Object o) {
-        // :: error: (instanceof.nullable)
-        boolean b = o instanceof @Nullable String;
-    }
+  void instanceOf(Object o) {
+    // :: error: (instanceof.nullable)
+    boolean b = o instanceof @Nullable String;
+  }
 
-    void instanceOfNonNull(Object o) {
-        // :: warning: (instanceof.nonnull.redundant)
-        boolean b = o instanceof @org.jspecify.annotations.NonNull String;
-    }
+  void instanceOfNonNull(Object o) {
+    // :: warning: (instanceof.nonnull.redundant)
+    boolean b = o instanceof @org.jspecify.annotations.NonNull String;
+  }
 
-    interface MyList {}
+  interface MyList {}
 
-    // The explicit annotation on the second bound is ignored, because the first bound wins.
-    // :: warning: (explicit.annotation.ignored)
-    <E extends Object & @Nullable MyList> void intersectionBound(E e) {
-        e.toString();
-    }
+  // The explicit annotation on the second bound is ignored, because the first bound wins.
+  // :: warning: (explicit.annotation.ignored)
+  <E extends Object & @Nullable MyList> void intersectionBound(E e) {
+    e.toString();
+  }
 
-    void instanceOfComponent(Object o) {
-        // :: error: (instanceof.component)
-        boolean b = o instanceof @Nullable String[];
-    }
+  void instanceOfComponent(Object o) {
+    // :: error: (instanceof.component)
+    boolean b = o instanceof @Nullable String[];
+  }
 
-    void throwsClause()
-            throws
-                    // :: error: (nullness.on.throws)
-                    @Nullable Exception {}
+  void throwsClause()
+      throws
+          // :: error: (nullness.on.throws)
+          @Nullable Exception {}
 
-    @interface AnnoMember {
-        // :: error: (nullness.on.annotation.member)
-        @Nullable String value();
+  @interface AnnoMember {
+    // :: error: (nullness.on.annotation.member)
+    @Nullable String value();
 
-        // :: error: (nullness.on.annotation.member)
-        @Nullable String[] arrayValue();
-    }
+    // :: error: (nullness.on.annotation.member)
+    @Nullable String[] arrayValue();
+  }
 }

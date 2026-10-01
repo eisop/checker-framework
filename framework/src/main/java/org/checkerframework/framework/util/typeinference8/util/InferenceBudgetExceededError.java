@@ -19,21 +19,21 @@ package org.checkerframework.framework.util.typeinference8.util;
  */
 public class InferenceBudgetExceededError extends Error {
 
-    /** serialVersionUID */
-    private static final long serialVersionUID = 1;
+  /** serialVersionUID */
+  private static final long serialVersionUID = 1;
 
-    /**
-     * Creates an InferenceBudgetExceededError.
-     *
-     * @param work the amount of incorporation work performed when the budget was exceeded
-     * @param budget the budget that was exceeded
-     */
-    public InferenceBudgetExceededError(int work, int budget) {
-        super(
-                "Type argument inference exceeded its work budget ("
-                        + work
-                        + " > "
-                        + budget
-                        + "); abandoning inference for this invocation.");
-    }
+  /**
+   * Creates an InferenceBudgetExceededError.
+   *
+   * @param work the amount of incorporation work performed when the budget was exceeded
+   * @param budget the budget that was exceeded
+   */
+  public InferenceBudgetExceededError(int work, int budget) {
+    super(
+        "Type argument inference exceeded its work budget ("
+            + work
+            + " > "
+            + budget
+            + "); abandoning inference for this invocation.");
+  }
 }

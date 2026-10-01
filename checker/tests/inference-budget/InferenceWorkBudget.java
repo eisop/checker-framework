@@ -14,17 +14,17 @@ import org.checkerframework.checker.interning.qual.InternedDistinct;
 // drive is checked for correctness by checker/tests/nullness/Java8InferenceWorklistStress.java.
 public class InferenceWorkBudget {
 
-    static <T> T id(T x) {
-        return x;
-    }
+  static <T> T id(T x) {
+    return x;
+  }
 
-    String tooComplex(String x) {
-        // :: error: (type.argument.inference.budget)
-        return id(id(id(id(id(id(id(id(id(id(id(id(id(id(id(x)))))))))))))));
-    }
+  String tooComplex(String x) {
+    // :: error: (type.argument.inference.budget)
+    return id(id(id(id(id(id(id(id(id(id(id(id(id(id(id(x)))))))))))))));
+  }
 
-    // A shallow invocation stays well under the budget and infers normally.
-    @InternedDistinct Object shallow(@InternedDistinct Object x) {
-        return id(x);
-    }
+  // A shallow invocation stays well under the budget and infers normally.
+  @InternedDistinct Object shallow(@InternedDistinct Object x) {
+    return id(x);
+  }
 }
