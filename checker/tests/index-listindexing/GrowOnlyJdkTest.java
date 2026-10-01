@@ -11,14 +11,14 @@ public class GrowOnlyJdkTest {
     }
 
     void testForbiddenCalls(@GrowOnly List<String> list) {
-        // :: error: (method.invocation)
+        // :: error: (method.invocation.invalid)
         list.remove(0);
     }
 
     void testLocalVariable() {
         @GrowOnly List<String> localList = new @GrowOnly ArrayList<>();
         localList.add("hello");
-        // :: error: (method.invocation)
+        // :: error: (method.invocation.invalid)
         localList.clear();
     }
 
