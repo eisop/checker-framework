@@ -344,6 +344,21 @@ typetools#3203,
 typetools#8055.
 
 
+Version 3.50.0 (August 28, 2025)
+-----------------------------
+
+**Implementation details:**
+
+Moved the Annotation File Utilities code into the Checker Framework repository as a subproject.
+(EISOP note: the code is in the `annotation-file-utilities` directory but is not part of the EISOP
+Gradle build.)
+
+Java expressions in annotations, such as in contracts and dependent types, are now parsed with
+javac's parser instead of JavaParser.
+(EISOP note: when running the Checker Framework without `checker/bin/javac`, export the package
+`jdk.compiler/com.sun.tools.javac.parser` to it.)
+
+
 Version 3.49.5-eisop1 (April 26, 2026)
 --------------------------------------
 

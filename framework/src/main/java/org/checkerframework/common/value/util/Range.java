@@ -132,8 +132,12 @@ public class Range {
         long max = min;
         for (Number value : values) {
             long current = value.longValue();
-            if (min > current) min = current;
-            if (max < current) max = current;
+            if (min > current) {
+                min = current;
+            }
+            if (max < current) {
+                max = current;
+            }
         }
         return create(min, max);
     }
@@ -428,7 +432,7 @@ public class Range {
     }
 
     /**
-     * Return x clipped to the given range; out-of-range values become extremal values. Appropriate
+     * Returns x clipped to the given range; out-of-range values become extremal values. Appropriate
      * only when {@link #ignoreOverflow} is true.
      *
      * @param x a value

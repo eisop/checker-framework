@@ -1177,8 +1177,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Return a list of stub files to be treated as if they had been written in a {@code @StubFiles}
-     * annotation.
+     * Returns a list of stub files to be treated as if they had been written in a
+     * {@code @StubFiles} annotation.
      *
      * @return stub files to be treated as if they had been written in a {@code @StubFiles}
      *     annotation
@@ -1297,7 +1297,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Return the given skip pattern if supplied by the user, or else a pattern that matches
+     * Returns the given skip pattern if supplied by the user, or else a pattern that matches
      * nothing.
      *
      * @param patternName "skipUses" or "skipDefs"
@@ -1312,7 +1312,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Return the given only pattern if supplied by the user, or else a pattern that matches
+     * Returns the given only pattern if supplied by the user, or else a pattern that matches
      * everything.
      *
      * @param patternName "onlyUses" or "onlyDefs"
@@ -1625,7 +1625,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Get the list of all subcheckers (if any). This list is only non-empty for the one checker
+     * Returns the list of all subcheckers (if any). This list is only non-empty for the one checker
      * that runs all other subcheckers. These are recursively instantiated via
      * instantiateSubcheckers() the first time this method is called if field {@code subcheckers} is
      * null. Assumes all checkers run on the same thread.
@@ -1646,7 +1646,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Get the shared TreePathCacher instance.
+     * Returns the shared TreePathCacher instance.
      *
      * @return the shared TreePathCacher instance
      */
@@ -3710,7 +3710,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * indicated by the command line arguments.
      *
      * @param kindOfCode source or bytecode
-     * @return whether conservative defaults should be used
+     * @return true if conservative defaults should be used
      */
     public boolean useConservativeDefault(String kindOfCode) {
         return useUncheckedDefault("useConservativeDefaultsForUncheckedCode", kindOfCode);
@@ -4200,9 +4200,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Tests whether the class owner of the passed type matches the pattern specified in the {@code
-     * checker.skipUses} property. In contrast to {@link #shouldSkipUses(Element)} this version can
-     * also be used from primitive types, which don't have an element.
+     * Returns true if the class owner of the passed type matches the pattern specified in the
+     * {@code checker.skipUses} property. In contrast to {@link #shouldSkipUses(Element)} this
+     * version can also be used from primitive types, which don't have an element.
      *
      * <p>Checkers that require their annotations not to be checked on certain JDK classes may
      * override this method to skip them. They shall call {@code super.shouldSkipUses(typeName)} to
@@ -4235,7 +4235,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Tests whether the class definition should not be checked because it matches the {@code
+     * Returns true if the class definition should not be checked because it matches the {@code
      * checker.skipDefs} property.
      *
      * @param tree class to potentially skip
@@ -4262,7 +4262,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Tests whether the method definition should not be checked because it matches the {@code
+     * Returns true if the method definition should not be checked because it matches the {@code
      * checker.skipDefs} property.
      *
      * @param tree method to potentially skip
@@ -4273,7 +4273,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Tests whether the method definition should not be checked because it matches the {@code
+     * Returns true if the method definition should not be checked because it matches the {@code
      * checker.skipDefs} property.
      *
      * @param cls class to potentially skip
@@ -4289,8 +4289,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     //
 
     /**
-     * Tests whether the enclosing file path of the passed tree matches the pattern specified in the
-     * {@code checker.skipFiles} property.
+     * Returns true if the enclosing file path of the passed tree matches the pattern specified in
+     * the {@code checker.skipFiles} property.
      *
      * @param tree a tree
      * @return true iff the enclosing directory of the tree should be skipped
@@ -4308,7 +4308,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Tests whether the file at the file path should be not be checked because it matches the
+     * Returns true if the file at the file path should be not be checked because it matches the
      * {@code checker.skipFiles} property.
      *
      * @param path the path to the file to potentially skip
@@ -4518,7 +4518,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     //
 
     /**
-     * Return true to indicate that method {@link #shutdownHook} should be added as a shutdownHook
+     * Returns true to indicate that method {@link #shutdownHook} should be added as a shutdownHook
      * of the JVM.
      *
      * @return true to add {@link #shutdownHook} as a shutdown hook of the JVM
@@ -4731,7 +4731,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Return the path to the current compilation unit.
+     * Returns the path to the current compilation unit.
      *
      * @return path to the current compilation unit
      */

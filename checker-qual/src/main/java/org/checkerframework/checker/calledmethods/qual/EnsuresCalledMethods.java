@@ -78,7 +78,7 @@ public @interface EnsuresCalledMethods {
     @PostconditionAnnotation(qualifier = CalledMethods.class)
     public static @interface List {
         /**
-         * Return the repeatable annotations.
+         * Returns the repeatable annotations.
          *
          * @return the repeatable annotations
          */

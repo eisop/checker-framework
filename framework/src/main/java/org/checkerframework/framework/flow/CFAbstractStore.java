@@ -283,16 +283,21 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
                 updateFieldValuesForMethodCall(atypeFactory);
             }
 
-            // update array values
+            // Update array values.
             arrayValues.clear();
 
-            // update method values
-            removeModifiableByOtherCode(methodCallExpressions);
+            // Update information about method calls.
+            updateMethodCallValues();
         }
 
-        // store information about method call if possible
+        // Store information about method calls if possible.
         JavaExpression methodCall = JavaExpression.fromNode(methodInvocationNode);
         replaceValue(methodCall, val);
+    }
+
+    /** Update information about method calls. */
+    private void updateMethodCallValues() {
+        removeModifiableByOtherCode(methodCallExpressions);
     }
 
     /**
@@ -389,9 +394,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
                 new HashMap<>(CollectionsPlume.mapCapacity(fieldValues));
         for (Map.Entry<FieldAccess, V> e : fieldValues.entrySet()) {
             FieldAccess fieldAccess = e.getKey();
-            V value = e.getValue();
+            V previousValue = e.getValue();
 
-            V newValue = newFieldValueAfterMethodCall(fieldAccess, atypeFactory, value);
+            V newValue = newFieldValueAfterMethodCall(fieldAccess, atypeFactory, previousValue);
             if (newValue != null) {
                 // Keep information for all hierarchies where we had a monotonic annotation.
                 newFieldValues.put(fieldAccess, newValue);
@@ -481,7 +486,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *
      * @param expr an expression
      * @param newAnno the expression's annotation
-     * @param permitNondeterministic whether nondeterministic expressions may be inserted into the
+     * @param permitNondeterministic true if nondeterministic expressions may be inserted into the
      *     store
      */
     protected void insertOrRefine(
@@ -704,7 +709,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     }
 
     /**
-     * Return true if fieldAcc is an update of a monotonic qualifier to its target qualifier.
+     * Returns true if fieldAcc is an update of a monotonic qualifier to its target qualifier.
      * (e.g. @MonotonicNonNull to @NonNull). Always returns false if {@code sequentialSemantics} is
      * true.
      *
@@ -916,11 +921,12 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     }
 
     /**
-     * Update the information in the store by considering a field assignment with target {@code n},
-     * where the right hand side has the abstract value {@code val}.
+     * Update the information in the store by considering a field assignment with target {@code
+     * fieldAccess}, where the right hand side has the abstract value {@code val}.
      *
-     * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-     *     abstract value is not known).
+     * @param fieldAccess the target of the assignment
+     * @param val the abstract value of the value assigned to {@code fieldAccess} (or {@code null}
+     *     if the abstract value is not known)
      */
     protected void updateForFieldAccessAssignment(FieldAccess fieldAccess, @Nullable V val) {
         removeConflicting(fieldAccess, val);
@@ -957,8 +963,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * Set the abstract value of a local variable in the store. Overwrites any value that might have
      * been available previously.
      *
-     * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-     *     abstract value is not known).
+     * @param receiver the local variable that is assigned
+     * @param val the abstract value of the value assigned to {@code receiver} (or {@code null} if
+     *     the abstract value is not known)
      */
     protected void updateForLocalVariableAssignment(LocalVariable receiver, @Nullable V val) {
         removeConflicting(receiver);
@@ -988,7 +995,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *
      * @param fieldAccess the field access that was modified
      * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-     *     abstract value is not known).
+     *     abstract value is not known)
      */
     protected void removeConflicting(FieldAccess fieldAccess, @Nullable V val) {
         List<FieldAccess> fieldsToRemove = new ArrayList<>();
@@ -1050,7 +1057,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *
      * @param arrayAccess the array access that was modified
      * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-     *     abstract value is not known).
+     *     abstract value is not known)
      */
     protected void removeConflicting(ArrayAccess arrayAccess, @Nullable V val) {
         List<ArrayAccess> arraysToRemove = new ArrayList<>();

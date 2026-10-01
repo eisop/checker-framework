@@ -92,7 +92,7 @@ public @interface DefaultQualifier {
     })
     public static @interface List {
         /**
-         * Return the repeatable annotations.
+         * Returns the repeatable annotations.
          *
          * @return the repeatable annotations
          */

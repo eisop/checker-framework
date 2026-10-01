@@ -147,7 +147,7 @@ public class WholeProgramInferenceJavaParserStorage
     /** Maps from binary class name to the source file that contains it. */
     private Map<String, String> classToSource = new HashMap<>();
 
-    /** Whether the {@code -AinferOutputOriginal} option was supplied to the checker. */
+    /** True if the {@code -AinferOutputOriginal} option was supplied to the checker. */
     private final boolean inferOutputOriginal;
 
     /**
@@ -181,7 +181,7 @@ public class WholeProgramInferenceJavaParserStorage
      * annotations.
      *
      * @param atypeFactory the associated type factory
-     * @param inferOutputOriginal whether the -AinferOutputOriginal option was supplied to the
+     * @param inferOutputOriginal true if the -AinferOutputOriginal option was supplied to the
      *     checker
      */
     public WholeProgramInferenceJavaParserStorage(
@@ -276,7 +276,7 @@ public class WholeProgramInferenceJavaParserStorage
     }
 
     /**
-     * Get the annotations for a method or constructor.
+     * Returns the annotations for a method or constructor.
      *
      * @param methodElt the method or constructor
      * @return the annotations for a method or constructor
@@ -295,7 +295,7 @@ public class WholeProgramInferenceJavaParserStorage
     }
 
     /**
-     * Get the annotations for a field.
+     * Returns the annotations for a field.
      *
      * @param fieldElt a field
      * @return the annotations for a field
@@ -1000,7 +1000,7 @@ public class WholeProgramInferenceJavaParserStorage
     }
 
     /**
-     * Return all the CallableDeclarationAnnos for the given signature.
+     * Returns all the CallableDeclarationAnnos for the given signature.
      *
      * @param jvmSignature the JVM signature
      * @param typeNames a collection of type names

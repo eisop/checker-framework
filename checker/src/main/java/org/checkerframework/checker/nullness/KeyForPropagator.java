@@ -57,7 +57,7 @@ public class KeyForPropagator {
     private final KeyForPropagationReplacer replacer = new KeyForPropagationReplacer();
 
     /**
-     * Creates a KeyForPropagator
+     * Creates a KeyForPropagator.
      *
      * @param unknownKeyfor an {@link UnknownKeyFor} annotation
      */

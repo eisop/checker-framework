@@ -31,10 +31,16 @@ import java.util.Optional;
 import javax.annotation.processing.ProcessingEnvironment;
 
 /**
- * Utility methods for working with JavaParser. It is a replacement for StaticJavaParser that does
- * not leak memory, and it provides some other methods.
+ * Utility methods for working with JavaParser. It is a replacement for {@code
+ * com.github.javaparser.StaticJavaParser} that does not leak memory, and it provides some other
+ * methods.
  */
 public class JavaParserUtil {
+
+    /** Do not instantiate. */
+    private JavaParserUtil() {
+        throw new Error("Do not instantiate.");
+    }
 
     /**
      * The Language Level to use when parsing if a specific level isn't applied. This should be the

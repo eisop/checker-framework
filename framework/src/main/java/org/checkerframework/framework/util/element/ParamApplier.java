@@ -280,8 +280,8 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
     }
 
     /**
-     * Return the enclosing MethodSymbol of the given element, throwing an exception if the symbol's
-     * enclosing element is not a MethodSymbol.
+     * Returns the enclosing MethodSymbol of the given element, throwing an exception if the
+     * symbol's enclosing element is not a MethodSymbol.
      *
      * @param methodChildElem some element that is a child of a method typeDeclaration (e.g. a
      *     parameter or return type)

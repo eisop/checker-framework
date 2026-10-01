@@ -1056,8 +1056,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * Returns a shallow copy of this type. A shallow copy implies that each component type in the
      * output copy refers to the same object as the object being copied.
      *
-     * @param copyAnnotations whether copy should have annotations, i.e. whether field {@code
-     *     annotations} should be copied.
+     * @param copyAnnotations true if copy should have annotations, i.e., field {@code annotations}
+     *     should be copied
+     * @return a shallow copy of this type
      */
     public abstract AnnotatedTypeMirror shallowCopy(boolean copyAnnotations);
 
@@ -1167,7 +1168,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         protected @MonotonicNonNull List<AnnotatedTypeMirror> typeArgs;
 
         /**
-         * Whether the type was initially raw, i.e. the user did not provide the type arguments.
+         * True if the type was initially raw, i.e. the user did not provide the type arguments.
          * typeArgs will contain inferred type arguments, which might be too conservative at the
          * moment.
          *
@@ -1438,7 +1439,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Return the declared type with its type arguments removed. This also replaces the
+         * Returns the declared type with its type arguments removed. This also replaces the
          * underlying type with its erasure.
          *
          * @return a fresh copy of the declared type with no type arguments
@@ -2289,7 +2290,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Get the lower bound field directly, bypassing any lazy initialization. This method is
+         * Returns the lower bound field directly, bypassing any lazy initialization. This method is
          * necessary to prevent infinite recursions in initialization. In general, prefer
          * getLowerBound.
          *
@@ -2360,7 +2361,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Get the upper bound field directly, bypassing any lazy initialization. This method is
+         * Returns the upper bound field directly, bypassing any lazy initialization. This method is
          * necessary to prevent infinite recursions in initialization. In general, prefer
          * getUpperBound.
          *
@@ -2371,8 +2372,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Get the upper bound of the type variable, possibly lazily initializing it. Attention: If
-         * the upper bound is lazily initialized, it will not contain any annotations! Callers of
+         * Returns the upper bound of the type variable, possibly lazily initializing it. Attention:
+         * If the upper bound is lazily initialized, it will not contain any annotations! Callers of
          * the method have to make sure that an AnnotatedTypeFactory first processed the bound.
          *
          * @return the upper bound type of this type variable
@@ -2628,7 +2629,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         private AnnotatedTypeMirror extendsBound;
 
         /**
-         * Whether this is a type argument for a type whose {@code #underlyingType} is raw. The
+         * True if this is a type argument for a type whose {@code #underlyingType} is raw. The
          * Checker Framework gives raw types wildcard type arguments so that the annotated type can
          * be used as if the annotated type was not raw.
          */
@@ -2864,11 +2865,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Whether this is a type argument to a type whose {@code #underlyingType} is raw. The
-         * Checker Framework gives raw types wildcard type arguments so that the annotated type can
-         * be used as if the annotated type was not raw.
+         * Returns true if this is a type argument to a type whose {@code #underlyingType} is raw.
+         * The Checker Framework gives raw types wildcard type arguments so that the annotated type
+         * can be used as if the annotated type was not raw.
          *
-         * @return whether this is a type argument to a type whose {@code #underlyingType} is raw
+         * @return true if this is a type argument to a type whose {@code #underlyingType} is raw
          */
         public boolean isTypeArgOfRawType() {
             return typeArgOfRawType;

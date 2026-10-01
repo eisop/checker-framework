@@ -694,7 +694,7 @@ public class OptionalImplVisitor
      * <p>If an Optional value is compared with the null literal, it indicates that the programmer
      * expects it might have been assigned a null value (or no value at all) somewhere in the code.
      *
-     * @param tree a binary tree representing a binary operation.
+     * @param tree a binary tree representing a binary operation
      */
     private void handleCompareToNull(BinaryTree tree) {
         if (!isEqualityOperation(tree)) {
@@ -939,7 +939,7 @@ public class OptionalImplVisitor
     }
 
     /**
-     * Return true if tm is a subtype of Collection (other than the Null type).
+     * Returns true if tm is a subtype of Collection (other than the Null type).
      *
      * @param tm a type
      * @return true if the given type is a subtype of Collection
@@ -958,7 +958,7 @@ public class OptionalImplVisitor
                             "java.util.OptionalLong"));
 
     /**
-     * Return true if tm is class Optional, OptionalDouble, OptionalInt, or OptionalLong in
+     * Returns true if tm is class Optional, OptionalDouble, OptionalInt, or OptionalLong in
      * java.util.
      *
      * @param tm a type

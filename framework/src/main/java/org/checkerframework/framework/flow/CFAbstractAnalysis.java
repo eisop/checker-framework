@@ -269,7 +269,7 @@ public abstract class CFAbstractAnalysis<
     }
 
     /**
-     * Get the types utility.
+     * Returns the types utility.
      *
      * @return {@link #types}
      */
@@ -278,7 +278,7 @@ public abstract class CFAbstractAnalysis<
     }
 
     /**
-     * Get the processing environment.
+     * Returns the processing environment.
      *
      * @return {@link #env}
      */
