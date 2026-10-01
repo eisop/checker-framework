@@ -161,6 +161,7 @@ allprojects { currentProj ->
         versions = rootProject.ext.versions
         javadocMemberLevel = rootProject.ext.javadocMemberLevel
         eisopFormatting = rootProject.ext.eisopFormatting
+        releaseVersion = rootProject.ext.releaseVersion
     }
 
     // Update releaseVersion in release.gradle.  A build is a snapshot of the next release unless it
