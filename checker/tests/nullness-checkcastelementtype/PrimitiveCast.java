@@ -2,27 +2,27 @@
 
 public class PrimitiveCast {
 
-  char narrow(int x) {
-    return (char) x;
-  }
+    char narrow(int x) {
+        return (char) x;
+    }
 
-  int widen(char c) {
-    return (int) c;
-  }
+    int widen(char c) {
+        return (int) c;
+    }
 
-  long widenToLong(int x) {
-    return (long) x;
-  }
+    long widenToLong(int x) {
+        return (long) x;
+    }
 
-  double toDouble(long x) {
-    return (double) x;
-  }
+    double toDouble(long x) {
+        return (double) x;
+    }
 
-  Integer box(int x) {
-    return (Integer) x;
-  }
+    Integer box(int x) {
+        return (Integer) x;
+    }
 
-  int unbox(Integer x) {
-    return (int) x;
-  }
+    int unbox(Integer x) {
+        return (int) x;
+    }
 }

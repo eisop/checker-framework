@@ -3,21 +3,21 @@
 // A similar test is in
 // checker/tests/nullness/Issue6260.java
 enum EnumSwitch {
-  FOO;
+    FOO;
 
-  EnumSwitch getIt() {
-    return FOO;
-  }
-
-  String go() {
-    EnumSwitch e = getIt();
-    switch (e) {
-      case FOO:
-        return "foo";
+    EnumSwitch getIt() {
+        return FOO;
     }
-    // This location is reachable in general: the enum could evolve and add a new constant.
-    // This cannot be the case here, because this code is in the enum declaration.
-    // javac does not special case this and I do not see a reason to do so here.
-    throw new AssertionError(e);
-  }
+
+    String go() {
+        EnumSwitch e = getIt();
+        switch (e) {
+            case FOO:
+                return "foo";
+        }
+        // This location is reachable in general: the enum could evolve and add a new constant.
+        // This cannot be the case here, because this code is in the enum declaration.
+        // javac does not special case this and I do not see a reason to do so here.
+        throw new AssertionError(e);
+    }
 }

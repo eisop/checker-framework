@@ -2,9 +2,9 @@
 
 public class JavaxAnnotationNonnegative {
 
-  public static void test(@javax.annotation.Nonnegative int y) {
-    get(y);
-  }
+    public static void test(@javax.annotation.Nonnegative int y) {
+        get(y);
+    }
 
-  public static void get(@org.checkerframework.checker.index.qual.NonNegative int x) {}
+    public static void get(@org.checkerframework.checker.index.qual.NonNegative int x) {}
 }

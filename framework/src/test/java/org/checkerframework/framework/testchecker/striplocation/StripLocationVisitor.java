@@ -11,17 +11,17 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
  */
 public class StripLocationVisitor extends BaseTypeVisitor<StripLocationAnnotatedTypeFactory> {
 
-  /**
-   * Creates a new StripLocationVisitor.
-   *
-   * @param checker the checker
-   */
-  public StripLocationVisitor(BaseTypeChecker checker) {
-    super(checker);
-  }
+    /**
+     * Creates a new StripLocationVisitor.
+     *
+     * @param checker the checker
+     */
+    public StripLocationVisitor(BaseTypeChecker checker) {
+        super(checker);
+    }
 
-  @Override
-  protected BaseTypeValidator createTypeValidator() {
-    return new StripLocationValidator(checker, this, atypeFactory);
-  }
+    @Override
+    protected BaseTypeValidator createTypeValidator() {
+        return new StripLocationValidator(checker, this, atypeFactory);
+    }
 }

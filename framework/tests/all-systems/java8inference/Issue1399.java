@@ -2,19 +2,19 @@
 // https://github.com/typetools/checker-framework/issues/1399
 
 public class Issue1399 {
-  static class Box<T> {
-    static <T> Box<T> box(Class<T> type) {
-      return new Box<T>();
+    static class Box<T> {
+        static <T> Box<T> box(Class<T> type) {
+            return new Box<T>();
+        }
+
+        void act(T instance) {}
     }
 
-    void act(T instance) {}
-  }
+    abstract class Math {
+        abstract <T> Box<T> id(Box<T> in);
 
-  abstract class Math {
-    abstract <T> Box<T> id(Box<T> in);
-
-    void foo(Math m) {
-      m.id(Box.box(Long.class)).act(10L);
+        void foo(Math m) {
+            m.id(Box.box(Long.class)).act(10L);
+        }
     }
-  }
 }

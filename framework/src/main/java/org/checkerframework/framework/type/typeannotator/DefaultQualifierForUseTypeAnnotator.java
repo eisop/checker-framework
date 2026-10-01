@@ -1,14 +1,5 @@
 package org.checkerframework.framework.type.typeannotator;
 
-import java.util.IdentityHashMap;
-import java.util.List;
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Name;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.DeclaredType;
 import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.framework.qual.DefaultQualifierForUse;
 import org.checkerframework.framework.qual.NoDefaultQualifierForUse;
@@ -21,210 +12,228 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
+import java.util.IdentityHashMap;
+import java.util.List;
+
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Name;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+
 /**
  * Implements support for {@link DefaultQualifierForUse} and {@link NoDefaultQualifierForUse}. Adds
  * default annotations on types that have no annotation.
  */
 public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
 
-  /** The DefaultQualifierForUse.value field/element. */
-  private final ExecutableElement defaultQualifierForUseValueElement;
+    /** The DefaultQualifierForUse.value field/element. */
+    private final ExecutableElement defaultQualifierForUseValueElement;
 
-  /** The NoDefaultQualifierForUse.value field/element. */
-  private final ExecutableElement noDefaultQualifierForUseValueElement;
+    /** The NoDefaultQualifierForUse.value field/element. */
+    private final ExecutableElement noDefaultQualifierForUseValueElement;
 
-  /**
-   * Creates an DefaultQualifierForUseTypeAnnotator for {@code typeFactory}.
-   *
-   * @param typeFactory the type factory
-   */
-  public DefaultQualifierForUseTypeAnnotator(AnnotatedTypeFactory typeFactory) {
-    super(typeFactory);
-    ProcessingEnvironment processingEnv = typeFactory.getProcessingEnv();
-    defaultQualifierForUseValueElement =
-        TreeUtils.getMethod(DefaultQualifierForUse.class, "value", 0, processingEnv);
-    noDefaultQualifierForUseValueElement =
-        TreeUtils.getMethod(NoDefaultQualifierForUse.class, "value", 0, processingEnv);
-  }
-
-  // There is no `visitPrimitive()` because `@DefaultQualifierForUse` is an annotation the goes on
-  // a type declaration. Defaults for primitives are add via the meta-annotation @DefaultFor,
-  // which is handled elsewhere.
-
-  @Override
-  public Void visitDeclared(AnnotatedDeclaredType type, Void aVoid) {
-    Element element = type.getUnderlyingType().asElement();
-    AnnotationMirrorSet annosToApply = getDefaultAnnosForUses(element);
-    // The empty case is overwhelmingly common: most type elements have no
-    // @DefaultQualifierForUse, and getDefaultAnnosForUses returns the shared empty set for
-    // them.  Skip the addMissingAnnotations call (and the iterator allocation it implies)
-    // in that case.
-    if (!annosToApply.isEmpty()) {
-      type.addMissingAnnotations(annosToApply);
+    /**
+     * Creates an DefaultQualifierForUseTypeAnnotator for {@code typeFactory}.
+     *
+     * @param typeFactory the type factory
+     */
+    public DefaultQualifierForUseTypeAnnotator(AnnotatedTypeFactory typeFactory) {
+        super(typeFactory);
+        ProcessingEnvironment processingEnv = typeFactory.getProcessingEnv();
+        defaultQualifierForUseValueElement =
+                TreeUtils.getMethod(DefaultQualifierForUse.class, "value", 0, processingEnv);
+        noDefaultQualifierForUseValueElement =
+                TreeUtils.getMethod(NoDefaultQualifierForUse.class, "value", 0, processingEnv);
     }
-    return super.visitDeclared(type, aVoid);
-  }
 
-  /**
-   * Cache of elements to the set of annotations that should be applied to unannotated uses of the
-   * element.
-   *
-   * <p>This field is intentionally not final; it should only be re-assigned by {@link #clearCache}.
-   */
-  protected IdentityHashMap<Element, AnnotationMirrorSet> elementToDefaults =
-      new IdentityHashMap<>();
+    // There is no `visitPrimitive()` because `@DefaultQualifierForUse` is an annotation the goes on
+    // a type declaration. Defaults for primitives are add via the meta-annotation @DefaultFor,
+    // which is handled elsewhere.
 
-  /** Clears all caches. */
-  public void clearCache() {
-    elementToDefaults = new IdentityHashMap<>();
-  }
-
-  /**
-   * Returns the set of qualifiers that should be applied to unannotated uses of the given element.
-   *
-   * <p>The result is unmodifiable and is shared: on a cache hit every caller is handed the same
-   * instance.
-   *
-   * @param element the element for which to determine default qualifiers
-   * @return the set of qualifiers that should be applied to unannotated uses of {@code element};
-   *     unmodifiable
-   */
-  public AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
-    if (atypeFactory.shouldCache) {
-      AnnotationMirrorSet cached = elementToDefaults.get(element);
-      if (cached != null) {
-        return cached;
-      }
-    }
-    AnnotationMirrorSet explictAnnos = getExplicitAnnos(element);
-    AnnotationMirrorSet defaultAnnos = getDefaultQualifierForUses(element);
-    AnnotationMirrorSet noDefaultAnnos = getHierarchiesNoDefault(element);
-    AnnotationMirrorSet annosToApply = new AnnotationMirrorSet();
-
-    QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
-    for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-      if (AnnotationUtils.containsSame(noDefaultAnnos, top)) {
-        continue;
-      }
-      AnnotationMirror defaultAnno = qualHierarchy.findAnnotationInHierarchy(defaultAnnos, top);
-      if (defaultAnno != null) {
-        annosToApply.add(defaultAnno);
-      } else {
-        AnnotationMirror explict = qualHierarchy.findAnnotationInHierarchy(explictAnnos, top);
-        if (explict != null) {
-          annosToApply.add(explict);
+    @Override
+    public Void visitDeclared(AnnotatedDeclaredType type, Void aVoid) {
+        Element element = type.getUnderlyingType().asElement();
+        AnnotationMirrorSet annosToApply = getDefaultAnnosForUses(element);
+        // The empty case is overwhelmingly common: most type elements have no
+        // @DefaultQualifierForUse, and getDefaultAnnosForUses returns the shared empty set for
+        // them.  Skip the addMissingAnnotations call (and the iterator allocation it implies)
+        // in that case.
+        if (!annosToApply.isEmpty()) {
+            type.addMissingAnnotations(annosToApply);
         }
-      }
+        return super.visitDeclared(type, aVoid);
     }
-    if (ElementUtils.isAnonymous(element)) {
-      // An anonymous class cannot carry @DefaultQualifierForUse itself, so it inherits the
-      // defaults of the type it is created from, in each hierarchy it does not already set.
-      // Null only if the supertype did not resolve; see getAnonymousSupertype.
-      DeclaredType superType = ElementUtils.getAnonymousSupertype((TypeElement) element);
-      if (superType != null) {
-        AnnotationMirrorSet superDefaults = getDefaultAnnosForUses(superType.asElement());
-        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-          if (qualHierarchy.findAnnotationInHierarchy(annosToApply, top) == null) {
-            AnnotationMirror superDefault =
-                qualHierarchy.findAnnotationInHierarchy(superDefaults, top);
-            // Do not inherit a polymorphic qualifier. It is resolved per use of the
-            // type that declares it, and an anonymous class's own declaration gives
-            // it nothing to resolve against, so copying it here would silently pick
-            // one instantiation. A checker with polymorphic type declarations wants
-            // the developer to be explicit on an anonymous subtype instead.
-            if (superDefault != null && !qualHierarchy.isPolymorphicQualifier(superDefault)) {
-              annosToApply.add(superDefault);
+
+    /**
+     * Cache of elements to the set of annotations that should be applied to unannotated uses of the
+     * element.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #clearCache}.
+     */
+    protected IdentityHashMap<Element, AnnotationMirrorSet> elementToDefaults =
+            new IdentityHashMap<>();
+
+    /** Clears all caches. */
+    public void clearCache() {
+        elementToDefaults = new IdentityHashMap<>();
+    }
+
+    /**
+     * Returns the set of qualifiers that should be applied to unannotated uses of the given
+     * element.
+     *
+     * <p>The result is unmodifiable and is shared: on a cache hit every caller is handed the same
+     * instance.
+     *
+     * @param element the element for which to determine default qualifiers
+     * @return the set of qualifiers that should be applied to unannotated uses of {@code element};
+     *     unmodifiable
+     */
+    public AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
+        if (atypeFactory.shouldCache) {
+            AnnotationMirrorSet cached = elementToDefaults.get(element);
+            if (cached != null) {
+                return cached;
             }
-          }
         }
-      }
-    }
-    // Canonicalize the empty result to a shared sentinel.  Most elements have no
-    // @DefaultQualifierForUse and produce an empty set; sharing the unmodifiable empty
-    // singleton avoids retaining a fresh AnnotationMirrorSet (and its backing ArrayList)
-    // per cached element.
-    if (annosToApply.isEmpty()) {
-      annosToApply = AnnotationMirrorSet.emptySet();
-    } else {
-      // The cache below stores this very instance and hands it to every later caller, so
-      // freeze it: a caller that mutated the result would corrupt the defaults of every
-      // subsequent use of this element.
-      annosToApply.makeUnmodifiable();
-    }
-    // If parsing an annotation file, then the annosToApply is incomplete, so don't cache them.
-    if (atypeFactory.shouldCache && !atypeFactory.isParsingAnnotationFile()) {
-      elementToDefaults.put(element, annosToApply);
-    }
-    return annosToApply;
-  }
+        AnnotationMirrorSet explictAnnos = getExplicitAnnos(element);
+        AnnotationMirrorSet defaultAnnos = getDefaultQualifierForUses(element);
+        AnnotationMirrorSet noDefaultAnnos = getHierarchiesNoDefault(element);
+        AnnotationMirrorSet annosToApply = new AnnotationMirrorSet();
 
-  /**
-   * Returns the annotations explicitly written on the element.
-   *
-   * @param element an element
-   * @return the annotations explicitly written on the element
-   */
-  protected AnnotationMirrorSet getExplicitAnnos(Element element) {
-    // Read the cached element type's primary annotations directly rather than calling
-    // fromElement(element).getAnnotations(), which deep-copies the entire type on every cache
-    // hit only for this method to read its top-level annotations and discard the copy.
-    return atypeFactory.getElementAnnotations(element);
-  }
-
-  /**
-   * Returns the default qualifiers for uses of {@code element} as specified by a {@link
-   * DefaultQualifierForUse} annotation.
-   *
-   * <p>Subclasses may override to use an annotation other than {@link DefaultQualifierForUse}.
-   *
-   * @param element an element
-   * @return the default qualifiers for uses of {@code element}
-   */
-  protected AnnotationMirrorSet getDefaultQualifierForUses(Element element) {
-    AnnotationMirror defaultQualifier =
-        atypeFactory.getDeclAnnotation(element, DefaultQualifierForUse.class);
-    if (defaultQualifier == null) {
-      return AnnotationMirrorSet.emptySet();
+        QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+            if (AnnotationUtils.containsSame(noDefaultAnnos, top)) {
+                continue;
+            }
+            AnnotationMirror defaultAnno =
+                    qualHierarchy.findAnnotationInHierarchy(defaultAnnos, top);
+            if (defaultAnno != null) {
+                annosToApply.add(defaultAnno);
+            } else {
+                AnnotationMirror explict =
+                        qualHierarchy.findAnnotationInHierarchy(explictAnnos, top);
+                if (explict != null) {
+                    annosToApply.add(explict);
+                }
+            }
+        }
+        if (ElementUtils.isAnonymous(element)) {
+            // An anonymous class cannot carry @DefaultQualifierForUse itself, so it inherits the
+            // defaults of the type it is created from, in each hierarchy it does not already set.
+            // Null only if the supertype did not resolve; see getAnonymousSupertype.
+            DeclaredType superType = ElementUtils.getAnonymousSupertype((TypeElement) element);
+            if (superType != null) {
+                AnnotationMirrorSet superDefaults = getDefaultAnnosForUses(superType.asElement());
+                for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+                    if (qualHierarchy.findAnnotationInHierarchy(annosToApply, top) == null) {
+                        AnnotationMirror superDefault =
+                                qualHierarchy.findAnnotationInHierarchy(superDefaults, top);
+                        // Do not inherit a polymorphic qualifier. It is resolved per use of the
+                        // type that declares it, and an anonymous class's own declaration gives
+                        // it nothing to resolve against, so copying it here would silently pick
+                        // one instantiation. A checker with polymorphic type declarations wants
+                        // the developer to be explicit on an anonymous subtype instead.
+                        if (superDefault != null
+                                && !qualHierarchy.isPolymorphicQualifier(superDefault)) {
+                            annosToApply.add(superDefault);
+                        }
+                    }
+                }
+            }
+        }
+        // Canonicalize the empty result to a shared sentinel.  Most elements have no
+        // @DefaultQualifierForUse and produce an empty set; sharing the unmodifiable empty
+        // singleton avoids retaining a fresh AnnotationMirrorSet (and its backing ArrayList)
+        // per cached element.
+        if (annosToApply.isEmpty()) {
+            annosToApply = AnnotationMirrorSet.emptySet();
+        } else {
+            // The cache below stores this very instance and hands it to every later caller, so
+            // freeze it: a caller that mutated the result would corrupt the defaults of every
+            // subsequent use of this element.
+            annosToApply.makeUnmodifiable();
+        }
+        // If parsing an annotation file, then the annosToApply is incomplete, so don't cache them.
+        if (atypeFactory.shouldCache && !atypeFactory.isParsingAnnotationFile()) {
+            elementToDefaults.put(element, annosToApply);
+        }
+        return annosToApply;
     }
-    return supportedAnnosFromAnnotationMirror(
-        AnnotationUtils.getElementValueClassNames(
-            defaultQualifier, defaultQualifierForUseValueElement));
-  }
 
-  /**
-   * Returns top annotations in hierarchies for which no default for use qualifier should be added.
-   *
-   * @param element an element
-   * @return top annotations in hierarchies for which no default for use qualifier should be added
-   */
-  protected AnnotationMirrorSet getHierarchiesNoDefault(Element element) {
-    AnnotationMirror noDefaultQualifier =
-        atypeFactory.getDeclAnnotation(element, NoDefaultQualifierForUse.class);
-    if (noDefaultQualifier == null) {
-      return AnnotationMirrorSet.emptySet();
+    /**
+     * Returns the annotations explicitly written on the element.
+     *
+     * @param element an element
+     * @return the annotations explicitly written on the element
+     */
+    protected AnnotationMirrorSet getExplicitAnnos(Element element) {
+        // Read the cached element type's primary annotations directly rather than calling
+        // fromElement(element).getAnnotations(), which deep-copies the entire type on every cache
+        // hit only for this method to read its top-level annotations and discard the copy.
+        return atypeFactory.getElementAnnotations(element);
     }
-    return supportedAnnosFromAnnotationMirror(
-        AnnotationUtils.getElementValueClassNames(
-            noDefaultQualifier, noDefaultQualifierForUseValueElement));
-  }
 
-  /**
-   * Returns the set of qualifiers supported by this type system from the value element of {@code
-   * annotationMirror}.
-   *
-   * @param annoClassNames a list of annotation class names
-   * @return the set of qualifiers supported by this type system from the value element of {@code
-   *     annotationMirror}
-   */
-  protected final AnnotationMirrorSet supportedAnnosFromAnnotationMirror(
-      List<@CanonicalName Name> annoClassNames) {
-    AnnotationMirrorSet supportAnnos = new AnnotationMirrorSet();
-    for (Name annoName : annoClassNames) {
-      AnnotationMirror anno = AnnotationBuilder.fromName(atypeFactory.getElementUtils(), annoName);
-      if (atypeFactory.isSupportedQualifier(anno)) {
-        supportAnnos.add(anno);
-      }
+    /**
+     * Returns the default qualifiers for uses of {@code element} as specified by a {@link
+     * DefaultQualifierForUse} annotation.
+     *
+     * <p>Subclasses may override to use an annotation other than {@link DefaultQualifierForUse}.
+     *
+     * @param element an element
+     * @return the default qualifiers for uses of {@code element}
+     */
+    protected AnnotationMirrorSet getDefaultQualifierForUses(Element element) {
+        AnnotationMirror defaultQualifier =
+                atypeFactory.getDeclAnnotation(element, DefaultQualifierForUse.class);
+        if (defaultQualifier == null) {
+            return AnnotationMirrorSet.emptySet();
+        }
+        return supportedAnnosFromAnnotationMirror(
+                AnnotationUtils.getElementValueClassNames(
+                        defaultQualifier, defaultQualifierForUseValueElement));
     }
-    return supportAnnos;
-  }
+
+    /**
+     * Returns top annotations in hierarchies for which no default for use qualifier should be
+     * added.
+     *
+     * @param element an element
+     * @return top annotations in hierarchies for which no default for use qualifier should be added
+     */
+    protected AnnotationMirrorSet getHierarchiesNoDefault(Element element) {
+        AnnotationMirror noDefaultQualifier =
+                atypeFactory.getDeclAnnotation(element, NoDefaultQualifierForUse.class);
+        if (noDefaultQualifier == null) {
+            return AnnotationMirrorSet.emptySet();
+        }
+        return supportedAnnosFromAnnotationMirror(
+                AnnotationUtils.getElementValueClassNames(
+                        noDefaultQualifier, noDefaultQualifierForUseValueElement));
+    }
+
+    /**
+     * Returns the set of qualifiers supported by this type system from the value element of {@code
+     * annotationMirror}.
+     *
+     * @param annoClassNames a list of annotation class names
+     * @return the set of qualifiers supported by this type system from the value element of {@code
+     *     annotationMirror}
+     */
+    protected final AnnotationMirrorSet supportedAnnosFromAnnotationMirror(
+            List<@CanonicalName Name> annoClassNames) {
+        AnnotationMirrorSet supportAnnos = new AnnotationMirrorSet();
+        for (Name annoName : annoClassNames) {
+            AnnotationMirror anno =
+                    AnnotationBuilder.fromName(atypeFactory.getElementUtils(), annoName);
+            if (atypeFactory.isSupportedQualifier(anno)) {
+                supportAnnos.add(anno);
+            }
+        }
+        return supportAnnos;
+    }
 }

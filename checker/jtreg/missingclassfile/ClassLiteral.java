@@ -7,21 +7,21 @@ import lib.SuperTypeArg;
  */
 public class ClassLiteral {
 
-  // The Beam shape: a class literal in a field initializer.
-  static final Object KNOWN = SuperTypeArg.class;
+    // The Beam shape: a class literal in a field initializer.
+    static final Object KNOWN = SuperTypeArg.class;
 
-  // A class literal in a method body fails the same way.
-  Object classLiteralInBody() {
-    return SuperTypeArg.class;
-  }
+    // A class literal in a method body fails the same way.
+    Object classLiteralInBody() {
+        return SuperTypeArg.class;
+    }
 
-  // So does an object creation expression.
-  Object objectCreation() {
-    return new SuperTypeArg();
-  }
+    // So does an object creation expression.
+    Object objectCreation() {
+        return new SuperTypeArg();
+    }
 
-  // So does a local variable whose initializer has that type.
-  void localVariable() {
-    SuperTypeArg s = Factory.make();
-  }
+    // So does a local variable whose initializer has that type.
+    void localVariable() {
+        SuperTypeArg s = Factory.make();
+    }
 }

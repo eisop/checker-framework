@@ -8,9 +8,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * AnnotatedFor scope and conservative defaults suppress its warnings. No error is expected below.
  */
 public class InSub {
-  void take(Object nn) {}
+    void take(Object nn) {}
 
-  void m(@Nullable Object nble) {
-    take(nble);
-  }
+    void m(@Nullable Object nble) {
+        take(nble);
+    }
 }

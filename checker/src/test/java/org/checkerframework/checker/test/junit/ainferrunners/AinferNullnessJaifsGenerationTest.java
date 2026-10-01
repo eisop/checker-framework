@@ -1,11 +1,12 @@
 package org.checkerframework.checker.test.junit.ainferrunners;
 
-import java.io.File;
-import java.util.List;
 import org.checkerframework.checker.nullness.NullnessChecker;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.junit.experimental.categories.Category;
 import org.junit.runners.Parameterized.Parameters;
+
+import java.io.File;
+import java.util.List;
 
 /**
  * Runs whole-program inference and inserts annotations into source code.
@@ -16,21 +17,21 @@ import org.junit.runners.Parameterized.Parameters;
  */
 @Category(AinferNullnessJaifsGenerationTest.class)
 public class AinferNullnessJaifsGenerationTest extends CheckerFrameworkPerDirectoryTest {
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferNullnessJaifsGenerationTest(List<File> testFiles) {
-    super(
-        testFiles,
-        NullnessChecker.class,
-        "nullness",
-        "-Ainfer=jaifs",
-        "-Awarns",
-        "-Aajava=tests/ainfer-nullness/input-annotation-files/");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferNullnessJaifsGenerationTest(List<File> testFiles) {
+        super(
+                testFiles,
+                NullnessChecker.class,
+                "nullness",
+                "-Ainfer=jaifs",
+                "-Awarns",
+                "-Aajava=tests/ainfer-nullness/input-annotation-files/");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-nullness/non-annotated"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-nullness/non-annotated"};
+    }
 }

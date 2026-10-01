@@ -12,26 +12,27 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Issue2050ArrayPatterns {
 
-  // Patterns between arrays with differing component nullness.
-  void testArrayToArrayMismatchedComponents(
-      @NonNull String[] nonNullStrings, @Nullable String[] nullableStrings) {
-    // Widening component: @NonNull elements viewed as @Nullable elements allows writing null
-    // through the alias.
-    // :: warning: (instanceof.pattern.unsafe)
-    if (nonNullStrings instanceof @Nullable String[] p1) {}
+    // Patterns between arrays with differing component nullness.
+    void testArrayToArrayMismatchedComponents(
+            @NonNull String[] nonNullStrings, @Nullable String[] nullableStrings) {
+        // Widening component: @NonNull elements viewed as @Nullable elements allows writing null
+        // through the alias.
+        // :: warning: (instanceof.pattern.unsafe)
+        if (nonNullStrings instanceof @Nullable String[] p1) {}
 
-    // Narrowing component: @Nullable elements viewed as @NonNull elements allows reading null
-    // as non-null.
-    // :: warning: (instanceof.pattern.unsafe)
-    if (nullableStrings instanceof String[] p2) {}
-  }
+        // Narrowing component: @Nullable elements viewed as @NonNull elements allows reading null
+        // as non-null.
+        // :: warning: (instanceof.pattern.unsafe)
+        if (nullableStrings instanceof String[] p2) {}
+    }
 
-  // Safe patterns where component nullness is preserved.
-  void testSafeArrayPattern(@NonNull String[] nonNullStrings, @Nullable String[] nullableStrings) {
-    // Upcast to Object[] with identical component nullness (@NonNull)
-    if (nonNullStrings instanceof @NonNull Object[] p1) {}
+    // Safe patterns where component nullness is preserved.
+    void testSafeArrayPattern(
+            @NonNull String[] nonNullStrings, @Nullable String[] nullableStrings) {
+        // Upcast to Object[] with identical component nullness (@NonNull)
+        if (nonNullStrings instanceof @NonNull Object[] p1) {}
 
-    // Upcast to Object[] with identical component nullness (@Nullable)
-    if (nullableStrings instanceof @Nullable Object[] p2) {}
-  }
+        // Upcast to Object[] with identical component nullness (@Nullable)
+        if (nullableStrings instanceof @Nullable Object[] p2) {}
+    }
 }

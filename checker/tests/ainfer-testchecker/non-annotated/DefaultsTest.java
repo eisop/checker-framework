@@ -6,24 +6,24 @@ import org.checkerframework.checker.testchecker.ainfer.qual.AinferDefaultType;
 // annotated version of this class (in the annotated folder) should have no explicit
 // @AinferDefaultType annotations.
 public class DefaultsTest {
-  String defaultField = "";
-  String defaultField2;
+    String defaultField = "";
+    String defaultField2;
 
-  void test() {
-    @SuppressWarnings("all") // To allow the use of the explicit @AinferDefaultType.
-    @AinferDefaultType String explicitDefault = "";
-    defaultField2 = explicitDefault;
-  }
-
-  // This method's return type should not be updated by the whole-program inference
-  // since it is the default.
-  String lubTest() {
-    if (Math.random() > 0.5) {
-      return ""; // @AinferDefaultType
-    } else {
-      @SuppressWarnings("cast.unsafe")
-      @AinferBottom String s = (@AinferBottom String) "";
-      return s;
+    void test() {
+        @SuppressWarnings("all") // To allow the use of the explicit @AinferDefaultType.
+        @AinferDefaultType String explicitDefault = "";
+        defaultField2 = explicitDefault;
     }
-  }
+
+    // This method's return type should not be updated by the whole-program inference
+    // since it is the default.
+    String lubTest() {
+        if (Math.random() > 0.5) {
+            return ""; // @AinferDefaultType
+        } else {
+            @SuppressWarnings("cast.unsafe")
+            @AinferBottom String s = (@AinferBottom String) "";
+            return s;
+        }
+    }
 }

@@ -4,10 +4,7 @@ import com.sun.source.tree.AnnotatedTypeTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.WildcardTree;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import javax.lang.model.element.AnnotationMirror;
+
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.framework.qual.TypeUseLocation;
@@ -17,6 +14,12 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.javacutil.TreeUtils;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+
+import javax.lang.model.element.AnnotationMirror;
 
 /**
  * A validator that additionally enforces a rule {@code @TargetLocations} cannot express: {@link
@@ -35,74 +38,81 @@ import org.checkerframework.javacutil.TreeUtils;
  */
 public class StripLocationValidator extends BaseTypeValidator {
 
-  /** Whether to strip invalid location qualifiers. */
-  private final boolean stripInvalidLocationQualifiers;
+    /** Whether to strip invalid location qualifiers. */
+    private final boolean stripInvalidLocationQualifiers;
 
-  /**
-   * Creates a new StripLocationValidator.
-   *
-   * @param checker the checker
-   * @param visitor the visitor
-   * @param atypeFactory the type factory
-   */
-  public StripLocationValidator(
-      BaseTypeChecker checker, StripLocationVisitor visitor, AnnotatedTypeFactory atypeFactory) {
-    super(checker, visitor, atypeFactory);
-    this.stripInvalidLocationQualifiers = checker.hasOption("stripInvalidLocationQualifiers");
-  }
-
-  @Override
-  protected boolean shouldStripInvalidLocationQualifiers() {
-    return stripInvalidLocationQualifiers;
-  }
-
-  @Override
-  protected List<AnnotationMirror> additionalAnnotationsToStripFromTypeVariableBound(
-      AnnotatedTypeVariable type, Tree tree, AnnotatedTypeMirror bound, TypeUseLocation location) {
-    if (location != TypeUseLocation.LOWER_BOUND
-        || !(tree instanceof TypeParameterTree)
-        || !atypeFactory.containsSameByClass(
-            TreeUtils.annotationsFromTree((TypeParameterTree) tree), StripTop.class)) {
-      return Collections.emptyList();
+    /**
+     * Creates a new StripLocationValidator.
+     *
+     * @param checker the checker
+     * @param visitor the visitor
+     * @param atypeFactory the type factory
+     */
+    public StripLocationValidator(
+            BaseTypeChecker checker,
+            StripLocationVisitor visitor,
+            AnnotatedTypeFactory atypeFactory) {
+        super(checker, visitor, atypeFactory);
+        this.stripInvalidLocationQualifiers = checker.hasOption("stripInvalidLocationQualifiers");
     }
-    checker.reportError(tree, "explicit.striptop.on.lowerbound");
-    return Collections.singletonList(bound.getAnnotation(StripTop.class));
-  }
 
-  @Override
-  protected List<AnnotationMirror> additionalAnnotationsToStripFromWildcardBound(
-      AnnotatedWildcardType type,
-      Tree tree,
-      AnnotatedTypeMirror bound,
-      Set<TypeUseLocation> allowedLocations) {
-    if (!allowedLocations.contains(TypeUseLocation.LOWER_BOUND)
-        || !atypeFactory.containsSameByClass(explicitLowerBoundAnnotations(tree), StripTop.class)) {
-      return Collections.emptyList();
+    @Override
+    protected boolean shouldStripInvalidLocationQualifiers() {
+        return stripInvalidLocationQualifiers;
     }
-    checker.reportError(tree, "explicit.striptop.on.lowerbound");
-    return Collections.singletonList(bound.getAnnotation(StripTop.class));
-  }
 
-  /**
-   * Returns the annotations explicitly written at a wildcard's lower-bound source position: a
-   * primary annotation directly on {@code ?} for {@code ? extends X} (where {@code tree} is the
-   * {@code AnnotatedTypeTree} wrapping the wildcard), or an annotation on the bound type itself for
-   * {@code ? super X} (where the bound tree may be annotated).
-   *
-   * @param tree the tree passed to {@link #additionalAnnotationsToStripFromWildcardBound}
-   * @return the annotations explicitly written at the wildcard's lower-bound source position
-   */
-  private static List<? extends AnnotationMirror> explicitLowerBoundAnnotations(Tree tree) {
-    if (tree instanceof AnnotatedTypeTree
-        && ((AnnotatedTypeTree) tree).getUnderlyingType().getKind() == Tree.Kind.EXTENDS_WILDCARD) {
-      return TreeUtils.annotationsFromTree((AnnotatedTypeTree) tree);
+    @Override
+    protected List<AnnotationMirror> additionalAnnotationsToStripFromTypeVariableBound(
+            AnnotatedTypeVariable type,
+            Tree tree,
+            AnnotatedTypeMirror bound,
+            TypeUseLocation location) {
+        if (location != TypeUseLocation.LOWER_BOUND
+                || !(tree instanceof TypeParameterTree)
+                || !atypeFactory.containsSameByClass(
+                        TreeUtils.annotationsFromTree((TypeParameterTree) tree), StripTop.class)) {
+            return Collections.emptyList();
+        }
+        checker.reportError(tree, "explicit.striptop.on.lowerbound");
+        return Collections.singletonList(bound.getAnnotation(StripTop.class));
     }
-    if (tree instanceof WildcardTree && tree.getKind() == Tree.Kind.SUPER_WILDCARD) {
-      Tree boundTree = ((WildcardTree) tree).getBound();
-      if (boundTree instanceof AnnotatedTypeTree) {
-        return TreeUtils.annotationsFromTree((AnnotatedTypeTree) boundTree);
-      }
+
+    @Override
+    protected List<AnnotationMirror> additionalAnnotationsToStripFromWildcardBound(
+            AnnotatedWildcardType type,
+            Tree tree,
+            AnnotatedTypeMirror bound,
+            Set<TypeUseLocation> allowedLocations) {
+        if (!allowedLocations.contains(TypeUseLocation.LOWER_BOUND)
+                || !atypeFactory.containsSameByClass(
+                        explicitLowerBoundAnnotations(tree), StripTop.class)) {
+            return Collections.emptyList();
+        }
+        checker.reportError(tree, "explicit.striptop.on.lowerbound");
+        return Collections.singletonList(bound.getAnnotation(StripTop.class));
     }
-    return Collections.emptyList();
-  }
+
+    /**
+     * Returns the annotations explicitly written at a wildcard's lower-bound source position: a
+     * primary annotation directly on {@code ?} for {@code ? extends X} (where {@code tree} is the
+     * {@code AnnotatedTypeTree} wrapping the wildcard), or an annotation on the bound type itself
+     * for {@code ? super X} (where the bound tree may be annotated).
+     *
+     * @param tree the tree passed to {@link #additionalAnnotationsToStripFromWildcardBound}
+     * @return the annotations explicitly written at the wildcard's lower-bound source position
+     */
+    private static List<? extends AnnotationMirror> explicitLowerBoundAnnotations(Tree tree) {
+        if (tree instanceof AnnotatedTypeTree
+                && ((AnnotatedTypeTree) tree).getUnderlyingType().getKind()
+                        == Tree.Kind.EXTENDS_WILDCARD) {
+            return TreeUtils.annotationsFromTree((AnnotatedTypeTree) tree);
+        }
+        if (tree instanceof WildcardTree && tree.getKind() == Tree.Kind.SUPER_WILDCARD) {
+            Tree boundTree = ((WildcardTree) tree).getBound();
+            if (boundTree instanceof AnnotatedTypeTree) {
+                return TreeUtils.annotationsFromTree((AnnotatedTypeTree) boundTree);
+            }
+        }
+        return Collections.emptyList();
+    }
 }

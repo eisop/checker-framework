@@ -19,68 +19,68 @@ import org.checkerframework.afu.scenelib.type.Type;
  */
 public class CastInsertion extends Insertion {
 
-  /** The type to cast to. */
-  private Type type;
+    /** The type to cast to. */
+    private Type type;
 
-  /** True if insertion is to take place on a bare array literal. */
-  public boolean onArrayLiteral = false;
+    /** True if insertion is to take place on a bare array literal. */
+    public boolean onArrayLiteral = false;
 
-  /**
-   * Creates a new CastInsertion.
-   *
-   * @param criteria where to insert the text
-   * @param type the un-annotated type to cast to
-   */
-  public CastInsertion(Criteria criteria, Type type) {
-    super(criteria, false);
-    this.type = type;
-  }
+    /**
+     * Creates a new CastInsertion.
+     *
+     * @param criteria where to insert the text
+     * @param type the un-annotated type to cast to
+     */
+    public CastInsertion(Criteria criteria, Type type) {
+        super(criteria, false);
+        this.type = type;
+    }
 
-  /**
-   * Gets the type for this insertion. It is assumed that the returned value will be modified to
-   * update the type to be inserted.
-   *
-   * @return the type
-   */
-  public Type getType() {
-    return type;
-  }
+    /**
+     * Gets the type for this insertion. It is assumed that the returned value will be modified to
+     * update the type to be inserted.
+     *
+     * @return the type
+     */
+    public Type getType() {
+        return type;
+    }
 
-  protected void setType(Type t) {
-    type = t;
-  }
+    protected void setType(Type t) {
+        type = t;
+    }
 
-  @Override
-  protected String getText(boolean abbreviate) {
-    String result =
-        onArrayLiteral
-            ? "((new " + typeToString(type, abbreviate) + " "
-            : "((" + typeToString(type, abbreviate) + ") (";
-    return result;
-  }
+    @Override
+    protected String getText(boolean abbreviate) {
+        String result =
+                onArrayLiteral
+                        ? "((new " + typeToString(type, abbreviate) + " "
+                        : "((" + typeToString(type, abbreviate) + ") (";
+        return result;
+    }
 
-  @Override
-  protected boolean addLeadingSpace(boolean gotSeparateLine, int pos, char precedingChar) {
-    // Don't add a leading space if this cast is on the index of an array access.
-    return super.addLeadingSpace(gotSeparateLine, pos, precedingChar) && precedingChar != '[';
-  }
+    @Override
+    protected boolean addLeadingSpace(boolean gotSeparateLine, int pos, char precedingChar) {
+        // Don't add a leading space if this cast is on the index of an array access.
+        return super.addLeadingSpace(gotSeparateLine, pos, precedingChar) && precedingChar != '[';
+    }
 
-  @Override
-  protected boolean addTrailingSpace(boolean gotSeparateLine) {
-    // Never add a trailing space after the first part of a cast insertion.
-    return false;
-  }
+    @Override
+    protected boolean addTrailingSpace(boolean gotSeparateLine) {
+        // Never add a trailing space after the first part of a cast insertion.
+        return false;
+    }
 
-  public boolean isOnArrayLiteral() {
-    return onArrayLiteral;
-  }
+    public boolean isOnArrayLiteral() {
+        return onArrayLiteral;
+    }
 
-  public void setOnArrayLiteral(boolean onArrayLiteral) {
-    this.onArrayLiteral = onArrayLiteral;
-  }
+    public void setOnArrayLiteral(boolean onArrayLiteral) {
+        this.onArrayLiteral = onArrayLiteral;
+    }
 
-  @Override
-  public Kind getKind() {
-    return Kind.CAST;
-  }
+    @Override
+    public Kind getKind() {
+        return Kind.CAST;
+    }
 }

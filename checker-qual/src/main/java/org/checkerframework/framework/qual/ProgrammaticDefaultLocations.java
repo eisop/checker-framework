@@ -27,10 +27,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.ANNOTATION_TYPE)
 public @interface ProgrammaticDefaultLocations {
-  /**
-   * Type-use locations at which the qualifier is permitted as a programmatic default.
-   *
-   * @return type-use locations
-   */
-  TypeUseLocation[] value() default {TypeUseLocation.ALL};
+    /**
+     * Type-use locations at which the qualifier is permitted as a programmatic default.
+     *
+     * @return type-use locations
+     */
+    TypeUseLocation[] value() default {TypeUseLocation.ALL};
 }

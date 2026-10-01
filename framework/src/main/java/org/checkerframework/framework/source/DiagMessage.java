@@ -1,16 +1,18 @@
 package org.checkerframework.framework.source;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import javax.tools.Diagnostic;
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import javax.tools.Diagnostic;
 
 /**
  * A {@code DiagMessage} is a kind, a message key, and arguments. The message key will be expanded
@@ -21,223 +23,224 @@ import org.checkerframework.framework.qual.AnnotatedFor;
  */
 @AnnotatedFor("nullness")
 public class DiagMessage {
-  /** The kind of message. */
-  private final Diagnostic.Kind kind;
+    /** The kind of message. */
+    private final Diagnostic.Kind kind;
 
-  /** The message key. */
-  private final @CompilerMessageKey String messageKey;
+    /** The message key. */
+    private final @CompilerMessageKey String messageKey;
 
-  /** The arguments that will be interpolated into the localized message. */
-  private final Object[] args;
+    /** The arguments that will be interpolated into the localized message. */
+    private final Object[] args;
 
-  /**
-   * Machine-applicable suggested fixes for this diagnostic, or an empty list if there are none.
-   * Always unmodifiable. A host (such as the Error Prone plugin) may offer these through its own
-   * fix / patch pipeline; standalone javac ignores them. Expressed in the framework-agnostic {@link
-   * SuggestedFixData} representation, so the Checker Framework core has no dependency on any host
-   * framework.
-   *
-   * <p>Deliberately excluded from {@link #equals} and {@link #hashCode}: two diagnostics with the
-   * same kind, key, and arguments are considered equal regardless of any attached fixes, which are
-   * auxiliary metadata.
-   */
-  private final List<SuggestedFixData> fixes;
+    /**
+     * Machine-applicable suggested fixes for this diagnostic, or an empty list if there are none.
+     * Always unmodifiable. A host (such as the Error Prone plugin) may offer these through its own
+     * fix / patch pipeline; standalone javac ignores them. Expressed in the framework-agnostic
+     * {@link SuggestedFixData} representation, so the Checker Framework core has no dependency on
+     * any host framework.
+     *
+     * <p>Deliberately excluded from {@link #equals} and {@link #hashCode}: two diagnostics with the
+     * same kind, key, and arguments are considered equal regardless of any attached fixes, which
+     * are auxiliary metadata.
+     */
+    private final List<SuggestedFixData> fixes;
 
-  /** Shared empty fix list. */
-  private static final List<SuggestedFixData> EMPTY_FIXES = Collections.emptyList();
+    /** Shared empty fix list. */
+    private static final List<SuggestedFixData> EMPTY_FIXES = Collections.emptyList();
 
-  /**
-   * Cached hash code. Lazily computed on first call to {@link #hashCode()} and gated by {@link
-   * #hashCodeComputed}.
-   */
-  private transient int hashCodeCache = 0;
+    /**
+     * Cached hash code. Lazily computed on first call to {@link #hashCode()} and gated by {@link
+     * #hashCodeComputed}.
+     */
+    private transient int hashCodeCache = 0;
 
-  /** True if {@link #hashCodeCache} contains the current hash code. */
-  private transient boolean hashCodeComputed = false;
+    /** True if {@link #hashCodeCache} contains the current hash code. */
+    private transient boolean hashCodeComputed = false;
 
-  /** Shared empty args array, returned for no-arg DiagMessages instead of allocating. */
-  private static final Object[] EMPTY_ARGS = new Object[0];
+    /** Shared empty args array, returned for no-arg DiagMessages instead of allocating. */
+    private static final Object[] EMPTY_ARGS = new Object[0];
 
-  /**
-   * Create a DiagMessage.
-   *
-   * @param kind the kind of message
-   * @param messageKey the message key
-   * @param args the arguments that will be interpolated into the localized message
-   */
-  public DiagMessage(Diagnostic.Kind kind, @CompilerMessageKey String messageKey, Object... args) {
-    this.kind = kind;
-    this.messageKey = messageKey;
-    if (args == null || args.length == 0) {
-      // Share a single empty array instead of allocating one per no-arg DiagMessage.
-      this.args = EMPTY_ARGS; /*null->nn*/
-    } else {
-      this.args = Arrays.copyOf(args, args.length);
-    }
-    this.fixes = EMPTY_FIXES;
-  }
-
-  /**
-   * Create a DiagMessage with explicit fixes. Used internally by {@link #withFixes}.
-   *
-   * @param kind the kind of message
-   * @param messageKey the message key
-   * @param args the arguments that will be interpolated into the localized message
-   * @param fixes the suggested fixes; this constructor takes ownership of the list
-   */
-  private DiagMessage(
-      Diagnostic.Kind kind,
-      @CompilerMessageKey String messageKey,
-      Object[] args,
-      List<SuggestedFixData> fixes) {
-    this.kind = kind;
-    this.messageKey = messageKey;
-    this.args = args;
-    this.fixes = Collections.unmodifiableList(fixes);
-  }
-
-  /**
-   * Creates a DiagMessage corresponding to the given Java Expression parse exception.
-   *
-   * @param jppe a Java Expression parse exception
-   */
-  public DiagMessage(JavaExpressionParseException jppe) {
-    this(Diagnostic.Kind.ERROR, jppe.getErrorKey(), jppe.getArgs());
-  }
-
-  /**
-   * Create a DiagMessage with kind ERROR.
-   *
-   * @param messageKey the message key
-   * @param args the arguments that will be interpolated into the localized message
-   * @return a new DiagMessage
-   */
-  public static DiagMessage error(@CompilerMessageKey String messageKey, Object... args) {
-    return new DiagMessage(Diagnostic.Kind.ERROR, messageKey, args);
-  }
-
-  /**
-   * Returns the kind of this DiagMessage.
-   *
-   * @return the kind of this DiagMessage
-   */
-  public Diagnostic.Kind getKind() {
-    return this.kind;
-  }
-
-  /**
-   * Returns the message key of this DiagMessage.
-   *
-   * @return the message key of this DiagMessage
-   */
-  public @CompilerMessageKey String getMessageKey() {
-    return this.messageKey;
-  }
-
-  /**
-   * Returns the customized optional arguments for the message.
-   *
-   * @return the customized optional arguments for the message
-   */
-  public Object[] getArgs() {
-    return this.args;
-  }
-
-  /**
-   * Returns the suggested fixes for this diagnostic (possibly empty). The returned list is
-   * unmodifiable.
-   *
-   * @return the suggested fixes for this diagnostic
-   */
-  public List<SuggestedFixData> getFixes() {
-    return this.fixes;
-  }
-
-  /**
-   * Returns a copy of this {@code DiagMessage} with the given suggested fix added. Does not modify
-   * this instance.
-   *
-   * @param fix a suggested fix for this diagnostic
-   * @return a copy of this DiagMessage with {@code fix} added
-   */
-  public DiagMessage withFix(SuggestedFixData fix) {
-    return withFixes(Collections.singletonList(fix));
-  }
-
-  /**
-   * Returns a copy of this {@code DiagMessage} with the given suggested fixes added (as
-   * alternatives). Does not modify this instance.
-   *
-   * @param moreFixes suggested fixes for this diagnostic
-   * @return a copy of this DiagMessage with {@code moreFixes} added
-   */
-  public DiagMessage withFixes(List<SuggestedFixData> moreFixes) {
-    if (moreFixes.isEmpty()) {
-      return this;
-    }
-    List<SuggestedFixData> combined = new ArrayList<>(this.fixes.size() + moreFixes.size());
-    combined.addAll(this.fixes);
-    combined.addAll(moreFixes);
-    return new DiagMessage(this.kind, this.messageKey, this.args, combined);
-  }
-
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    if (this == obj) {
-      return true;
-    }
-    if (!(obj instanceof DiagMessage)) {
-      return false;
+    /**
+     * Create a DiagMessage.
+     *
+     * @param kind the kind of message
+     * @param messageKey the message key
+     * @param args the arguments that will be interpolated into the localized message
+     */
+    public DiagMessage(
+            Diagnostic.Kind kind, @CompilerMessageKey String messageKey, Object... args) {
+        this.kind = kind;
+        this.messageKey = messageKey;
+        if (args == null || args.length == 0) {
+            // Share a single empty array instead of allocating one per no-arg DiagMessage.
+            this.args = EMPTY_ARGS; /*null->nn*/
+        } else {
+            this.args = Arrays.copyOf(args, args.length);
+        }
+        this.fixes = EMPTY_FIXES;
     }
 
-    DiagMessage other = (DiagMessage) obj;
-
-    return (kind == other.kind
-        && messageKey.equals(other.messageKey)
-        && Arrays.equals(args, other.args));
-  }
-
-  @Pure
-  @Override
-  public int hashCode() {
-    if (!hashCodeComputed) {
-      int h = (kind == null ? 0 : kind.hashCode());
-      h = 31 * h + (messageKey == null ? 0 : messageKey.hashCode());
-      h = 31 * h + Arrays.hashCode(args);
-      hashCodeCache = h == 0 ? 1 : h;
-      hashCodeComputed = true;
-    }
-    return hashCodeCache;
-  }
-
-  @SideEffectFree
-  @Override
-  public String toString() {
-    if (args.length == 0) {
-      return messageKey;
+    /**
+     * Create a DiagMessage with explicit fixes. Used internally by {@link #withFixes}.
+     *
+     * @param kind the kind of message
+     * @param messageKey the message key
+     * @param args the arguments that will be interpolated into the localized message
+     * @param fixes the suggested fixes; this constructor takes ownership of the list
+     */
+    private DiagMessage(
+            Diagnostic.Kind kind,
+            @CompilerMessageKey String messageKey,
+            Object[] args,
+            List<SuggestedFixData> fixes) {
+        this.kind = kind;
+        this.messageKey = messageKey;
+        this.args = args;
+        this.fixes = Collections.unmodifiableList(fixes);
     }
 
-    return kind + messageKey + " : " + Arrays.toString(args);
-  }
-
-  /**
-   * Returns the concatenation of the lists.
-   *
-   * @param list1 a list of DiagMessage, or null
-   * @param list2 a list of DiagMessage, or null
-   * @return the concatenation of the lists
-   */
-  public static @Nullable List<DiagMessage> mergeLists(
-      @Nullable List<DiagMessage> list1, @Nullable List<DiagMessage> list2) {
-    if (list1 == null || list1.isEmpty()) {
-      return list2;
-    } else if (list2 == null || list2.isEmpty()) {
-      return list1;
-    } else {
-      List<DiagMessage> result = new ArrayList<>(list1.size() + list2.size());
-      result.addAll(list1);
-      result.addAll(list2);
-      return result;
+    /**
+     * Creates a DiagMessage corresponding to the given Java Expression parse exception.
+     *
+     * @param jppe a Java Expression parse exception
+     */
+    public DiagMessage(JavaExpressionParseException jppe) {
+        this(Diagnostic.Kind.ERROR, jppe.getErrorKey(), jppe.getArgs());
     }
-  }
+
+    /**
+     * Create a DiagMessage with kind ERROR.
+     *
+     * @param messageKey the message key
+     * @param args the arguments that will be interpolated into the localized message
+     * @return a new DiagMessage
+     */
+    public static DiagMessage error(@CompilerMessageKey String messageKey, Object... args) {
+        return new DiagMessage(Diagnostic.Kind.ERROR, messageKey, args);
+    }
+
+    /**
+     * Returns the kind of this DiagMessage.
+     *
+     * @return the kind of this DiagMessage
+     */
+    public Diagnostic.Kind getKind() {
+        return this.kind;
+    }
+
+    /**
+     * Returns the message key of this DiagMessage.
+     *
+     * @return the message key of this DiagMessage
+     */
+    public @CompilerMessageKey String getMessageKey() {
+        return this.messageKey;
+    }
+
+    /**
+     * Returns the customized optional arguments for the message.
+     *
+     * @return the customized optional arguments for the message
+     */
+    public Object[] getArgs() {
+        return this.args;
+    }
+
+    /**
+     * Returns the suggested fixes for this diagnostic (possibly empty). The returned list is
+     * unmodifiable.
+     *
+     * @return the suggested fixes for this diagnostic
+     */
+    public List<SuggestedFixData> getFixes() {
+        return this.fixes;
+    }
+
+    /**
+     * Returns a copy of this {@code DiagMessage} with the given suggested fix added. Does not
+     * modify this instance.
+     *
+     * @param fix a suggested fix for this diagnostic
+     * @return a copy of this DiagMessage with {@code fix} added
+     */
+    public DiagMessage withFix(SuggestedFixData fix) {
+        return withFixes(Collections.singletonList(fix));
+    }
+
+    /**
+     * Returns a copy of this {@code DiagMessage} with the given suggested fixes added (as
+     * alternatives). Does not modify this instance.
+     *
+     * @param moreFixes suggested fixes for this diagnostic
+     * @return a copy of this DiagMessage with {@code moreFixes} added
+     */
+    public DiagMessage withFixes(List<SuggestedFixData> moreFixes) {
+        if (moreFixes.isEmpty()) {
+            return this;
+        }
+        List<SuggestedFixData> combined = new ArrayList<>(this.fixes.size() + moreFixes.size());
+        combined.addAll(this.fixes);
+        combined.addAll(moreFixes);
+        return new DiagMessage(this.kind, this.messageKey, this.args, combined);
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof DiagMessage)) {
+            return false;
+        }
+
+        DiagMessage other = (DiagMessage) obj;
+
+        return (kind == other.kind
+                && messageKey.equals(other.messageKey)
+                && Arrays.equals(args, other.args));
+    }
+
+    @Pure
+    @Override
+    public int hashCode() {
+        if (!hashCodeComputed) {
+            int h = (kind == null ? 0 : kind.hashCode());
+            h = 31 * h + (messageKey == null ? 0 : messageKey.hashCode());
+            h = 31 * h + Arrays.hashCode(args);
+            hashCodeCache = h == 0 ? 1 : h;
+            hashCodeComputed = true;
+        }
+        return hashCodeCache;
+    }
+
+    @SideEffectFree
+    @Override
+    public String toString() {
+        if (args.length == 0) {
+            return messageKey;
+        }
+
+        return kind + messageKey + " : " + Arrays.toString(args);
+    }
+
+    /**
+     * Returns the concatenation of the lists.
+     *
+     * @param list1 a list of DiagMessage, or null
+     * @param list2 a list of DiagMessage, or null
+     * @return the concatenation of the lists
+     */
+    public static @Nullable List<DiagMessage> mergeLists(
+            @Nullable List<DiagMessage> list1, @Nullable List<DiagMessage> list2) {
+        if (list1 == null || list1.isEmpty()) {
+            return list2;
+        } else if (list2 == null || list2.isEmpty()) {
+            return list1;
+        } else {
+            List<DiagMessage> result = new ArrayList<>(list1.size() + list2.size());
+            result.addAll(list1);
+            result.addAll(list2);
+            return result;
+        }
+    }
 }
