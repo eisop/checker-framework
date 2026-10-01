@@ -28,7 +28,10 @@ apply from: rootProject.file('release.gradle')
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
 repositories {
-    maven { url = 'https://central.sonatype.com/repository/maven-snapshots/'}
+    maven {
+        url = 'https://central.sonatype.com/repository/maven-snapshots/'
+        mavenContent { snapshotsOnly() }
+    }
     mavenCentral()
 }
 
@@ -181,7 +184,10 @@ allprojects { currentProj ->
 
     // Keep in sync with "repositories { ... }" block above.
     repositories {
-        maven { url = 'https://central.sonatype.com/repository/maven-snapshots/'}
+        maven {
+            url = 'https://central.sonatype.com/repository/maven-snapshots/'
+            mavenContent { snapshotsOnly() }
+        }
         mavenCentral()
     }
 
@@ -1704,7 +1710,7 @@ subprojects {
             description = 'Run inference tests.'
             if (isChecker) {
                 // NO-AFU: Needs to depend on future AFU version of CF
-                // dependsOn('inferenceTests-part1', 'inferenceTests-part1')
+                // dependsOn('inferenceTests-part1', 'inferenceTests-part2')
             }
         }
         tasks.register('inferenceTests-part1') {
@@ -1712,7 +1718,7 @@ subprojects {
             description = 'Run inference tests (part 1).'
             if (isChecker) {
                 // NO-AFU: Needs to depend on future AFU version of CF
-                // dependsOn('ainferTest', 'wpiManyTest')
+                // dependsOn('wpiManyTest')
             }
         }
         tasks.register('inferenceTests-part2') {
@@ -1720,7 +1726,7 @@ subprojects {
             description = 'Run inference tests (part 2).'
             if (isChecker) {
                 // NO-AFU: Needs to depend on future AFU version of CF
-                // dependsOn('wpiPlumeLibTest')
+                // dependsOn('ainferTest', 'wpiPlumeLibTest')
             }
         }
 
@@ -1999,6 +2005,7 @@ final sharedPublicationConfiguration(publication) {
         }
     }
 }
+
 tasks.register('printJavaVersion') {
     description = "Prints the Java version used to run Gradle."
     doLast {

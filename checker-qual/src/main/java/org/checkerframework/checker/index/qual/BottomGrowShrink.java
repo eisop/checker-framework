@@ -11,9 +11,10 @@ import java.lang.annotation.Target;
 /**
  * The bottom qualifier in the GrowShrink hierarchy. Programmers should rarely write this type.
  *
- * @checker_framework.manual #growonly-checker Grow-only Checker
  * @checker_framework.manual #bottom-type the bottom type
  */
+// Reinstate when lists are supported:
+//  * @checker_framework.manual #growonly-checker Grow-only Checker
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})

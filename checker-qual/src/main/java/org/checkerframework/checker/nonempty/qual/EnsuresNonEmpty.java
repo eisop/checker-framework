@@ -36,8 +36,9 @@ import java.lang.annotation.Target;
  *
  * @see NonEmpty
  * @see org.checkerframework.checker.nonempty.NonEmptyChecker
- * @checker_framework.manual #non-empty-checker Non-Empty Checker
  */
+// Reinstate when the Non-Empty Checker is publicized.
+//  * @checker_framework.manual #non-empty-checker Non-Empty Checker
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @PostconditionAnnotation(qualifier = NonEmpty.class)

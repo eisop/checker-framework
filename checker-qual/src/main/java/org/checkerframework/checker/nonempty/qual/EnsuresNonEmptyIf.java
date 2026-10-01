@@ -45,8 +45,9 @@ import java.lang.annotation.Target;
  *
  * @see NonEmpty
  * @see EnsuresNonEmpty
- * @checker_framework.manual #non-empty-checker Non-Empty Checker
  */
+// Reinstate when the Non-Empty Checker is publicized.
+//  * @checker_framework.manual #non-empty-checker Non-Empty Checker
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
