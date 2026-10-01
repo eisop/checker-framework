@@ -98,7 +98,7 @@ tasks.register('allDataflowTests') {
  * To add a new dataflow analysis test, you need to provide the
  * task name, the directory which contains the test files, and the fully-qualified class
  * name of the test class.
- * Optionally, when option {@code diff} is true, the output is compared against a
+ * Optionally, when {@code runDiff} is true, the output is compared against a
  * {@code Expected.txt} file.
  * See org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher for more details.
  * @param taskName the task name for the new task
