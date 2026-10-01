@@ -4,23 +4,23 @@ import java.util.function.Supplier;
 
 @SuppressWarnings({"unchecked", "all"}) // just check for crashes.
 public class Issue5436 {
-  static class BoundedWindow {}
+    static class BoundedWindow {}
 
-  static class Accessor<K> {
-    public Accessor(Supplier<BoundedWindow> s) {}
+    static class Accessor<K> {
+        public Accessor(Supplier<BoundedWindow> s) {}
 
-    Accessor() {}
-  }
+        Accessor() {}
+    }
 
-  private final Accessor<?> stateAccessor;
-  private List<BoundedWindow> currentWindows;
+    private final Accessor<?> stateAccessor;
+    private List<BoundedWindow> currentWindows;
 
-  Issue5436() {
-    currentWindows = new ArrayList<>();
-    stateAccessor = new Accessor(() -> currentWindows);
-  }
+    Issue5436() {
+        currentWindows = new ArrayList<>();
+        stateAccessor = new Accessor(() -> currentWindows);
+    }
 
-  private Object getCurrentKey() {
-    return new Object();
-  }
+    private Object getCurrentKey() {
+        return new Object();
+    }
 }

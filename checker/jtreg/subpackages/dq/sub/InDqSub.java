@@ -7,5 +7,5 @@ package dq.sub;
  * subpackages that this package's own default does not reach.
  */
 public class InDqSub {
-  Object f;
+    Object f;
 }

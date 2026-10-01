@@ -6,27 +6,27 @@ import org.checkerframework.framework.testchecker.lubglb.quals.*;
 // See IntersectionBoundOrderA.java.
 public class IntersectionBoundOrderB {
 
-  interface OrderIfaceA {}
+    interface OrderIfaceA {}
 
-  interface OrderIfaceB {}
+    interface OrderIfaceB {}
 
-  static class OrderImpl implements OrderIfaceA, OrderIfaceB {}
+    static class OrderImpl implements OrderIfaceA, OrderIfaceB {}
 
-  void useC(@LubglbC OrderImpl c) {
-    call(c);
-  }
+    void useC(@LubglbC OrderImpl c) {
+        call(c);
+    }
 
-  void useB(@LubglbB OrderImpl b) {
-    // :: error: (type.arguments.not.inferred)
-    call(b);
-  }
+    void useB(@LubglbB OrderImpl b) {
+        // :: error: (type.arguments.not.inferred)
+        call(b);
+    }
 
-  void useD(@LubglbD OrderImpl d) {
-    call(d);
-  }
+    void useD(@LubglbD OrderImpl d) {
+        call(d);
+    }
 
-  // The intersection's qualifier is that of the first bound, @LubglbC; the second bound's
-  // @LubglbB differs from it and is flagged.
-  // :: warning: (explicit.annotation.ignored)
-  <S extends @LubglbC OrderIfaceB & @LubglbB OrderIfaceA> void call(S p) {}
+    // The intersection's qualifier is that of the first bound, @LubglbC; the second bound's
+    // @LubglbB differs from it and is flagged.
+    // :: warning: (explicit.annotation.ignored)
+    <S extends @LubglbC OrderIfaceB & @LubglbB OrderIfaceA> void call(S p) {}
 }

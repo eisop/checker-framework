@@ -1,9 +1,10 @@
 package org.checkerframework.framework.testchecker.aliasedctor;
 
+import org.checkerframework.framework.qual.SubtypeOf;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * An annotation that deliberately declares no {@code @Target} meta-annotation, and is therefore not

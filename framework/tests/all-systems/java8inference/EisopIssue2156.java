@@ -9,28 +9,28 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 public class EisopIssue2156<A> {
-  interface Merged<X> {
-    String name();
+    interface Merged<X> {
+        String name();
 
-    X get();
-  }
+        X get();
+    }
 
-  static <B, K> Predicate<Merged<B>> unique(Function<? super Merged<B>, K> keyExtractor) {
-    throw new Error();
-  }
+    static <B, K> Predicate<Merged<B>> unique(Function<? super Merged<B>, K> keyExtractor) {
+        throw new Error();
+    }
 
-  Predicate<Merged<A>> typeVariable = unique(Merged::name);
+    Predicate<Merged<A>> typeVariable = unique(Merged::name);
 
-  Predicate<Merged<String>> declaredType = unique(Merged::name);
+    Predicate<Merged<String>> declaredType = unique(Merged::name);
 
-  // The return type of get mentions X, so X is inferred together with the call.
-  Predicate<Merged<A>> returnMentionsX = unique(Merged::get);
+    // The return type of get mentions X, so X is inferred together with the call.
+    Predicate<Merged<A>> returnMentionsX = unique(Merged::get);
 
-  <A> Predicate<Merged<A>> shadowed() {
-    return unique(Merged::name);
-  }
+    <A> Predicate<Merged<A>> shadowed() {
+        return unique(Merged::name);
+    }
 
-  Stream<Merged<A>> nested(Stream<Merged<A>> s) {
-    return s.filter(unique(Merged::name));
-  }
+    Stream<Merged<A>> nested(Stream<Merged<A>> s) {
+        return s.filter(unique(Merged::name));
+    }
 }

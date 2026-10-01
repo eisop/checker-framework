@@ -4,19 +4,19 @@
 import org.checkerframework.checker.mustcall.qual.MustCall;
 
 public class ConstructorAddsMustCall {
-  static class Foo {
-    void a() {}
+    static class Foo {
+        void a() {}
 
-    Foo() {}
+        Foo() {}
 
-    @MustCall("a") Foo(String s) {}
-  }
+        @MustCall("a") Foo(String s) {}
+    }
 
-  static void useFoo() {
-    // no obligation for this one
-    Foo f1 = new Foo();
-    // obligation for this one
-    // :: error: required.method.not.called
-    Foo f2 = new Foo("hi");
-  }
+    static void useFoo() {
+        // no obligation for this one
+        Foo f1 = new Foo();
+        // obligation for this one
+        // :: error: required.method.not.called
+        Foo f2 = new Foo("hi");
+    }
 }

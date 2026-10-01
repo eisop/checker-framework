@@ -13,19 +13,19 @@ package org.checkerframework.afu.scenelib.io;
 @SuppressWarnings("serial")
 public final class ParseException extends Exception {
 
-  public ParseException() {
-    super();
-  }
+    public ParseException() {
+        super();
+    }
 
-  public ParseException(String message) {
-    super(message);
-  }
+    public ParseException(String message) {
+        super(message);
+    }
 
-  public ParseException(String message, Throwable cause) {
-    super(message, cause);
-  }
+    public ParseException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-  public ParseException(Throwable cause) {
-    super(cause);
-  }
+    public ParseException(Throwable cause) {
+        super(cause);
+    }
 }

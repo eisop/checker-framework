@@ -15,14 +15,15 @@
  */
 
 import org.checkerframework.framework.qual.AnnotatedFor;
+
 import permissivedefaultslib.Lib;
 
 @AnnotatedFor("nullness")
 public class ModeEnablesPermissiveDefaults {
-  void calls() {
-    // 1: OK, 2: Err, 3: Err, 4: Err, 5: OK
-    Lib.setObject(null);
-    // 1: OK, 2: OK, 3: Err, 4: Err, 5: OK
-    Lib.getObject().toString();
-  }
+    void calls() {
+        // 1: OK, 2: Err, 3: Err, 4: Err, 5: OK
+        Lib.setObject(null);
+        // 1: OK, 2: OK, 3: Err, 4: Err, 5: OK
+        Lib.getObject().toString();
+    }
 }

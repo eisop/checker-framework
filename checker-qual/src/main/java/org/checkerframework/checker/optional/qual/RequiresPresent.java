@@ -1,11 +1,12 @@
 package org.checkerframework.checker.optional.qual;
 
+import org.checkerframework.framework.qual.PreconditionAnnotation;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.PreconditionAnnotation;
 
 /**
  * Indicates a method precondition: the specified expressions of type Optional must be present
@@ -62,30 +63,30 @@ import org.checkerframework.framework.qual.PreconditionAnnotation;
 @PreconditionAnnotation(qualifier = Present.class)
 public @interface RequiresPresent {
 
-  /**
-   * The Java expressions that that need to be {@link Present}.
-   *
-   * @return the Java expressions that need to be {@link Present}
-   * @checker_framework.manual #java-expressions-as-arguments Syntax of Java expressions
-   */
-  String[] value();
-
-  /**
-   * A wrapper annotation that makes the {@link RequiresPresent} annotation repeatable.
-   *
-   * <p>Programmers generally do not need to write this. It is created by Java when a programmer
-   * writes more than one {@link RequiresPresent} annotation at the same location.
-   */
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
-  @PreconditionAnnotation(qualifier = Present.class)
-  public static @interface List {
     /**
-     * Returns the repeatable annotations.
+     * The Java expressions that that need to be {@link Present}.
      *
-     * @return the repeatable annotations
+     * @return the Java expressions that need to be {@link Present}
+     * @checker_framework.manual #java-expressions-as-arguments Syntax of Java expressions
      */
-    RequiresPresent[] value();
-  }
+    String[] value();
+
+    /**
+     * A wrapper annotation that makes the {@link RequiresPresent} annotation repeatable.
+     *
+     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+     * writes more than one {@link RequiresPresent} annotation at the same location.
+     */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
+    @PreconditionAnnotation(qualifier = Present.class)
+    public static @interface List {
+        /**
+         * Returns the repeatable annotations.
+         *
+         * @return the repeatable annotations
+         */
+        RequiresPresent[] value();
+    }
 }

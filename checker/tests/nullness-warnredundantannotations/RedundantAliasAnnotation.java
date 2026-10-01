@@ -15,6 +15,6 @@ import org.jspecify.annotations.NonNull;
  */
 @DefaultQualifier(org.checkerframework.checker.nullness.qual.NonNull.class)
 public class RedundantAliasAnnotation {
-  // :: warning: (redundant.anno)
-  @NonNull String alias = "b";
+    // :: warning: (redundant.anno)
+    @NonNull String alias = "b";
 }

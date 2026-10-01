@@ -6,11 +6,11 @@ package lib;
  * PTransform<PBegin, PCollection<Entity>>}.
  */
 public class SuperTypeArg extends Box<Missing> {
-  public SuperTypeArg self() {
-    return this;
-  }
+    public SuperTypeArg self() {
+        return this;
+    }
 
-  public long size() {
-    return 0;
-  }
+    public long size() {
+        return 0;
+    }
 }
