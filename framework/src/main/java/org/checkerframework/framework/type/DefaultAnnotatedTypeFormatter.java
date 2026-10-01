@@ -53,6 +53,8 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
     }
 
     /**
+     * Constructs a DefaultAnnotatedTypeFormatter that uses the default annotation formatter.
+     *
      * @param printVerboseGenerics for type parameters, their uses, and wildcards, print more
      *     information
      * @param defaultPrintInvisibleAnnos true if this AnnotatedTypeFormatter should print invisible
@@ -64,6 +66,8 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
     }
 
     /**
+     * Constructs a DefaultAnnotatedTypeFormatter.
+     *
      * @param formatter an object that converts annotation mirrors to strings
      * @param printVerboseGenerics for type parameters, their uses, and wildcards, print more
      *     information

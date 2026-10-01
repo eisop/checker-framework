@@ -107,6 +107,7 @@ public class AnnotatedTypes {
      *
      * <p>Postconditions: {@code type} and {@code superType} are not modified.
      *
+     * @param <T> the type of {@code superType}
      * @param atypeFactory {@link AnnotatedTypeFactory}
      * @param type type from which to copy annotations
      * @param superType a type whose erased Java type is a supertype of {@code type}'s erased Java

@@ -921,11 +921,12 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     }
 
     /**
-     * Update the information in the store by considering a field assignment with target {@code n},
-     * where the right hand side has the abstract value {@code val}.
+     * Update the information in the store by considering a field assignment with target {@code
+     * fieldAccess}, where the right hand side has the abstract value {@code val}.
      *
-     * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-     *     abstract value is not known)
+     * @param fieldAccess the target of the assignment
+     * @param val the abstract value of the value assigned to {@code fieldAccess} (or {@code null}
+     *     if the abstract value is not known)
      */
     protected void updateForFieldAccessAssignment(FieldAccess fieldAccess, @Nullable V val) {
         removeConflicting(fieldAccess, val);
@@ -962,8 +963,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * Set the abstract value of a local variable in the store. Overwrites any value that might have
      * been available previously.
      *
-     * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-     *     abstract value is not known)
+     * @param receiver the local variable that is assigned
+     * @param val the abstract value of the value assigned to {@code receiver} (or {@code null} if
+     *     the abstract value is not known)
      */
     protected void updateForLocalVariableAssignment(LocalVariable receiver, @Nullable V val) {
         removeConflicting(receiver);

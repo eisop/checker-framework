@@ -773,7 +773,13 @@ public class LowerBoundTransfer extends IndexAbstractTransfer {
         return UNKNOWN;
     }
 
-    /** Handles shifts (case 30). * &gt;&gt; NonNegative &rarr; NonNegative. */
+    /**
+     * Handles shifts (case 30). * &gt;&gt; NonNegative &rarr; NonNegative.
+     *
+     * @param node the right shift
+     * @param p the transfer input
+     * @return the lower bound annotation for the result of the shift
+     */
     private AnnotationMirror getAnnotationForRightShift(
             BinaryOperationNode node, TransferInput<CFValue, CFStore> p) {
         AnnotationMirror leftAnno = getLowerBoundAnnotation(node.getLeftOperand(), p);
@@ -790,6 +796,10 @@ public class LowerBoundTransfer extends IndexAbstractTransfer {
     /**
      * Handles masking (case 31). Particularly, handles the following cases: * &amp; NonNegative
      * &rarr; NonNegative.
+     *
+     * @param node the bitwise and
+     * @param p the transfer input
+     * @return the lower bound annotation for the result of the and
      */
     private AnnotationMirror getAnnotationForAnd(
             BitwiseAndNode node, TransferInput<CFValue, CFStore> p) {
