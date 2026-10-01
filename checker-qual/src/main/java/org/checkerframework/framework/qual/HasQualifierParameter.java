@@ -77,17 +77,17 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE, ElementType.PACKAGE})
 public @interface HasQualifierParameter {
 
-    /**
-     * Class of the top qualifier for the hierarchy for which this class has a qualifier parameter.
-     *
-     * @return the value
-     */
-    Class<? extends Annotation>[] value();
+  /**
+   * Class of the top qualifier for the hierarchy for which this class has a qualifier parameter.
+   *
+   * @return the value
+   */
+  Class<? extends Annotation>[] value();
 
-    /**
-     * When used on a package, whether this annotation should also apply to subpackages.
-     *
-     * @return whether this annotation should be inherited by subpackages
-     */
-    boolean applyToSubpackages() default true;
+  /**
+   * When used on a package, whether this annotation should also apply to subpackages.
+   *
+   * @return whether this annotation should be inherited by subpackages
+   */
+  boolean applyToSubpackages() default true;
 }

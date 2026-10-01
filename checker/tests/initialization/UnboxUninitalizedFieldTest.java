@@ -3,10 +3,10 @@
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 
 public class UnboxUninitalizedFieldTest {
-    @UnknownInitialization Integer n;
+  @UnknownInitialization Integer n;
 
-    UnboxUninitalizedFieldTest() {
-        // :: error: (unboxing.of.nullable)
-        int y = n;
-    }
+  UnboxUninitalizedFieldTest() {
+    // :: error: (unboxing.of.nullable)
+    int y = n;
+  }
 }

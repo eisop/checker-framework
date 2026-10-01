@@ -23,27 +23,27 @@ import java.util.Set;
  */
 public abstract class AggregateChecker extends SourceChecker {
 
-    /** Create a new AggregateChecker. */
-    protected AggregateChecker() {}
+  /** Create a new AggregateChecker. */
+  protected AggregateChecker() {}
 
-    /**
-     * Returns the list of independent subcheckers to be run together. An aggregate checker
-     * overrides this method to indicate its immediate subcheckers.
-     *
-     * @return the list of immediate subcheckers checkers to be run
-     */
-    protected abstract Collection<Class<? extends SourceChecker>> getSupportedCheckers();
+  /**
+   * Returns the list of independent subcheckers to be run together. An aggregate checker overrides
+   * this method to indicate its immediate subcheckers.
+   *
+   * @return the list of immediate subcheckers checkers to be run
+   */
+  protected abstract Collection<Class<? extends SourceChecker>> getSupportedCheckers();
 
-    @Override
-    protected final Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
-        return new LinkedHashSet<>(getSupportedCheckers());
-    }
+  @Override
+  protected final Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+    return new LinkedHashSet<>(getSupportedCheckers());
+  }
 
-    @Override
-    protected SourceVisitor<?, ?> createSourceVisitor() {
-        return new SourceVisitor<Void, Void>(this) {
-            // Aggregate checkers do not visit source,
-            // the checkers in the aggregate checker do.
-        };
-    }
+  @Override
+  protected SourceVisitor<?, ?> createSourceVisitor() {
+    return new SourceVisitor<Void, Void>(this) {
+      // Aggregate checkers do not visit source,
+      // the checkers in the aggregate checker do.
+    };
+  }
 }

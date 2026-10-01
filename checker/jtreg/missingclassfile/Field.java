@@ -6,5 +6,5 @@ import lib.SuperTypeArg;
  */
 public class Field {
 
-    SuperTypeArg field;
+  SuperTypeArg field;
 }

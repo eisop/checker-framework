@@ -1,10 +1,8 @@
 package org.checkerframework.checker.nullness;
 
-import org.checkerframework.common.basetype.BaseTypeChecker;
-
 import java.util.NavigableSet;
-
 import javax.annotation.processing.SupportedOptions;
+import org.checkerframework.common.basetype.BaseTypeChecker;
 
 /**
  * A type-checker for determining which values are keys for which maps. Typically used as part of
@@ -28,13 +26,13 @@ import javax.annotation.processing.SupportedOptions;
  */
 @SupportedOptions({"assumeKeyFor"})
 public class KeyForSubchecker extends BaseTypeChecker {
-    /** Default constructor for KeyForSubchecker. */
-    public KeyForSubchecker() {}
+  /** Default constructor for KeyForSubchecker. */
+  public KeyForSubchecker() {}
 
-    @Override
-    public NavigableSet<String> getSuppressWarningsPrefixes() {
-        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
-        result.add("nullnesskeyfor");
-        return result;
-    }
+  @Override
+  public NavigableSet<String> getSuppressWarningsPrefixes() {
+    NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+    result.add("nullnesskeyfor");
+    return result;
+  }
 }

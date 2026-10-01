@@ -8,9 +8,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * code is inside an AnnotatedFor scope and its warnings are issued.
  */
 public class Deeper {
-    void take(Object nn) {}
+  void take(Object nn) {}
 
-    void m(@Nullable Object nble) {
-        take(nble);
-    }
+  void m(@Nullable Object nble) {
+    take(nble);
+  }
 }

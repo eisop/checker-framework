@@ -11,25 +11,25 @@ import org.checkerframework.dataflow.constantpropagation.ConstantPropagationTran
 /** The playground for constant propagation analysis. */
 public class ConstantPropagationPlayground {
 
-    /** Class cannot be instantiated. */
-    private ConstantPropagationPlayground() {
-        throw new AssertionError("Class ConstantPropagationPlayground cannot be instantiated.");
-    }
+  /** Class cannot be instantiated. */
+  private ConstantPropagationPlayground() {
+    throw new AssertionError("Class ConstantPropagationPlayground cannot be instantiated.");
+  }
 
-    /**
-     * Run constant propagation analysis on a file.
-     *
-     * @param args command-line arguments
-     */
-    public static void main(String[] args) {
+  /**
+   * Run constant propagation analysis on a file.
+   *
+   * @param args command-line arguments
+   */
+  public static void main(String[] args) {
 
-        // Parse the arguments.
-        CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
+    // Parse the arguments.
+    CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
-        // run the analysis and create a PDF file
-        ConstantPropagationTransfer transfer = new ConstantPropagationTransfer();
-        ForwardAnalysis<Constant, ConstantPropagationStore, ConstantPropagationTransfer>
-                forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
-        CFGVisualizeLauncher.performAnalysis(config, forwardAnalysis);
-    }
+    // run the analysis and create a PDF file
+    ConstantPropagationTransfer transfer = new ConstantPropagationTransfer();
+    ForwardAnalysis<Constant, ConstantPropagationStore, ConstantPropagationTransfer>
+        forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
+    CFGVisualizeLauncher.performAnalysis(config, forwardAnalysis);
+  }
 }

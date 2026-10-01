@@ -11,8 +11,8 @@ import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultB
 @DefaultQualifier(value = ElementDefaultBottom.class, locations = TypeUseLocation.RETURN)
 @DefaultQualifier(value = ElementDefaultBottom.class, locations = TypeUseLocation.RETURN)
 public class RedundantWrittenDefaults {
-    Object getBottom() {
-        // :: error: (return.type.incompatible)
-        return new Object();
-    }
+  Object getBottom() {
+    // :: error: (return.type.incompatible)
+    return new Object();
+  }
 }

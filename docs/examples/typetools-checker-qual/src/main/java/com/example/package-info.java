@@ -1,6 +1,6 @@
 @DefaultQualifier(
-        value = Interned.class,
-        locations = {TypeUseLocation.FIELD, TypeUseLocation.PARAMETER, TypeUseLocation.RETURN})
+    value = Interned.class,
+    locations = {TypeUseLocation.FIELD, TypeUseLocation.PARAMETER, TypeUseLocation.RETURN})
 package com.example;
 
 import org.checkerframework.checker.interning.qual.Interned;
