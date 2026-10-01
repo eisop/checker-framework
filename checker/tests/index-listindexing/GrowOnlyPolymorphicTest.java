@@ -18,16 +18,16 @@ public class GrowOnlyPolymorphicTest {
 
     // GrowOnly iterator should not allow removal
     growOnlyIter.next();
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     growOnlyIter.remove();
 
     // Test subList behavior - should preserve qualifiers
     List<String> growOnlySublist = growOnlyList.subList(0, Math.min(1, growOnlyList.size()));
 
     // GrowOnly sublist should not allow shrinking operations
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     growOnlySublist.clear();
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     growOnlySublist.remove("test");
 
     // Test stream operations preserve qualifiers
@@ -64,9 +64,9 @@ public class GrowOnlyPolymorphicTest {
     List<String> checkedList = java.util.Collections.checkedList(growOnlyList, String.class);
 
     // These views should preserve the @GrowOnly property
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     synchronizedList.clear();
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     checkedList.remove("test");
 
     // Unmodifiable list should prevent all modifications (this is a special case)
@@ -84,14 +84,14 @@ public class GrowOnlyPolymorphicTest {
     @GrowOnly Iterable<String> iterable = stringList;
 
     // All should preserve @GrowOnly restrictions
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     collection.clear();
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     collection.remove("test");
 
     Iterator<String> iter = iterable.iterator();
     iter.next();
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     iter.remove();
   }
 
@@ -101,18 +101,18 @@ public class GrowOnlyPolymorphicTest {
 
     if (iter.hasNext()) {
       T item = iter.next();
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       iter.remove();
     }
 
     // Test sublist with generic types
     List<T> sublist = list.subList(0, Math.min(1, list.size()));
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     sublist.clear();
 
     // Generic wildcards should work correctly
     @GrowOnly List<? extends T> wildcardList = list;
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     wildcardList.remove(null);
   }
 
@@ -123,7 +123,7 @@ public class GrowOnlyPolymorphicTest {
     String[] strArray2 = list.toArray(String[]::new);
 
     // But these don't affect the list's mutability restrictions
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     list.clear();
   }
 
@@ -136,7 +136,7 @@ public class GrowOnlyPolymorphicTest {
     spliterator.forEachRemaining(System.out::println);
 
     // But the underlying list should still be protected
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     list.remove(0);
   }
 }
