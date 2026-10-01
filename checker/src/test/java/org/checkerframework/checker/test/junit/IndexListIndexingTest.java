@@ -25,6 +25,11 @@ public class IndexListIndexingTest extends CheckerFrameworkPerDirectoryTest {
                 "-AlistIndexing");
     }
 
+    /**
+     * Returns the directories that contain the test inputs.
+     *
+     * @return the test directories
+     */
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"index-listindexing"};

@@ -11,10 +11,13 @@ import org.junit.Test;
 
 import javax.annotation.processing.ProcessingEnvironment;
 
+/** Tests for {@link JavaExpressionParseUtil}. */
 public class JavaExpressionParseUtilTest {
 
+    /** The processing environment used to parse expressions. */
     private final ProcessingEnvironment env;
 
+    /** Creates a JavaExpressionParseUtilTest. */
     public JavaExpressionParseUtilTest() {
         Context context = new Context();
 
@@ -31,6 +34,12 @@ public class JavaExpressionParseUtilTest {
         javac.enterDone();
     }
 
+    /**
+     * Parses a Java expression.
+     *
+     * @param expression the expression to parse
+     * @return the parsed expression
+     */
     private JavaExpression parse(String expression) {
         try {
             return JavaExpressionParseUtil.parse(
@@ -48,6 +57,7 @@ public class JavaExpressionParseUtilTest {
 
     // TODO: Add many tests.
 
+    /** Tests that a simple expression can be parsed. */
     @Test
     public void m() {
         parse("1");

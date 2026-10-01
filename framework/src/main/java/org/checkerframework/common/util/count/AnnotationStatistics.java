@@ -135,6 +135,7 @@ public class AnnotationStatistics extends SourceChecker {
         return new Visitor(this);
     }
 
+    /** The visitor that counts the annotations. */
     class Visitor extends SourceVisitor<Void, Void> {
 
         /** True if annotation locations should be printed. */
