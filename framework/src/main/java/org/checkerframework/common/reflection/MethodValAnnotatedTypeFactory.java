@@ -466,8 +466,8 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
 /**
  * An object that represents a method signature: fully qualified class name, method name, and number
- * of parameters. It does not distinguish among overloads that have the same number of arguments,
- * but arguments of different types.
+ * of parameters. It does not distinguish among overloads that have the same number of arguments but
+ * have arguments of different types.
  */
 class MethodSignature {
     String className;
