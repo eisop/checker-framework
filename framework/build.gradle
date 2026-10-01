@@ -116,27 +116,27 @@ dependencies {
     // External dependencies:
     // If you add an external dependency, you must shadow its packages.
     // See the comment in ../build.gradle in the shadowJar block.
-    implementation "org.plumelib:hashmap-util:${versions.hashmapUtil}"
-    implementation "org.plumelib:plume-util:${versions.plumeUtil}"
-    implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
+    implementation "org.plumelib:hashmap-util:${hashmapUtilVersion}"
+    implementation "org.plumelib:plume-util:${plumeUtilVersion}"
+    implementation "org.plumelib:reflection-util:${reflectionUtilVersion}"
     // Guava is used from main sources on unconditional code paths (SourceChecker's
     // Splitter/ImmutableSet uses and GenericAnnotatedTypeFactory's Ordering uses), so it must
     // be an `implementation` dependency: it has to appear in this artifact's POM and on
     // runtimeClasspath, which is what frameworkAllJar is built from.
-    implementation "com.google.guava:guava:${versions.guava}"
+    implementation "com.google.guava:guava:${guavaVersion}"
     // Add this dependency if needed to debug classpath issues.
     // implementation "io.github.classgraph:classgraph:4.8.184"
 
-    testImplementation "junit:junit:${versions.junit}"
+    testImplementation "junit:junit:${junitVersion}"
     testImplementation project(":framework-test")
     testImplementation sourceSets.testannotations.output
 
     // AutoValue support in Returns Receiver Checker
-    testImplementation "com.google.auto.value:auto-value-annotations:${versions.autoValue}"
-    testImplementation "com.google.auto.value:auto-value:${versions.autoValue}"
+    testImplementation "com.google.auto.value:auto-value-annotations:${autoValueVersion}"
+    testImplementation "com.google.auto.value:auto-value:${autoValueVersion}"
 
     // Lombok support in Returns Receiver Checker
-    testImplementation "org.projectlombok:lombok:${versions.lombok}"
+    testImplementation "org.projectlombok:lombok:${lombokVersion}"
 }
 
 tasks.register("cloneAnnotatedJdk", CloneTask) {

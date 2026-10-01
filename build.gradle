@@ -70,7 +70,7 @@ ext {
     // delombok lags behind JDK GA releases; skip delombok-dependent tests when running on
     // a JDK newer than what the pinned Lombok version supports.  See
     // https://projectlombok.org/changelog and bump this threshold (or remove it) when the
-    // current "versions.lombok" below catches up to the JDK in use.
+    // current "lombokVersion" below catches up to the JDK in use.
     skipDelombok = (useJdkVersionInt >= 24)
 
     // NO-AFU - keep these variables live so tasks in checker/build.gradle configure without issue.
@@ -85,25 +85,6 @@ ext {
     demosDir = "${parentDir}/checker-framework.demos"
 
     javadocMemberLevel = JavadocMemberLevel.PROTECTED
-
-    versions = [
-        autoValue       : "1.11.1",
-        // https://mvnrepository.com/artifact/com.google.errorprone/error_prone_core
-        // If you update this:
-        //  * Temporarily comment out "-Werror" elsewhere in this file
-        //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
-        //  * Uncomment "-Werror"
-        errorprone      : "2.50.0",
-        // NOTE: Google Java Format requires JDK 17 or higher as of version 1.25.0.
-        googleJavaFormat : "1.35.0",
-        guava           : "33.7.1-jre",
-        hashmapUtil     : "0.0.1",
-        junit           : "4.13.2",
-        lombok          : "1.18.48",
-        // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
-        plumeUtil       : "1.11.0",
-        reflectionUtil  : "1.1.6",
-    ]
 }
 
 // Keep in sync with check in
@@ -158,7 +139,6 @@ allprojects { currentProj ->
         useJdkVersionInt = rootProject.ext.useJdkVersionInt
         isJava8 = rootProject.ext.isJava8
         skipDelombok = rootProject.ext.skipDelombok
-        versions = rootProject.ext.versions
         javadocMemberLevel = rootProject.ext.javadocMemberLevel
         eisopFormatting = rootProject.ext.eisopFormatting
         releaseVersion = rootProject.ext.releaseVersion
@@ -228,7 +208,7 @@ allprojects { currentProj ->
     dependencies {
         if (useJdkVersionInt >= 21) {
             // Only include Error Prone when its minimum version is met. It will not always be enabled.
-            errorprone("com.google.errorprone:error_prone_core:${versions.errorprone}")
+            errorprone("com.google.errorprone:error_prone_core:${errorproneVersion}")
         }
 
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
@@ -364,10 +344,10 @@ allprojects { currentProj ->
             targetExclude doNotFormat
 
             if (eisopFormatting) {
-                googleJavaFormat(versions.googleJavaFormat).aosp()
+                googleJavaFormat(googleJavaFormatVersion).aosp()
                 importOrder("com", "jdk", "lib", "lombok", "org", "java", "javax")
             } else {
-                googleJavaFormat(versions.googleJavaFormat) // the formatter to apply to Java files
+                googleJavaFormat(googleJavaFormatVersion) // the formatter to apply to Java files
             }
             formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
 

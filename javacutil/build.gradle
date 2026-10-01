@@ -7,18 +7,18 @@ dependencies {
     // fields are initialized at class load), so it must be an `implementation` dependency:
     // it has to appear in this artifact's POM and on runtimeClasspath, which is what the
     // shadow jars are built from.
-    implementation "com.google.guava:guava:${versions.guava}"
+    implementation "com.google.guava:guava:${guavaVersion}"
     implementation project(":checker-qual")
 
     // This is used by org.checkerframework.javacutil.TypesUtils.isImmutableTypeInJdk.
     // https://mvnrepository.com/artifact/org.plumelib/plume-util
-    implementation "org.plumelib:plume-util:${versions.plumeUtil}"
-    implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
+    implementation "org.plumelib:plume-util:${plumeUtilVersion}"
+    implementation "org.plumelib:reflection-util:${reflectionUtilVersion}"
     // plume-util has an `implementation` dependency on hashmap-util.
     // That follows Gradle's rules, but Gradle's rules are not entirely correct:
     // https://github.com/gradle/gradle/issues/30054
     // To build with JDK 22+, we need to redeclare that dependency here.
-    implementation "org.plumelib:hashmap-util:${versions.hashmapUtil}"
+    implementation "org.plumelib:hashmap-util:${hashmapUtilVersion}"
 
     // External dependencies:
     // If you add an external dependency, you must shadow its packages both in checker.jar and

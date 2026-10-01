@@ -8,14 +8,14 @@ dependencies {
     api project(":checker-qual")
 
     // Node implements org.plumelib.util.UniqueId, so this dependency must be "api".
-    api "org.plumelib:plume-util:${versions.plumeUtil}"
+    api "org.plumelib:plume-util:${plumeUtilVersion}"
     // plume-util has an `implementation` dependency on hashmap-util.
     // That follows Gradle's rules, but Gradle's rules are not entirely correct:
     // https://github.com/gradle/gradle/issues/30054
     // To build with JDK 22+, we need to redeclare that dependency here.
-    implementation "org.plumelib:hashmap-util:${versions.hashmapUtil}"
+    implementation "org.plumelib:hashmap-util:${hashmapUtilVersion}"
 
-    testImplementation "junit:junit:${versions.junit}"
+    testImplementation "junit:junit:${junitVersion}"
 
     // External dependencies:
     // If you add an external dependency, you must shadow its packages both in the dataflow-shaded

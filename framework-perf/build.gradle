@@ -26,7 +26,7 @@ dependencies {
     jmh project(':dataflow')
     jmh project(':framework')
     jmh project(':checker-qual')
-    jmh "org.plumelib:plume-util:${versions.plumeUtil}"
+    jmh "org.plumelib:plume-util:${plumeUtilVersion}"
 }
 
 jmh {

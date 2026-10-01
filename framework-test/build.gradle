@@ -10,11 +10,11 @@ sourceSets {
 }
 
 dependencies {
-    implementation "junit:junit:${versions.junit}"
+    implementation "junit:junit:${junitVersion}"
     implementation project(":javacutil")
     implementation project(":checker-qual")
 
-    implementation "org.plumelib:plume-util:${versions.plumeUtil}"
+    implementation "org.plumelib:plume-util:${plumeUtilVersion}"
 
     if (isJava8) {
         // Use compilerFor (not launcherFor): javac lives only in the JDK root, so
