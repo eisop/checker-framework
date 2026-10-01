@@ -410,8 +410,8 @@ public final class CFGVisualizeLauncher {
      * @param <T> the transfer function type that is used to approximate run-time behavior
      * @param cfg the control flow graph to visualize
      * @param verbose show verbose information in CFG
-     * @param analysis analysis to perform before the visualization (or {@code null} if no analysis
-     *     is to be performed)
+     * @param analysis an analysis that has already been performed on {@code cfg}, whose results are
+     *     shown in the visualization (or {@code null} if no analysis results are to be shown)
      * @return a map which includes a key "stringGraph" and the String representation of CFG as the
      *     value
      */
