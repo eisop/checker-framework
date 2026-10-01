@@ -3,7 +3,7 @@
 // is passed in by test-publish-smoketest.sh, which publishes that exact version to an isolated
 // mavenLocal() right before invoking this build.
 plugins {
-    id "java"
+    id("java")
 }
 
 java {
@@ -90,7 +90,7 @@ sourceSets {
 }
 
 dependencies {
-    implementation "io.github.eisop:checker:${checkerVersion}"
+    implementation("io.github.eisop:checker:${checkerVersion}")
     publishedArtifacts.each { artifact ->
         add(configurationNameFor(artifact), "io.github.eisop:${artifact}:${checkerVersion}")
     }
@@ -126,7 +126,7 @@ tasks.register("verifyResolutions") {
         def failures = []
         resolved.each { artifact, filesProvider ->
             def files = filesProvider.get()
-            println "${artifact} -> ${files}"
+            println("${artifact} -> ${files}")
 
             if (!files.any { it == "${artifact}-${version}.jar".toString() }) {
                 failures << "${artifact}: its own jar is missing from the resolution: ${files}"
@@ -191,5 +191,5 @@ tasks.register("verifyResolutions") {
 
 tasks.register("smoketest") {
     description = "Runs every check in this consumer build."
-    dependsOn "compileJava", "compileFrameworkAllJava", "verifyResolutions"
+    dependsOn("compileJava", "compileFrameworkAllJava", "verifyResolutions")
 }

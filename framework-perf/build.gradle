@@ -15,10 +15,10 @@
 // hot" by inspection.
 
 plugins {
-    id "java"
+    id("java")
     // JMH Gradle plugin. Pinned because newer JMH-plugin releases occasionally
     // change task names; bump deliberately, not opportunistically.
-    id "me.champeau.jmh" version "0.7.3"
+    id("me.champeau.jmh").version("0.7.3")
 }
 
 dependencies {

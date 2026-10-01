@@ -103,7 +103,7 @@ ext.createCheckPublicApiNoRelocatedTypesTask = { Project targetProject, List jar
             def problems = []
 
             jars.each { File jar ->
-                println "checkPublicApiNoRelocatedTypes scanning: " + jar
+                println("checkPublicApiNoRelocatedTypes scanning: " + jar)
                 new java.util.zip.ZipFile(jar).withCloseable { zf ->
                     for (entry in Collections.list(zf.entries())) {
                         if (!entry.name.endsWith(".class")

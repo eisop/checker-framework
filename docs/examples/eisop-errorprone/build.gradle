@@ -20,8 +20,8 @@
 //
 
 plugins {
-    id "java"
-    id "net.ltgt.errorprone" version "5.1.1"
+    id("java")
+    id("net.ltgt.errorprone").version("5.1.1")
 }
 
 repositories {
@@ -78,24 +78,24 @@ def frameworkErrorproneJar = {
 dependencies {
     if (useLocal) {
         // Annotations used by the demo source (e.g. @Nullable).
-        compileOnly files(cfDistJar("checker-qual.jar"))
+        compileOnly(files(cfDistJar("checker-qual.jar")))
 
         // Error Prone itself, the eisopcf plugin, and the Checker Framework checkers to run, all
         // on the errorprone (annotation processor) path.  The plugin resolves the selected checker
         // class by name at run time from this path.
-        errorprone "com.google.errorprone:error_prone_core:2.50.0"
-        errorprone files(frameworkErrorproneJar())
+        errorprone("com.google.errorprone:error_prone_core:2.50.0")
+        errorprone(files(frameworkErrorproneJar()))
         // Bundles all Checker Framework checkers.
-        errorprone files(cfDistJar("checker.jar"))
+        errorprone(files(cfDistJar("checker.jar")))
     } else {
         // Annotations used by the demo source (e.g. @Nullable).
-        compileOnly "io.github.eisop:checker-qual:${eisopVersion}"
+        compileOnly("io.github.eisop:checker-qual:${eisopVersion}")
 
         // Error Prone itself, the published eisopcf plugin, and the Checker Framework checkers to
         // run, all on the errorprone (annotation processor) path.
-        errorprone "com.google.errorprone:error_prone_core:2.50.0"
-        errorprone "io.github.eisop:framework-errorprone:${eisopVersion}"
-        errorprone "io.github.eisop:checker:${eisopVersion}"
+        errorprone("com.google.errorprone:error_prone_core:2.50.0")
+        errorprone("io.github.eisop:framework-errorprone:${eisopVersion}")
+        errorprone("io.github.eisop:checker:${eisopVersion}")
     }
 }
 

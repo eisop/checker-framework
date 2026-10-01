@@ -6,23 +6,23 @@ import org.gradle.api.tasks.testing.TestResult
 
 plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
-    id "com.gradleup.shadow" version "9.6.1"
+    id("com.gradleup.shadow").version("9.6.1")
     // https://plugins.gradle.org/plugin/de.undercouch.download
-    id "de.undercouch.download" version "5.7.0"
-    id "java"
+    id("de.undercouch.download").version("5.7.0")
+    id("java")
     // https://github.com/tbroyer/gradle-errorprone-plugin
-    id "net.ltgt.errorprone" version "5.1.1"
+    id("net.ltgt.errorprone").version("5.1.1")
     // https://docs.gradle.org/current/userguide/eclipse_plugin.html
-    id "eclipse"
+    id("eclipse")
     // To show task list as a tree, run: ./gradlew <taskname> taskTree
-    id "com.dorongold.task-tree" version "4.0.2"
+    id("com.dorongold.task-tree").version("4.0.2")
     // needed for formatting Gradle files
-    id "groovy"
+    id("groovy")
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id "com.diffplug.spotless" version "8.10.2"
-    id "io.github.andygoossens.modernizer" version "2.0.0" apply false
+    id("com.diffplug.spotless").version("8.10.2")
+    id("io.github.andygoossens.modernizer").version("2.0.0").apply(false)
 }
 apply from: rootProject.file("release.gradle")
 
@@ -116,7 +116,7 @@ if (!supportedJres.contains(currentRuntimeJavaVersion)) {
 // with a real --include-build run).
 def gitHooksDir = providers.exec {
     workingDir(layout.projectDirectory)
-    commandLine "git", "worktree", "list"
+    commandLine("git", "worktree", "list")
 }.standardOutput.asText.map { String worktreeList ->
     worktreeList.substring(0, worktreeList.indexOf(" ")) + "/.git/hooks"
 }
@@ -124,9 +124,9 @@ def gitHooksDir = providers.exec {
 // No group so it does not show up in the output of `gradlew tasks`
 tasks.register("installGitHooks", Copy) {
     description = "Copies git hooks to .git directory"
-    from files("checker/bin-devel/git.post-merge", "checker/bin-devel/git.pre-commit")
+    from(files("checker/bin-devel/git.post-merge", "checker/bin-devel/git.pre-commit"))
     rename("git\\.(.*)", '$1')
-    into gitHooksDir
+    into(gitHooksDir)
 }
 
 apply plugin: "com.diffplug.spotless"
@@ -322,8 +322,8 @@ allprojects { currentProj ->
 
         format "misc", {
             // define the files to apply `misc` to
-            target "*.md", "*.tex", ".gitignore"
-            targetExclude doNotFormat
+            target("*.md", "*.tex", ".gitignore")
+            targetExclude(doNotFormat)
             // define the steps to apply to those files
             leadingTabsToSpaces(2)
             trimTrailingWhitespace()
@@ -333,15 +333,15 @@ allprojects { currentProj ->
         java {
             if (currentProj != currentProj.rootProject) {
                 // not the root project; format all .java and .ajava files in the sub-project
-                target "**/*.java", "**/*.ajava"
+                target("**/*.java", "**/*.ajava")
             } else {
                 // The Annotation File Utilities are not a Gradle subproject here, so the root
                 // project formats their sources.  Their tests/ directory is not formatted: it
                 // holds test inputs whose expected outputs (the .goal files) depend on the exact
                 // formatting of the input.
-                target "annotation-file-utilities/src/**/*.java"
+                target("annotation-file-utilities/src/**/*.java")
             }
-            targetExclude doNotFormat
+            targetExclude(doNotFormat)
 
             if (eisopFormatting) {
                 googleJavaFormat(googleJavaFormatVersion).aosp()
@@ -359,8 +359,8 @@ allprojects { currentProj ->
         // Only define a groovyGradle task on the root project, for simplicity in setting the target pattern
         if (currentProj == currentProj.rootProject) {
             groovyGradle {
-                target "**/*.gradle"
-                targetExclude doNotFormat
+                target("**/*.gradle")
+                targetExclude(doNotFormat)
                 if (eisopFormatting) {
                     leadingTabsToSpaces(4)
                 } else {
@@ -371,7 +371,7 @@ allprojects { currentProj ->
             }
 
             groovy {
-                target "buildSrc/**/*.groovy"
+                target("buildSrc/**/*.groovy")
                 importOrder()
 
                 // removes semicolons at the end of lines
@@ -382,8 +382,8 @@ allprojects { currentProj ->
 
             format "make", {
                 // define the files to apply `make` to
-                target "Makefile"
-                targetExclude doNotFormat
+                target("Makefile")
+                targetExclude(doNotFormat)
                 // define the steps to apply to those files
                 trimTrailingWhitespace()
                 endWithNewline()
@@ -401,10 +401,10 @@ allprojects { currentProj ->
             doLast {
                 project.tasks.forEach { task ->
                     if (task.name.contains("spotless")) {
-                        println "Inputs for task \"${task.name}\":"
+                        println("Inputs for task \"${task.name}\":")
 
                         task.inputs.files.each { inputFile ->
-                            println "  Input: $inputFile"
+                            println("  Input: $inputFile")
                         }
                     }
                 }
@@ -492,7 +492,7 @@ allprojects { currentProj ->
             if (isJava8) {
                 classpath += configurations.javacJar
             }
-            options.taglets "org.checkerframework.taglet.ManualTaglet"
+            options.taglets("org.checkerframework.taglet.ManualTaglet")
 
             options.tagletPath(project(":framework-test").layout.buildDirectory.dir("classes/java/${tagletVersion}").get().asFile)
 
@@ -771,7 +771,7 @@ tasks.register("version") {
     description = "Print Checker Framework version"
     def v = version
     doLast {
-        println v
+        println(v)
     }
 }
 
@@ -787,7 +787,7 @@ tasks.register("version") {
 def createCheckTypeTask(projectName, taskName, checker, args = []) {
     def proj = project("${projectName}")
     proj.tasks.register("check${taskName}", JavaCompile) {
-        dependsOn ":checker:shadowJar"
+        dependsOn(":checker:shadowJar")
         description = "Run the ${taskName} Checker on the main sources."
         group = "Verification"
         // Always run the task.
@@ -841,7 +841,7 @@ tasks.register("htmlValidate", Exec) {
     group = "Format"
     description = "Validate that HTML files are well-formed"
     // This is the Nu Html Checker (v.Nu): https://github.com/validator/validator
-    executable "html5validator"
+    executable = "html5validator"
     args = [
         "--ignore",
         "/api/",
@@ -906,10 +906,10 @@ project(":framework").afterEvaluate {
 }
 
 tasks.register("addFavicon", Exec) {
-    dependsOn "getHtmlTools"
-    dependsOn "allJavadoc"
-    workingDir "${rootDir}/docs/api"
-    executable "${htmlToolsHome}/html-add-favicon"
+    dependsOn("getHtmlTools")
+    dependsOn("allJavadoc")
+    workingDir = "${rootDir}/docs/api"
+    executable = "${htmlToolsHome}/html-add-favicon"
     args += [
         ".",
         "favicon-checkerframework.png"
@@ -919,9 +919,9 @@ tasks.register("addFavicon", Exec) {
     def apiDir = layout.projectDirectory.dir("docs/api").asFile
     doFirst {
         injectedFiles.fs.copy {
-            from faviconSrc
+            from(faviconSrc)
             rename("CFCheckmark_favicon.png", "favicon-checkerframework.png")
-            into apiDir
+            into(apiDir)
         }
     }
 }
@@ -960,7 +960,7 @@ tasks.register("allJavadoc", Javadoc) {
     // disable interpreting module-info.java files until all sub-modules support them
     modularity.inferModulePath = false
 
-    finalizedBy "addFavicon"
+    finalizedBy("addFavicon")
 }
 
 // See documentation for allJavadoc task.
@@ -968,7 +968,7 @@ tasks.named("javadoc").configure { dependsOn "allJavadoc" }
 
 tasks.register("cleanManual", Exec) {
     description = "Clean the manual"
-    commandLine "make", "-C", "docs/manual", "clean"
+    commandLine("make", "-C", "docs/manual", "clean")
 }
 /* NO-AFU
  tasks.register("cleanAfuManual", Exec) {
@@ -977,7 +977,7 @@ tasks.register("cleanManual", Exec) {
  }
  */
 tasks.named("clean") {
-    dependsOn "cleanManual"
+    dependsOn("cleanManual")
     // NO-AFU dependsOn "cleanAfuManual"
     delete(file("${rootDir}/docs/api"))
 }
@@ -987,19 +987,19 @@ tasks.register("zip", Zip) {
     dependsOn("buildAll")
     archiveFileName = "checker-framework-${version}.zip"
     destinationDirectory = layout.buildDirectory
-    into "checker-framework-${version}"
+    into("checker-framework-${version}")
 
     from(layout.projectDirectory) {
-        exclude "api/**",
+        exclude("api/**",
                 "checker/bin/README",
                 "checker/dist/*.asc",
                 "docs/tutorial/tests/**",
                 "docs/tutorial/src/**",
                 "docs/tutorial/test/**",
                 "docs/tutorial/Makefile",
-                "docs/tutorial/README"
+                "docs/tutorial/README")
 
-        include "README.md",
+        include("README.md",
                 "LICENSE.txt",
                 // NO-AFU "annotation-file-utilities/bin/**",
                 // NO-AFU "annotation-file-utilities/dist/**",
@@ -1031,7 +1031,7 @@ tasks.register("zip", Zip) {
                 "docs/examples/MavenExample/pom.xml",
                 "docs/examples/MavenExample/README",
                 "docs/examples/MavenExample/src/main/java/org/checkerframework/example/MavenExample.java",
-                "docs/tutorial/**"
+                "docs/tutorial/**")
     }
 
     // Archive tasks do not keep file-system permissions, but the javac wrapper must be executable.
@@ -1044,26 +1044,26 @@ tasks.register("zip", Zip) {
     // The front page references the favicon next to itself; it lives under docs/logo,
     // so give it the name and location the page expects.
     from("docs/logo/Checkmark/CFCheckmark_favicon.png") {
-        into "docs/"
+        into("docs/")
         rename("CFCheckmark_favicon.png", "favicon-checkerframework.png")
     }
 
     // Place the dataflow manual under docs/manual/ so the website generator, which lifts that
     // whole directory, surfaces it at cf/manual/checker-framework-dataflow-manual.pdf.
     from("dataflow/manual/checker-framework-dataflow-manual.pdf") {
-        into "docs/manual/"
+        into("docs/manual/")
     }
 
     from("docs/logo/Logo/CFLogo.png") {
-        into "docs/manual/"
+        into("docs/manual/")
     }
 
     from("docs/logo/Logo/CFLogo.png") {
-        into "docs/tutorial/"
+        into("docs/tutorial/")
     }
 
     from("docs/logo/Logo/CFLogo.png") {
-        into "docs/tutorial/webpages"
+        into("docs/tutorial/webpages")
     }
 }
 
@@ -1072,7 +1072,7 @@ configurations {
 }
 
 dependencies {
-    requireJavadoc "org.plumelib:require-javadoc:2.0.0"
+    requireJavadoc("org.plumelib:require-javadoc:2.0.0")
 }
 
 tasks.register("requireJavadoc", JavaExec) {
@@ -1138,7 +1138,7 @@ tasks.register("manual", Exec) {
     // build in the same directory fails; so when both are requested (as by buildAll), make sure
     // the Javadoc already exists.
     mustRunAfter("allJavadoc")
-    commandLine "make", "-C", "docs/manual", "all"
+    commandLine("make", "-C", "docs/manual", "all")
 }
 
 /* NO-AFU
@@ -1170,8 +1170,8 @@ tasks.register("downloadJtreg", Download) {
     doLast {
         injectedFiles.fs.copy {
             // Use "tarTree" when downloading a .tar.gz file
-            from injectedFiles.archives.zipTree(dest)
-            into new File(jtregHomeDir).parentFile
+            from(injectedFiles.archives.zipTree(dest))
+            into(new File(jtregHomeDir).parentFile)
         }
         injected.execOps.exec {
             commandLine("chmod", "+x", jtregHomeDir + "/bin/jtdiff", jtregHomeDir + "/bin/jtreg")
@@ -1213,20 +1213,20 @@ tasks.register("getDemos", CloneTask) {
 tasks.register("pythonIsInstalled", Exec) {
     description = "Check that the python3 executable is installed."
     executable = "python3"
-    args "--version"
+    args("--version")
 }
 
 tasks.register("docTags", Exec) {
     group = "Emacs"
-    commandLine "make", "-C", "docs/manual", "tags"
+    commandLine("make", "-C", "docs/manual", "tags")
 }
 
 tasks.register("tags", Exec) {
     group = "Emacs"
-    dependsOn "docTags"
+    dependsOn("docTags")
     description = "Create Emacs TAGS table"
     // running this task will also run the tags task in the subprojects, which is defined later in this file.
-    commandLine "etags", "-i", "checker/TAGS", "-i", "checker-qual/TAGS", "-i", "checker-util/TAGS", "-i", "dataflow/TAGS", "-i", "framework/TAGS", "-i", "framework-test/TAGS", "-i", "javacutil/TAGS", "-i", "docs/manual/TAGS"
+    commandLine("etags", "-i", "checker/TAGS", "-i", "checker-qual/TAGS", "-i", "checker-util/TAGS", "-i", "dataflow/TAGS", "-i", "framework/TAGS", "-i", "framework-test/TAGS", "-i", "javacutil/TAGS", "-i", "docs/manual/TAGS")
 }
 
 subprojects {
@@ -1307,7 +1307,7 @@ subprojects {
     // javac needs javax.annotation.meta.When to read Guava's annotations; without it `-Werror`
     // fails on "unknown enum constant When.UNKNOWN".
     tasks.withType(com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configureEach {
-        exclude "**/module-info.class"
+        exclude("**/module-info.class")
         dependencies {
             exclude(dependency("com.google.code.findbugs:jsr305:.*"))
         }
@@ -1327,17 +1327,17 @@ subprojects {
         // For an example work-around see NullnessAnnotatedTypeFactory#NONNULL_ALIASES.
 
         // Relocate packages that might conflict with user's classpath.
-        relocate "com.github.javaparser", "org.checkerframework.com.github.javaparser"
-        relocate "org.apache", "org.checkerframework.org.apache"
-        relocate "org.relaxng", "org.checkerframework.org.relaxng"
-        relocate "org.plumelib", "org.checkerframework.org.plumelib"
-        relocate "org.codehaus", "org.checkerframework.org.codehaus"
-        relocate "org.objectweb.asm", "org.checkerframework.org.objectweb.asm"
+        relocate("com.github.javaparser", "org.checkerframework.com.github.javaparser")
+        relocate("org.apache", "org.checkerframework.org.apache")
+        relocate("org.relaxng", "org.checkerframework.org.relaxng")
+        relocate("org.plumelib", "org.checkerframework.org.plumelib")
+        relocate("org.codehaus", "org.checkerframework.org.codehaus")
+        relocate("org.objectweb.asm", "org.checkerframework.org.objectweb.asm")
         // Add the classgraph relocations if it is included in releases.
         // relocate "io.github.classgraph", "org.checkerframework.io.github.classgraph"
         // relocate "nonapi.io.github.classgraph", "org.checkerframework.nonapi.io.github.classgraph"
         // relocate "sun", "org.checkerframework.sun"
-        relocate "com.google", "org.checkerframework.com.google"
+        relocate("com.google", "org.checkerframework.com.google")
 
         minimize()
     }
@@ -1375,14 +1375,14 @@ subprojects {
     }
 
     tasks.matching { it.name == "check" }.configureEach {
-        dependsOn rootProject.tasks.named("checkTaskClosureScoping")
+        dependsOn(rootProject.tasks.named("checkTaskClosureScoping"))
     }
 
     if (!project.name.startsWith("checker-qual-android")) {
         tasks.register("tags", Exec) {
             description = "Create Emacs TAGS table"
             // `ctags -e -f TAGS` used to work in place of `etags`, but apparently no longer.
-            commandLine "bash", "-c", "find . \\( -name build -o -name jtreg -o -name tests \\) -prune -o -name '*.java' -print | sort-directory-order | xargs etags"
+            commandLine("bash", "-c", "find . \\( -name build -o -name jtreg -o -name tests \\) -prune -o -name '*.java' -print | sort-directory-order | xargs etags")
         }
     }
 
@@ -1399,11 +1399,11 @@ subprojects {
             includeEmptyDirs = false
             if (archiveFileName.get().startsWith("checker-qual") || archiveFileName.get().startsWith("checker-util")) {
                 metaInf {
-                    from "./LICENSE.txt"
+                    from("./LICENSE.txt")
                 }
             } else {
                 metaInf {
-                    from "${rootDir}/LICENSE.txt"
+                    from("${rootDir}/LICENSE.txt")
                 }
             }
             manifest {
@@ -1487,7 +1487,7 @@ subprojects {
                 String name = "all"
                 String tests = "."
 
-                executable "${rootProject.jtregHome}/bin/jtreg"
+                executable = "${rootProject.jtregHome}/bin/jtreg"
                 args = [
                     "-dir:${projectDir}/jtreg",
                     "-workDir:${jtregOutput}/${name}/work",
@@ -1554,7 +1554,7 @@ subprojects {
             String junitClassName = file.name.replaceAll(".java", "")
             tasks.register(junitClassName, Test) {
                 description = "Run ${junitClassName} tests."
-                include "**/${name}.class"
+                include("**/${name}.class")
                 testClassesDirs = testing.suites.test.sources.output.classesDirs
                 classpath = testing.suites.test.sources.runtimeClasspath
             }
@@ -1634,7 +1634,7 @@ subprojects {
 
                 // Show the found unexpected diagnostics and expected diagnostics not found.
                 exceptionFormat = "full"
-                events "failed"
+                events("failed")
 
                 // Don't show the uninteresting stack traces from the exceptions.
                 showStackTraces = false
@@ -1652,11 +1652,11 @@ subprojects {
                                 long mils = result.getEndTime() - result.getStartTime()
                                 double seconds = mils / 1000.0
 
-                                println "Testsuite: ${desc.getClassName()}\n" +
+                                println("Testsuite: ${desc.getClassName()}\n" +
                                         "Tests run: ${result.testCount}, " +
                                         "Failures: ${result.failedTestCount}, " +
                                         "Skipped: ${result.skippedTestCount}, " +
-                                        "Time elapsed: ${seconds} sec\n"
+                                        "Time elapsed: ${seconds} sec\n")
                             }
                         }
                     })
@@ -1990,9 +1990,9 @@ final sharedPublicationConfiguration(publication) {
 tasks.register("printJavaVersion") {
     description = "Prints the Java version used to run Gradle."
     doLast {
-        println "Java version used to run Gradle: ${System.getProperty('java.version')}"
+        println("Java version used to run Gradle: ${System.getProperty('java.version')}")
         def currentJvm = org.gradle.internal.jvm.Jvm.current()
-        println currentJvm
+        println(currentJvm)
     }
 }
 

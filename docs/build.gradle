@@ -6,7 +6,7 @@ clean {
     doLast {
         injected.execOps.exec {
             workingDir = examplesDir
-            commandLine "make", "clean"
+            commandLine("make", "clean")
         }
     }
 }

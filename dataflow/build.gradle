@@ -1,21 +1,21 @@
 plugins {
-    id "java-library"
-    id "base"
+    id("java-library")
+    id("base")
 }
 
 dependencies {
-    api project(":javacutil")
-    api project(":checker-qual")
+    api(project(":javacutil"))
+    api(project(":checker-qual"))
 
     // Node implements org.plumelib.util.UniqueId, so this dependency must be "api".
-    api "org.plumelib:plume-util:${plumeUtilVersion}"
+    api("org.plumelib:plume-util:${plumeUtilVersion}")
     // plume-util has an `implementation` dependency on hashmap-util.
     // That follows Gradle's rules, but Gradle's rules are not entirely correct:
     // https://github.com/gradle/gradle/issues/30054
     // To build with JDK 22+, we need to redeclare that dependency here.
-    implementation "org.plumelib:hashmap-util:${hashmapUtilVersion}"
+    implementation("org.plumelib:hashmap-util:${hashmapUtilVersion}")
 
-    testImplementation "junit:junit:${junitVersion}"
+    testImplementation("junit:junit:${junitVersion}")
 
     // External dependencies:
     // If you add an external dependency, you must shadow its packages both in the dataflow-shaded
@@ -34,7 +34,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
  */
 def createDataflowShaded(shadedPkgName) {
     tasks.register("dataflow${shadedPkgName}Jar", ShadowJar) {
-        dependsOn "compileJava"
+        dependsOn("compileJava")
         group = "Build"
         description = "Builds dataflow-${shadedPkgName}.jar."
         includeEmptyDirs = false
@@ -49,7 +49,7 @@ def createDataflowShaded(shadedPkgName) {
         // Without this line, the Maven artifact will have the classifier "all".
         archiveClassifier.set("")
 
-        from shadowJar.source
+        from(shadowJar.source)
         configurations = shadowJar.configurations
 
         destinationDirectory = layout.buildDirectory.dir("shadow/dataflow${shadedPkgName}")
@@ -57,12 +57,12 @@ def createDataflowShaded(shadedPkgName) {
 
         relocate("org.checkerframework", "org.checkerframework.${shadedPkgName}") {
             // Shade all Checker Framework packages, except for the dataflow qualifiers.
-            exclude "org.checkerframework.dataflow.qual.*"
+            exclude("org.checkerframework.dataflow.qual.*")
         }
 
         // Relocate external dependencies
-        relocate "org.plumelib", "org.checkerframework.${shadedPkgName}.org.plumelib"
-        relocate "com.google", "org.checkerframework.${shadedPkgName}.com.google"
+        relocate("org.plumelib", "org.checkerframework.${shadedPkgName}.org.plumelib")
+        relocate("com.google", "org.checkerframework.${shadedPkgName}.com.google")
     }
 }
 
@@ -75,7 +75,7 @@ createDataflowShaded("errorprone")
 tasks.register("manual", Exec) {
     group = "Documentation"
     description = "Build the manual"
-    commandLine "make", "-C", "manual"
+    commandLine("make", "-C", "manual")
 }
 
 tasks.named("clean") {
@@ -110,9 +110,9 @@ tasks.register("allDataflowTests") {
 def testDataflowAnalysis(taskName, dirName, className, runDiff) {
     if (runDiff) {
         tasks.register("${taskName}Diff", Exec) {
-            dependsOn taskName
+            dependsOn(taskName)
             workingDir = "tests/${dirName}"
-            executable "diff"
+            executable = "diff"
             args = [
                 "-u",
                 "Expected.txt",
@@ -171,7 +171,7 @@ def testDataflowAnalysis(taskName, dirName, className, runDiff) {
         classpath += sourceSets.test.output
         mainClass = "${className}"
     if (runDiff) {
-            finalizedBy "${taskName}Diff"
+            finalizedBy("${taskName}Diff")
         }
     }
     tasks.named("allDataflowTests").configure { dependsOn taskName }
@@ -193,7 +193,7 @@ apply from: rootProject.file("gradle-mvn-push.gradle")
 /** Adds information to the publication for uploading the dataflow artifacts to Maven repositories. */
 final dataflowPom(publication) {
     rootProject.sharedPublicationConfiguration(publication)
-    publication.from components.java
+    publication.from(components.java)
     // Information that is in all pom files is configured in checker-framework/gradle-mvn-push.gradle.
     publication.pom {
         name = "Dataflow"
@@ -240,39 +240,39 @@ final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
 publishing {
     publications {
         dataflow(MavenPublication) {
-            dataflowPom it
+            dataflowPom(it)
         }
 
         dataflowShaded(MavenPublication) {
             dataflowShadedPom(it, "shaded")
-            artifact tasks.named("dataflowshadedJar", Jar)
-            artifact sourcesJar
-            artifact javadocJar
+            artifact(tasks.named("dataflowshadedJar", Jar))
+            artifact(sourcesJar)
+            artifact(javadocJar)
         }
 
         dataflowShadednullaway(MavenPublication) {
             dataflowShadedPom(it, "nullaway")
 
-            artifact tasks.named("dataflownullawayJar", Jar)
-            artifact sourcesJar
-            artifact javadocJar
+            artifact(tasks.named("dataflownullawayJar", Jar))
+            artifact(sourcesJar)
+            artifact(javadocJar)
         }
 
         dataflowShadederrorprone(MavenPublication) {
             dataflowShadedPom(it, "errorprone")
 
-            artifact tasks.named("dataflowerrorproneJar", Jar)
-            artifact sourcesJar
-            artifact javadocJar
+            artifact(tasks.named("dataflowerrorproneJar", Jar))
+            artifact(sourcesJar)
+            artifact(javadocJar)
         }
     }
 }
 
 signing {
-    sign publishing.publications.dataflow
-    sign publishing.publications.dataflowShaded
-    sign publishing.publications.dataflowShadednullaway
-    sign publishing.publications.dataflowShadederrorprone
+    sign(publishing.publications.dataflow)
+    sign(publishing.publications.dataflowShaded)
+    sign(publishing.publications.dataflowShadednullaway)
+    sign(publishing.publications.dataflowShadederrorprone)
 }
 
 publishDataflowPublicationToMavenRepository.dependsOn(signDataflowShadedPublication)

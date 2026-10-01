@@ -24,19 +24,19 @@ dependencies {
     // compile against.  Concrete checkers (e.g. NullnessChecker in :checker) are resolved by
     // reflection at runtime from the EP checkers option, so there is no compile-time dependency
     // on :checker (which also keeps this module below :checker in the dependency graph).
-    implementation project(":framework")
+    implementation(project(":framework"))
 
     // Nullness (and other) qualifier annotations used to annotate this module's own API. This
     // module is dog-fooded: the build's checkNullness task runs the Nullness Checker over it.
     // (checker-qual is already on the compile classpath transitively via :framework's api
     // dependency; declared here explicitly because this module imports it directly.)
-    implementation project(":checker-qual")
+    implementation(project(":checker-qual"))
 
     // Error Prone check API: the BugChecker base class and related extension points.
     // A PUBLISHED artifact (not a composite build): the build-graph edge crosses a published
     // -artifact boundary, so Gradle sees no project-path cycle even though error_prone_check_api
     // transitively depends on the published dataflow-errorprone built from this repo.
-    implementation "com.google.errorprone:error_prone_check_api:${errorproneVersion}"
+    implementation("com.google.errorprone:error_prone_check_api:${errorproneVersion}")
 
     // Test-only: run the plugin through Error Prone end-to-end.
     // - error_prone_test_helpers provides CompilationTestHelper (captures ALL compiler
@@ -50,12 +50,12 @@ dependencies {
     //   Gradle variant-attribute matching (the shadow variant is tagged Java-8, incompatible with
     //   this Java-21 module). TEST scope only: main code resolves checkers by reflection, so the
     //   module stays below :checker in the production dependency graph.
-    testImplementation "com.google.errorprone:error_prone_test_helpers:${errorproneVersion}"
-    testImplementation "com.google.errorprone:error_prone_core:${errorproneVersion}"
-    testImplementation files(tasks.getByPath(":checker:shadowJar").archiveFile) {
+    testImplementation("com.google.errorprone:error_prone_test_helpers:${errorproneVersion}")
+    testImplementation("com.google.errorprone:error_prone_core:${errorproneVersion}")
+    testImplementation(files(tasks.getByPath(":checker:shadowJar").archiveFile) {
         builtBy ":checker:shadowJar"
-    }
-    testImplementation "junit:junit:${junitVersion}"
+    })
+    testImplementation("junit:junit:${junitVersion}")
 }
 
 // Error Prone discovers this plugin via a hand-written
@@ -99,7 +99,7 @@ final frameworkErrorpronePom(publication) {
     components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElements) {
         skip()
     }
-    publication.from components.java
+    publication.from(components.java)
     publication.pom {
         name = "Checker Framework as an Error Prone plugin"
         description = String.join(System.lineSeparator(),
@@ -141,5 +141,5 @@ publishing {
 }
 
 signing {
-    sign publishing.publications.frameworkErrorprone
+    sign(publishing.publications.frameworkErrorprone)
 }

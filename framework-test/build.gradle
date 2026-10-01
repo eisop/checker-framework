@@ -1,7 +1,7 @@
 plugins {
     // For the `api` configuration used below: framework-test is a published library whose
     // public signatures expose framework types.
-    id "java-library"
+    id("java-library")
 }
 
 sourceSets {
@@ -10,11 +10,11 @@ sourceSets {
 }
 
 dependencies {
-    implementation "junit:junit:${junitVersion}"
-    implementation project(":javacutil")
-    implementation project(":checker-qual")
+    implementation("junit:junit:${junitVersion}")
+    implementation(project(":javacutil"))
+    implementation(project(":checker-qual"))
 
-    implementation "org.plumelib:plume-util:${plumeUtilVersion}"
+    implementation("org.plumelib:plume-util:${plumeUtilVersion}")
 
     if (isJava8) {
         // Use compilerFor (not launcherFor): javac lives only in the JDK root, so
@@ -35,7 +35,7 @@ dependencies {
     // framework reaches consumers at compile scope: with `implementation` the POM would declare
     // it at runtime scope, off a Maven consumer's compile classpath and absent from the
     // apiElements variant a Gradle consumer resolves.
-    api project(":framework")
+    api(project(":framework"))
 }
 
 // Shadow 9.4.2 eagerly triggers compile tasks for all source sets.
@@ -56,7 +56,7 @@ apply from: rootProject.file("gradle-mvn-push.gradle")
 /** Adds information to the publication for uploading to Maven repositories. */
 final frameworkTest(publication) {
     rootProject.sharedPublicationConfiguration(publication)
-    publication.from components.java
+    publication.from(components.java)
     publication.pom {
         name = "Checker Framework Testing Library"
         description = String.join(System.lineSeparator(),
@@ -75,11 +75,11 @@ final frameworkTest(publication) {
 publishing {
     publications {
         frameworkTest(MavenPublication) {
-            frameworkTest it
+            frameworkTest(it)
         }
     }
 }
 
 signing {
-    sign publishing.publications.frameworkTest
+    sign(publishing.publications.frameworkTest)
 }

@@ -40,8 +40,8 @@ tasks.register("updateVersionNumbers", Copy) {
     // See documentation above.
     dependsOn("updateVersionNumbersInDocs")
     // NO-AFU dependsOn("updateVersionNumbersAFU")
-    from layout.buildDirectory.dir("updateVersionNumbers")
-    into layout.projectDirectory
+    from(layout.buildDirectory.dir("updateVersionNumbers"))
+    into(layout.projectDirectory)
 }
 
 /* NO-AFU
@@ -108,12 +108,12 @@ tasks.register("updateVersionNumbersInDocs", Copy) {
         }
     }
 
-    into layout.buildDirectory.dir("updateVersionNumbers/docs")
+    into(layout.buildDirectory.dir("updateVersionNumbers/docs"))
     from("docs") {
-        include "checker-framework-quick-start.html",
+        include("checker-framework-quick-start.html",
                 "checker-framework-webpage.html",
                 // NO-AFU "annotation-file-utilities/annotation-file-utilities.html",
-                "manual/introduction.tex"
+                "manual/introduction.tex")
 
         filter { String line ->
             String date = LocalDate.now().format(DateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH))
@@ -125,7 +125,7 @@ tasks.register("updateVersionNumbersInDocs", Copy) {
     }
 
     from("docs") {
-        include "manual/external-tools.tex"
+        include("manual/external-tools.tex")
         filter { String line ->
             line = line.replaceAll("checker(|-framework|-qual|-util)([-/])${versionRegex}") { "checker${it[1]}${it[2]}${version}" }
 
@@ -138,7 +138,7 @@ tasks.register("updateVersionNumbersInDocs", Copy) {
     }
 
     from("docs") {
-        include "manual/manual.tex"
+        include("manual/manual.tex")
 
         filter { String line ->
             String date = LocalDate.now().format(DateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH))
@@ -160,7 +160,7 @@ tasks.register("zipMavenExamples", Zip) {
     archiveFileName = "mvn-examples.zip"
     destinationDirectory = webSiteDir
     from("docs/examples/MavenExample") {
-        into "maven-examples-${project.version}"
+        into("maven-examples-${project.version}")
     }
 }
 
@@ -169,21 +169,21 @@ tasks.register("copyToWebsite", Copy) {
     dependsOn(":allJavadoc", ":manual", ":dataflow:manual", ":zip", "zipMavenExamples")
 
     def website = webSiteDir
-    into website // affects all `into` clauses
+    into(website) // affects all `into` clauses
 
-    from tasks.named("zip")
+    from(tasks.named("zip"))
     from("docs") {
         include("checker-framework-webpage.html", "CHANGELOG.md")
     }
 
     from("docs/logo/Logo/CFLogo.png") {
-        into "tutorial/"
+        into("tutorial/")
     }
     from("docs/logo/Logo/CFLogo.png") {
-        into "tutorial/webpages"
+        into("tutorial/webpages")
     }
     from("docs/logo/Logo/CFLogo.png") {
-        into "manual"
+        into("manual")
     }
 
     // Copy favicon
@@ -191,40 +191,40 @@ tasks.register("copyToWebsite", Copy) {
         rename("CFCheckmark_favicon.png", "favicon-checkerframework.png")
     }
     from("docs/logo/Checkmark/CFCheckmark_favicon.png") {
-        into "manual"
+        into("manual")
         rename("CFCheckmark_favicon.png", "favicon-checkerframework.png")
     }
 
     // Copy manual files
     from("docs/manual") {
-        into "manual"
-        include "manual.html",
+        into("manual")
+        include("manual.html",
                 "manual.pdf",
                 "*.svg",
-                "manual001.png"
+                "manual001.png")
     }
 
     // Copy developer docs
     from("docs/developer") {
-        into "manual"
-        include "developer-manual.html",
+        into("manual")
+        include("developer-manual.html",
                 "gsoc-ideas.html",
-                "new-contributor-projects.html"
+                "new-contributor-projects.html")
     }
 
     // Copy Dataflow manual
     from("dataflow/manual/checker-framework-dataflow-manual.pdf") {
-        into "manual"
+        into("manual")
     }
 
     // Copy tutorial
     from("docs/tutorial") {
-        into "tutorial"
+        into("tutorial")
     }
 
     // Copy Javadoc
     from("docs/api") {
-        into "api"
+        into("api")
     }
 
     /* NO-AFU
@@ -258,8 +258,8 @@ tasks.register("updateCopyMavenExample", Copy) {
     // This task is used during the release in "sanity_checks.py" to check that the Maven artifacts were uploaded correctly.
     description = "Copies the Maven example to the location in property destDir, using this build's version."
     def destDir = layout.projectDirectory.dir(providers.gradleProperty("destDir")).map { it.dir("MavenExample") }
-    into destDir
-    from "docs/examples/MavenExample"
+    into(destDir)
+    from("docs/examples/MavenExample")
 
     // Match the pom property itself rather than marker comments around its value: Renovate
     // rewrites this property in place and drops any such markers.
