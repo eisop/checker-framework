@@ -121,7 +121,7 @@ public class SameLenTransfer extends CFTransfer {
     }
 
     AnnotationMirror rightAnno =
-        atypeFactory.getAnnotatedType(exprNode.getTree()).getPrimaryAnnotationInHierarchy(UNKNOWN);
+        atypeFactory.getAnnotatedType(exprNode.getTree()).getAnnotationInHierarchy(UNKNOWN);
 
     // If the left side of the assignment is an array or a string, then have both the right and
     // left side be SameLen of each other.

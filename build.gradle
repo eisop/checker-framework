@@ -263,7 +263,7 @@ allprojects { currentProj ->
         // exported, not opened; com.sun.tools.javac.comp is opened because the Checker Framework
         // reflectively accesses its private members.
         def javacExportedPackages = [
-            'api', 'code', 'file', 'main', 'model', 'processing', 'tree', 'util',
+            'api', 'code', 'file', 'main', 'model', 'parser', 'processing', 'tree', 'util',
         ]
         def javacOpenedPackages = ['comp']
         // Expose the bare package-name lists so other tasks (e.g. the Javadoc --add-exports below)
@@ -561,6 +561,8 @@ allprojects { currentProj ->
                     '--add-exports',
                     'jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED',
                     '--add-exports',
+                    'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+                    '--add-exports',
                     'jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
                     '--add-exports',
                     'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
@@ -647,6 +649,8 @@ allprojects { currentProj ->
                     // Would require @CanIgnoreReturnValue (EP annotation).
                     // It would be great if Error Prone recognized the @This annotation.
                     '-Xep:CanIgnoreReturnValueSuggester:OFF',
+                    // Would require @DoNotCall (EP annotation).
+                    '-Xep:DoNotCallSuggester:OFF',
 
                     // -------------------------------------------------------------------------
                     // Enabled checks: standard EP checks, severity raised to ERROR.
@@ -1351,7 +1355,9 @@ subprojects {
         // The checkNullness task runs on all code, but it only *checks* the following code:
         //  * All files outside the 'framework' and 'checker' subprojects.
         //  * In the 'framework' and 'checker' subprojects, files with `@AnnotatedFor("nullness")`.
-        if (isFramework || isChecker) {
+        // To check all code in all subprojects, pass `-PnullnessAll`.
+        boolean nullnessAll = project.hasProperty('nullnessAll')
+        if (!nullnessAll && (isFramework || isChecker)) {
             rootProject.createCheckTypeTask(project.name,'Nullness',
                     'org.checkerframework.checker.nullness.NullnessChecker',
                     [

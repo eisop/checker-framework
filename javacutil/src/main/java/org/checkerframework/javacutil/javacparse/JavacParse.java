@@ -120,7 +120,6 @@ public final class JavacParse {
    * @param methodSource the string representation of a Java expression
    * @return the parsed expression
    */
-  @SuppressWarnings("DoNotCallSuggester") // Don't want to add a dependency to Error Prone.
   public static JavacParseResult<MethodTree> parseMethod(String methodSource) {
     // TODO
     throw new Error("to implement");

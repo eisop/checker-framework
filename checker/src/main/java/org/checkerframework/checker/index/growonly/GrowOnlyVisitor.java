@@ -33,7 +33,7 @@ public class GrowOnlyVisitor extends BaseTypeVisitor<GrowOnlyAnnotatedTypeFactor
       NewClassTree newClassTree) {
     AnnotatedTypeMirror newClassType = atypeFactory.getAnnotatedType(newClassTree);
 
-    if (constructorType.getReturnType().hasPrimaryAnnotation(UnshrinkableRef.class)) {
+    if (constructorType.getReturnType().hasAnnotation(UnshrinkableRef.class)) {
       // The constructor's return type is the default (@UnshrinkableRef).
       // This is the normal case for unannotated JDK constructors.
       // *Do not* call super. This suppresses the default warning.
@@ -43,7 +43,7 @@ public class GrowOnlyVisitor extends BaseTypeVisitor<GrowOnlyAnnotatedTypeFactor
     super.checkConstructorInvocation(enclosingType, constructorType, newClassTree);
 
     // Warn about `new @BottomGrowShrink ArrayList<>()`.
-    if (newClassType.hasPrimaryAnnotation(BottomGrowShrink.class)) {
+    if (newClassType.hasAnnotation(BottomGrowShrink.class)) {
       checker.reportError(newClassTree, "growonly.new.bottom");
     }
   }
