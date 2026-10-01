@@ -107,13 +107,13 @@ public final class CFGVisualizeLauncher {
           return;
         }
 
-          String stringGraph = (String) res.get("stringGraph");
-          if (stringGraph == null) {
-            System.err.println(
+        String stringGraph = (String) res.get("stringGraph");
+        if (stringGraph == null) {
+          System.err.println(
               "\"stringGraph\" key shouldn't map to null when generating string CFG: " + res);
-            return;
-          }
-          System.out.println(stringGraph);
+          return;
+        }
+        System.out.println(stringGraph);
       }
     }
   }
@@ -188,7 +188,7 @@ public final class CFGVisualizeLauncher {
           @Nullable Analysis<V, S, T> analysis) {
     ControlFlowGraph cfg = generateMethodCFG(inputFile, method, clas, analysis);
     generateDOTofCFG(cfg, outputDir, pdf, verbose, analysis);
-    }
+  }
 
   /**
    * Generate the DOT and PDF representations of the CFG for a method.
@@ -383,7 +383,7 @@ public final class CFGVisualizeLauncher {
     ControlFlowGraph cfg = generateMethodCFG(inputFile, method, clas, analysis);
 
     return generateStringOfCFG(cfg, verbose, analysis);
-    }
+  }
 
   /**
    * Generate the String representation of the CFG for a method.
