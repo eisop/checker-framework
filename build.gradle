@@ -349,6 +349,12 @@ allprojects { currentProj ->
             if (currentProj != currentProj.rootProject) {
                 // not the root project; format all .java and .ajava files in the sub-project
                 target '**/*.java', '**/*.ajava'
+            } else {
+                // The Annotation File Utilities are not a Gradle subproject here, so the root
+                // project formats their sources.  Their tests/ directory is not formatted: it
+                // holds test inputs whose expected outputs (the .goal files) depend on the exact
+                // formatting of the input.
+                target 'annotation-file-utilities/src/**/*.java'
             }
             targetExclude doNotFormat
 
