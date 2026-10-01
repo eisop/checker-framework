@@ -11,10 +11,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 public @interface TestRootDirectory {
-    /**
-     * Path, relative to the current/module directory, within which to search for test sources.
-     *
-     * @return tests root directory
-     */
-    String value();
+  /**
+   * Path, relative to the current/module directory, within which to search for test sources.
+   *
+   * @return tests root directory
+   */
+  String value();
 }

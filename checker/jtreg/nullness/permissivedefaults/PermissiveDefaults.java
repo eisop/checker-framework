@@ -13,18 +13,17 @@
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-
 import permissivedefaultslib.Lib;
 
 public class PermissiveDefaults {
-    void calls() {
-        Lib.setObject(null);
-        Lib.getObject().toString();
-    }
+  void calls() {
+    Lib.setObject(null);
+    Lib.getObject().toString();
+  }
 
-    void bounds(Lib<@Nullable Object> nullableArgument, Lib<@NonNull Object> nonNullArgument) {
-        Lib.upper(nullableArgument);
-        Lib.lower(nullableArgument);
-        Lib.lower(nonNullArgument);
-    }
+  void bounds(Lib<@Nullable Object> nullableArgument, Lib<@NonNull Object> nonNullArgument) {
+    Lib.upper(nullableArgument);
+    Lib.lower(nullableArgument);
+    Lib.lower(nonNullArgument);
+  }
 }

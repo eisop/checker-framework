@@ -11,6 +11,6 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
  */
 public class IntersectionGlbChecker extends BaseTypeChecker {
 
-    /** Creates an IntersectionGlbChecker. */
-    public IntersectionGlbChecker() {}
+  /** Creates an IntersectionGlbChecker. */
+  public IntersectionGlbChecker() {}
 }

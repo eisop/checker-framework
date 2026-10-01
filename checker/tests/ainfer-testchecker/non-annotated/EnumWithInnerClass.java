@@ -4,18 +4,18 @@
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1;
 
 enum EnumWithInnerClass {
-    CONSTANT;
+  CONSTANT;
 
-    private static class MyInnerClass {
-        int getAinferSibling1() {
-            return (@AinferSibling1 int) 0;
-        }
-
-        void requireAinferSibling1(@AinferSibling1 int x) {}
-
-        void test() {
-            // :: warning: argument.type.incompatible
-            requireAinferSibling1(getAinferSibling1());
-        }
+  private static class MyInnerClass {
+    int getAinferSibling1() {
+      return (@AinferSibling1 int) 0;
     }
+
+    void requireAinferSibling1(@AinferSibling1 int x) {}
+
+    void test() {
+      // :: warning: argument.type.incompatible
+      requireAinferSibling1(getAinferSibling1());
+    }
+  }
 }

@@ -1,7 +1,6 @@
 package org.checkerframework.framework.util.typeinference8;
 
 import com.sun.source.tree.ExpressionTree;
-
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 
@@ -30,18 +29,18 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
  */
 public interface TypeArgumentInference {
 
-    /**
-     * Infer the type arguments for the method or constructor invocation given by invocation.
-     *
-     * @param typeFactory the type factory used to create methodType
-     * @param invocation a tree representing the method or constructor invocation for which we are
-     *     inferring type arguments
-     * @param methodType the declaration type of method elem
-     * @return the result which includes the inferred type arguments or an error message if they
-     *     were not inferred
-     */
-    InferenceResult inferTypeArgs(
-            AnnotatedTypeFactory typeFactory,
-            ExpressionTree invocation,
-            AnnotatedExecutableType methodType);
+  /**
+   * Infer the type arguments for the method or constructor invocation given by invocation.
+   *
+   * @param typeFactory the type factory used to create methodType
+   * @param invocation a tree representing the method or constructor invocation for which we are
+   *     inferring type arguments
+   * @param methodType the declaration type of method elem
+   * @return the result which includes the inferred type arguments or an error message if they were
+   *     not inferred
+   */
+  InferenceResult inferTypeArgs(
+      AnnotatedTypeFactory typeFactory,
+      ExpressionTree invocation,
+      AnnotatedExecutableType methodType);
 }

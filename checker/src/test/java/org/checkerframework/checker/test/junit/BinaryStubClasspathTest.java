@@ -26,16 +26,16 @@ import org.junit.Test;
  */
 public class BinaryStubClasspathTest {
 
-    /**
-     * Asserts that the binary form of the nullness checker's built-in {@code jdk11.astub} is
-     * present on the classpath.
-     */
-    @Test
-    public void nullnessBuiltinStubBinaryIsOnClasspath() {
-        Assert.assertNotNull(
-                "checker/src/main/java/org/checkerframework/checker/nullness/jdk11.astub.bin.gz"
-                        + " is missing from the classpath; generateBinaryStubFiles output is not"
-                        + " wired into resources (see commit 278a3e3b)",
-                NullnessChecker.class.getResource("jdk11.astub" + BinaryStubData.BIN_SUFFIX));
-    }
+  /**
+   * Asserts that the binary form of the nullness checker's built-in {@code jdk11.astub} is present
+   * on the classpath.
+   */
+  @Test
+  public void nullnessBuiltinStubBinaryIsOnClasspath() {
+    Assert.assertNotNull(
+        "checker/src/main/java/org/checkerframework/checker/nullness/jdk11.astub.bin.gz"
+            + " is missing from the classpath; generateBinaryStubFiles output is not"
+            + " wired into resources (see commit 278a3e3b)",
+        NullnessChecker.class.getResource("jdk11.astub" + BinaryStubData.BIN_SUFFIX));
+  }
 }

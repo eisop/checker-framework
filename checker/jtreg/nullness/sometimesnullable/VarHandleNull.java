@@ -16,41 +16,40 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class VarHandleNull {
-    volatile ConcurrentMap<Object, Object> field = new ConcurrentHashMap<>();
+  volatile ConcurrentMap<Object, Object> field = new ConcurrentHashMap<>();
 
-    static final VarHandle HANDLE;
+  static final VarHandle HANDLE;
 
-    static {
-        try {
-            HANDLE =
-                    MethodHandles.lookup()
-                            .findVarHandle(VarHandleNull.class, "field", ConcurrentMap.class);
-        } catch (ReflectiveOperationException e) {
-            throw new ExceptionInInitializerError(e);
-        }
+  static {
+    try {
+      HANDLE =
+          MethodHandles.lookup().findVarHandle(VarHandleNull.class, "field", ConcurrentMap.class);
+    } catch (ReflectiveOperationException e) {
+      throw new ExceptionInInitializerError(e);
     }
+  }
 
-    void set(ConcurrentMap<Object, Object> value) {
-        HANDLE.set(this, null);
-        HANDLE.setVolatile(this, null);
-        HANDLE.setRelease(this, null);
-        HANDLE.setOpaque(this, null);
-    }
+  void set(ConcurrentMap<Object, Object> value) {
+    HANDLE.set(this, null);
+    HANDLE.setVolatile(this, null);
+    HANDLE.setRelease(this, null);
+    HANDLE.setOpaque(this, null);
+  }
 
-    void compareAndSet(ConcurrentMap<Object, Object> value) {
-        HANDLE.compareAndSet(this, null, value);
-        HANDLE.weakCompareAndSet(this, null, value);
-        HANDLE.weakCompareAndSetPlain(this, null, value);
-        HANDLE.weakCompareAndSetAcquire(this, null, value);
-        HANDLE.weakCompareAndSetRelease(this, null, value);
-    }
+  void compareAndSet(ConcurrentMap<Object, Object> value) {
+    HANDLE.compareAndSet(this, null, value);
+    HANDLE.weakCompareAndSet(this, null, value);
+    HANDLE.weakCompareAndSetPlain(this, null, value);
+    HANDLE.weakCompareAndSetAcquire(this, null, value);
+    HANDLE.weakCompareAndSetRelease(this, null, value);
+  }
 
-    void exchange(ConcurrentMap<Object, Object> value) {
-        HANDLE.compareAndExchange(this, null, value);
-        HANDLE.compareAndExchangeAcquire(this, null, value);
-        HANDLE.compareAndExchangeRelease(this, null, value);
-        HANDLE.getAndSet(this, null);
-        HANDLE.getAndSetAcquire(this, null);
-        HANDLE.getAndSetRelease(this, null);
-    }
+  void exchange(ConcurrentMap<Object, Object> value) {
+    HANDLE.compareAndExchange(this, null, value);
+    HANDLE.compareAndExchangeAcquire(this, null, value);
+    HANDLE.compareAndExchangeRelease(this, null, value);
+    HANDLE.getAndSet(this, null);
+    HANDLE.getAndSetAcquire(this, null);
+    HANDLE.getAndSetRelease(this, null);
+  }
 }

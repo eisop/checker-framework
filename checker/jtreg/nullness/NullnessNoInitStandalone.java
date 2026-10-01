@@ -10,15 +10,15 @@
 
 public class NullnessNoInitStandalone {
 
-    static class SkipMe {
-        static Object foo() {
-            return null;
-        }
+  static class SkipMe {
+    static Object foo() {
+      return null;
     }
+  }
 
-    static class DontSkip {
-        static Object foo() {
-            return null;
-        }
+  static class DontSkip {
+    static Object foo() {
+      return null;
     }
+  }
 }
