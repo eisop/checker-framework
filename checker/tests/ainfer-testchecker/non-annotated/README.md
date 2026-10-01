@@ -1,4 +1,4 @@
-oThe files in this directory are tested while using the `-Ainfer` option.
+The files in this directory are tested while using the `-Ainfer` option.
 For this reason, each of these files is typechecked twice: once to infer
 annotations (the "Generate" phase), and a second time to ensure no more
 errors are issued once whole-program inference has been run (the "Validate"
