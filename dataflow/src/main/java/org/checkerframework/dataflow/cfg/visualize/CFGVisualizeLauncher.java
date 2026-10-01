@@ -338,7 +338,7 @@ public final class CFGVisualizeLauncher {
      */
     @SuppressWarnings("CatchAndPrintStackTrace") // we want to use e.printStackTrace here.
     public static void writeStringOfCFG(
-            ControlFlowGraph cfg, String outputFile, Analysis<?, ?, ?> analysis) {
+            ControlFlowGraph cfg, String outputFile, @Nullable Analysis<?, ?, ?> analysis) {
         Map<String, Object> res = generateStringOfCFG(cfg, true, analysis);
         try (BufferedWriter out =
                 Files.newBufferedWriter(Paths.get(outputFile), StandardCharsets.UTF_8)) {
