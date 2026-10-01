@@ -746,7 +746,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
             // Don't call super for non-pattern instanceof because it will issue an incorrect
             // instanceof.unsafe warning when testing a @Nullable expression against a @NonNull
-            // type.
+            // type.  Instead, just scan the part before "instanceof".
+            super.scan(tree.getExpression(), p);
             return null;
         }
     }
@@ -1052,7 +1053,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      */
     /*package-private*/ static @Nullable String literalFirstArgument(MethodInvocationTree tree) {
         List<? extends ExpressionTree> args = tree.getArguments();
-        assert args.size() > 0;
+        assert !args.isEmpty();
         ExpressionTree arg = args.get(0);
         if (arg.getKind() == Tree.Kind.STRING_LITERAL) {
             String literal = (String) ((LiteralTree) arg).getValue();

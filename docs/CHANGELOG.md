@@ -349,6 +349,25 @@ typetools#3203,
 typetools#8055.
 
 
+Version 3.52.0 (2025-11-04)
+---------------------------
+
+**Implementation details:**
+
+In `CFAbstractAnalysis`, renamed `defaultCreateAbstractValue` to `getCfValue`
+
+EISOP: `CFAbstractAnalysis#defaultCreateAbstractValue` keeps its name, because it is a
+default implementation of `createAbstractValue`, not a getter.
+
+In `GenericAnnotatedTypeFactory`:
+* renamed `performFlowAnalysis` to `performFlowAnalysisForClass`
+* renamed `checkAndPerformFlowAnalysis` to `performFlowAnalysisForClassOnce`
+
+**Closed issues:**
+
+#6629, #7341, #7346.
+
+
 Version 3.51.1 (2025-10-01)
 ---------------------------
 

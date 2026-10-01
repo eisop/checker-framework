@@ -20,23 +20,23 @@ java {
 
 dependencies {
     // The CF core engine (SourceChecker, BaseTypeChecker, AggregateChecker) lives here.
-    // 'implementation', not 'api': framework-errorprone is a launcher, not a library others
+    // "implementation", not "api": framework-errorprone is a launcher, not a library others
     // compile against.  Concrete checkers (e.g. NullnessChecker in :checker) are resolved by
     // reflection at runtime from the EP checkers option, so there is no compile-time dependency
     // on :checker (which also keeps this module below :checker in the dependency graph).
-    implementation project(':framework')
+    implementation(project(":framework"))
 
     // Nullness (and other) qualifier annotations used to annotate this module's own API. This
     // module is dog-fooded: the build's checkNullness task runs the Nullness Checker over it.
     // (checker-qual is already on the compile classpath transitively via :framework's api
     // dependency; declared here explicitly because this module imports it directly.)
-    implementation project(':checker-qual')
+    implementation(project(":checker-qual"))
 
     // Error Prone check API: the BugChecker base class and related extension points.
     // A PUBLISHED artifact (not a composite build): the build-graph edge crosses a published
     // -artifact boundary, so Gradle sees no project-path cycle even though error_prone_check_api
     // transitively depends on the published dataflow-errorprone built from this repo.
-    implementation "com.google.errorprone:error_prone_check_api:${versions.errorprone}"
+    implementation("com.google.errorprone:error_prone_check_api:${errorproneVersion}")
 
     // Test-only: run the plugin through Error Prone end-to-end.
     // - error_prone_test_helpers provides CompilationTestHelper (captures ALL compiler
@@ -50,12 +50,12 @@ dependencies {
     //   Gradle variant-attribute matching (the shadow variant is tagged Java-8, incompatible with
     //   this Java-21 module). TEST scope only: main code resolves checkers by reflection, so the
     //   module stays below :checker in the production dependency graph.
-    testImplementation "com.google.errorprone:error_prone_test_helpers:${versions.errorprone}"
-    testImplementation "com.google.errorprone:error_prone_core:${versions.errorprone}"
-    testImplementation files(tasks.getByPath(':checker:shadowJar').archiveFile) {
-        builtBy ':checker:shadowJar'
-    }
-    testImplementation "junit:junit:${versions.junit}"
+    testImplementation("com.google.errorprone:error_prone_test_helpers:${errorproneVersion}")
+    testImplementation("com.google.errorprone:error_prone_core:${errorproneVersion}")
+    testImplementation(files(tasks.getByPath(":checker:shadowJar").archiveFile) {
+        builtBy ":checker:shadowJar"
+    })
+    testImplementation("junit:junit:${junitVersion}")
 }
 
 // Error Prone discovers this plugin via a hand-written
@@ -75,14 +75,14 @@ tasks.withType(JavaCompile).configureEach {
 // --add-exports of com.sun.tools.javac.parser which Error Prone's ASTHelpers requires.
 tasks.withType(Test).configureEach {
     jvmArgs += compilerArgsForRunningCF
-    jvmArgs += ['--add-exports', 'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED']
+    jvmArgs += ["--add-exports", "jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"]
 }
 
-tasks.named('jar') {
-    archiveBaseName = 'framework-errorprone'
+tasks.named("jar") {
+    archiveBaseName = "framework-errorprone"
 }
 
-apply from: rootProject.file('gradle-mvn-push.gradle')
+apply from: rootProject.file("gradle-mvn-push.gradle")
 
 /**
  * Adds information to the publication for uploading to Maven repositories.
@@ -99,35 +99,35 @@ final frameworkErrorpronePom(publication) {
     components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElements) {
         skip()
     }
-    publication.from components.java
+    publication.from(components.java)
     publication.pom {
-        name = 'Checker Framework as an Error Prone plugin'
+        name = "Checker Framework as an Error Prone plugin"
         description = String.join(System.lineSeparator(),
-                'framework-errorprone runs the EISOP Checker Framework as an Error Prone plugin',
-                '(the "eisopcf" check), as an alternative to running it as a standalone javac',
-                'annotation processor. It requires JDK 21 or later.')
-        url = 'https://eisop.github.io/'
+                "framework-errorprone runs the EISOP Checker Framework as an Error Prone plugin",
+                "(the \"eisopcf\" check), as an alternative to running it as a standalone javac",
+                "annotation processor. It requires JDK 21 or later.")
+        url = "https://eisop.github.io/"
         developers {
             developer {
-                id = 'wmdietl'
-                name = 'Werner M. Dietl'
-                email = 'wdietl@gmail.com'
-                url = 'https://ece.uwaterloo.ca/~wdietl/'
-                organization = 'University of Waterloo'
-                organizationUrl = 'https://uwaterloo.ca/'
+                id = "wmdietl"
+                name = "Werner M. Dietl"
+                email = "wdietl@gmail.com"
+                url = "https://ece.uwaterloo.ca/~wdietl/"
+                organization = "University of Waterloo"
+                organizationUrl = "https://uwaterloo.ca/"
             }
         }
         licenses {
             license {
-                name = 'GNU General Public License, version 2 (GPL2), with the classpath exception'
-                url = 'http://www.gnu.org/software/classpath/license.html'
-                distribution = 'repo'
+                name = "GNU General Public License, version 2 (GPL2), with the classpath exception"
+                url = "http://www.gnu.org/software/classpath/license.html"
+                distribution = "repo"
             }
         }
         scm {
-            url = 'https://github.com/eisop/checker-framework.git'
-            connection = 'scm:git:https://github.com/eisop/checker-framework.git'
-            developerConnection = 'scm:git:ssh://git@github.com/eisop/checker-framework.git'
+            url = "https://github.com/eisop/checker-framework.git"
+            connection = "scm:git:https://github.com/eisop/checker-framework.git"
+            developerConnection = "scm:git:ssh://git@github.com/eisop/checker-framework.git"
         }
     }
 }
@@ -141,5 +141,5 @@ publishing {
 }
 
 signing {
-    sign publishing.publications.frameworkErrorprone
+    sign(publishing.publications.frameworkErrorprone)
 }

@@ -4,30 +4,30 @@
 //
 
 plugins {
-    id 'java'
-    id 'org.checkerframework' version '1.0.2'
+    id("java")
+    id("org.checkerframework").version("1.0.2")
 }
 
 ext {
     versions = [
-        eisopVersion: '3.49.5-eisop1',
-        typetoolsQualVersion: '4.2.3',
+        eisopVersion: "3.49.5-eisop1",
+        typetoolsQualVersion: "4.2.3",
     ]
 }
 
-boolean useLocal = findProperty('cfVersion') == 'local'
-def cfRoot = rootProject.file('../../..')
+boolean useLocal = findProperty("cfVersion") == "local"
+def cfRoot = rootProject.file("../../..")
 
 dependencies {
     // Crucial: compileClasspath uses typetools checker-qual, NOT EISOP's checker-qual.
     // Typetools checker-qual does not have the EISOP-specific applyToSubpackages attribute on @DefaultQualifier.
-    compileOnly "org.checkerframework:checker-qual:${versions.typetoolsQualVersion}"
-    testCompileOnly "org.checkerframework:checker-qual:${versions.typetoolsQualVersion}"
+    compileOnly("org.checkerframework:checker-qual:${versions.typetoolsQualVersion}")
+    testCompileOnly("org.checkerframework:checker-qual:${versions.typetoolsQualVersion}")
 
     if (useLocal) {
-        checkerFramework files("${cfRoot}/checker/dist/checker.jar")
+        checkerFramework(files("${cfRoot}/checker/dist/checker.jar"))
     } else {
-        checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+        checkerFramework("io.github.eisop:checker:${versions.eisopVersion}")
     }
 }
 
@@ -38,9 +38,9 @@ repositories {
 checkerFramework {
     version = "dependencies"
     checkers = [
-        'org.checkerframework.checker.interning.InterningChecker',
+        "org.checkerframework.checker.interning.InterningChecker",
     ]
-    extraJavacArgs = ['-Aversion']
+    extraJavacArgs = ["-Aversion"]
 }
 
 compileJava {

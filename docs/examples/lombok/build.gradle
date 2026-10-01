@@ -3,10 +3,10 @@
 //
 
 plugins {
-    id 'java'
-    id 'io.freefair.lombok' version '9.7.0'
+    id("java")
+    id("io.freefair.lombok").version("9.7.0")
     // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '1.0.2'
+    id("org.checkerframework").version("1.0.2")
 }
 
 lombok {
@@ -15,7 +15,7 @@ lombok {
 
 ext {
     versions = [
-        eisopVersion: '3.49.5-eisop1',
+        eisopVersion: "3.49.5-eisop1",
     ]
 }
 
@@ -33,7 +33,7 @@ repositories {
 checkerFramework {
     version = "dependencies"
     checkers = [
-        'org.checkerframework.checker.nullness.NullnessChecker',
+        "org.checkerframework.checker.nullness.NullnessChecker",
     ]
-    extraJavacArgs = ['-Aversion']
+    extraJavacArgs = ["-Aversion"]
 }

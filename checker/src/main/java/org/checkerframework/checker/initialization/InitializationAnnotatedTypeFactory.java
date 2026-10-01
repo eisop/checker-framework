@@ -78,7 +78,7 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
      * @return the factory of the {@link InitializationFieldAccessSubchecker}, or {@code null} if
      *     not yet initialized
      * @see #createFlowAnalysis()
-     * @see #performFlowAnalysis(ClassTree)
+     * @see #performFlowAnalysisForClass(ClassTree)
      * @see #getRegularExitStore(Tree)
      * @see #getExceptionalExitStore(Tree)
      * @see #getReturnStatementStores(MethodTree)
@@ -96,7 +96,7 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
     }
 
     @Override
-    protected void performFlowAnalysis(ClassTree classTree) {
+    protected void performFlowAnalysisForClass(ClassTree classTree) {
         flowResult = getFieldAccessFactory().getFlowResult();
     }
 

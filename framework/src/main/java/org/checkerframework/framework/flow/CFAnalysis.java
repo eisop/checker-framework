@@ -1,5 +1,6 @@
 package org.checkerframework.framework.flow;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -32,7 +33,8 @@ public class CFAnalysis extends CFAbstractAnalysis<CFValue, CFStore, CFTransfer>
     }
 
     @Override
-    public CFValue createAbstractValue(AnnotationMirrorSet annotations, TypeMirror underlyingType) {
+    public @Nullable CFValue createAbstractValue(
+            AnnotationMirrorSet annotations, TypeMirror underlyingType) {
         return defaultCreateAbstractValue(this, annotations, underlyingType);
     }
 }

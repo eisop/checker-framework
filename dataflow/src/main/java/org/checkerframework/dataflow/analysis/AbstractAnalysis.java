@@ -660,7 +660,7 @@ public abstract class AbstractAnalysis<
          * See {@link PriorityQueue#isEmpty}.
          *
          * @see PriorityQueue#isEmpty
-         * @return true if {@link #queue} is empty else false
+         * @return true if this Worklist is empty
          */
         @Pure
         @EnsuresNonNullIf(result = false, expression = "poll()")
@@ -671,20 +671,20 @@ public abstract class AbstractAnalysis<
         }
 
         /**
-         * Check if {@link #queue} contains the block which is passed as the argument.
+         * Returns true if this Worklist contains the given block.
          *
          * @param block the given block to check
-         * @return true if {@link #queue} contains the given block
+         * @return true if this Worklist contains the given block
          */
         public boolean contains(Block block) {
             return queueSet.contains(block);
         }
 
         /**
-         * Add the given block to {@link #queue}. Adds unconditionally: does not check containment
+         * Add the given block to this Worklist. Adds unconditionally: does not check containment
          * first.
          *
-         * @param block the block to add to {@link #queue}
+         * @param block the block to add to this Worklist
          */
         public void add(Block block) {
             queue.add(block);
@@ -692,10 +692,10 @@ public abstract class AbstractAnalysis<
         }
 
         /**
-         * See {@link PriorityQueue#poll}.
+         * Returns the head of this Worklist.
          *
          * @see PriorityQueue#poll
-         * @return the head of {@link #queue}
+         * @return the head of this Worklist
          */
         @Pure
         public @Nullable Block poll() {
@@ -703,6 +703,19 @@ public abstract class AbstractAnalysis<
             if (result != null) {
                 queueSet.remove(result);
             }
+            return result;
+        }
+
+        /**
+         * Returns the head of this Worklist.
+         *
+         * @see PriorityQueue#remove
+         * @return the head of this Worklist
+         */
+        @Pure
+        public Block remove() {
+            Block result = queue.remove();
+            queueSet.remove(result);
             return result;
         }
 
