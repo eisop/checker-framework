@@ -61,6 +61,7 @@ tasks.register('skinnyJar', ShadowJar) {
 import java.nio.file.Files
 
 tasks.register('testExample', JavaExec) {
+  group = 'Verification'
   dependsOn compileTestJava
   description = 'Run the scene-lib example test.'
 
