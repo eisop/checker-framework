@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
@@ -22,7 +23,7 @@ class FileJavaFileObject extends SimpleJavaFileObject {
      * @throws IOException if there is trouble reading the file
      */
     public FileJavaFileObject(String filename) throws IOException {
-        super(Path.of(filename).toUri(), JavaFileObject.Kind.SOURCE);
+        super(Paths.get(filename).toUri(), JavaFileObject.Kind.SOURCE);
         File file = new File(filename);
         if (!file.exists()) {
             throw new IOException("file does not exist: " + filename);
@@ -30,7 +31,7 @@ class FileJavaFileObject extends SimpleJavaFileObject {
         if (!file.canRead()) {
             throw new IOException("cannot read file: " + filename);
         }
-        javaCode = new String(Files.readAllBytes(Path.of(filename)), Charset.defaultCharset());
+        javaCode = new String(Files.readAllBytes(Paths.get(filename)), Charset.defaultCharset());
     }
 
     /**
