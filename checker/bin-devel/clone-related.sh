@@ -59,7 +59,7 @@ if [ -z "$CIRCLECI" ]; then
     # Note that "timeout" is not compatible with shell functions.
     TERM=dumb ./gradlew --write-verification-metadata sha256 help --dry-run --quiet \
       || { echo "./gradlew --write-verification-metadata sha256 help --dry-run failed; sleeping before trying again." \
-      && sleep 1m \
+        && sleep 1m \
         && echo "Trying again: ./gradlew --write-verification-metadata sha256 help --dry-run" \
         && TERM=dumb ./gradlew --write-verification-metadata sha256 help --dry-run; }
   fi
