@@ -160,10 +160,9 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
             boolean updateInitializationStore,
             boolean isStatic,
             @Nullable AccumulationStore capturedStore) {
-        // This is a workaround for a bug that I tried and failed to fix.
-        // See checker/tests/resourceleak/RLLambda.java.
-        // This code really belongs in postAnalyze, but this code only works correctly when called
-        // after
+        // This is a workaround for a bug that has no known fix; see
+        // checker/tests/resourceleak/RLLambda.java.
+        // This code really belongs in postAnalyze, but it only works correctly when it runs after
         // a method is analyzed the first time and before any containing lambdas are analyzed.
         // This workaround means there could be false positives when the type of a method invocation
         // depends on dataflow in a lambda.

@@ -1643,8 +1643,7 @@ public abstract class GenericAnnotatedTypeFactory<
             List<FieldInitialValue<Value>> fieldValues,
             @Nullable Store capturedStore) {
         // Each value is a list containing one element for each `return` statement in the lambda
-        // (which
-        // is the map key).
+        // (which is the map key).
         Map<LambdaExpressionTree, List<AnnotationMirrorSet>> lambdaToResultTypes = new HashMap<>();
         Map<LambdaExpressionTree, ControlFlowGraph> lambdaToCFG = new HashMap<>();
         ControlFlowGraph methodCFG = null;
@@ -1653,8 +1652,7 @@ public abstract class GenericAnnotatedTypeFactory<
         boolean isConstructor = TreeUtils.isConstructor(method.getMethod());
 
         // Analyze `method` and all lambdas contained in `method` until the type of the lambda
-        // result
-        // expressions do not change.
+        // result expressions do not change.
         boolean firstIteration = true;
         while (true) {
             Queue<Pair<ClassTree, @Nullable Store>> classQueueInMethod = new ArrayDeque<>();
@@ -1797,14 +1795,10 @@ public abstract class GenericAnnotatedTypeFactory<
             // Prime the cache with this method body's path, built in O(1) from the enclosing class
             // path, so the getPath(root, code) lookups below (in CFCFGBuilder.build, and when the
             // visitor path is set before performAnalysis) are cache hits rather than an O(members)
-            // scan
-            // from the compilation-unit root -- which, once per body, is quadratic over a class
-            // with
-            // many methods. Only done for methods, whose body path is an unambiguous two-step
-            // extension
-            // of the class path (class -> method -> body); lambdas and initializers (rarer /
-            // nested)
-            // fall through to the normal lookup.
+            // scan from the compilation-unit root -- which, once per body, is quadratic over a
+            // class with many methods. Only done for methods, whose body path is an unambiguous
+            // two-step extension of the class path (class -> method -> body); lambdas and
+            // initializers (rarer / nested) fall through to the normal lookup.
             if (ast.getKind() == UnderlyingAST.Kind.METHOD) {
                 UnderlyingAST.CFGMethod cfgMethod = (UnderlyingAST.CFGMethod) ast;
                 TreePath classPath = getVisitorTreePath();
@@ -1846,13 +1840,11 @@ public abstract class GenericAnnotatedTypeFactory<
         // Point the visitor path at the body being analyzed. getPath() -- used by, e.g.,
         // type-argument inference triggered during the analysis below -- uses visitorTreePath as a
         // search-start hint. performFlowAnalysisForClass sets it to the enclosing *class*, so a
-        // lookup
-        // for
-        // a tree inside this body rescans the whole class subtree, which is quadratic in the number
-        // of members. The body's path was just cached by CFCFGBuilder.build above, so this is a
-        // cache hit; query the cacher directly (not getPath) so this does not itself depend on
-        // visitorTreePath. Restored in the finally so the class path is back in place for the rest
-        // of performFlowAnalysisForClass.
+        // lookup for a tree inside this body rescans the whole class subtree, which is quadratic
+        // in the number of members. The body's path was just cached by CFCFGBuilder.build above,
+        // so this is a cache hit; query the cacher directly (not getPath) so this does not itself
+        // depend on visitorTreePath. Restored in the finally so the class path is back in place
+        // for the rest of performFlowAnalysisForClass.
         TreePath prevVisitorTreePath = getVisitorTreePath();
         setVisitorTreePath(checker.getTreePathCacher().getPath(this.getRoot(), ast.getCode()));
         try {

@@ -611,9 +611,8 @@ public abstract class CFAbstractTransfer<
         // final local values from b() would be visible in the store for c(), even though they
         // should only be visible in b() and in classes defined inside the method body of b().
         // This is partly because GenericAnnotatedTypeFactory.performFlowAnalysisForClass does not
-        // call
-        // itself recursively to analyze inner classes, but instead pops classes off of a queue,
-        // and the information about known final local values is stored by
+        // call itself recursively to analyze inner classes, but instead pops classes off of a
+        // queue, and the information about known final local values is stored by
         // GenericAnnotatedTypeFactory.analyze in GenericAnnotatedTypeFactory.flowResult, which is
         // visible to all classes in the queue regardless of their level of recursion.
         //
