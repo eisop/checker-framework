@@ -344,8 +344,35 @@ typetools#3203,
 typetools#8055.
 
 
+Version 3.51.0 (2025-09-10)
+---------------------------
+
+**Implementation details:**
+
+In `CFGVisualizeOptions`:
+ * renamed `isPDF()` to `isPdfOutput()`
+ * renamed `isString()` to `isStringOutput()`
+
+Dataflow Framework:
+ * In `playground` package, renamed `*Playground.java` to `*Pdf.java`
+
+(EISOP note: `CFGVisualizeLauncher.generateMethodCFG(String file, String clas, String method)` was
+replaced by `generateMethodCFG(String file, String method, String clas, Analysis analysis)`, which
+takes `method` before `clas`, and an analysis to perform, or null.)
+
+**Closed issues:**
+
+#7229, #7241, #7248, #7258.
+
+
 Version 3.50.0 (August 28, 2025)
 -----------------------------
+
+**User-visible changes:**
+
+If you supply `--add-exports` flags when you run the Checker Framework,
+you need to add:
+`--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED`.
 
 **Implementation details:**
 
