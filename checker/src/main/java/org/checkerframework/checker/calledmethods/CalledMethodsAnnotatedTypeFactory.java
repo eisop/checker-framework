@@ -259,7 +259,7 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
             MethodInvocationTree filterTreeAsMethodInvocation = (MethodInvocationTree) filterTree;
             String filterMethodName = TreeUtils.methodName(filterTreeAsMethodInvocation).toString();
             if (filterMethodName.contentEquals("withName")
-                    && filterTreeAsMethodInvocation.getArguments().size() >= 1) {
+                    && !filterTreeAsMethodInvocation.getArguments().isEmpty()) {
                 Tree withNameArgTree = filterTreeAsMethodInvocation.getArguments().get(0);
                 String withNameArg =
                         ValueCheckerUtils.getExactStringValue(withNameArgTree, valueATF);
@@ -357,7 +357,7 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
     private class CalledMethodsTypeAnnotator extends TypeAnnotator {
 
         /**
-         * Constructor matching super.
+         * Creates a CalledMethodsTypeAnnotator.
          *
          * @param atypeFactory the type factory
          */
@@ -426,7 +426,7 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
      * @param calledMethodsAnnotation the annotation
      * @return the called methods
      */
-    protected List<String> getCalledMethods(AnnotationMirror calledMethodsAnnotation) {
+    public List<String> getCalledMethods(AnnotationMirror calledMethodsAnnotation) {
         return AnnotationUtils.getElementValueArray(
                 calledMethodsAnnotation,
                 calledMethodsValueElement,

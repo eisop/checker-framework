@@ -3,15 +3,15 @@
 //
 
 plugins {
-    id 'java'
-    id 'net.ltgt.errorprone' version '5.1.1'
+    id "java"
+    id "net.ltgt.errorprone" version "5.1.1"
     // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '1.0.2'
+    id "org.checkerframework" version "1.0.2"
 }
 
 ext {
     versions = [
-        eisopVersion: '3.49.5-eisop1',
+        eisopVersion: "3.49.5-eisop1",
     ]
 }
 
@@ -33,9 +33,9 @@ repositories {
 checkerFramework {
     version = "dependencies"
     checkers = [
-        'org.checkerframework.checker.nullness.NullnessChecker',
+        "org.checkerframework.checker.nullness.NullnessChecker",
     ]
-    extraJavacArgs = ['-Aversion']
+    extraJavacArgs = ["-Aversion"]
 }
 
 compileJava {
@@ -43,5 +43,5 @@ compileJava {
     // A checker will only run if Error Prone does not issue any warnings.  So
     // convert the expected error to a warning to test that both Error Prone
     // and the Nullness Checker run.
-    options.errorprone.warn('CollectionIncompatibleType')
+    options.errorprone.warn("CollectionIncompatibleType")
 }

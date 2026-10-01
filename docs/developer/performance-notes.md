@@ -398,7 +398,7 @@ so small per-call wins paid back substantially.
   `fromExpressionTreeCache`, `fromMemberTreeCache`, `fromTypeTreeCache`, `elementToTreeCache`) plus
   the `scannedEnclosingTrees` identity set, now reassigned to fresh maps rather than cleared.
   (2) **`GenericAnnotatedTypeFactory`** — `scannedClasses`, `regularExitStores`,
-  `exceptionalExitStores`, `returnStatementStores` (in `setRoot` and `performFlowAnalysis`).
+  `exceptionalExitStores`, `returnStatementStores` (in `setRoot` and `performFlowAnalysisForClass`).
   (3) **Dataflow `initFields`** — `AbstractAnalysis` (`inputs`, `nodeValues`, `finalLocalValues`),
   `ForwardAnalysisImpl` (`thenStores`, `elseStores`, `blockCount`,
   `storesAtReturnStatements`), `BackwardAnalysisImpl` (`outStores`, `exceptionStores`),
@@ -1127,7 +1127,7 @@ so small per-call wins paid back substantially.
     *fixed two levels*; for a method-body path that overshoots to the **class**, forcing a whole-class
     rescan. It now searches from the original (tightest) `visitorTreePath` (the second overload still
     expands outward for non-local targets). Alone this cut traversal 268M → 38.5M (−86%).
-  - `GenericAnnotatedTypeFactory.performFlowAnalysis` pinned `visitorTreePath` to the enclosing
+  - `GenericAnnotatedTypeFactory.performFlowAnalysisForClass` pinned `visitorTreePath` to the enclosing
     *class*; flow-analysis-time inference lookups now run against the **body** being analyzed.
     (A no-op by itself — the climb above negated it — but needed together with the first fix.)
   - `CFCFGBuilder`'s per-body `getPath(root, code)` scanned from the compilation-unit root (O(members)
@@ -2841,7 +2841,7 @@ amplification — it runs hundreds of tiny per-directory compilations in one wor
 JVM, so JDK-stub work (parse + resolve) is ~28–32% inclusive there but only ~6% in a
 real single compilation. For *realistic* venues, profile a single forked-javac
 compile: `:checker:checkNullness` (then isolate the worker `cknull-<pid>.jfr` — the
-file whose stacks contain `GenericAnnotatedTypeFactory.performFlowAnalysis`; the
+file whose stacks contain `GenericAnnotatedTypeFactory.performFlowAnalysisForClass`; the
 launcher/daemon/shadowJar files are noise). In that worker: flow analysis ≈ 38%
 inclusive, `getAnnotatedType` ≈ 47%, and — crucially — `Object[]` is ~61% of all TLAB
 events, ~91% of which are `IdentityHashMap` backing arrays from `AnnotatedTypeScanner`

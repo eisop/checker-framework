@@ -243,22 +243,17 @@ public class ControlFlowGraph implements UniqueId {
         Set<Block> visited = new LinkedHashSet<>();
         // worklist is always a subset of visited; any block in worklist is also in visited.
         Queue<Block> worklist = new ArrayDeque<>();
-        Block cur = entryBlock;
+        worklist.add(entryBlock);
         visited.add(entryBlock);
 
         // traverse the whole control flow graph
-        while (true) {
-            if (cur == null) {
-                break;
-            }
-
+        while (!worklist.isEmpty()) {
+            Block cur = worklist.remove();
             for (Block b : cur.getSuccessors()) {
                 if (visited.add(b)) {
                     worklist.add(b);
                 }
             }
-
-            cur = worklist.poll();
         }
 
         return visited;
@@ -295,11 +290,12 @@ public class ControlFlowGraph implements UniqueId {
         Set<Block> visited = new LinkedHashSet<>();
         // `worklist` is always a subset of `visited`; any block in `worklist` is also in `visited`.
         Queue<Block> worklist = new ArrayDeque<>();
-        Block cur = entryBlock;
+        worklist.add(entryBlock);
         visited.add(entryBlock);
 
         // Traverse the whole control flow graph.
-        while (cur != null) {
+        while (!worklist.isEmpty()) {
+            Block cur = worklist.remove();
             if (cur instanceof ExceptionBlock) {
                 for (Map.Entry<TypeMirror, Set<Block>> entry :
                         ((ExceptionBlock) cur).getExceptionalSuccessors().entrySet()) {
@@ -323,7 +319,6 @@ public class ControlFlowGraph implements UniqueId {
                     }
                 }
             }
-            cur = worklist.poll();
         }
 
         return visited;

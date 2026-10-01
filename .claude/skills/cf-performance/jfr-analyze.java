@@ -39,7 +39,7 @@
 //                                          high-level operation dominates.
 //   under  <ctxSubstr> <file...>           Leaf self-time histogram restricted to
 //                                          samples whose stack contains <ctxSubstr>
-//                                          (e.g. performFlowAnalysis): where does a
+//                                          (e.g. performFlowAnalysisForClass): where does a
 //                                          given subsystem spend its self-time.
 //   cooccur <target> <ctx> <file...>       Of samples whose stack contains <target>,
 //                                          what fraction also contains <ctx>. Attributes

@@ -2,6 +2,7 @@ package org.checkerframework.afu.scenelib;
 
 import org.checkerframework.afu.scenelib.el.AnnotationDef;
 import org.checkerframework.afu.scenelib.field.AnnotationFieldType;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -263,11 +264,14 @@ public final class Annotation {
         sb.append("@");
         sb.append(def.name);
         if (fieldValues.size() == 1 && fieldValues.containsKey("value")) {
-            AnnotationFieldType fieldType = def.fieldTypes.get("value");
+            @SuppressWarnings("nullness:assignment") // just checked containsKey
+            @NonNull Object fieldValue = fieldValues.get("value");
+            @SuppressWarnings("nullness:assignment") // same keyset
+            @NonNull AnnotationFieldType fieldType = def.fieldTypes.get("value");
             sb.append('(');
-            fieldType.format(sb, fieldValues.get("value"));
+            fieldType.format(sb, fieldValue);
             sb.append(')');
-        } else if (fieldValues.size() > 0) {
+        } else if (!fieldValues.isEmpty()) {
             sb.append('(');
             boolean notfirst = false;
             for (Entry<String, Object> field : fieldValues.entrySet()) {

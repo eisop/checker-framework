@@ -1505,10 +1505,21 @@ class ImmutableStack<E> {
         }
     }
 
+    /**
+     * Returns true if the stack is empty.
+     *
+     * @return true if the stack is empty
+     */
     public boolean isEmpty() {
         return size == 0;
     }
 
+    /**
+     * Returns the top element of the stack, without modifying the stack.
+     *
+     * @return the top element of the stack
+     * @throws IllegalStateException if the stack is empty
+     */
     public E peek() {
         if (isEmpty()) {
             throw new IllegalStateException("peek() on empty stack");
@@ -1516,6 +1527,12 @@ class ImmutableStack<E> {
         return elem;
     }
 
+    /**
+     * Returns all of the stack except the top element.
+     *
+     * @return all of the stack except the top element
+     * @throws IllegalStateException if the stack is empty
+     */
     public ImmutableStack<E> pop() {
         if (isEmpty()) {
             throw new IllegalStateException("pop() on empty stack");
@@ -1527,11 +1544,22 @@ class ImmutableStack<E> {
         return extend(elem, this);
     }
 
+    /**
+     * Returns the size: the number of elements in the stack.
+     *
+     * @return the size of this stack
+     */
     public int size() {
         return size;
     }
 
-    /** Return the index-th element of this stack. */
+    /**
+     * Returns the index-th element of this stack.
+     *
+     * @param index which element to return
+     * @return the index-th element of this stack
+     * @throws NoSuchElementException if the index is out of bounds
+     */
     public E get(int index) {
         int n = size();
 
