@@ -18,7 +18,7 @@ source "$SCRIPT_DIR"/clone-related.sh
 # does not read from a cache that predates the current run, while restoring
 # test parallelism (--max-workers=1 was serializing all test execution).
 # https://github.com/eisop/checker-framework/issues/849
-./gradlew test -x javadoc -x allJavadoc --console=plain --warning-mode=all --no-build-cache
+./gradlew test -x javadoc -x allJavadoc --warning-mode=all --no-build-cache
 
 # Test clean task
 ./gradlew clean

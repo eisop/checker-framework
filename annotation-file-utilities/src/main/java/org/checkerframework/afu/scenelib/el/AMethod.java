@@ -134,7 +134,7 @@ public class AMethod extends ADeclaration {
      * @return the method's simple name
      */
     public String getMethodName() {
-        return methodSignature.substring(0, methodSignature.indexOf("("));
+        return methodSignature.substring(0, methodSignature.indexOf('('));
     }
 
     /**

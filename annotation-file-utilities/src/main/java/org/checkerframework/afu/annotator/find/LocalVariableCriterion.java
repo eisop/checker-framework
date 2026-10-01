@@ -26,7 +26,7 @@ public class LocalVariableCriterion implements Criterion {
     private final LocalLocation loc;
 
     public LocalVariableCriterion(String methodName, LocalLocation loc) {
-        this.fullMethodName = methodName.substring(0, methodName.indexOf(")") + 1);
+        this.fullMethodName = methodName.substring(0, methodName.indexOf(')') + 1);
         this.loc = loc;
     }
 
