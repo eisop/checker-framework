@@ -390,6 +390,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     protected final Set<TypeMirror> newArrayExceptionTypes;
 
     /**
+     * Exceptions that can be thrown by array access "a[i]". The size is 2 and the contents are
+     * {@code ArrayIndexOutOfBoundsException} and {@code NullPointerException}.
+     */
+    protected final Set<TypeMirror> arrayAccessExceptionTypes;
+
+    /**
      * Creates {@link CFGTranslationPhaseOne}.
      *
      * @param treeBuilder builder for new AST nodes
@@ -448,6 +454,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         noClassDefFoundErrorType = maybeGetTypeMirror(NoClassDefFoundError.class);
         stringType = getTypeMirror(String.class);
         throwableType = getTypeMirror(Throwable.class);
+
         uncheckedExceptionTypes = new ArraySet<>(2);
         uncheckedExceptionTypes.add(getTypeMirror(RuntimeException.class));
         uncheckedExceptionTypes.add(getTypeMirror(Error.class));
@@ -456,6 +463,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         if (outOfMemoryErrorType != null) {
             newArrayExceptionTypes.add(outOfMemoryErrorType);
         }
+        arrayAccessExceptionTypes = new ArraySet<>(2);
+        arrayAccessExceptionTypes.add(arrayIndexOutOfBoundsExceptionType);
+        arrayAccessExceptionTypes.add(nullPointerExceptionType);
     }
 
     /**
@@ -2043,7 +2053,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     } else if (kind == Tree.Kind.DIVIDE_ASSIGNMENT) {
                         if (TypesUtils.isIntegralPrimitive(exprType)) {
                             operNode = new IntegerDivisionNode(operTree, targetRHS, value);
-
                             extendWithNodeWithException(operNode, arithmeticExceptionType);
                         } else {
                             operNode = new FloatingDivisionNode(operTree, targetRHS, value);
@@ -2052,7 +2061,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         assert kind == Tree.Kind.REMAINDER_ASSIGNMENT;
                         if (TypesUtils.isIntegralPrimitive(exprType)) {
                             operNode = new IntegerRemainderNode(operTree, targetRHS, value);
-
                             extendWithNodeWithException(operNode, arithmeticExceptionType);
                         } else {
                             operNode = new FloatingRemainderNode(operTree, targetRHS, value);
@@ -2241,7 +2249,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // Note that for binary operations it is important to perform any required promotion on the
         // left operand before generating any Nodes for the right operand, because labels must be
         // inserted AFTER ALL preceding Nodes and BEFORE ALL following Nodes.
-        Node r = null;
+        Node r;
         Tree leftTree = tree.getLeftOperand();
         Tree rightTree = tree.getRightOperand();
 
@@ -2266,7 +2274,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     } else if (kind == Tree.Kind.DIVIDE) {
                         if (TypesUtils.isIntegralPrimitive(exprType)) {
                             r = new IntegerDivisionNode(tree, left, right);
-
                             extendWithNodeWithException(r, arithmeticExceptionType);
                         } else {
                             r = new FloatingDivisionNode(tree, left, right);
@@ -2275,7 +2282,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         assert kind == Tree.Kind.REMAINDER;
                         if (TypesUtils.isIntegralPrimitive(exprType)) {
                             r = new IntegerRemainderNode(tree, left, right);
-
                             extendWithNodeWithException(r, arithmeticExceptionType);
                         } else {
                             r = new FloatingRemainderNode(tree, left, right);
@@ -2355,21 +2361,17 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     Node left = binaryNumericPromotion(scan(leftTree, p), promotedType);
                     Node right = binaryNumericPromotion(scan(rightTree, p), promotedType);
 
-                    Node node;
                     if (kind == Tree.Kind.GREATER_THAN) {
-                        node = new GreaterThanNode(tree, left, right);
+                        r = new GreaterThanNode(tree, left, right);
                     } else if (kind == Tree.Kind.GREATER_THAN_EQUAL) {
-                        node = new GreaterThanOrEqualNode(tree, left, right);
+                        r = new GreaterThanOrEqualNode(tree, left, right);
                     } else if (kind == Tree.Kind.LESS_THAN) {
-                        node = new LessThanNode(tree, left, right);
+                        r = new LessThanNode(tree, left, right);
                     } else {
                         assert kind == Tree.Kind.LESS_THAN_EQUAL;
-                        node = new LessThanOrEqualNode(tree, left, right);
+                        r = new LessThanOrEqualNode(tree, left, right);
                     }
-
-                    extendWithNode(node);
-
-                    return node;
+                    break;
                 }
 
             case EQUAL_TO:
@@ -2397,16 +2399,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         right = unboxAsNeeded(right, rightInfo.isBoxed());
                     }
 
-                    Node node;
                     if (kind == Tree.Kind.EQUAL_TO) {
-                        node = new EqualToNode(tree, left, right);
+                        r = new EqualToNode(tree, left, right);
                     } else {
                         assert kind == Tree.Kind.NOT_EQUAL_TO;
-                        node = new NotEqualNode(tree, left, right);
+                        r = new NotEqualNode(tree, left, right);
                     }
-                    extendWithNode(node);
-
-                    return node;
+                    break;
                 }
 
             case AND:
@@ -2435,19 +2434,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         right = unbox(scan(rightTree, p));
                     }
 
-                    Node node;
                     if (kind == Tree.Kind.AND) {
-                        node = new BitwiseAndNode(tree, left, right);
+                        r = new BitwiseAndNode(tree, left, right);
                     } else if (kind == Tree.Kind.OR) {
-                        node = new BitwiseOrNode(tree, left, right);
+                        r = new BitwiseOrNode(tree, left, right);
                     } else {
                         assert kind == Tree.Kind.XOR;
-                        node = new BitwiseXorNode(tree, left, right);
+                        r = new BitwiseXorNode(tree, left, right);
                     }
-
-                    extendWithNode(node);
-
-                    return node;
+                    break;
                 }
 
             case CONDITIONAL_AND:
@@ -2478,14 +2473,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
                     // conditional expression itself
                     addLabelForNextNode(shortCircuitLabel);
-                    Node node;
                     if (kind == Tree.Kind.CONDITIONAL_AND) {
-                        node = new ConditionalAndNode(tree, left, right);
+                        r = new ConditionalAndNode(tree, left, right);
                     } else {
-                        node = new ConditionalOrNode(tree, left, right);
+                        r = new ConditionalOrNode(tree, left, right);
                     }
-                    extendWithNode(node);
-                    return node;
+                    break;
                 }
             default:
                 throw new BugInCF("unexpected binary tree: " + kind);
@@ -2987,16 +2980,16 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     @Override
     public Node visitContinue(ContinueTree tree, Void p) {
         Name label = tree.getLabel();
+        UnconditionalJump uj;
         if (label == null) {
             assert continueTargetLC != null : "no target for continue statement";
-
-            extendWithExtendedNode(new UnconditionalJump(continueTargetLC.accessLabel()));
+            uj = new UnconditionalJump(continueTargetLC.accessLabel());
         } else {
             assert continueLabels.containsKey(label);
-
-            extendWithExtendedNode(new UnconditionalJump(continueLabels.get(label)));
+            uj = new UnconditionalJump(continueLabels.get(label));
         }
 
+        extendWithExtendedNode(uj);
         return null;
     }
 
@@ -3531,9 +3524,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         Node array = scan(tree.getExpression(), p);
         Node index = unaryNumericPromotion(scan(tree.getIndex(), p));
         Node arrayAccess = new ArrayAccessNode(tree, array, index);
-        extendWithNode(arrayAccess);
-        extendWithNodeWithException(arrayAccess, arrayIndexOutOfBoundsExceptionType);
-        extendWithNodeWithException(arrayAccess, nullPointerExceptionType);
+        extendWithNodeWithExceptions(arrayAccess, arrayAccessExceptionTypes);
         return arrayAccess;
     }
 
@@ -3562,7 +3553,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     @Override
     public Node visitLiteral(LiteralTree tree, Void p) {
-        Node r = null;
+        Node r;
         switch (tree.getKind()) {
             case BOOLEAN_LITERAL:
                 r = new BooleanLiteralNode(tree);
@@ -3591,7 +3582,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             default:
                 throw new BugInCF("unexpected literal tree: " + tree);
         }
-        assert r != null : "unexpected literal tree";
         extendWithNode(r);
         return r;
     }
@@ -4331,7 +4321,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     @Override
     public Node visitUnary(UnaryTree tree, Void p) {
-        Node result = null;
+        Node result;
         Tree.Kind kind = tree.getKind();
         switch (kind) {
             case BITWISE_COMPLEMENT:
@@ -4358,7 +4348,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                             throw new BugInCF("Unexpected unary tree kind: " + kind);
                     }
                     extendWithNode(result);
-                    break;
+                    return result;
                 }
 
             case LOGICAL_COMPLEMENT:
@@ -4367,7 +4357,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     Node expr = scan(tree.getExpression(), p);
                     result = new ConditionalNotNode(tree, unbox(expr));
                     extendWithNode(result);
-                    break;
+                    return result;
                 }
 
             case POSTFIX_DECREMENT:
@@ -4385,6 +4375,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                             kind == Tree.Kind.POSTFIX_INCREMENT
                                     || kind == Tree.Kind.POSTFIX_DECREMENT;
 
+                    result = null; // for definite assignment; it is assigned in isPostfix and in
+                    // !isPostfix
                     if (isPostfix) {
                         TypeMirror exprType = TreeUtils.typeOf(exprTree);
                         VariableTree tempVarDecl =
@@ -4420,7 +4412,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     if (!isPostfix) {
                         result = unaryAssign;
                     }
-                    break;
+                    return result;
                 }
 
             case OTHER:
@@ -4430,13 +4422,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     Node expr = scan(tree.getExpression(), p);
                     result = new NullChkNode(tree, expr);
                     extendWithNode(result);
-                    break;
+                    return result;
                 }
 
                 throw new BugInCF("Unknown kind (" + kind + ") of unary expression: " + tree);
         }
-
-        return result;
     }
 
     /**
