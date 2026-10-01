@@ -104,7 +104,7 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
     }
 
     /**
-     * Returns types for methods that are annotated with {@code @IntRangeFromX} annotations need to
+     * Return types for methods that are annotated with {@code @IntRangeFromX} annotations need to
      * be replaced with {@code @UnknownVal}. See the documentation on {@link
      * #commonAssignmentCheck(AnnotatedTypeMirror, ExpressionTree, String, Object[])
      * commonAssignmentCheck}.

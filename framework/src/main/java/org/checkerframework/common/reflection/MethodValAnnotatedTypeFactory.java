@@ -164,8 +164,8 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * Returns a list of class names for the given tree using the Class Val Checker.
      *
      * @param tree an ExpressionTree whose class names are requested
-     * @param mustBeExact true if @ClassBound may be read to produce the result; if false,
-     *     only @ClassVal may be read
+     * @param mustBeExact true if only @ClassVal may be read to produce the result; if
+     *     false, @ClassBound may be read as well
      * @return list of class names or the empty list if no class names were found
      */
     private List<String> getClassNamesFromClassValChecker(

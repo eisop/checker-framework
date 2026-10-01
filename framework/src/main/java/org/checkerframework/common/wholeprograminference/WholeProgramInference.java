@@ -184,7 +184,8 @@ public interface WholeProgramInference {
      * @param className the name of the class, for debugging only
      * @param methodElement the method or constructor whose preconditions or postconditions to
      *     update
-     * @param preOrPost true if to update preconditions or postconditions
+     * @param preOrPost {@code BEFORE} to update the preconditions, {@code AFTER} to update the
+     *     postconditions
      * @param store the store at the method's entry or normal exit, for reading types of expressions
      */
     void updateContracts(
