@@ -153,6 +153,10 @@ Command-line option additions and changes:
 - Invalid option arguments (e.g. malformed regex) now produce compiler errors
   instead of stack traces.
 
+A stub file that declares a record where the running JDK has a class (for example
+the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
+members that follow the record.
+
 ### Implementation details
 
 Performance optimizations:
