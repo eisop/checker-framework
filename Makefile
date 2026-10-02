@@ -5,8 +5,9 @@
 all default: style-check
 
 # Claude Code's skill files start with YAML front matter that the Markdown linter does not accept, and
-# its local worktrees are not part of the project.
-CODE_STYLE_EXCLUSIONS_USER := --exclude-dir=.claude
+# its local worktrees are not part of the project.  The Javadoc in docs/tmpapi and the manual in
+# docs/manual/manual.html are generated, and `./gradlew htmlValidate` checks the HTML files that are not.
+CODE_STYLE_EXCLUSIONS_USER := --exclude-dir=.claude --exclude-dir=tmpapi --exclude=manual.html
 
 # Code style; defines `style-check` and `style-fix`.
 ifeq (,$(wildcard .plume-scripts))
