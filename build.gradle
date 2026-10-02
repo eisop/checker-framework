@@ -6,23 +6,23 @@ import org.gradle.api.tasks.testing.TestResult
 
 plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
-    id("com.gradleup.shadow").version("9.6.1")
+    alias(libs.plugins.com.gradleup.shadow)
     // https://plugins.gradle.org/plugin/de.undercouch.download
-    id("de.undercouch.download").version("5.7.0")
+    alias(libs.plugins.de.undercouch.download)
     id("java")
     // https://github.com/tbroyer/gradle-errorprone-plugin
-    id("net.ltgt.errorprone").version("5.1.1")
+    alias(libs.plugins.net.ltgt.errorprone)
     // https://docs.gradle.org/current/userguide/eclipse_plugin.html
     id("eclipse")
     // To show task list as a tree, run: ./gradlew <taskname> taskTree
-    id("com.dorongold.task-tree").version("4.0.2")
+    alias(libs.plugins.com.dorongold.task.tree)
     // needed for formatting Gradle files
     id("groovy")
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id("com.diffplug.spotless").version("8.10.2")
-    id("io.github.andygoossens.modernizer").version("2.0.0").apply(false)
+    alias(libs.plugins.com.diffplug.spotless)
+    alias(libs.plugins.io.github.andygoossens.modernizer).apply(false)
 }
 apply from: rootProject.file("release.gradle")
 
@@ -70,7 +70,7 @@ ext {
     // delombok lags behind JDK GA releases; skip delombok-dependent tests when running on
     // a JDK newer than what the pinned Lombok version supports.  See
     // https://projectlombok.org/changelog and bump this threshold (or remove it) when the
-    // current "lombokVersion" below catches up to the JDK in use.
+    // current `lombok` entry in gradle/libs.versions.toml catches up to the JDK in use.
     skipDelombok = (useJdkVersionInt >= 24)
 
     // NO-AFU - keep these variables live so tasks in checker/build.gradle configure without issue.
@@ -208,11 +208,11 @@ allprojects { currentProj ->
     dependencies {
         if (useJdkVersionInt >= 21) {
             // Only include Error Prone when its minimum version is met. It will not always be enabled.
-            errorprone("com.google.errorprone:error_prone_core:${errorproneVersion}")
+            errorprone(libs.error.prone.core)
         }
 
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
-        javacJar("com.google.errorprone:javac:9+181-r4173-1")
+        javacJar(libs.javac)
 
         subprojects.each { sp -> allProjects project(sp.path) }
     }
@@ -344,10 +344,10 @@ allprojects { currentProj ->
             targetExclude(doNotFormat)
 
             if (eisopFormatting) {
-                googleJavaFormat(googleJavaFormatVersion).aosp()
+                googleJavaFormat(libs.google.java.format.get().version).aosp()
                 importOrder("com", "jdk", "lib", "lombok", "org", "java", "javax")
             } else {
-                googleJavaFormat(googleJavaFormatVersion) // the formatter to apply to Java files
+                googleJavaFormat(libs.google.java.format.get().version) // the formatter to apply to Java files
             }
             formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
 
@@ -1074,7 +1074,7 @@ configurations {
 }
 
 dependencies {
-    requireJavadoc("org.plumelib:require-javadoc:2.0.0")
+    requireJavadoc(libs.require.javadoc)
 }
 
 tasks.register("requireJavadoc", JavaExec) {
