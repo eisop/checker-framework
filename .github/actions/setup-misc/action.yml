@@ -62,7 +62,7 @@ runs:
         restore-keys: |
           pip-misc-v1-${{ runner.os }}-
 
-    - name: Install uv
+    - name: Install uv and html5validator
       shell: bash
       # PEP 668: Ubuntu 24.04's system Python is externally-managed.
       # `--break-system-packages` is the documented escape hatch for CI.
@@ -72,4 +72,7 @@ runs:
       # html5validator are locked in `uv.lock`, which keeps their results
       # reproducible across CI runs.  Bump them deliberately, with `uv lock
       # --upgrade-package <name>`, not as a side effect of an unrelated PR.
-      run: pip install --break-system-packages uv
+      #
+      # The Gradle task `htmlValidate` runs the `html5validator` executable
+      # directly, so it is also installed with pip.
+      run: pip install --break-system-packages uv html5validator
