@@ -69,6 +69,7 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 import org.plumelib.util.UtilPlume;
 
 import java.io.File;
@@ -1422,8 +1423,8 @@ public class WholeProgramInferenceJavaParserStorage
         @Override
         public ClassOrInterfaceAnnos deepCopy() {
             ClassOrInterfaceAnnos result = new ClassOrInterfaceAnnos(className, classDeclaration);
-            result.callableDeclarations = CollectionsPlume.deepCopyValues(callableDeclarations);
-            result.fields = CollectionsPlume.deepCopyValues(fields);
+            result.callableDeclarations = MapsP.deepCopyValues(callableDeclarations);
+            result.fields = MapsP.deepCopyValues(fields);
             result.enumConstants =
                     UtilPlume.clone(enumConstants); // no deep copy: elements are strings
             if (classAnnotations != null) {
@@ -1962,8 +1963,7 @@ public class WholeProgramInferenceJavaParserStorage
         if (orig == null) {
             return null;
         }
-        Map<String, InferredDeclared> result =
-                new HashMap<>(CollectionsPlume.mapCapacity(orig.size()));
+        Map<String, InferredDeclared> result = new HashMap<>(MapsP.mapCapacity(orig.size()));
         result.clear();
         for (Map.Entry<String, InferredDeclared> entry : orig.entrySet()) {
             String javaExpression = entry.getKey();

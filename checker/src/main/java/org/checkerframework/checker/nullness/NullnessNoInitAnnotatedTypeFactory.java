@@ -113,6 +113,9 @@ public class NullnessNoInitAnnotatedTypeFactory
     /** The Arrays.copyOf() methods that operate on arrays of references. */
     private final List<ExecutableElement> copyOfMethods;
 
+    /** The Arrays.copyOfRange() methods that operate on arrays of references. */
+    private final List<ExecutableElement> copyOfRangeMethods;
+
     /** Cache for the nullness annotations. */
     protected final Set<Class<? extends Annotation>> nullnessAnnos;
 
@@ -538,6 +541,16 @@ public class NullnessNoInitAnnotatedTypeFactory
                         TreeUtils.getMethod(
                                 "java.util.Arrays", "copyOf", processingEnv, "T[]", "int"),
                         TreeUtils.getMethod("java.util.Arrays", "copyOf", 3, processingEnv));
+        copyOfRangeMethods =
+                Arrays.asList(
+                        TreeUtils.getMethod(
+                                "java.util.Arrays",
+                                "copyOfRange",
+                                processingEnv,
+                                "T[]",
+                                "int",
+                                "int"),
+                        TreeUtils.getMethod("java.util.Arrays", "copyOfRange", 4, processingEnv));
 
         postInit();
 
@@ -856,30 +869,35 @@ public class NullnessNoInitAnnotatedTypeFactory
 
         @Override
         public Void visitMethodInvocation(MethodInvocationTree tree, AnnotatedTypeMirror type) {
+            List<? extends ExpressionTree> args = tree.getArguments();
+            ExpressionTree lengthArg = null; // non-null iff `tree` is an invocation of `copyOf*`
             if (TreeUtils.isMethodInvocation(tree, copyOfMethods, processingEnv)) {
-                List<? extends ExpressionTree> args = tree.getArguments();
-                ExpressionTree lengthArg = args.get(1);
-                if (TreeUtils.isArrayLengthAccess(lengthArg)) {
-                    ExpressionTree arrayArg = args.get(0);
-                    if (TreeUtils.sameTree(arrayArg, ((MemberSelectTree) lengthArg).getExpression())
-                            && Boolean.TRUE.equals(pureExpressionVisitor.visit(arrayArg, null))) {
-                        AnnotatedArrayType arrayArgType =
-                                (AnnotatedArrayType) getAnnotatedType(arrayArg);
-                        AnnotatedTypeMirror arrayArgComponentType = arrayArgType.getComponentType();
-                        AnnotatedArrayType resultType = (AnnotatedArrayType) type;
-                        AnnotatedTypeMirror resultComponentType = resultType.getComponentType();
-                        if (types.isSameType(
-                                arrayArgComponentType.getUnderlyingType(),
-                                resultComponentType.getUnderlyingType())) {
-                            resultType.setComponentType(arrayArgComponentType.deepCopy());
-                        } else {
-                            // The result's component type differs from the copied array's, as
-                            // for a three-argument copyOf whose Class argument names another
-                            // type, so only the nullness of the copied elements carries over.
-                            resultComponentType.replaceAnnotation(
-                                    arrayArgComponentType.getEffectiveAnnotationInHierarchy(
-                                            NULLABLE));
-                        }
+                lengthArg = args.get(1);
+            } else if (TreeUtils.isMethodInvocation(tree, copyOfRangeMethods, processingEnv)) {
+                lengthArg = args.get(2);
+            }
+            if (lengthArg != null && TreeUtils.isArrayLengthAccess(lengthArg)) {
+                // TODO: This syntactic test may not be not correct if the array expression has
+                // a side effect that affects the array length.  This test could require that
+                // the expression has no method calls, assignments, etc.
+                ExpressionTree arrayArg = args.get(0);
+                if (TreeUtils.sameTree(arrayArg, ((MemberSelectTree) lengthArg).getExpression())
+                        && Boolean.TRUE.equals(pureExpressionVisitor.visit(arrayArg, null))) {
+                    AnnotatedArrayType arrayArgType =
+                            (AnnotatedArrayType) getAnnotatedType(arrayArg);
+                    AnnotatedTypeMirror arrayArgComponentType = arrayArgType.getComponentType();
+                    AnnotatedArrayType resultType = (AnnotatedArrayType) type;
+                    AnnotatedTypeMirror resultComponentType = resultType.getComponentType();
+                    if (types.isSameType(
+                            arrayArgComponentType.getUnderlyingType(),
+                            resultComponentType.getUnderlyingType())) {
+                        resultType.setComponentType(arrayArgComponentType.deepCopy());
+                    } else {
+                        // The result's component type differs from the copied array's, as
+                        // for a three-argument copyOf whose Class argument names another
+                        // type, so only the nullness of the copied elements carries over.
+                        resultComponentType.replaceAnnotation(
+                                arrayArgComponentType.getEffectiveAnnotationInHierarchy(NULLABLE));
                     }
                 }
             }

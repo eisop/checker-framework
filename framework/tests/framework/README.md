@@ -1,3 +1,5 @@
+# Framework tests (`framework/` subdirectory)
+
 This directory contains framework tests that are valid Java.
 Framework tests that are allowed to contain Java errors can be found
 in ../framework-javac-errors.

@@ -8,7 +8,7 @@ import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.plumelib.util.ArrayMap;
-import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -138,8 +138,7 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
     public String toString() {
         // Only output local variable information.
         // This output is very terse, so a CFG containing it fits well in the manual.
-        Map<Node, Constant> contentsLocalVars =
-                new LinkedHashMap<>(CollectionsPlume.mapCapacity(contents));
+        Map<Node, Constant> contentsLocalVars = new LinkedHashMap<>(MapsP.mapCapacity(contents));
         for (Map.Entry<Node, Constant> e : contents.entrySet()) {
             if (e.getKey() instanceof LocalVariableNode) {
                 contentsLocalVars.put(e.getKey(), e.getValue());

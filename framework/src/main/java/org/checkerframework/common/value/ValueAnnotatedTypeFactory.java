@@ -65,6 +65,7 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -479,7 +480,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         Set<Class<? extends Annotation>> superResult =
                 super.getFieldInvariantDeclarationAnnotations();
         Set<Class<? extends Annotation>> set =
-                new HashSet<>(CollectionsPlume.mapCapacity(superResult.size() + 1));
+                new HashSet<>(MapsP.mapCapacity(superResult.size() + 1));
         set.addAll(superResult);
         set.add(MinLenFieldInvariant.class);
         return set;
