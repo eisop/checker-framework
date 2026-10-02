@@ -51,7 +51,7 @@ The Gradle subprojects matter; in rough dependency order:
 
 ## Building and testing
 
-```
+```bash
 ./gradlew assemble                       # build only
 ./gradlew assembleForJavac               # build to use checker/bin/javac
 ./gradlew alltests                       # full test suite (long)
@@ -108,7 +108,7 @@ don't run are only covered there. The short version:
 - **Changelog:** every user-visible or perf-relevant change gets one
   bullet in [`docs/CHANGELOG.md`](docs/CHANGELOG.md) under the next
   release. If the PR closes a GitHub issue, add its number (as `eisop#NNNN`,
-  in ascending numeric order) to that release's **Closed issues:** list in
+  in ascending numeric order) to that release's `### Closed issues` list in
   the same PR — don't leave it for a later backfill. That list is written
   one issue per line while the release is unreleased, so two PRs adding a
   number do not conflict; see

@@ -78,7 +78,9 @@ if [ -n "$("$CHECKERFRAMEWORK"/checker/bin-devel/is-ci.sh)" ]; then
 else
   num_jobs="$(nproc || sysctl -n hw.ncpu || getconf _NPROCESSORS_ONLN || echo 1)"
 fi
-make style-check --jobs="${num_jobs}"
+# DOCKER_EXISTS=no makes code-style.mak lint Markdown with pymarkdownlnt, through uv, instead of a
+# markdownlint-cli2 container, which cannot write to the checkout of the CI runner.
+make style-check DOCKER_EXISTS=no --jobs="${num_jobs}"
 
 ## HTML legality
 ./gradlew htmlValidate --warning-mode=all

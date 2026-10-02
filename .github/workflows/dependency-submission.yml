@@ -9,9 +9,9 @@ name: Dependency graph submission
 # pattern that tried to submit PR snapshots never actually reflected the PR under review either.
 # Submitting directly on master avoids both problems, since there is no PR content involved.
 
-on:
+on:  # yamllint disable-line rule:truthy
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   schedule:
     - cron: '0 8 * * *'  # Runs daily at 08:00 UTC, offset from the CI workflow's 07:00 run.
 
