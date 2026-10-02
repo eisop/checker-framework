@@ -460,10 +460,8 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                     List<Double> exprValues = atypeFactory.getDoubleValues(exprAnno);
                     if (castValues != null && exprValues != null) {
                         // The cast type must contain all the values of the expression type (after
-                        // rounding).
-                        // Convert expression values to what they would be after float cast, then
-                        // check
-                        // containment.
+                        // rounding).  Convert expression values to what they would be after the
+                        // float cast, then check containment.
                         TreeSet<Float> castValuesSet =
                                 new TreeSet<Float>(
                                         CollectionsPlume.mapList(Number::floatValue, castValues));
