@@ -75,7 +75,7 @@ Portal for a human to release.
 The compatibility service has its own API for that last step, so the click is
 avoidable without changing how the build uploads anything:
 
-````
+````text
 POST https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.eisop?publishing_type=automatic
 Authorization: Bearer <base64 of user-token-name:user-token-password>
 ````

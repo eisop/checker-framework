@@ -66,7 +66,7 @@ task checks all of it, without a per-file `@AnnotatedFor("nullness")` opt-in.
 Checker as the `eisopcf` plugin, in two modes selected by the `cfVersion` property (like the
 sibling examples):
 
-```
+```bash
 cd docs/examples/eisop-errorprone
 make all                          # -PcfVersion=local: the current checkout's jars
 ../../../gradlew build            # default: the published io.github.eisop artifacts

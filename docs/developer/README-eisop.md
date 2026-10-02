@@ -11,8 +11,8 @@ To update EISOP with changes in a different Checker Framework fork, follow these
 1. Create a new branch, named e.g. `typetools-3.18.0-merge`.
 
 1. If necessary, change to consistent formatting:
-    - Remove `.aosp()` from `build.gradle`.
-    - Run `./gradlew spotlessApply` and commit results as e.g. `Change to typetools formatting`.
+   - Remove `.aosp()` from `build.gradle`.
+   - Run `./gradlew spotlessApply` and commit results as e.g. `Change to typetools formatting`.
 
 1. Look up the commit IDs for the range you want to include, e.g. previous and current releases.
 
@@ -40,11 +40,11 @@ To update EISOP with changes in a different Checker Framework fork, follow these
 Each entry goes under the next release section of
 [`docs/CHANGELOG.md`](../CHANGELOG.md), in the same PR as the change it
 describes. A PR that closes an issue adds its number to that section's
-**Closed issues:** list, rather than leaving it for a later backfill.
+`### Closed issues` list, rather than leaving it for a later backfill.
 
 While a release is unreleased, that list is written **one issue per line**:
 
-````
+````text
 eisop#2089,
 eisop#2095,
 typetools#399,
