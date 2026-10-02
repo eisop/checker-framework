@@ -1194,14 +1194,21 @@ public class AnnotationFileParser {
             Map<String, RecordComponentStub> byName =
                     ArrayMap.newArrayMapOrLinkedHashMap(recordMembers.size());
             for (Parameter recordMember : recordMembers) {
-                RecordComponentStub stub =
-                        processRecordField(
-                                recordMember,
-                                findFieldElement(
-                                        typeElt, recordMember.getNameAsString(), recordMember));
-                byName.put(recordMember.getNameAsString(), stub);
+                VariableElement componentElt =
+                        findFieldElement(typeElt, recordMember.getNameAsString(), recordMember);
+                // Null if the type is a class without a field for the component; see
+                // findFieldElement, which already reported it.
+                if (componentElt != null) {
+                    byName.put(
+                            recordMember.getNameAsString(),
+                            processRecordField(recordMember, componentElt));
+                }
             }
-            putMergeRecords(recordDecl.getFullyQualifiedName().get(), new RecordStub(byName));
+            // A record in the stub file can be a class in the running JDK; only a record element
+            // has components, and the binary stub files likewise store no record for a class.
+            if (ElementUtils.isRecordElement(typeElt)) {
+                putMergeRecords(recordDecl.getFullyQualifiedName().get(), new RecordStub(byName));
+            }
         }
 
         Pair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>> members =
@@ -1236,8 +1243,11 @@ public class AnnotationFileParser {
                     break;
                 case CLASS:
                 case INTERFACE:
+                    // The declaration is a record when the stub file was written for a newer JDK
+                    // than the one that is running: a class that became a record keeps its name,
+                    // and its element is still a class here.
                     // Not processing an ajava file, so ignore the return value.
-                    processTypeDecl((ClassOrInterfaceDeclaration) decl, innerName, null);
+                    processTypeDecl((TypeDeclaration<?>) decl, innerName, null);
                     break;
                 case ENUM:
                     // Not processing an ajava file, so ignore the return value.
