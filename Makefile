@@ -5,13 +5,16 @@ all default: style-check
 	$(MAKE) -C .azure
 	$(MAKE) -C checker/bin-devel
 
-style-fix: python-style-fix shell-style-fix
-style-check: asciidoc-style-check python-style-check shell-style-check
+style-fix: markdownlint-fix python-style-fix shell-style-fix
+# NOTE: markdownlint-check is not part of style-check yet: the Markdown files of this repository
+# have not been made to conform to the markdownlint configuration.
+style-check: python-style-check shell-style-check
 
 
-ASCIIDOC_FILES:=$(shell find . -name "*.adoc")
-asciidoc-style-check:
-	asciidoctor -o /dev/null ${ASCIIDOC_FILES}
+markdownlint-fix:
+	markdownlint-cli2 --fix "**/*.md" "#node_modules"
+markdownlint-check:
+	markdownlint-cli2 "**/*.md" "#node_modules"
 
 PYTHON_FILES:=$(shell find . \( -name .do-like-javac -o -name .git-scripts -o -name .plume-scripts \) -prune -o -name "*.py" -print)
 install-ruff:
@@ -26,8 +29,8 @@ python-style-check: install-ruff
 	ruff check ${PYTHON_FILES}
 
 
-SH_SCRIPTS   := $(shell grep -r -l --exclude='*~' --exclude='*.tar' --exclude=gradlew --exclude-dir=.git --exclude-dir=.do-like-javac --exclude-dir .git-scripts --exclude-dir .html-tools --exclude-dir .plume-scripts '^\#! \?\(/bin/\|/usr/bin/env \)sh'   | grep -v addrfilter | grep -v cronic-orig | grep -v mail-stackoverflow.sh)
-BASH_SCRIPTS := $(shell grep -r -l --exclude='*~' --exclude='*.tar' --exclude=gradlew --exclude-dir=.git --exclude-dir=.do-like-javac --exclude-dir .git-scripts --exclude-dir .html-tools --exclude-dir .plume-scripts '^\#! \?\(/bin/\|/usr/bin/env \)bash' | grep -v addrfilter | grep -v cronic-orig | grep -v mail-stackoverflow.sh)
+SH_SCRIPTS   := $(shell grep -r -l --exclude='*~' --exclude='#*' --exclude='*.tar' --exclude=gradlew --exclude-dir=.git --exclude-dir=.do-like-javac --exclude-dir .git-scripts --exclude-dir .html-tools --exclude-dir .plume-scripts '^\#! \?\(/bin/\|/usr/bin/env \)sh'   | grep -v addrfilter | grep -v cronic-orig | grep -v mail-stackoverflow.sh)
+BASH_SCRIPTS := $(shell grep -r -l --exclude='*~' --exclude='#*'  --exclude='*.tar' --exclude=gradlew --exclude-dir=.git --exclude-dir=.do-like-javac --exclude-dir .git-scripts --exclude-dir .html-tools --exclude-dir .plume-scripts '^\#! \?\(/bin/\|/usr/bin/env \)bash' | grep -v addrfilter | grep -v cronic-orig | grep -v mail-stackoverflow.sh)
 CHECKBASHISMS := $(shell if command -v checkbashisms > /dev/null ; then \
 	  echo "checkbashisms" ; \
 	else \
@@ -51,7 +54,6 @@ ifneq ($(SH_SCRIPTS),)
 endif
 
 showvars:
-	@echo "ASCIIDOC_FILES=${ASCIIDOC_FILES}"
 	@echo "PYTHON_FILES=${PYTHON_FILES}"
 	@echo "SH_SCRIPTS=${SH_SCRIPTS}"
 	@echo "BASH_SCRIPTS=${BASH_SCRIPTS}"

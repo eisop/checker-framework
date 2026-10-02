@@ -26,8 +26,8 @@ import org.checkerframework.checker.signature.qual.DotSeparatedIdentifiers;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.framework.stub.AnnotationFileParser;
 import org.checkerframework.framework.util.JavaParserUtil;
-import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.FilesPlume;
+import org.plumelib.util.MapsP;
 
 import java.io.File;
 import java.io.IOException;
@@ -290,8 +290,7 @@ public class InsertAjavaAnnotations {
             List<String> newImports;
             { // set `newImports`
                 NodeList<ImportDeclaration> destImports = dest.getImports();
-                Set<String> existingImports =
-                        new HashSet<>(CollectionsPlume.mapCapacity(destImports.size()));
+                Set<String> existingImports = new HashSet<>(MapsP.mapCapacity(destImports.size()));
                 for (ImportDeclaration importDecl : destImports) {
                     existingImports.add(printer.print(importDecl));
                 }
@@ -614,7 +613,7 @@ public class InsertAjavaAnnotations {
                         List<TypeDeclaration<?>> rootTypes = root.getTypes();
                         // Estimate of size.
                         Set<String> annotationFilesForRoot =
-                                new LinkedHashSet<>(CollectionsPlume.mapCapacity(rootTypes.size()));
+                                new LinkedHashSet<>(MapsP.mapCapacity(rootTypes.size()));
                         for (TypeDeclaration<?> type : rootTypes) {
                             String name = JavaParserUtil.getFullyQualifiedName(type, root);
                             annotationFilesForRoot.addAll(

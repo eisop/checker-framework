@@ -25,7 +25,7 @@ import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
-import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 
 import java.util.Map;
 import java.util.Set;
@@ -76,7 +76,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      * infinite recursion and this cache is used to improve performance.
      */
     private final Map<MethodInvocationTree, AnnotatedExecutableType> methodInvocationToType =
-            CollectionsPlume.createLruCache(300);
+            MapsP.createLruCache(300);
 
     @Override
     public Void visitNewArray(NewArrayTree arrayTree, AnnotatedTypeMirror arrayType) {

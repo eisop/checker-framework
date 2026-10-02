@@ -99,6 +99,7 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 import org.plumelib.util.SystemPlume;
 
 import java.lang.annotation.Annotation;
@@ -374,8 +375,8 @@ public abstract class GenericAnnotatedTypeFactory<
 
         if (shouldCache) {
             int cacheSize = getCacheSize();
-            flowResultAnalysisCaches = CollectionsPlume.createLruCache(cacheSize);
-            initializerCache = CollectionsPlume.createLruCache(cacheSize);
+            flowResultAnalysisCaches = MapsP.createLruCache(cacheSize);
+            initializerCache = MapsP.createLruCache(cacheSize);
         } else {
             flowResultAnalysisCaches = null;
             initializerCache = null;
@@ -389,7 +390,7 @@ public abstract class GenericAnnotatedTypeFactory<
             Types types = getChecker().getTypeUtils();
             Elements elements = getElementUtils();
             Set<TypeMirror> relevantJavaTypesTemp =
-                    new HashSet<>(CollectionsPlume.mapCapacity(classes.size()));
+                    new HashSet<>(MapsP.mapCapacity(classes.size()));
             boolean arraysAreRelevantTemp = false;
             for (Class<?> clazz : classes) {
                 if (clazz == Object[].class) {
@@ -2855,7 +2856,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return a map that represents the options
      */
     private Map<String, Object> processCFGVisualizerOption(List<String> opts) {
-        Map<String, Object> res = new HashMap<>(CollectionsPlume.mapCapacity(opts.size() - 1));
+        Map<String, Object> res = new HashMap<>(MapsP.mapCapacity(opts.size() - 1));
         // Index 0 is the visualizer class name and can be ignored.
         for (int i = 1; i < opts.size(); ++i) {
             String opt = opts.get(i);
@@ -2950,7 +2951,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /** For each type, whether it is relevant. A cache to avoid repeated re-computation. */
-    private final Map<TypeMirror, Boolean> isRelevantCache = CollectionsPlume.createLruCache(300);
+    private final Map<TypeMirror, Boolean> isRelevantCache = MapsP.createLruCache(300);
 
     /**
      * Returns true if users can write type annotations from this type system directly on the given

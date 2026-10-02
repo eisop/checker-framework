@@ -50,7 +50,7 @@ import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.ArraySet;
-import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 import org.plumelib.util.SystemPlume;
 import org.plumelib.util.UtilPlume;
 
@@ -2622,7 +2622,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         // This must return a modifiable set because clients modify it.
         // Most checkers have 1 or fewer subcheckers.
         LinkedHashSet<Class<? extends SourceChecker>> result =
-                new LinkedHashSet<>(CollectionsPlume.mapCapacity(2));
+                new LinkedHashSet<>(MapsP.mapCapacity(2));
         if (shouldResolveReflection()) {
             result.add(MethodValChecker.class);
         }
@@ -2786,8 +2786,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return new HashMap<>();
         }
 
-        Map<String, String> activeOpts = new HashMap<>(CollectionsPlume.mapCapacity(options));
-        Map<String, Integer> optPriority = new HashMap<>(CollectionsPlume.mapCapacity(options));
+        Map<String, String> activeOpts = new HashMap<>(MapsP.mapCapacity(options));
+        Map<String, Integer> optPriority = new HashMap<>(MapsP.mapCapacity(options));
 
         final int PRIORITY_UNPREFIXED = 1;
         final int PRIORITY_THIS_CHECKER = 1000;
@@ -3315,8 +3315,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected Collection<String> expandCFOptions(
             List<? extends Class<?>> clazzPrefixes, Collection<String> options) {
         Set<String> res =
-                new HashSet<>(
-                        CollectionsPlume.mapCapacity(options.size() * (1 + clazzPrefixes.size())));
+                new HashSet<>(MapsP.mapCapacity(options.size() * (1 + clazzPrefixes.size())));
         for (String option : options) {
             res.add(option);
             for (Class<?> clazz : clazzPrefixes) {

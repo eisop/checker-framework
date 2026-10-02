@@ -13,7 +13,7 @@ LABEL org.opencontainers.image.authors="Werner Dietl <wdietl@gmail.com>"
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt -qqy update \
-&& apt install -y locales \
+&& apt -qqy install locales \
 && rm -rf /var/lib/apt/lists/* \
 && locale-gen "en_US.UTF-8"
 ENV LANG=en_US.UTF-8 \
@@ -23,7 +23,7 @@ ENV LANG=en_US.UTF-8 \
 # Always install JDK 21 to compile the code, even if tests run under a different JDK.
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt -qqy update \
-&& apt -y install \
+&& apt -qqy install \
   openjdk-21-jdk
 ENV JAVA21_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 
@@ -31,7 +31,7 @@ ENV JAVA21_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt -qqy update \
-&& apt -y install \
+&& apt -qqy install \
   ant \
   binutils \
   build-essential \
@@ -50,8 +50,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt -qqy update \
-&& apt -y install \
-  asciidoctor \
+&& apt -qqy install \
   autoconf \
   devscripts \
   dia \
@@ -86,7 +85,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 # So, install into /usr/local/bin which is already on every user's path.
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt -qqy update \
-&& apt -y install \
+&& apt -qqy install \
   pipx \
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install black \
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install flake8 \
@@ -98,15 +97,24 @@ RUN mkdir /python-env \
 && /python-env/bin/pip install --no-cache-dir lithium-reducer PyGithub pyyaml
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install ruff
 
+RUN export DEBIAN_FRONTEND=noninteractive \
+&& apt -qqy update \
+&& apt -qqy install \
+  npm
+
+RUN export DEBIAN_FRONTEND=noninteractive \
+&& npm install markdownlint-cli2 --global
+
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt -qqy update \
-&& apt -y install \
+&& apt -qqy install \
   openjdk-21-jdk \
 && update-java-alternatives -s java-1.21.0-openjdk-amd64
 ENV JAVA21_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 
 RUN export DEBIAN_FRONTEND=noninteractive \
-&& apt autoremove \
-&& apt clean \
+&& apt -y autoremove \
+&& apt -y clean \
 && rm -rf /var/lib/apt/lists/*
+

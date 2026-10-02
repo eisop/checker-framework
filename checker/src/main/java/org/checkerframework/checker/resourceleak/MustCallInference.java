@@ -89,10 +89,6 @@ import javax.lang.model.type.TypeMirror;
  *
  * <p>See {@link ResourceLeakChecker#ENABLE_WPI_FOR_RLC} for an explanation of the meaning of the
  * flags {@code -Ainfer} and {@code -AenableWpiForRlc}.
- *
- * @see <a
- *     href="https://checkerframework.org/manual/#resource-leak-checker-inference-algo">Automatic
- *     Inference of Resource Leak Specifications</a>
  */
 public class MustCallInference {
 
