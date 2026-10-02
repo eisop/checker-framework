@@ -11,15 +11,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * is not how this is exercised here -- see the class comment on the driving test.
  */
 public class InRepeatableSub {
-    void takeNonNull(Object nn) {}
+  void takeNonNull(Object nn) {}
 
-    void nullness(@Nullable Object n) {
-        takeNonNull(n);
-    }
+  void nullness(@Nullable Object n) {
+    takeNonNull(n);
+  }
 
-    void takeNonNegative(@NonNegative int i) {}
+  void takeNonNegative(@NonNegative int i) {}
 
-    void index(int i) {
-        takeNonNegative(i);
-    }
+  void index(int i) {
+    takeNonNegative(i);
+  }
 }

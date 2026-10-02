@@ -1,9 +1,8 @@
 package org.checkerframework.framework.type;
 
+import javax.lang.model.element.AnnotationMirror;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.javacutil.Pair;
-
-import javax.lang.model.element.AnnotationMirror;
 
 /**
  * Stores the result of {@link StructuralEqualityComparer} for type arguments.
@@ -12,97 +11,95 @@ import javax.lang.model.element.AnnotationMirror;
  */
 public class StructuralEqualityVisitHistory {
 
-    /**
-     * Types in this history are structurally equal. (Use {@link SubtypeVisitHistory} because it
-     * implements a {@code Map<Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>,
-     * AnnotationMirrorSet>})
-     */
-    private final SubtypeVisitHistory trueHistory;
+  /**
+   * Types in this history are structurally equal. (Use {@link SubtypeVisitHistory} because it
+   * implements a {@code Map<Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>, AnnotationMirrorSet>})
+   */
+  private final SubtypeVisitHistory trueHistory;
 
-    /**
-     * Types in this history are not structurally equal. (Use {@link SubtypeVisitHistory} because it
-     * implements a {@code Map<Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>,
-     * AnnotationMirrorSet>})
-     */
-    private final SubtypeVisitHistory falseHistory;
+  /**
+   * Types in this history are not structurally equal. (Use {@link SubtypeVisitHistory} because it
+   * implements a {@code Map<Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>, AnnotationMirrorSet>})
+   */
+  private final SubtypeVisitHistory falseHistory;
 
-    /** Creates an empty StructuralEqualityVisitHistory. */
-    public StructuralEqualityVisitHistory() {
-        this.trueHistory = new SubtypeVisitHistory();
-        this.falseHistory = new SubtypeVisitHistory();
+  /** Creates an empty StructuralEqualityVisitHistory. */
+  public StructuralEqualityVisitHistory() {
+    this.trueHistory = new SubtypeVisitHistory();
+    this.falseHistory = new SubtypeVisitHistory();
+  }
+
+  /**
+   * Removes all entries from both inner histories. Called between top-level subtype checks to bound
+   * memory.
+   */
+  public void clear() {
+    trueHistory.clear();
+    falseHistory.clear();
+  }
+
+  /**
+   * Put result of comparing {@code type1} and {@code type2} for structural equality for the given
+   * hierarchy.
+   *
+   * @param type1 the first type
+   * @param type2 the second type
+   * @param hierarchy the top of the relevant type hierarchy; only annotations from that hierarchy
+   *     are considered
+   * @param result true if {@code type1} is structurally equal to {@code type2}
+   */
+  public void put(
+      AnnotatedTypeMirror type1,
+      AnnotatedTypeMirror type2,
+      AnnotationMirror hierarchy,
+      boolean result) {
+    // Share one key across both true- and false-history operations to avoid allocating two
+    // equal Pairs per call.
+    Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = Pair.of(type1, type2);
+    if (result) {
+      trueHistory.putKey(key, hierarchy);
+      falseHistory.removeKey(key, hierarchy);
+    } else {
+      falseHistory.putKey(key, hierarchy);
+      trueHistory.removeKey(key, hierarchy);
     }
+  }
 
-    /**
-     * Removes all entries from both inner histories. Called between top-level subtype checks to
-     * bound memory.
-     */
-    public void clear() {
-        trueHistory.clear();
-        falseHistory.clear();
+  /**
+   * Returns true if the two types are structurally equal for the given hierarchy or {@code null} if
+   * the types have not been visited for the given hierarchy.
+   *
+   * @param type1 the first type
+   * @param type2 the second type
+   * @param hierarchy the top of the relevant type hierarchy; only annotations from that hierarchy
+   *     are considered
+   * @return true if the two types are structurally equal for the given hierarchy or {@code null} if
+   *     the types have not been visited for the given hierarchy
+   */
+  public @Nullable Boolean get(
+      AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror hierarchy) {
+    Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = Pair.of(type1, type2);
+    if (falseHistory.containsKey(key, hierarchy)) {
+      return false;
+    } else if (trueHistory.containsKey(key, hierarchy)) {
+      return true;
     }
+    return null;
+  }
 
-    /**
-     * Put result of comparing {@code type1} and {@code type2} for structural equality for the given
-     * hierarchy.
-     *
-     * @param type1 the first type
-     * @param type2 the second type
-     * @param hierarchy the top of the relevant type hierarchy; only annotations from that hierarchy
-     *     are considered
-     * @param result true if {@code type1} is structurally equal to {@code type2}
-     */
-    public void put(
-            AnnotatedTypeMirror type1,
-            AnnotatedTypeMirror type2,
-            AnnotationMirror hierarchy,
-            boolean result) {
-        // Share one key across both true- and false-history operations to avoid allocating two
-        // equal Pairs per call.
-        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = Pair.of(type1, type2);
-        if (result) {
-            trueHistory.putKey(key, hierarchy);
-            falseHistory.removeKey(key, hierarchy);
-        } else {
-            falseHistory.putKey(key, hierarchy);
-            trueHistory.removeKey(key, hierarchy);
-        }
-    }
-
-    /**
-     * Returns true if the two types are structurally equal for the given hierarchy or {@code null}
-     * if the types have not been visited for the given hierarchy.
-     *
-     * @param type1 the first type
-     * @param type2 the second type
-     * @param hierarchy the top of the relevant type hierarchy; only annotations from that hierarchy
-     *     are considered
-     * @return true if the two types are structurally equal for the given hierarchy or {@code null}
-     *     if the types have not been visited for the given hierarchy
-     */
-    public @Nullable Boolean get(
-            AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror hierarchy) {
-        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = Pair.of(type1, type2);
-        if (falseHistory.containsKey(key, hierarchy)) {
-            return false;
-        } else if (trueHistory.containsKey(key, hierarchy)) {
-            return true;
-        }
-        return null;
-    }
-
-    /**
-     * Remove the result of comparing {@code type1} and {@code type2} for structural equality for
-     * the given hierarchy.
-     *
-     * @param type1 the first type
-     * @param type2 the second type
-     * @param hierarchy the top of the relevant type hierarchy; only annotations from that hierarchy
-     *     are considered
-     */
-    public void remove(
-            AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror hierarchy) {
-        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = Pair.of(type1, type2);
-        falseHistory.removeKey(key, hierarchy);
-        trueHistory.removeKey(key, hierarchy);
-    }
+  /**
+   * Remove the result of comparing {@code type1} and {@code type2} for structural equality for the
+   * given hierarchy.
+   *
+   * @param type1 the first type
+   * @param type2 the second type
+   * @param hierarchy the top of the relevant type hierarchy; only annotations from that hierarchy
+   *     are considered
+   */
+  public void remove(
+      AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror hierarchy) {
+    Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = Pair.of(type1, type2);
+    falseHistory.removeKey(key, hierarchy);
+    trueHistory.removeKey(key, hierarchy);
+  }
 }

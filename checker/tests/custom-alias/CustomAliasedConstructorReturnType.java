@@ -8,6 +8,6 @@ package custom.alias;
  * the caller must.
  */
 public class CustomAliasedConstructorReturnType {
-    // :: error: (initialization.invalid.constructor.return.type)
-    @Initialized CustomAliasedConstructorReturnType() {}
+  // :: error: (initialization.invalid.constructor.return.type)
+  @Initialized CustomAliasedConstructorReturnType() {}
 }

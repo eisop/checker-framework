@@ -4,15 +4,15 @@
  * AssertionErrors when processing such cases.
  */
 class Generic<T> {
-    public T data;
+  public T data;
 
-    public Generic(T data) {
-        this.data = data;
-    }
+  public Generic(T data) {
+    this.data = data;
+  }
 }
 
 public class GenericClassFieldCrash {
-    private void onPacket(Generic foo) {
-        String.format("socket received: data '%s'", foo.data);
-    }
+  private void onPacket(Generic foo) {
+    String.format("socket received: data '%s'", foo.data);
+  }
 }

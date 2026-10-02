@@ -1,190 +1,187 @@
 package org.checkerframework.dataflow.expression;
 
+import java.util.List;
+import javax.lang.model.type.ArrayType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
 
-import java.util.List;
-
-import javax.lang.model.type.ArrayType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
-
 /** JavaExpression for array creations. {@code new String[]()}. */
 public class ArrayCreation extends JavaExpression {
 
-    /**
-     * List of dimensions expressions. A {code null} element means that there is no dimension
-     * expression for the given array level.
-     */
-    protected final List<@Nullable JavaExpression> dimensions;
+  /**
+   * List of dimensions expressions. A {code null} element means that there is no dimension
+   * expression for the given array level.
+   */
+  protected final List<@Nullable JavaExpression> dimensions;
 
-    /** List of initializers. */
-    protected final List<JavaExpression> initializers;
+  /** List of initializers. */
+  protected final List<JavaExpression> initializers;
 
-    /**
-     * Creates an ArrayCreation object.
-     *
-     * @param type array type
-     * @param dimensions list of dimension expressions; a {@code null} element means that there is
-     *     no dimension expression for the given array level
-     * @param initializers list of initializer expressions
-     */
-    public ArrayCreation(
-            TypeMirror type,
-            List<@Nullable JavaExpression> dimensions,
-            List<JavaExpression> initializers) {
-        super(type);
-        assert type.getKind() == TypeKind.ARRAY;
-        this.dimensions = dimensions;
-        this.initializers = initializers;
+  /**
+   * Creates an ArrayCreation object.
+   *
+   * @param type array type
+   * @param dimensions list of dimension expressions; a {@code null} element means that there is no
+   *     dimension expression for the given array level
+   * @param initializers list of initializer expressions
+   */
+  public ArrayCreation(
+      TypeMirror type,
+      List<@Nullable JavaExpression> dimensions,
+      List<JavaExpression> initializers) {
+    super(type);
+    assert type.getKind() == TypeKind.ARRAY;
+    this.dimensions = dimensions;
+    this.initializers = initializers;
+  }
+
+  /**
+   * Returns a list representing the dimensions of this array creation. A {code null} element means
+   * that there is no dimension expression for the given array level.
+   *
+   * @return a list representing the dimensions of this array creation
+   */
+  public List<@Nullable JavaExpression> getDimensions() {
+    return dimensions;
+  }
+
+  public List<JavaExpression> getInitializers() {
+    return initializers;
+  }
+
+  @SuppressWarnings("unchecked") // generic cast
+  @Override
+  public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
+    for (JavaExpression n : dimensions) {
+      if (n != null && n.getClass() == clazz) {
+        return (T) n;
+      }
     }
-
-    /**
-     * Returns a list representing the dimensions of this array creation. A {code null} element
-     * means that there is no dimension expression for the given array level.
-     *
-     * @return a list representing the dimensions of this array creation
-     */
-    public List<@Nullable JavaExpression> getDimensions() {
-        return dimensions;
+    for (JavaExpression n : initializers) {
+      if (n.getClass() == clazz) {
+        return (T) n;
+      }
     }
+    return null;
+  }
 
-    public List<JavaExpression> getInitializers() {
-        return initializers;
+  @Override
+  public boolean isDeterministic(AnnotationProvider provider) {
+    return listIsDeterministic(dimensions, provider) && listIsDeterministic(initializers, provider);
+  }
+
+  @Override
+  public boolean isAssignableByOtherCode() {
+    return true;
+  }
+
+  @Override
+  public boolean isModifiableByOtherCode() {
+    return true;
+  }
+
+  /** Cache the hashCode. Recomputed if zero. */
+  private int hashCodeCache = 0;
+
+  @Override
+  public int hashCode() {
+    if (hashCodeCache == 0) {
+      int h = 1;
+      h = 31 * h + (dimensions != null ? dimensions.hashCode() : 0);
+      h = 31 * h + (initializers != null ? initializers.hashCode() : 0);
+      String typeStr = getType().toString();
+      h = 31 * h + (typeStr != null ? typeStr.hashCode() : 0);
+      hashCodeCache = h == 0 ? 1 : h;
     }
+    return hashCodeCache;
+  }
 
-    @SuppressWarnings("unchecked") // generic cast
-    @Override
-    public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
-        for (JavaExpression n : dimensions) {
-            if (n != null && n.getClass() == clazz) {
-                return (T) n;
-            }
-        }
-        for (JavaExpression n : initializers) {
-            if (n.getClass() == clazz) {
-                return (T) n;
-            }
-        }
-        return null;
+  @Override
+  public boolean equals(@Nullable Object obj) {
+    if (this == obj) {
+      return true;
     }
-
-    @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
-        return listIsDeterministic(dimensions, provider)
-                && listIsDeterministic(initializers, provider);
+    if (!(obj instanceof ArrayCreation)) {
+      return false;
     }
+    ArrayCreation other = (ArrayCreation) obj;
+    // Types#isSameType would be more correct, but no Types object is available here.
+    // TypeMirror.toString() produces a canonical source-form name for array types,
+    // which is sufficient for structural equality checks in this context.
+    // The type comparison is last so the cheaper list comparisons short-circuit first.
+    @SuppressWarnings("TypeToString")
+    boolean result =
+        this.dimensions.equals(other.getDimensions())
+            && this.initializers.equals(other.getInitializers())
+            && getType().toString().equals(other.getType().toString());
+    return result;
+  }
 
-    @Override
-    public boolean isAssignableByOtherCode() {
-        return true;
+  @Override
+  public boolean syntacticEquals(JavaExpression je) {
+    if (!(je instanceof ArrayCreation)) {
+      return false;
     }
+    ArrayCreation other = (ArrayCreation) je;
+    // Types#isSameType would be more correct, but no Types object is available here.
+    // TypeMirror.toString() produces a canonical source-form name for array types,
+    // which is sufficient for structural equality checks in this context.
+    // The type comparison is last so the cheaper list comparisons short-circuit first.
+    @SuppressWarnings("TypeToString")
+    boolean result =
+        JavaExpression.syntacticEqualsList(this.dimensions, other.dimensions)
+            && JavaExpression.syntacticEqualsList(this.initializers, other.initializers)
+            && getType().toString().equals(other.getType().toString());
+    return result;
+  }
 
-    @Override
-    public boolean isModifiableByOtherCode() {
-        return true;
+  @Override
+  public boolean containsSyntacticEqualJavaExpression(JavaExpression other) {
+    return syntacticEquals(other)
+        || JavaExpression.listContainsSyntacticEqualJavaExpression(dimensions, other)
+        || JavaExpression.listContainsSyntacticEqualJavaExpression(initializers, other);
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    if (dimensions.isEmpty()) {
+      sb.append("new " + type);
+    } else {
+      sb.append("new " + TypesUtils.getInnermostComponentType((ArrayType) type));
+      for (JavaExpression dim : dimensions) {
+        sb.append("[");
+        sb.append(dim == null ? "" : dim);
+        sb.append("]");
+      }
     }
-
-    /** Cache the hashCode. Recomputed if zero. */
-    private int hashCodeCache = 0;
-
-    @Override
-    public int hashCode() {
-        if (hashCodeCache == 0) {
-            int h = 1;
-            h = 31 * h + (dimensions != null ? dimensions.hashCode() : 0);
-            h = 31 * h + (initializers != null ? initializers.hashCode() : 0);
-            String typeStr = getType().toString();
-            h = 31 * h + (typeStr != null ? typeStr.hashCode() : 0);
-            hashCodeCache = h == 0 ? 1 : h;
-        }
-        return hashCodeCache;
+    if (!initializers.isEmpty() || dimensions.isEmpty()) {
+      sb.append(" {");
+      sb.append(StringsPlume.join(", ", initializers));
+      sb.append("}");
     }
+    return sb.toString();
+  }
 
-    @Override
-    public boolean equals(@Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (!(obj instanceof ArrayCreation)) {
-            return false;
-        }
-        ArrayCreation other = (ArrayCreation) obj;
-        // Types#isSameType would be more correct, but no Types object is available here.
-        // TypeMirror.toString() produces a canonical source-form name for array types,
-        // which is sufficient for structural equality checks in this context.
-        // The type comparison is last so the cheaper list comparisons short-circuit first.
-        @SuppressWarnings("TypeToString")
-        boolean result =
-                this.dimensions.equals(other.getDimensions())
-                        && this.initializers.equals(other.getInitializers())
-                        && getType().toString().equals(other.getType().toString());
-        return result;
-    }
+  @Override
+  public String toStringDebug() {
+    return "\""
+        + super.toStringDebug()
+        + "\""
+        + " type="
+        + type
+        + " dimensions="
+        + dimensions
+        + " initializers="
+        + initializers;
+  }
 
-    @Override
-    public boolean syntacticEquals(JavaExpression je) {
-        if (!(je instanceof ArrayCreation)) {
-            return false;
-        }
-        ArrayCreation other = (ArrayCreation) je;
-        // Types#isSameType would be more correct, but no Types object is available here.
-        // TypeMirror.toString() produces a canonical source-form name for array types,
-        // which is sufficient for structural equality checks in this context.
-        // The type comparison is last so the cheaper list comparisons short-circuit first.
-        @SuppressWarnings("TypeToString")
-        boolean result =
-                JavaExpression.syntacticEqualsList(this.dimensions, other.dimensions)
-                        && JavaExpression.syntacticEqualsList(this.initializers, other.initializers)
-                        && getType().toString().equals(other.getType().toString());
-        return result;
-    }
-
-    @Override
-    public boolean containsSyntacticEqualJavaExpression(JavaExpression other) {
-        return syntacticEquals(other)
-                || JavaExpression.listContainsSyntacticEqualJavaExpression(dimensions, other)
-                || JavaExpression.listContainsSyntacticEqualJavaExpression(initializers, other);
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        if (dimensions.isEmpty()) {
-            sb.append("new " + type);
-        } else {
-            sb.append("new " + TypesUtils.getInnermostComponentType((ArrayType) type));
-            for (JavaExpression dim : dimensions) {
-                sb.append("[");
-                sb.append(dim == null ? "" : dim);
-                sb.append("]");
-            }
-        }
-        if (!initializers.isEmpty() || dimensions.isEmpty()) {
-            sb.append(" {");
-            sb.append(StringsPlume.join(", ", initializers));
-            sb.append("}");
-        }
-        return sb.toString();
-    }
-
-    @Override
-    public String toStringDebug() {
-        return "\""
-                + super.toStringDebug()
-                + "\""
-                + " type="
-                + type
-                + " dimensions="
-                + dimensions
-                + " initializers="
-                + initializers;
-    }
-
-    @Override
-    public <R, P> R accept(JavaExpressionVisitor<R, P> visitor, P p) {
-        return visitor.visitArrayCreation(this, p);
-    }
+  @Override
+  public <R, P> R accept(JavaExpressionVisitor<R, P> visitor, P p) {
+    return visitor.visitArrayCreation(this, p);
+  }
 }

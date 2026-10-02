@@ -1,5 +1,7 @@
 package org.checkerframework.framework.type.visitor;
 
+import java.util.IdentityHashMap;
+import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -14,278 +16,267 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.util.AtmCombo;
 
-import java.util.IdentityHashMap;
-import java.util.List;
-
 /**
  * EquivalentAtmComboScanner is an AtmComboVisitor that accepts combinations that are identical in
  * TypeMirror structure but might differ in contained AnnotationMirrors. This method will scan the
  * individual components of the visited type pairs together.
  */
 public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
-        extends AbstractAtmComboVisitor<RETURN_TYPE, PARAM> {
+    extends AbstractAtmComboVisitor<RETURN_TYPE, PARAM> {
 
-    /**
-     * A history of type pairs that have already been visited and the return type of their visit.
-     */
-    protected final Visited visited = new Visited();
+  /** A history of type pairs that have already been visited and the return type of their visit. */
+  protected final Visited visited = new Visited();
 
-    /** Entry point for this scanner. */
-    @Override
-    public RETURN_TYPE visit(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, PARAM param) {
-        // Avoid the cost of IdentityHashMap.clear() when the map is already empty, which is the
-        // common case for top-level equality checks on simple types.
-        if (!visited.isEmpty()) {
-            visited.clear();
-        }
-        return scan(type1, type2, param);
+  /** Entry point for this scanner. */
+  @Override
+  public RETURN_TYPE visit(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, PARAM param) {
+    // Avoid the cost of IdentityHashMap.clear() when the map is already empty, which is the
+    // common case for top-level equality checks on simple types.
+    if (!visited.isEmpty()) {
+      visited.clear();
+    }
+    return scan(type1, type2, param);
+  }
+
+  /**
+   * In an AnnotatedTypeScanner a null type is encounter than null is returned. A user may want to
+   * customize the behavior of this scanner depending on whether or not one or both types is null.
+   *
+   * @param type1 a nullable AnnotatedTypeMirror
+   * @param type2 a nullable AnnotatedTypeMirror
+   * @param param the visitor param
+   * @return a subclass specific return type/value
+   */
+  protected abstract RETURN_TYPE scanWithNull(
+      AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, PARAM param);
+
+  protected RETURN_TYPE scan(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, PARAM param) {
+    if (type1 == null || type2 == null) {
+      return scanWithNull(type1, type2, param);
     }
 
+    return AtmCombo.accept(type1, type2, param, this);
+  }
+
+  /**
+   * Scans {@code types1} and {@code types2} in parallel with the given parameter and returns the
+   * reduced result. Uses index-based access to avoid allocating iterators over the (typically
+   * unmodifiable) lists.
+   *
+   * @param types1 types to scan
+   * @param types2 types to scan paired with {@code types1}
+   * @param param the visitor parameter
+   * @return the reduced result of scanning all paired types, or {@code null} if both lists are
+   *     empty
+   */
+  protected RETURN_TYPE scan(
+      List<? extends AnnotatedTypeMirror> types1,
+      List<? extends AnnotatedTypeMirror> types2,
+      PARAM param) {
+    int n = Math.min(types1.size(), types2.size());
+    if (n == 0) {
+      return null;
+    }
+    RETURN_TYPE r = scan(types1.get(0), types2.get(0), param);
+    for (int i = 1; i < n; ++i) {
+      r = scanAndReduce(types1.get(i), types2.get(i), param, r);
+    }
+    return r;
+  }
+
+  /**
+   * Scans {@code types1} and {@code types2} in parallel with the given parameter and reduces the
+   * result with {@code r}.
+   *
+   * @param types1 types to scan
+   * @param types2 types to scan paired with {@code types1}
+   * @param param the visitor parameter
+   * @param r result to combine with the result of scanning the paired types
+   * @return the combination of {@code r} with the result of scanning all paired types
+   */
+  protected RETURN_TYPE scanAndReduce(
+      List<? extends AnnotatedTypeMirror> types1,
+      List<? extends AnnotatedTypeMirror> types2,
+      PARAM param,
+      RETURN_TYPE r) {
+    return reduce(scan(types1, types2, param), r);
+  }
+
+  protected RETURN_TYPE scanAndReduce(
+      AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, PARAM param, RETURN_TYPE r) {
+    return reduce(scan(type1, type2, param), r);
+  }
+
+  protected RETURN_TYPE reduce(RETURN_TYPE add, RETURN_TYPE acc) {
+    if (add == null) {
+      return acc;
+    }
+    return add;
+  }
+
+  @Override
+  public RETURN_TYPE visitArray_Array(
+      AnnotatedArrayType type1, AnnotatedArrayType type2, PARAM param) {
+    if (visited.contains(type1, type2)) {
+      return visited.getResult(type1, type2);
+    }
+    visited.add(type1, type2, null);
+
+    return scan(type1.getComponentType(), type2.getComponentType(), param);
+  }
+
+  @Override
+  public RETURN_TYPE visitDeclared_Declared(
+      AnnotatedDeclaredType type1, AnnotatedDeclaredType type2, PARAM param) {
+    if (visited.contains(type1, type2)) {
+      return visited.getResult(type1, type2);
+    }
+    visited.add(type1, type2, null);
+
+    return scan(type1.getTypeArguments(), type2.getTypeArguments(), param);
+  }
+
+  @Override
+  public RETURN_TYPE visitExecutable_Executable(
+      AnnotatedExecutableType type1, AnnotatedExecutableType type2, PARAM param) {
+    if (visited.contains(type1, type2)) {
+      return visited.getResult(type1, type2);
+    }
+    visited.add(type1, type2, null);
+
+    RETURN_TYPE r = scan(type1.getReturnType(), type2.getReturnType(), param);
+    r = scanAndReduce(type1.getReceiverType(), type2.getReceiverType(), param, r);
+    r = scanAndReduce(type1.getParameterTypes(), type2.getParameterTypes(), param, r);
+    r = scanAndReduce(type1.getThrownTypes(), type2.getThrownTypes(), param, r);
+    r = scanAndReduce(type1.getTypeVariables(), type2.getTypeVariables(), param, r);
+    return r;
+  }
+
+  @Override
+  public RETURN_TYPE visitIntersection_Intersection(
+      AnnotatedIntersectionType type1, AnnotatedIntersectionType type2, PARAM param) {
+    if (visited.contains(type1, type2)) {
+      return visited.getResult(type1, type2);
+    }
+    visited.add(type1, type2, null);
+
+    return scan(type1.getBounds(), type2.getBounds(), param);
+  }
+
+  @Override
+  public @Nullable RETURN_TYPE visitNone_None(
+      AnnotatedNoType type1, AnnotatedNoType type2, PARAM param) {
+    return null;
+  }
+
+  @Override
+  public @Nullable RETURN_TYPE visitNull_Null(
+      AnnotatedNullType type1, AnnotatedNullType type2, PARAM param) {
+    return null;
+  }
+
+  @Override
+  public @Nullable RETURN_TYPE visitPrimitive_Primitive(
+      AnnotatedPrimitiveType type1, AnnotatedPrimitiveType type2, PARAM param) {
+    return null;
+  }
+
+  @Override
+  public RETURN_TYPE visitUnion_Union(
+      AnnotatedUnionType type1, AnnotatedUnionType type2, PARAM param) {
+    if (visited.contains(type1, type2)) {
+      return visited.getResult(type1, type2);
+    }
+
+    visited.add(type1, type2, null);
+
+    return scan(type1.getAlternatives(), type2.getAlternatives(), param);
+  }
+
+  @Override
+  public RETURN_TYPE visitTypevar_Typevar(
+      AnnotatedTypeVariable type1, AnnotatedTypeVariable type2, PARAM param) {
+    if (visited.contains(type1, type2)) {
+      return visited.getResult(type1, type2);
+    }
+
+    visited.add(type1, type2, null);
+
+    RETURN_TYPE r = scan(type1.getUpperBound(), type2.getUpperBound(), param);
+    r = scanAndReduce(type1.getLowerBound(), type2.getLowerBound(), param, r);
+    return r;
+  }
+
+  @Override
+  public RETURN_TYPE visitWildcard_Wildcard(
+      AnnotatedWildcardType type1, AnnotatedWildcardType type2, PARAM param) {
+    if (visited.contains(type1, type2)) {
+      return visited.getResult(type1, type2);
+    }
+
+    visited.add(type1, type2, null);
+
+    RETURN_TYPE r = scan(type1.getExtendsBound(), type2.getExtendsBound(), param);
+    r = scanAndReduce(type1.getSuperBound(), type2.getSuperBound(), param, r);
+    return r;
+  }
+
+  /** A history of type pairs that have already been visited and the return type of their visit. */
+  protected class Visited {
+
+    /** Default constructor. */
+    Visited() {}
+
     /**
-     * In an AnnotatedTypeScanner a null type is encounter than null is returned. A user may want to
-     * customize the behavior of this scanner depending on whether or not one or both types is null.
+     * The backing history of type pairs.
      *
-     * @param type1 a nullable AnnotatedTypeMirror
-     * @param type2 a nullable AnnotatedTypeMirror
-     * @param param the visitor param
-     * @return a subclass specific return type/value
+     * <p>This map is re-instantiated in {@link #clear()} instead of cleared to avoid the O(N) cost
+     * of IdentityHashMap.clear().
      */
-    protected abstract RETURN_TYPE scanWithNull(
-            AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, PARAM param);
-
-    protected RETURN_TYPE scan(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, PARAM param) {
-        if (type1 == null || type2 == null) {
-            return scanWithNull(type1, type2, param);
-        }
-
-        return AtmCombo.accept(type1, type2, param, this);
-    }
+    private IdentityHashMap<AnnotatedTypeMirror, IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE>>
+        visits = new IdentityHashMap<>();
 
     /**
-     * Scans {@code types1} and {@code types2} in parallel with the given parameter and returns the
-     * reduced result. Uses index-based access to avoid allocating iterators over the (typically
-     * unmodifiable) lists.
+     * Returns true if no pairs have been recorded.
      *
-     * @param types1 types to scan
-     * @param types2 types to scan paired with {@code types1}
-     * @param param the visitor parameter
-     * @return the reduced result of scanning all paired types, or {@code null} if both lists are
-     *     empty
+     * @return true if no pairs have been recorded
      */
-    protected RETURN_TYPE scan(
-            List<? extends AnnotatedTypeMirror> types1,
-            List<? extends AnnotatedTypeMirror> types2,
-            PARAM param) {
-        int n = Math.min(types1.size(), types2.size());
-        if (n == 0) {
-            return null;
-        }
-        RETURN_TYPE r = scan(types1.get(0), types2.get(0), param);
-        for (int i = 1; i < n; ++i) {
-            r = scanAndReduce(types1.get(i), types2.get(i), param, r);
-        }
-        return r;
+    public boolean isEmpty() {
+      return visits.isEmpty();
+    }
+
+    /** Clears the history. */
+    public void clear() {
+      visits = new IdentityHashMap<>();
+    }
+
+    public boolean contains(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
+      IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE> recordFor1 = visits.get(type1);
+      return recordFor1 != null && recordFor1.containsKey(type2);
+    }
+
+    public @Nullable RETURN_TYPE getResult(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
+      IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE> recordFor1 = visits.get(type1);
+      if (recordFor1 == null) {
+        return null;
+      }
+
+      return recordFor1.get(type2);
     }
 
     /**
-     * Scans {@code types1} and {@code types2} in parallel with the given parameter and reduces the
-     * result with {@code r}.
+     * Add a new pair to the history.
      *
-     * @param types1 types to scan
-     * @param types2 types to scan paired with {@code types1}
-     * @param param the visitor parameter
-     * @param r result to combine with the result of scanning the paired types
-     * @return the combination of {@code r} with the result of scanning all paired types
+     * @param type1 the first type
+     * @param type2 the second type
+     * @param ret the result
      */
-    protected RETURN_TYPE scanAndReduce(
-            List<? extends AnnotatedTypeMirror> types1,
-            List<? extends AnnotatedTypeMirror> types2,
-            PARAM param,
-            RETURN_TYPE r) {
-        return reduce(scan(types1, types2, param), r);
+    public void add(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, RETURN_TYPE ret) {
+      IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE> recordFor1 =
+          visits.computeIfAbsent(
+              type1,
+              __ -> new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY));
+      recordFor1.put(type2, ret);
     }
-
-    protected RETURN_TYPE scanAndReduce(
-            AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, PARAM param, RETURN_TYPE r) {
-        return reduce(scan(type1, type2, param), r);
-    }
-
-    protected RETURN_TYPE reduce(RETURN_TYPE add, RETURN_TYPE acc) {
-        if (add == null) {
-            return acc;
-        }
-        return add;
-    }
-
-    @Override
-    public RETURN_TYPE visitArray_Array(
-            AnnotatedArrayType type1, AnnotatedArrayType type2, PARAM param) {
-        if (visited.contains(type1, type2)) {
-            return visited.getResult(type1, type2);
-        }
-        visited.add(type1, type2, null);
-
-        return scan(type1.getComponentType(), type2.getComponentType(), param);
-    }
-
-    @Override
-    public RETURN_TYPE visitDeclared_Declared(
-            AnnotatedDeclaredType type1, AnnotatedDeclaredType type2, PARAM param) {
-        if (visited.contains(type1, type2)) {
-            return visited.getResult(type1, type2);
-        }
-        visited.add(type1, type2, null);
-
-        return scan(type1.getTypeArguments(), type2.getTypeArguments(), param);
-    }
-
-    @Override
-    public RETURN_TYPE visitExecutable_Executable(
-            AnnotatedExecutableType type1, AnnotatedExecutableType type2, PARAM param) {
-        if (visited.contains(type1, type2)) {
-            return visited.getResult(type1, type2);
-        }
-        visited.add(type1, type2, null);
-
-        RETURN_TYPE r = scan(type1.getReturnType(), type2.getReturnType(), param);
-        r = scanAndReduce(type1.getReceiverType(), type2.getReceiverType(), param, r);
-        r = scanAndReduce(type1.getParameterTypes(), type2.getParameterTypes(), param, r);
-        r = scanAndReduce(type1.getThrownTypes(), type2.getThrownTypes(), param, r);
-        r = scanAndReduce(type1.getTypeVariables(), type2.getTypeVariables(), param, r);
-        return r;
-    }
-
-    @Override
-    public RETURN_TYPE visitIntersection_Intersection(
-            AnnotatedIntersectionType type1, AnnotatedIntersectionType type2, PARAM param) {
-        if (visited.contains(type1, type2)) {
-            return visited.getResult(type1, type2);
-        }
-        visited.add(type1, type2, null);
-
-        return scan(type1.getBounds(), type2.getBounds(), param);
-    }
-
-    @Override
-    public @Nullable RETURN_TYPE visitNone_None(
-            AnnotatedNoType type1, AnnotatedNoType type2, PARAM param) {
-        return null;
-    }
-
-    @Override
-    public @Nullable RETURN_TYPE visitNull_Null(
-            AnnotatedNullType type1, AnnotatedNullType type2, PARAM param) {
-        return null;
-    }
-
-    @Override
-    public @Nullable RETURN_TYPE visitPrimitive_Primitive(
-            AnnotatedPrimitiveType type1, AnnotatedPrimitiveType type2, PARAM param) {
-        return null;
-    }
-
-    @Override
-    public RETURN_TYPE visitUnion_Union(
-            AnnotatedUnionType type1, AnnotatedUnionType type2, PARAM param) {
-        if (visited.contains(type1, type2)) {
-            return visited.getResult(type1, type2);
-        }
-
-        visited.add(type1, type2, null);
-
-        return scan(type1.getAlternatives(), type2.getAlternatives(), param);
-    }
-
-    @Override
-    public RETURN_TYPE visitTypevar_Typevar(
-            AnnotatedTypeVariable type1, AnnotatedTypeVariable type2, PARAM param) {
-        if (visited.contains(type1, type2)) {
-            return visited.getResult(type1, type2);
-        }
-
-        visited.add(type1, type2, null);
-
-        RETURN_TYPE r = scan(type1.getUpperBound(), type2.getUpperBound(), param);
-        r = scanAndReduce(type1.getLowerBound(), type2.getLowerBound(), param, r);
-        return r;
-    }
-
-    @Override
-    public RETURN_TYPE visitWildcard_Wildcard(
-            AnnotatedWildcardType type1, AnnotatedWildcardType type2, PARAM param) {
-        if (visited.contains(type1, type2)) {
-            return visited.getResult(type1, type2);
-        }
-
-        visited.add(type1, type2, null);
-
-        RETURN_TYPE r = scan(type1.getExtendsBound(), type2.getExtendsBound(), param);
-        r = scanAndReduce(type1.getSuperBound(), type2.getSuperBound(), param, r);
-        return r;
-    }
-
-    /**
-     * A history of type pairs that have already been visited and the return type of their visit.
-     */
-    protected class Visited {
-
-        /** Default constructor. */
-        Visited() {}
-
-        /**
-         * The backing history of type pairs.
-         *
-         * <p>This map is re-instantiated in {@link #clear()} instead of cleared to avoid the O(N)
-         * cost of IdentityHashMap.clear().
-         */
-        private IdentityHashMap<
-                        AnnotatedTypeMirror, IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE>>
-                visits = new IdentityHashMap<>();
-
-        /**
-         * Returns true if no pairs have been recorded.
-         *
-         * @return true if no pairs have been recorded
-         */
-        public boolean isEmpty() {
-            return visits.isEmpty();
-        }
-
-        /** Clears the history. */
-        public void clear() {
-            visits = new IdentityHashMap<>();
-        }
-
-        public boolean contains(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
-            IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE> recordFor1 = visits.get(type1);
-            return recordFor1 != null && recordFor1.containsKey(type2);
-        }
-
-        public @Nullable RETURN_TYPE getResult(
-                AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
-            IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE> recordFor1 = visits.get(type1);
-            if (recordFor1 == null) {
-                return null;
-            }
-
-            return recordFor1.get(type2);
-        }
-
-        /**
-         * Add a new pair to the history.
-         *
-         * @param type1 the first type
-         * @param type2 the second type
-         * @param ret the result
-         */
-        public void add(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, RETURN_TYPE ret) {
-            IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE> recordFor1 =
-                    visits.computeIfAbsent(
-                            type1,
-                            __ ->
-                                    new IdentityHashMap<>(
-                                            AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY));
-            recordFor1.put(type2, ret);
-        }
-    }
+  }
 }

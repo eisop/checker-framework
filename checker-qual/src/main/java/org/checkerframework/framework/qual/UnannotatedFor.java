@@ -51,39 +51,39 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
 @Repeatable(UnannotatedFor.List.class)
 public @interface UnannotatedFor {
-    /**
-     * Returns the type systems for which the annotated element has not been annotated. Legal
-     * arguments are any string that may be passed to the {@code -processor} command-line argument:
-     * the fully-qualified class name for the checker, or a shorthand for built-in checkers. Using
-     * the annotation with no arguments, as in {@code @UnannotatedFor({})}, has no effect.
-     *
-     * @return the type systems for which the annotated element has not been annotated
-     * @checker_framework.manual #shorthand-for-checkers Short names for built-in checkers
-     */
-    String[] value();
+  /**
+   * Returns the type systems for which the annotated element has not been annotated. Legal
+   * arguments are any string that may be passed to the {@code -processor} command-line argument:
+   * the fully-qualified class name for the checker, or a shorthand for built-in checkers. Using the
+   * annotation with no arguments, as in {@code @UnannotatedFor({})}, has no effect.
+   *
+   * @return the type systems for which the annotated element has not been annotated
+   * @checker_framework.manual #shorthand-for-checkers Short names for built-in checkers
+   */
+  String[] value();
 
-    /**
-     * When used on a package, whether this annotation should also apply to subpackages.
-     *
-     * @return whether this annotation should be inherited by subpackages
-     */
-    boolean applyToSubpackages() default true;
+  /**
+   * When used on a package, whether this annotation should also apply to subpackages.
+   *
+   * @return whether this annotation should be inherited by subpackages
+   */
+  boolean applyToSubpackages() default true;
 
+  /**
+   * A wrapper annotation that makes the {@link UnannotatedFor} annotation repeatable.
+   *
+   * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+   * writes more than one {@link UnannotatedFor} annotation at the same location.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
+  public static @interface List {
     /**
-     * A wrapper annotation that makes the {@link UnannotatedFor} annotation repeatable.
+     * Returns the repeatable annotations.
      *
-     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
-     * writes more than one {@link UnannotatedFor} annotation at the same location.
+     * @return the repeatable annotations
      */
-    @Documented
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
-    public static @interface List {
-        /**
-         * Returns the repeatable annotations.
-         *
-         * @return the repeatable annotations
-         */
-        UnannotatedFor[] value();
-    }
+    UnannotatedFor[] value();
+  }
 }

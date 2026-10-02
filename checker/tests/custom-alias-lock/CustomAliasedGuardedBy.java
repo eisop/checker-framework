@@ -6,6 +6,6 @@ package customlockalias;
  * LockVisitor#visitVariable reads it via hasExplicitAnnotation(Class)/hasExplicitAnnotationRelaxed.
  */
 public class CustomAliasedGuardedBy {
-    // :: error: (immutable.type.guardedby) :: error: (type.invalid.annotations.on.use)
-    @GuardedByUnknown int x;
+  // :: error: (immutable.type.guardedby) :: error: (type.invalid.annotations.on.use)
+  @GuardedByUnknown int x;
 }
