@@ -25,18 +25,18 @@ public class MatcherGroupCount {
         if (mat.matches()) {
             if (mat.groupCount() == 0) {
                 System.out.println("Group: " + mat.group(0));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(1));
             } else {
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(1));
             }
             if (0 == mat.groupCount()) {
                 System.out.println("Group: " + mat.group(0));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(1));
             } else {
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(1));
             }
             if (mat.groupCount() > 0) {
@@ -47,37 +47,37 @@ public class MatcherGroupCount {
             if (mat.groupCount() == 2) {
                 System.out.println("Group: " + mat.group(1));
                 System.out.println("Group: " + mat.group(2));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(3));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(4));
             } else {
                 System.out.println("Group: " + mat.group(0));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(1));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(2));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(3));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(4));
             }
             if (2 == mat.groupCount()) {
                 System.out.println("Group: " + mat.group(1));
                 System.out.println("Group: " + mat.group(2));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(3));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(4));
             } else {
                 System.out.println("Group: " + mat.group(0));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(1));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(2));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(3));
-                // :: error: (group.count)
+                // :: error: (group.count.invalid)
                 System.out.println("Group: " + mat.group(4));
             }
             if (mat.groupCount() >= 2) {
