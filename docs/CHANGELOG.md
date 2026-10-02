@@ -350,13 +350,18 @@ typetools#3203,
 typetools#8055.
 
 
-## Version 3.52.2 (2026-01-03)
-
-### User-visible changes
+## Version 3.53.0 (2026-01-05)
 
 ### Implementation details
 
+In `AbstractAnalysis`, added `getStoreBefore(Tree)`, `getStoreBefore(Node)`,
+`getStoreAfter(Tree)`, and `getStoreAfter(Node)`.
+
+In `GenericAnnotatedTypeFactory`, removed `getStoreBefore(Set<Node>)` and `getStoreAfter(Set<Node>)`.
+
 ### Closed issues
+
+\#2358.
 
 ## Version 3.52.1 (2025-12-02)
 
@@ -367,7 +372,6 @@ Added `Opt.ifPresentOrElse()` method.
 ### Closed issues
 
 \#7243, #7398.
-
 ## Version 3.52.0 (2025-11-04)
 
 ### Implementation details
@@ -390,7 +394,6 @@ In `GenericAnnotatedTypeFactory`:
 ### Closed issues
 
 \#6623, #7250.
-
 ## Version 3.51.0 (2025-09-10)
 
 **Implementation details:**
@@ -542,7 +545,6 @@ The Checker Framework runs under JDK 25 -- that is, it runs on a version 25 JVM.
 ### Closed issues
 
 \#6740, #7013, #7038, #7070, #7082.
-
 ## Version 3.49.3-eisop1 (May 6, 2025)
 
 **User-visible changes:**
@@ -575,7 +577,6 @@ The Checker Framework runs under JDK 24 -- that is, it runs on a version 24 JVM.
 ### Closed issues
 
 \#6747, #6755, #6789, #6891, #6963, #6996, #7001, #7008, #7014.
-
 ## Version 3.49.1-eisop1 (March 17, 2025)
 
 **User-visible changes:**
@@ -599,7 +600,6 @@ eisop#1003, eisop#1022, eisop#1033, eisop#1058.
 ### Closed issues
 
 \#6970, #6974.
-
 ## Version 3.49.0 (February 3, 2025)
 
 ### User-visible changes
@@ -619,25 +619,21 @@ The JavaStubifier implementation now appears in package `org.checkerframework.fr
 ### Closed issues
 
 \#6935, #6936, #6939.
-
 ## Version 3.48.4 (January 2, 2025)
 
 ### Closed issues
 
 \#6919, #6630.
-
 ## Version 3.48.3 (December 2, 2024)
 
 ### Closed issues
 
 \#6886.
-
 ## Version 3.48.2 (November 1, 2024)
 
 ### Closed issues
 
 \#6371, #6867.
-
 ## Version 3.48.1 (October 11, 2024)
 
 ### User-visible changes
@@ -649,7 +645,6 @@ enable it, use the new `-AenableReturnsReceiverForRlc` command-line argument.
 ### Closed issues
 
 \#6434, #6810, #6839, #6842, #6856.
-
 ## Version 3.48.0 (October 2, 2024)
 
 **User-visible changes:**
@@ -712,7 +707,6 @@ Deprecated methods:
 ### Closed issues
 
 \#152, #5575, #6630, #6641, #6648, #6676.
-
 ## Version 3.44.0 (June 3, 2024)
 
 ### Implementation details
@@ -747,7 +741,6 @@ Subclasses should override `BaseTypeVisitor#processMethodTree(MethodTree)`.
 \#802, #2676, #2780, #2926, #3378, #3612, #3764, #4007, #4964, #5070, #5176,
 \#5237, #5541, #6046, #6382, #6388, #6566, #6568, #6570, #6576, #6577, #6631,
 \#6635, #6636, #6644.
-
 ## Version 3.43.0 (May 1, 2024)
 
 **User-visible changes:**
@@ -965,7 +958,6 @@ suppressing false positive warnings from the Optional Checker.
 ### Closed issues
 
 \#4947, #6179, #6215, #6218, #6222, #6247, #6259, #6260.
-
 ## Version 3.39.0-eisop1 (October 22, 2023)
 
 **User-visible changes:**
@@ -1037,7 +1029,6 @@ WPI uses 1-based indexing for formal parameters and arguments.
 ### Closed issues
 
 \#5911, #5967, #6155, #6173, #6201.
-
 ## Version 3.38.0 (September 1, 2023)
 
 ### User-visible changes
@@ -1052,7 +1043,6 @@ Renamed `SourceChecker.processArg()' to`processErrorMessageArg()`.
 ### Closed issues
 
 \#2156, #5672, #6110, #6111, #6116, #6125, #6129, #6136.
-
 ## Version 3.37.0 (August 1, 2023)
 
 ### User-visible changes
@@ -1078,7 +1068,6 @@ to be written on a non-integral type.
 ### Closed issues
 
 \#6076, #6077, #6078, #6098, #6100, #6104, #6113.
-
 ## Version 3.36.0 (July 3, 2023)
 
 ### User-visible changes
@@ -1182,7 +1171,6 @@ Removed methods that have been deprecated for over two years.
 ### Closed issues
 
 \#4170, #5722, #5777, #5807, #5821, #5826, #5829, #5837, #5930.
-
 ## Version 3.34.0-eisop1 (May 9, 2023)
 
 **User-visible changes:**
@@ -1228,7 +1216,6 @@ Renamings in `AnnotatedTypeFactory`:
 ### Closed issues
 
 \#803, #5739, #5749, #5767, #5781, #5787.
-
 ## Version 3.33.0 (April 3, 2023)
 
 **User-visible changes:**
@@ -1336,7 +1323,6 @@ Removed methods from AnnotationUtils that are no longer useful:
 ### Closed issues
 
 \#5597.
-
 ## Version 3.30.0 (February 2, 2023)
 
 **Implementation details:**
@@ -1393,7 +1379,6 @@ Renamed `TreeUtils.isEnumSuper` to `isEnumSuperCall`.
 ### Closed issues
 
 \#5390, #5399, #5390.
-
 ## Version 3.27.0-eisop1 (November 6, 2022)
 
 **User-visible changes:**
@@ -1437,7 +1422,6 @@ The Constant Value Checker supports new annotation `@DoesNotMatchRegex`.
 ### Closed issues
 
 \#5238, #5360, #5362, #5387.
-
 ## Version 3.26.0-eisop1 (October 13, 2022)
 
 **Implementation details:**
@@ -1485,7 +1469,6 @@ Removed variable `BaseTypeVisitor.inferPurity`.
 ### Closed issues
 
 \#5081, #5159, #5245, #5302, #5319, #5323.
-
 ## Version 3.25.0-eisop1 (September 3, 2022)
 
 **User-visible changes:**
@@ -1522,7 +1505,6 @@ Added `DoNothingChecker` that does nothing.
 ### Closed issues
 
 \#5216, #5240, #5256, #5273.
-
 ## Version 3.24.0-eisop1 (August 5, 2022)
 
 **User-visible changes:**
@@ -1545,7 +1527,6 @@ Prefer `SystemUtil.jreVersion` to `SystemUtil.getJreVersion()`.
 ### Closed issues
 
 \#5200, #5216.
-
 ## Version 3.23.0-eisop2 (July 22, 2022)
 
 **Implementation details:**
@@ -1605,13 +1586,11 @@ Checker warnings related to field initialization.
 ### Closed issues
 
 \#4855, #5151, #5166, #5172, #5175, #5181, #5189.
-
 ## Version 3.22.2 (June 14, 2022)
 
 ### Implementation details
 
 Expose CFG APIs to allow inserting jumps and throws.
-
 ## Version 3.22.1-eisop1 (June 3, 2022)
 
 **User-visible changes:**
@@ -1648,7 +1627,6 @@ for follow-up discussions.
 ### Closed issues
 
 \#58, #5136, #5138, #5142, #5143.
-
 ## Version 3.22.0-eisop1 (May 6, 2022)
 
 **User-visible changes:**
@@ -1700,7 +1678,6 @@ annotations, they are copied to the anonymous classes constructor.
 ### Closed issues
 
 \#5113.
-
 ## Version 3.21.4-eisop1 (April 4, 2022)
 
 **Closed issues:**
@@ -1712,7 +1689,6 @@ eisop#199, eisop#204.
 ### Closed issues
 
 \#5086.
-
 ## Version 3.21.3-eisop1 (March 23, 2022)
 
 **User-visible changes:**
@@ -1745,7 +1721,6 @@ typetools#5075.
 ### Closed issues
 
 \#2847, #4965, #5039, #5042, #5047.
-
 ## Version 3.21.2-eisop1 (February 2, 2022)
 
 **User-visible changes:**
@@ -1806,7 +1781,6 @@ Deprecated CFGLambda.getMethod{Name} in favor of getEnclosingMethod{Name}.
 ### Closed issues
 
 \#4615, #4993, #5006, #5007, #5008, #5013, #5016, #5021.
-
 ## Version 3.21.1 (January 7, 2022)
 
 ### User-visible changes
@@ -1818,7 +1792,6 @@ files.
 ### Closed issues
 
 \#2401, #4994, #4995, #4996.
-
 ## Version 3.21.0 (December 17, 2021)
 
 ### User-visible changes
@@ -1834,7 +1807,6 @@ was added.
 ### Closed issues
 
 \#2373, #4934, #4977, #4979, #4987.
-
 ## Version 3.20.0 (December 6, 2021)
 
 ### User-visible changes
@@ -1861,7 +1833,6 @@ Removed methods and classes that have been deprecated for more than one year:
 ### Closed issues
 
 \#4911, #4948, #4965.
-
 ## Version 3.19.0-eisop1 (November 4, 2021)
 
 **User-visible changes:**
@@ -1905,7 +1876,6 @@ Deprecated methods in AnnotatedTypeFactory:
 ### Closed issues
 
 \#4932, #4924, #4908, #3014.
-
 ## Version 3.18.1-eisop1 (October 7, 2021)
 
 **User-visible changes:**
@@ -1918,7 +1888,6 @@ Add more aliases for nullness annotations; fix manual formatting (#105).
 ### Closed issues
 
 \#4902 and #4903.
-
 ## Version 3.18.0-eisop1 (September 23, 2021)
 
 The new `-AnoJreVersionCheck` command-line argument can be used to not get
@@ -1947,7 +1916,6 @@ Java records are type-checked.  Thanks to Neil Brown.
 ### Closed issues
 
 \#4838, #4843, #4852, #4853, #4861, #4876, #4877, #4878, #4878, #4889, #4889.
-
 ## Version 3.17.0 (August 3, 2021)
 
 **User-visible changes:**
@@ -2023,7 +1991,6 @@ Method renamings in `AnnotatedTypes` (the old methods were removed):
 ### Closed issues
 
 \#3013, #3754, #3791, #3845, #4523, #4767.
-
 ## Version 3.15.0 (June 18, 2021)
 
 ### User-visible changes
@@ -2042,7 +2009,6 @@ Method renamings (the old methods remain but are deprecated):
 ### Closed issues
 
 \#4549, #4646, #4684, and #4699.
-
 ## Version 3.14.0 (June 1, 2021)
 
 ### User-visible changes
@@ -2070,7 +2036,6 @@ Removed CheckerDevelMain.
 ### Closed issues
 
 \#3993, #4116, #4586, #4598, #4612, #4614.
-
 ## Version 3.13.0 (May 3, 2021)
 
 ### Survey
@@ -2194,7 +2159,6 @@ Removed deprecated `PluginUtil` class.
 
 \#1376, #3740, #3970, #4041, #4254, #4346, #4355, #4358, #4372, #4381, #4384,
 \#4417, #4449, #4452, #4480.
-
 ## Version 3.11.0 (March 1, 2021)
 
 ### User-visible changes
@@ -2265,7 +2229,6 @@ to map a nondeterministic expression to a value.
 
 \#862, #3631, #3991, #4031, #4206, #4207, #4226, #4231, #4248, #4263, #4265,
 \#4279, #4286, #4289.
-
 ## Version 3.10.0 (February 1, 2021)
 
 ### User-visible changes
@@ -2343,7 +2306,6 @@ Copied methods on `TreePath`s from class 'TreeUtils` to new class `TreePathUtil`
 ### Closed issues
 
 \#789, #3202, #4071, #4083, #4114, #4115.
-
 ## Version 3.9.0 (January 4, 2021)
 
 ### User-visible changes
@@ -2384,7 +2346,6 @@ Method deprecations:
 
 \#765, #2452, #2953, #3377, #3496, #3499, #3826, #3956, #3971, #3974, #3994,
 \#4004, #4005, #4018, #4032, #4068, #4070.
-
 ## Version 3.8.0 (December 1, 2020)
 
 ### User-visible changes
@@ -2441,7 +2402,6 @@ Removed `org.checkerframework.framework.util.AnnotatedTypes#getIteratedType`; us
 
 \#3287, #3390, #3681, #3839, #3850, #3851, #3862, #3871, #3884, #3888, #3908,
 \#3929, #3932, #3935.
-
 ## Version 3.7.1 (November 2, 2020)
 
 ### User-visible changes
@@ -2473,7 +2433,6 @@ of user-written type annotations, even when parsed in declaration locations.
 \#868, #1908, #2075, #3349, #3362, #3569, #3614, #3637, #3709, #3710, #3711,
 \#3720, #3730, #3742, #3760, #3770, #3775, #3776, #3792, #3793, #3794, #3819,
 \#3831.
-
 ## Version 3.7.0 (October 1, 2020)
 
 ### User-visible changes
@@ -2530,7 +2489,6 @@ The CFStore copy constructor now takes only one argument.
 \#352, #354, #553, #722, #762, #2208, #2239, #3033, #3105, #3266, #3275, #3408,
 \#3561, #3616, #3619, #3622, #3625, #3630, #3632, #3648, #3650, #3667, #3668,
 \#3669, #3700, #3701.
-
 ## Version 3.6.1 (September 2, 2020)
 
 Documented that the Checker Framework can issue false positive warnings in
@@ -2541,7 +2499,6 @@ Documented when the Signedness Checker permits right shift operations.
 ### Closed issues
 
 \#3484, #3562, #3565, #3566, #3570, #3584, #3594, #3597, #3598.
-
 ## Version 3.6.0 (August 3, 2020)
 
 **User-visible changes:**
@@ -2651,7 +2608,6 @@ Removed methods and classes marked deprecated in release 3.3.0 or earlier.
 ### Closed issues
 
 \#1362, #1727, #2632, #3249, #3296, #3300, #3356, #3357, #3358, #3359, #3380.
-
 ## Version 3.4.1 (June 1, 2020)
 
 -Ainfer now takes an argument:
@@ -2669,7 +2625,6 @@ New command-line option:
 
 \#2893, #3021, #3128, #3160, #3232, #3277, #3285, #3289, #3295, #3302, #3305,
 \#3307, #3310, #3316, #3318, #3329.
-
 ## Version 3.4.0 (May 3, 2020)
 
 The annotated jdk8.jar is no longer used.  You should remove any occurrence of
@@ -2682,7 +2637,6 @@ returns its receiver (i.e., the `this` parameter).
 ### Closed issues
 
 \#3267, #3263, #3217, #3212, #3201, #3111, #3010, #2943, #2930.
-
 ## Version 3.3.0 (April 1, 2020)
 
 ### User-visible changes
@@ -2740,7 +2694,6 @@ AbstractTypeProcessor#typeProcessingOver() always gets called.
 
 \#1307, #1881, #1929, #2432, #2793, #3040, #3046, #3050, #3056, #3083, #3124,
 \#3126, #3129, #3132, #3139, #3149, #3150, #3167, #3189.
-
 ## Version 3.2.0 (March 2, 2020)
 
 @SuppressWarnings("initialization") suppresses only warnings whose key
@@ -2750,7 +2703,6 @@ by the Nullness Checker or the Initialization Checker.
 ### Closed issues
 
 \#2719, #3001, #3020, #3069, #3093, #3120.
-
 ## Version 3.1.1 (February 3, 2020)
 
 New command-line options:
@@ -2778,7 +2730,6 @@ Implementation details:
 
 \#2181, #2975, #3018, #3022, #3032, #3036, #3037, #3038, #3041, #3049, #3055,
 \#3076.
-
 ## Version 3.1.0 (January 3, 2020)
 
 Command-line option -AprintGitProperties prints information about the git
@@ -2797,7 +2748,6 @@ repository from which the Checker Framework was compiled.
 ### Closed issues
 
 \#2867, #2897, #2972.
-
 ## Version 3.0.1 (December 2, 2019)
 
 New command-line option for the Constant Value Checker
@@ -2813,7 +2763,6 @@ concatenation is non-null.
 
 \#945, #1224, #2024, #2744, #2809, #2815, #2818, #2830, #2840, #2853, #2854,
 \#2865, #2873, #2874, #2878, #2880, #2886, #2888, #2900, #2905, #2919, #2923.
-
 ## Version 3.0.0 (November 1, 2019)
 
 The Checker Framework works on both JDK 8 and JDK 11.
@@ -2834,7 +2783,6 @@ Removed the @PolyAll annotation.
 
 \#1169, #1654, #2081, #2703, #2739, #2749, #2779, #2781, #2798, #2820, #2824,
 \#2829, #2842, #2845, #2848.
-
 ## Version 2.11.1 (October 1, 2019)
 
 The manual links to the Object Construction Checker.
@@ -2842,7 +2790,6 @@ The manual links to the Object Construction Checker.
 ### Closed issues
 
 \#1635, #2718, #2767.
-
 ## Version 2.11.0 (August 30, 2019)
 
 The Checker Framework now uses the Java 9 javac API. The manual describes
@@ -2855,7 +2802,6 @@ Running the Checker Framework on a Java 9 JVM is not yet supported.
 
 \#1152, #1614, #2031, #2482, #2543, #2587, #2678, #2686, #2690, #2712, #2717,
 \#2713, #2721, #2725, #2729.
-
 ## Version 2.10.0 (August 1, 2019)
 
 Removed the NullnessRawnessChecker.  Use the NullnessChecker instead.
@@ -2864,7 +2810,6 @@ Removed the NullnessRawnessChecker.  Use the NullnessChecker instead.
 
 \#435, #939, #1430, #1687, #1771, #1902, #2173, #2345, #2470, #2534, #2606,
 \#2613, #2619, #2633, #2638.
-
 ## Version 2.9.0 (July 3, 2019)
 
 Renamed the Signedness Checker's @Constant annotation to @SignednessGlb.
@@ -2921,7 +2866,6 @@ TreeUtils.withoutParens which has the same specification.
 ### Closed issues
 
 \#2291, #2406, #2469, #2477, #2479, #2480, #2494, #2499.
-
 ## Version 3.0.0-b1 (May 1, 2019)
 
 First release of artifacts suitable for Java 9--12.
@@ -2937,7 +2881,6 @@ Moved text about the Purity Checker into its own chapter in the manual.
 
 \#660, #2030, #2223, #2240, #2244, #2375, #2407, #2410, #2415, #2420, #2421,
 \#2446, #2447, #2460, #2462.
-
 ## Version 2.8.0 (April 3, 2019)
 
 Support `androidx.annotation.RecentlyNonNull` and `RecentlyNullable` (as of
@@ -2974,7 +2917,6 @@ Interface changes:
 
 \#2159, #2230, #2318, #2324, #2330, #2334, #2343, #2344, #2353, #2366, #2367,
 \#2370, #2371, #2385.
-
 ## Version 2.7.0 (March 1, 2019)
 
 The manual links to the AWS crypto policy compliance checker, which enforces
@@ -3003,7 +2945,6 @@ declarations, and constructor invocations.  You may see new warnings.
 
 \#788, #1751, #2147, #2163, #2186, #2235, #2243, #2263, #2264, #2286, #2302,
 \#2326, #2327.
-
 ## Version 2.6.0 (February 3, 2019)
 
 The manual includes a section about how to use Lombok and the Checker
@@ -3021,7 +2962,6 @@ Renamed method areSameIgnoringValues to areSameByName.
 
 \#2008, #2166, #2185, #2187, #2221, #2224, #2229, #2234, #2248.
 Also fixed false negatives in handling of Map.get().
-
 ## Version 2.5.8 (December 5, 2018)
 
 The manual now links to the AWS KMS compliance checker, which enforces
@@ -3030,7 +2970,6 @@ that calls to AWS KMS only generate 256-bit keys.
 ### Closed issues
 
 \#372, #1678, #2207, #2212, #2217.
-
 ## Version 2.5.7 (November 4, 2018)
 
 New @EnsuresKeyFor and @EnsuresKeyForIf method annotations permit
@@ -3042,7 +2981,6 @@ UI Thread safety properties for stream-based Android applications.
 ### Closed issues
 
 \#1014, #2151, #2178, #2180, #2183, #2188, #2190, #2195, #2196, #2198, #2199.
-
 ## Version 2.5.6 (October 3, 2018)
 
 Introduce checker-qual-android artifact that is just like the checker-qual
@@ -3057,7 +2995,6 @@ versions 2.5.5 and earlier.
 ### Closed issues
 
 \#2135, #2157, #2158, #2164, #2171.
-
 ## Version 2.5.5 (August 30, 2018)
 
 Implicit imports (deprecated in November 2014) are no longer supported.
@@ -3072,19 +3009,16 @@ Replaced ErrorReporter class with BugInCF and UserError exceptions.
 ### Closed issues
 
 \#1999, #2008, #2023, #2029, #2074, #2088, #2098, #2099, #2102, #2107.
-
 ## Version 2.5.4 (August 1, 2018)
 
 ### Closed issues
 
 \#2030, #2048, #2052, #2059, #2065, #2067, #2073, #2082.
-
 ## Version 2.5.3 (July 2, 2018)
 
 ### Closed issues
 
 \#266, #1248, #1678, #2010, #2011, #2018, #2020, #2046, #2047, #2054.
-
 ## Version 2.5.2 (June 1, 2018)
 
 In the Map Key Checker, null is now @UnknownKeyFor.  See the "Map Key Checker"
@@ -3094,7 +3028,6 @@ chapter in the manual for more details.
 
 \#370, #469, #1701, #1916, #1922, #1959, #1976, #1978, #1981, #1983, #1984,
 \#1991, #1992.
-
 ## Version 2.5.1 (May 1, 2018)
 
 Added a Maven artifact of the Checker Framework testing library, testlib.
@@ -3103,7 +3036,6 @@ Added a Maven artifact of the Checker Framework testing library, testlib.
 
 \#849, #1739, #1838, #1847, #1890, #1901, #1911, #1912, #1913, #1934, #1936,
 \#1941, #1942, #1945, #1946, #1948, #1949, #1952, #1953, #1956, #1958.
-
 ## Version 2.5.0 (April 2, 2018)
 
 Declaration annotations that are aliases for type annotations are now treated
@@ -3118,7 +3050,6 @@ manual for instructions on how to remove annotations from comments.
 
 \#515, #1667, #1739, #1776, #1819, #1863, #1864, #1865, #1866, #1867, #1870,
 \#1876, #1879, #1882, #1898, #1903, #1905, #1906, #1910, #1914, #1915, #1920.
-
 ## Version 2.4.0 (March 1, 2018)
 
 Added the Index Checker, which eliminates ArrayIndexOutOfBoundsException.
@@ -3152,20 +3083,17 @@ The Checker Framework Eclipse plugin is no longer released nor supported.
 \#391, #397, #398, #410, #423, #424, #431, #430, #432, #548, #1131, #1148,
 \#1213, #1455, #1504, #1642, #1685, #1770, #1796, #1797, #1801, #1809, #1810,
 \#1815, #1817, #1818, #1823, #1831, #1837, #1839, #1850, #1851, #1852, #1861.
-
 ## Version 2.3.2 (February 1, 2018)
 
 ### Closed issues
 
 \#946, #1133, #1232, #1319, #1625, #1633, #1696, #1709, #1712, #1734, #1738,
 \#1749, #1754, #1760, #1761, #1768, #1769, #1781.
-
 ## Version 2.3.1 (January 2, 2018)
 
 ### Closed issues
 
 \#1695, #1696, #1697, #1698, #1705, #1708, #1711, #1714, #1715, #1724.
-
 ## Version 2.3.0 (December 1, 2017)
 
 Removed the deprecated @LazyNonNull type qualifier.
@@ -3177,7 +3105,6 @@ orders for consistency.
 
 \#951, #1356, #1495, #1602, #1605, #1623, #1628, #1636, #1641, #1653, #1655,
 \#1664, #1665, #1681, #1684, #1688, #1690.
-
 ## Version 2.2.2 (November 2, 2017)
 
 The Interning Checker supports a new annotation, @InternedDistinct, which
@@ -3192,7 +3119,6 @@ proper fixes for those are implemented.
 
 \#1386, #1389, #1423, #1520, #1529, #1530, #1531, #1546, #1553, #1555, #1565,
 \#1570, #1579, #1580, #1582, #1585, #1586, #1587, #1598, #1609, #1615, #1617.
-
 ## Version 2.2.1 (September 29, 2017)
 
 Deprecated some methods in AnnotatedTypeMirror and AnnotationUtils, to
@@ -3206,7 +3132,6 @@ classes compiled to Java 7 byte code.
 
 \#724, #1431, #1442, #1459, #1464, #1482, #1496, #1499, #1500, #1506, #1507,
 \#1510, #1512, #1522, #1526, #1528, #1532, #1535, #1542, #1543.
-
 ## Version 2.2.0 (September 5, 2017)
 
 A Java 8 JVM is required to run the Checker Framework.
@@ -3224,7 +3149,6 @@ contains "$". You need to update your stub files to conform to the new syntax.
 \#220, #293, #297, #341, #375, #407, #536, #571, #798, #867, #1180, #1214, #1218,
 \#1371, #1411, #1427, #1428, #1435, #1438, #1450, #1456, #1460, #1466, #1473,
 \#1474.
-
 ## Version 2.1.14 (3 August 2017)
 
 Nullness Checker change to annotated JDK:  The type argument to the Class,
@@ -3243,7 +3167,6 @@ method calls where the Checker Framework fails to infer type arguments.
 \#753, #804, #961, #1032, #1062, #1066, #1098, #1209, #1280, #1316, #1329, #1355,
 \#1365, #1366, #1367, #1377, #1379, #1382, #1384, #1397, #1398, #1399, #1402,
 \#1404, #1406, #1407.
-
 ## Version 2.1.13 (3 July 2017)
 
 Verified that the Checker Framework builds from source on Windows Subsystem
@@ -3256,7 +3179,6 @@ The manual explains how to configure Android projects that use Android Studio
 
 \#146, #1264, #1275, #1290, #1303, #1308, #1310, #1312, #1313, #1315, #1323,
 \#1324, #1331, #1332, #1333, #1334, #1347, #1357, #1372.
-
 ## Version 2.1.12 (1 June 2017)
 
 The manual links to Glacier, a class immutability checker.
@@ -3268,7 +3190,6 @@ either the LGPL or the Apache license, whichever you prefer.
 
 \#254, #1201, #1229, #1236, #1239, #1240, #1257, #1265, #1270, #1271, #1272,
 \#1274, #1288, #1291, #1299, #1304, #1305.
-
 ## Version 2.1.11 (1 May 2017)
 
 The manual contains new FAQ (frequently asked questions) sections about
@@ -3277,7 +3198,6 @@ false positive warnings and about inference for field types.
 ### Closed issues
 
 \#989, #1096, #1136, #1228.
-
 ## Version 2.1.10 (3 April 2017)
 
 The Constant Value Checker, which performs constant propagation, has been
@@ -3291,7 +3211,6 @@ feature.
 \#134, #216, #227, #307, #334, #437, #445, #718, #1044, #1045, #1051, #1052,
 \#1054, #1055, #1059, #1077, #1087, #1102, #1108, #1110, #1111, #1120, #1124,
 \#1127, #1132.
-
 ## Version 2.1.9 (1 March 2017)
 
 By default, uninferred method type arguments, which can happen with Java 8
@@ -3303,7 +3222,6 @@ get the conservative behavior.
 
 \#1006, #1011, #1015, #1027, #1035, #1036, #1037, #1039, #1043, #1046, #1049,
 \#1053, #1072, #1084.
-
 ## Version 2.1.8 (20 January 2017)
 
 The Checker Framework webpage has moved to <https://checkerframework.org/>.
@@ -3316,7 +3234,6 @@ The manual, tutorial, and webpages now appear under checker-framework/docs/.
 ### Closed issues
 
 \#770, #1003, #1012.
-
 ## Version 2.1.7 (3 January 2017)
 
 Manual improvements:
@@ -3329,13 +3246,11 @@ Manual improvements:
 
 \#154, #322, #402, #404, #433, #531, #578, #720, #795, #916, #953, #973, #974,
 \#975, #976, #980, #988, #1000.
-
 ## Version 2.1.6 (1 December 2016)
 
 ### Closed issues
 
 \#412, #475.
-
 ## Version 2.1.5 (2 November 2016)
 
 The new class org.checkerframework.checker.nullness.Opt provides every
@@ -3354,26 +3269,22 @@ The manual describes two approaches to creating a type alias or typedef.
 ### Closed issues
 
 \#643, #775, #887, #906, #941.
-
 ## Version 2.1.4 (3 October 2016)
 
 ### Closed issues
 
 \#885, #886, #919.
-
 ## Version 2.1.3 (16 September 2016)
 
 ### Closed issues
 
 \#122, #488, #495, #580, #618, #647, #713, #764, #818, #872, #893, #894, #901,
 \#902, #903, #905, #913.
-
 ## Version 2.1.2 (1 September 2016)
 
 ### Closed issues
 
 \#182, #367, #712, #811, #846, #857, #858, #863, #870, #871, #878, #883, #888.
-
 ## Version 2.1.1 (1 August 2016)
 
 The codebase conforms to a consistent coding style, which is enforced by
@@ -3386,7 +3297,6 @@ list.  Checkers that override this method will have to be changed.
 
 \#384, #590, #681, #790, #805, #809, #810, #820, #824, #826, #829, #838, #845,
 \#850, #856.
-
 ## Version 2.1.0 (1 July 2016)
 
 The new Signedness Checker prevents mixing of unsigned and signed
@@ -3399,7 +3309,6 @@ previously it used `itself`, which may conflict with an identifier.
 
 \#166, #273, #358, #408, #471, #484, #594, #625, #692, #700, #701, #711, #717,
 \#752, #756, #759, #763, #767, #779, #783, #794, #807, #808.
-
 ## Version 2.0.1 (1 June 2016)
 
 We renamed method annotateImplicit to addComputedTypeAnnotations.  If you
@@ -3417,7 +3326,6 @@ classes to the classpath when you run the compiler.
 
 \#171, #250, #291, #523, #577, #672, #680, #688, #689, #690, #691, #695, #696,
 \#698, #702, #704, #705, #706, #707, #720, #721, #723, #728, #736, #738, #740.
-
 ## Version 2.0.0 (2 May 2016)
 
 Inference:
@@ -3473,7 +3381,6 @@ Tool changes:
 
 \#69, #86, #199, #299, #329, #421, #428, #557, #564, #573, #579, #665, #668,
 \#669, #670, #671.
-
 ## Version 1.9.13 (1 April 2016)
 
 Documentation:
@@ -3484,7 +3391,6 @@ Documentation:
 ### Closed issues
 
 \#438, #572, #579, #607, #624, #631.
-
 ## Version 1.9.12 (1 March 2016)
 
 The Checker Framework distribution contains annotated versions
@@ -3509,7 +3415,6 @@ Renamed enum DefaultLocation to TypeUseLocation.
 ### Closed issues
 
 \#130, #263, #345, #458, #559, #559, #574, #582, #596.
-
 ## Version 1.9.11 (1 February 2016)
 
 Renamed and merged -AuseSafeDefaultsForUnannotatedSourceCode and
@@ -3528,7 +3433,6 @@ For type-system developers:
 ### Closed issues
 
 \#524, #563, #568.
-
 ## Version 1.9.10 (4 January 2016)
 
 The Checker Framework distribution files now contain a version number:
@@ -3901,7 +3805,6 @@ Issues #141, #145, #257, #261, #269, #267, #275, #278, #282, #283, #284, #285.
 ### Implementation details
 
 Renamed AbstractBasicAnnotatedTypeFactory to GenericAnnotatedTypeFactory
-
 ## Version 1.7.0 (23 October 2013)
 
 Format String Checker:
@@ -4472,7 +4375,6 @@ Manual:
 * Improve handling of annotations on type variables and upper bounds.
 * Support checkers that use multiple, disjoint qualifier hierarchies.
 * Many bug fixes.
-
 ## Version 1.2.3 (1 Nov 2011)
 
 Regex Checker:
@@ -4495,7 +4397,6 @@ Bug fixes:
   handles type variable and wildcard bounds correctly. Also, terminate
   recursions by not doing lazy-initialization of bounds during defaulting.
 * Many other small bug fixes and documentation updates.
-
 ## Version 1.2.2 (1 Oct 2011)
 
 Be less restrictive about when to start type processing when errors
@@ -4555,7 +4456,6 @@ Nullness Checker:
   us to handle the calls to initChecker within the framework.
   Use method "errorAbort" to output an error message and abort
   processing.
-
 ## Version 1.1.4 (8 Jul 2011)
 
 ### User-visible changes
@@ -4569,7 +4469,6 @@ Nullness Checker:
 ### Implementation details
 
 * Improve support for type qualifiers with enum attributes
-
 ## Version 1.1.3 (17 Jun 2011)
 
 ### User-visible changes
@@ -4611,7 +4510,6 @@ Manual:
   Support for multiple expected errors using the "// :: A :: B :: C" syntax.
 
 Many small updates and fixes.
-
 ## Version 1.1.2 (12 Jan 2011)
 
 Fake Enum Checker (new):
@@ -5056,7 +4954,6 @@ Manual Documentations
 * Added sections for how-to
   * suppress Basic Checker warnings
   * troubleshoot skeleton files
-
 ## Version 0.9.2 (2 Jun 2009)
 
 Functionality
@@ -5073,7 +4970,6 @@ Documentations
 
 * Updated qualifier javadoc documentations
 * Corrected a reference on passing qualifiers to javac
-
 ## Version 0.9.1 (19 May 2009)
 
 Bug fixes
