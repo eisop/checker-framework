@@ -2,7 +2,23 @@
 
 ## Updating from a different fork
 
-To update EISOP with changes in a different Checker Framework fork, follow these steps:
+To update EISOP with the changes of a different Checker Framework fork (usually a typetools release),
+use two pull requests: the first contains the external changes and nothing else, the second contains
+the eisop-specific fixes.  Each typetools release is imported by itself, in release order.
+
+### Policy
+
+- Import **everything** that typetools changed, including CI configuration, WPI, Markdown lint, and
+  the "Prep for release" commits.  A commit that does nothing in our tree, because we are newer or
+  already did the same, is still imported, as an empty commit (`git cherry-pick --allow-empty` or
+  `git commit --allow-empty -C <commit>`).  A skipped commit is never offered again by the next
+  release's range, and every skipped file makes later imports harder.
+- Skip only what would break our CI in the first pull request: dependency downgrades where we are
+  newer, changes to JDK selection, and removal of our test-parallelism settings.  Name each skip and
+  the reason in the description of the pull request.
+- Adapt and clean up in the second pull request, not the first.
+
+### Steps
 
 1. Pull in eisop/master and make sure you don't have any uncommitted files.
 
@@ -14,26 +30,67 @@ To update EISOP with changes in a different Checker Framework fork, follow these
    - Remove `.aosp()` from `build.gradle`.
    - Run `./gradlew spotlessApply` and commit results as e.g. `Change to typetools formatting`.
 
-1. Look up the commit IDs for the range you want to include, e.g. previous and current releases.
+1. Look up the commit IDs for the range you want to include, e.g. previous and current releases
+   (tags `checker-framework-X.Y.Z`).  Fetch them: `git fetch typetools --tags`.
 
-1. Fetch the new release into a different branch `git fetch typetools toID:typetools-3.18.0-release`.
+1. Do `git cherry-pick -Xignore-space-change fromID..toID`.
+   Resolve conflicts toward typetools' text, but keep eisop's identity: eisop URLs and
+   organizations, `io.github.eisop` coordinates, and our release scripts.  Continue with
+   `git cherry-pick --continue`.
 
-1. Do `git cherry-pick fromID..toID`.
+1. Check that nothing is missing.  The range is long and a script that treats a commit subject as
+   "done" skips a second commit with the same subject, so compare authors and subjects:
 
-1. If there are conflicts, resolve and do `git cherry-pick --continue`.
+   ```bash
+   git log --no-merges --format='%an|%s' fromID..toID | LC_ALL=C sort > upstream.txt
+   git log --no-merges --format='%an|%s' master..HEAD | LC_ALL=C sort > ours.txt
+   LC_ALL=C comm -23 upstream.txt ours.txt
+   ```
+
+   Every line printed is a commit that still has to be imported or listed as a skip.  Also
+   search the tree for conflict markers.
 
 1. If necessary, undo formatting changes and commit `Change back to AOSP formatting`.
 
 1. Open a pull request (against eisop) merging `typetools-3.18.0-merge` into `typetools-3.18.0-fixes`.
-  Once this looks OK, squash and merge titled `typetools/checker-framework x.y.z release`, making
-  sure to keep all authors.
+   The description lists the skips and, as the only trailers, one `Co-authored-by:` line for each
+   typetools author, computed from `git log` rather than typed from memory.  Once this looks OK,
+   squash and merge titled `typetools/checker-framework x.y.z release`, making sure to keep all
+   authors.
 
 1. Go through all changes in more detail and clean up any problems.
-  This two-step process gives us one commit with the external changes and separate commits with
-  eisop-specific changes and enhancements.
+   This two-step process gives us one commit with the external changes and separate commits with
+   eisop-specific changes and enhancements.  Typical clean-up:
+   - Files that typetools deleted but our checks still use (for example `.ruff.toml`).
+   - Names that typetools changed that we prefer to keep, so that our fork stays closer to its history.
+   - References to typetools repositories that must point to eisop repositories (for example
+     `eisop/jdk` in `docs/manual`).
+   - CHANGELOG sections: take typetools' text if the words are identical apart from formatting, and
+     keep sections with eisop edits.
+   - Commits skipped in the first pull request, and anything that makes `make style-check`,
+     `./gradlew spotlessCheck`, or `./gradlew requireJavadoc javadocDoclintAll` fail.
 
 1. Open a pull request (against eisop) merging `typetools-3.18.0-fixes` into `master` and
-  merge without squashing.
+   merge **without** squashing, with a merge commit titled
+   `typetools/checker-framework x.y.z release (#NNNN)` and an empty body.
+
+### Companion repositories
+
+Some changes need a matching change in another repository.  CI clones the companion repository
+with the same branch name as the pull request, falling back to `master`: `eisop/jdk`
+(`typetools/jdk` changes), `eisop-codespecs/daikon`, and the `eisop-plume-lib` repositories.
+Create the branches under the same name, merge in the order Daikon, then Checker Framework, then JDK,
+and expect a failure in a companion job to be real.
+
+`eisop/jdk` `master` stays on JDK 17.  Do not merge `typetools/jdk` `master` into it, because that is
+JDK 21; merge it into the `jdk-21` branch instead.
+
+### CI
+
+- With `fail-fast`, one failing job cancels most of the others; look for the single job that
+  failed.
+- A Maven Central HTTP 429 is a flake; re-run the job.
+- Do not force-push, and do not rewrite pushed commits, without an explicit OK.
 
 ## Changelog
 
