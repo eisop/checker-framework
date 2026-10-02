@@ -368,9 +368,9 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
 
         // The cast is from a numeric type and is to a numeric type.
 
-        AnnotationMirror castAnno = castType.getPrimaryAnnotation();
-        AnnotationMirror exprAnno = exprType.getPrimaryAnnotation();
-        if (castAnno.equals(exprAnno)) {
+        AnnotationMirror castAnno = castType.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
+        AnnotationMirror exprAnno = exprType.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
+        if (AnnotationUtils.areSame(castAnno, exprAnno)) {
             return true;
         }
 
@@ -449,9 +449,7 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
         // IEEE 754 behavior and should not be flagged as an unsafe cast if the result
         // is the correctly-rounded representation.
         // When a float is cast to double, no precision is lost, so it is always safe.
-        if (castTypeKind != null
-                && exprTypeKind != null
-                && TypeKindUtils.isFloatingPoint(castTypeKind)
+        if (TypeKindUtils.isFloatingPoint(castTypeKind)
                 && TypeKindUtils.isFloatingPoint(exprTypeKind)) {
             if (AnnotationUtils.areSameByName(castAnno, ValueAnnotatedTypeFactory.DOUBLEVAL_NAME)
                     && AnnotationUtils.areSameByName(
