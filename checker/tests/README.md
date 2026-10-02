@@ -86,7 +86,6 @@ a comment at the top of the file, in this format:
   // @skip-test until the issue is fixed
 ```
 
-
 ## Specifying expected errors and warnings
 
 A test case is a Java file that uses stylized comments to indicate expected

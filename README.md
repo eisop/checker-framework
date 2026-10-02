@@ -12,24 +12,30 @@ See below for EISOP Checker Framework development notes.
 ## Quick Start Guide
 
 1. Clone this repository in some empty directory:
-   ```
+
+   ```bash
    git clone git@github.com:eisop/checker-framework.git
    cd checker-framework
    ```
 
 2. Build the EISOP Checker Framework (requires JDK 8+):
-   ```
+
+   ```bash
    ./gradlew assemble
    ```
+
    This will clone the required [eisop/jdk](https://github.com/eisop/jdk) project to a sibling directory called `jdk` and build everything without running the test suite.
    There will be warnings about missing javadoc, but overall the build should be successful.
 
 3. Run a simple test:
-   ```
+
+   ```bash
    ./checker/bin/javac -processor nullness docs/examples/NullnessExampleWithWarnings.java
    ```
+
    This will result in two errors:
-   ```
+
+   ```text
    docs/examples/NullnessExampleWithWarnings.java:24: error: [assignment.type.incompatible] incompatible types in assignment.
         foo = bar;
               ^
@@ -53,7 +59,7 @@ and `javac.jar` -- the contents of `checker/dist` after a build.  Runs happen on
 every pull request as well as on master, so there is an artifact for a proposed
 fix too.  With the [GitHub CLI](https://cli.github.com/):
 
-```
+```text
 gh run download --repo eisop/checker-framework --branch master \
   --name checker-framework-jars
 ```
@@ -77,7 +83,8 @@ Import the EISOP Checker Framework source folder into your IDE of choice.
 See the [IDE configuration](https://htmlpreview.github.io/?https://github.com/eisop/checker-framework/blob/master/docs/developer/developer-manual.html#IDE_configuration) section for notes.
 
 To run all test cases, run:
-```
+
+```bash
 ./gradlew alltests
 ```
 
