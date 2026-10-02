@@ -7,9 +7,9 @@ package dq.sub.deep;
  * dq's FIELD default (Nullable), not dq.sub's (NonNull), and not neither.
  */
 public class Deep {
-    Object f;
+  Object f;
 
-    void use() {
-        f.toString();
-    }
+  void use() {
+    f.toString();
+  }
 }

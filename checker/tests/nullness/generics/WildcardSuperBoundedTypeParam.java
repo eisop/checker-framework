@@ -12,19 +12,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * lattice (no {@code @NullnessUnspecified}-style middle qualifier).
  */
 public class WildcardSuperBoundedTypeParam {
-    interface Lib<T extends @Nullable Object> {
-        void useT(T t);
-    }
+  interface Lib<T extends @Nullable Object> {
+    void useT(T t);
+  }
 
-    // The super bound target (Object) is the same as the erasure of Lib's type parameter bound,
-    // so javac's capture conversion collapses this wildcard (JDK-8054309): no fresh captured type
-    // variable is created, and the Checker Framework uses only the super bound's annotation
-    // (@NonNull), ignoring the propagated extends bound (@Nullable, from T's declared bound).
-    // Since the two disagree, this must be reported.
-    // :: error: (type.invalid.super.wildcard)
-    void differing(Lib<? super @NonNull Object> lib) {}
+  // The super bound target (Object) is the same as the erasure of Lib's type parameter bound,
+  // so javac's capture conversion collapses this wildcard (JDK-8054309): no fresh captured type
+  // variable is created, and the Checker Framework uses only the super bound's annotation
+  // (@NonNull), ignoring the propagated extends bound (@Nullable, from T's declared bound).
+  // Since the two disagree, this must be reported.
+  // :: error: (type.invalid.super.wildcard)
+  void differing(Lib<? super @NonNull Object> lib) {}
 
-    // Here the explicit super bound annotation (@Nullable) agrees with the propagated extends
-    // bound (@Nullable, from T's declared bound), so no error is expected.
-    void agreeing(Lib<? super @Nullable Object> lib) {}
+  // Here the explicit super bound annotation (@Nullable) agrees with the propagated extends
+  // bound (@Nullable, from T's declared bound), so no error is expected.
+  void agreeing(Lib<? super @Nullable Object> lib) {}
 }

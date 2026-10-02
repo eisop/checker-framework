@@ -6,10 +6,10 @@ package org.checkerframework.framework.source;
  * SourceChecker#getAssumeAssertions()}.
  */
 public enum AssumeAssertions {
-    /** Assume assertions are enabled, as if Java is run with {@code -enableassertions}. */
-    ENABLED,
-    /** Assume assertions are disabled, as if Java is run with {@code -disableassertions}. */
-    DISABLED,
-    /** Make neither assumption, and account for both cases. This is the default. */
-    NEITHER
+  /** Assume assertions are enabled, as if Java is run with {@code -enableassertions}. */
+  ENABLED,
+  /** Assume assertions are disabled, as if Java is run with {@code -disableassertions}. */
+  DISABLED,
+  /** Make neither assumption, and account for both cases. This is the default. */
+  NEITHER
 }

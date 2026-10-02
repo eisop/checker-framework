@@ -1,49 +1,49 @@
 package org.checkerframework.afu.scenelib.toys;
 
 @ValuesAnnotation(
-        B = -128,
-        S = -32768,
-        I = -2147483648,
-        J = -3141592653589793238L,
-        F = 0.1e-5f,
-        D = 9.8e99,
-        Z = true,
-        C = '\'',
-        Ltok = java.util.Map.Entry.class,
-        string = "\"yfwq\" yfwq \'\n\t\\",
-        arrayI = {1, 2},
-        arrayI2 = {},
-        balEnum = BalanceEnum.BALANCED,
-        subann = @SubAnnotation({3, 4}),
-        arraySubann = {@SubAnnotation({}), @SubAnnotation({5})})
+    B = -128,
+    S = -32768,
+    I = -2147483648,
+    J = -3141592653589793238L,
+    F = 0.1e-5f,
+    D = 9.8e99,
+    Z = true,
+    C = '\'',
+    Ltok = java.util.Map.Entry.class,
+    string = "\"yfwq\" yfwq \'\n\t\\",
+    arrayI = {1, 2},
+    arrayI2 = {},
+    balEnum = BalanceEnum.BALANCED,
+    subann = @SubAnnotation({3, 4}),
+    arraySubann = {@SubAnnotation({}), @SubAnnotation({5})})
 public @interface ValuesAnnotation {
-    byte B();
+  byte B();
 
-    short S();
+  short S();
 
-    int I();
+  int I();
 
-    long J();
+  long J();
 
-    float F();
+  float F();
 
-    double D();
+  double D();
 
-    boolean Z();
+  boolean Z();
 
-    char C();
+  char C();
 
-    Class<?> Ltok();
+  Class<?> Ltok();
 
-    String string();
+  String string();
 
-    int[] arrayI();
+  int[] arrayI();
 
-    int[] arrayI2();
+  int[] arrayI2();
 
-    BalanceEnum balEnum();
+  BalanceEnum balEnum();
 
-    SubAnnotation subann();
+  SubAnnotation subann();
 
-    SubAnnotation[] arraySubann();
+  SubAnnotation[] arraySubann();
 }

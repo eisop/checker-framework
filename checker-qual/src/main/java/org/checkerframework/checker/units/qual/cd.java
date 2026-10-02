@@ -1,12 +1,11 @@
 package org.checkerframework.checker.units.qual;
 
-import org.checkerframework.framework.qual.SubtypeOf;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * Candela (unit of luminance).
@@ -19,5 +18,5 @@ import java.lang.annotation.Target;
 @SubtypeOf(Luminance.class)
 @SuppressWarnings("checkstyle:typename")
 public @interface cd {
-    Prefix value() default Prefix.one;
+  Prefix value() default Prefix.one;
 }

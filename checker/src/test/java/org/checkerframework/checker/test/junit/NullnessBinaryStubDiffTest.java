@@ -1,10 +1,9 @@
 package org.checkerframework.checker.test.junit;
 
-import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
-import org.junit.runners.Parameterized.Parameters;
-
 import java.io.File;
 import java.util.List;
+import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
+import org.junit.runners.Parameterized.Parameters;
 
 /**
  * Differential test for the binary stub format: verifies that loading the annotated JDK from {@code
@@ -24,26 +23,26 @@ import java.util.List;
  */
 public class NullnessBinaryStubDiffTest extends CheckerFrameworkPerDirectoryTest {
 
-    /**
-     * Create a NullnessBinaryStubDiffTest.
-     *
-     * @param testFiles the files containing test code, which will be type-checked
-     */
-    public NullnessBinaryStubDiffTest(List<File> testFiles) {
-        super(
-                testFiles,
-                org.checkerframework.checker.nullness.NullnessChecker.class,
-                "nullness-binarystubdiff",
-                "-AbinaryStubDiffCheck");
-    }
+  /**
+   * Create a NullnessBinaryStubDiffTest.
+   *
+   * @param testFiles the files containing test code, which will be type-checked
+   */
+  public NullnessBinaryStubDiffTest(List<File> testFiles) {
+    super(
+        testFiles,
+        org.checkerframework.checker.nullness.NullnessChecker.class,
+        "nullness-binarystubdiff",
+        "-AbinaryStubDiffCheck");
+  }
 
-    /**
-     * Returns the test directories.
-     *
-     * @return the test directories
-     */
-    @Parameters
-    public static String[] getTestDirs() {
-        return new String[] {"nullness-binarystubdiff"};
-    }
+  /**
+   * Returns the test directories.
+   *
+   * @return the test directories
+   */
+  @Parameters
+  public static String[] getTestDirs() {
+    return new String[] {"nullness-binarystubdiff"};
+  }
 }

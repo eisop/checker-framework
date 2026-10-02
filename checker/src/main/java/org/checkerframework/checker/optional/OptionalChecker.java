@@ -1,11 +1,10 @@
 package org.checkerframework.checker.optional;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import org.checkerframework.checker.nonempty.NonEmptyChecker;
 import org.checkerframework.framework.source.AggregateChecker;
 import org.checkerframework.framework.source.SourceChecker;
-
-import java.util.ArrayList;
-import java.util.Collection;
 
 // The Optional Checker aggregates two checkers, the Non-Empty Checker and the
 // OptionalImplChecker. The Optional Checker behaves as the ultimate parent of those two checkers
@@ -25,13 +24,13 @@ import java.util.Collection;
  */
 public class OptionalChecker extends AggregateChecker {
 
-    /** Creates a new {@link org.checkerframework.checker.optional.OptionalChecker} */
-    public OptionalChecker() {}
+  /** Creates a new {@link org.checkerframework.checker.optional.OptionalChecker} */
+  public OptionalChecker() {}
 
-    @Override
-    protected Collection<Class<? extends SourceChecker>> getSupportedCheckers() {
-        Collection<Class<? extends SourceChecker>> checkers = new ArrayList<>(2);
-        checkers.add(NonEmptyChecker.class);
-        return checkers;
-    }
+  @Override
+  protected Collection<Class<? extends SourceChecker>> getSupportedCheckers() {
+    Collection<Class<? extends SourceChecker>> checkers = new ArrayList<>(2);
+    checkers.add(NonEmptyChecker.class);
+    return checkers;
+  }
 }

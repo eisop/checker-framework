@@ -7,35 +7,35 @@ import java.nio.file.Files;
 
 /** {@link File}-based implementation of {@link AnnotationFileResource}. */
 public class FileAnnotationFileResource implements AnnotationFileResource {
-    /** The underlying file. */
-    private final File file;
+  /** The underlying file. */
+  private final File file;
 
-    /**
-     * Constructs a {@code AnnotationFileResource} for the specified annotation file (stub file or
-     * ajava file).
-     *
-     * @param file the annotation file
-     */
-    public FileAnnotationFileResource(File file) {
-        this.file = file;
-    }
+  /**
+   * Constructs a {@code AnnotationFileResource} for the specified annotation file (stub file or
+   * ajava file).
+   *
+   * @param file the annotation file
+   */
+  public FileAnnotationFileResource(File file) {
+    this.file = file;
+  }
 
-    /**
-     * Returns the underlying file.
-     *
-     * @return the underlying file
-     */
-    public File getFile() {
-        return file;
-    }
+  /**
+   * Returns the underlying file.
+   *
+   * @return the underlying file
+   */
+  public File getFile() {
+    return file;
+  }
 
-    @Override
-    public String getDescription() {
-        return file.getAbsolutePath();
-    }
+  @Override
+  public String getDescription() {
+    return file.getAbsolutePath();
+  }
 
-    @Override
-    public InputStream getInputStream() throws IOException {
-        return Files.newInputStream(file.toPath());
-    }
+  @Override
+  public InputStream getInputStream() throws IOException {
+    return Files.newInputStream(file.toPath());
+  }
 }

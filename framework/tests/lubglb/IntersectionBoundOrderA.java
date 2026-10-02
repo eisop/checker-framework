@@ -10,27 +10,27 @@ import org.checkerframework.framework.testchecker.lubglb.quals.*;
 // AnnotatedTypeFactory.combineIntersectionBoundAnnotationsInHierarchy.
 public class IntersectionBoundOrderA {
 
-    interface OrderIfaceA {}
+  interface OrderIfaceA {}
 
-    interface OrderIfaceB {}
+  interface OrderIfaceB {}
 
-    static class OrderImpl implements OrderIfaceA, OrderIfaceB {}
+  static class OrderImpl implements OrderIfaceA, OrderIfaceB {}
 
-    // The intersection's qualifier is that of the first bound, @LubglbB; the second bound's
-    // @LubglbC differs from it and is flagged.
-    // :: warning: (explicit.annotation.ignored)
-    <S extends @LubglbB OrderIfaceA & @LubglbC OrderIfaceB> void call(S p) {}
+  // The intersection's qualifier is that of the first bound, @LubglbB; the second bound's
+  // @LubglbC differs from it and is flagged.
+  // :: warning: (explicit.annotation.ignored)
+  <S extends @LubglbB OrderIfaceA & @LubglbC OrderIfaceB> void call(S p) {}
 
-    void useD(@LubglbD OrderImpl d) {
-        call(d);
-    }
+  void useD(@LubglbD OrderImpl d) {
+    call(d);
+  }
 
-    void useB(@LubglbB OrderImpl b) {
-        call(b);
-    }
+  void useB(@LubglbB OrderImpl b) {
+    call(b);
+  }
 
-    void useC(@LubglbC OrderImpl c) {
-        // :: error: (type.arguments.not.inferred)
-        call(c);
-    }
+  void useC(@LubglbC OrderImpl c) {
+    // :: error: (type.arguments.not.inferred)
+    call(c);
+  }
 }

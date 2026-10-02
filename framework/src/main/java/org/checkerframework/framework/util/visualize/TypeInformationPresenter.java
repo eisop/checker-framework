@@ -11,11 +11,11 @@ import com.sun.source.util.TreePath;
  * .
  */
 public interface TypeInformationPresenter {
-    /**
-     * The entry point for presenting type information of trees in the given class.
-     *
-     * @param tree a ClassTree that has been type-checked by the factory
-     * @param treePath a {@link TreePath} to {@code tree}
-     */
-    void process(ClassTree tree, TreePath treePath);
+  /**
+   * The entry point for presenting type information of trees in the given class.
+   *
+   * @param tree a ClassTree that has been type-checked by the factory
+   * @param treePath a {@link TreePath} to {@code tree}
+   */
+  void process(ClassTree tree, TreePath treePath);
 }

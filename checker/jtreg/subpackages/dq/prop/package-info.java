@@ -1,7 +1,7 @@
 @DefaultQualifier(
-        value = NonNull.class,
-        locations = TypeUseLocation.FIELD,
-        applyToSubpackages = true)
+    value = NonNull.class,
+    locations = TypeUseLocation.FIELD,
+    applyToSubpackages = true)
 package dq.prop;
 
 import org.checkerframework.checker.nullness.qual.NonNull;

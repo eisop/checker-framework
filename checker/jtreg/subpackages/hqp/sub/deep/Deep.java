@@ -9,5 +9,5 @@ import org.checkerframework.checker.tainting.qual.PolyTainted;
  * walk up the package chain stopped at hqp.sub, this would be invalid.polymorphic.qualifier.use.
  */
 public class Deep {
-    @PolyTainted int field;
+  @PolyTainted int field;
 }

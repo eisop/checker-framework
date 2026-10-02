@@ -1,17 +1,16 @@
 package org.checkerframework.checker.lock.qual;
 
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.LiteralKind;
 import org.checkerframework.framework.qual.QualifierForLiterals;
 import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.qual.TargetLocations;
 import org.checkerframework.framework.qual.TypeUseLocation;
-
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 
 /**
  * A type that represents a newly-constructed object. It can be treated as having any
@@ -23,10 +22,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @TargetLocations({
-    TypeUseLocation.LOWER_BOUND,
-    TypeUseLocation.UPPER_BOUND,
-    TypeUseLocation.CONSTRUCTOR_RESULT,
-    TypeUseLocation.RETURN
+  TypeUseLocation.LOWER_BOUND,
+  TypeUseLocation.UPPER_BOUND,
+  TypeUseLocation.CONSTRUCTOR_RESULT,
+  TypeUseLocation.RETURN
 })
 @SubtypeOf({GuardedBy.class, GuardSatisfied.class})
 @DefaultFor(TypeUseLocation.CONSTRUCTOR_RESULT)

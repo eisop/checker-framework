@@ -9,9 +9,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * package chain stopped at af.sub, conservative defaults would suppress them.
  */
 public class Deep {
-    void take(Object nn) {}
+  void take(Object nn) {}
 
-    void m(@Nullable Object nble) {
-        take(nble);
-    }
+  void m(@Nullable Object nble) {
+    take(nble);
+  }
 }

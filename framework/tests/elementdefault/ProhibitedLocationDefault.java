@@ -12,24 +12,22 @@ import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultR
 // :: error: (default.qualifier.prohibited.location)
 public class ProhibitedLocationDefault {
 
-    @DefaultQualifier(
-            value = ElementDefaultRestrictedBottom.class,
-            locations = TypeUseLocation.FIELD)
-    // :: error: (default.qualifier.prohibited.location)
-    Object field;
+  @DefaultQualifier(value = ElementDefaultRestrictedBottom.class, locations = TypeUseLocation.FIELD)
+  // :: error: (default.qualifier.prohibited.location)
+  Object field;
 
-    @DefaultQualifier.List({
-        @DefaultQualifier(
-                value = ElementDefaultRestrictedBottom.class,
-                locations = TypeUseLocation.LOCAL_VARIABLE)
-    })
-    // :: error: (default.qualifier.prohibited.location)
-    void testList() {}
-
-    // PARAMETER is permitted by @TargetLocations({PARAMETER, EXPLICIT_LOWER_BOUND}), so no error
-    // here
+  @DefaultQualifier.List({
     @DefaultQualifier(
-            value = ElementDefaultRestrictedBottom.class,
-            locations = TypeUseLocation.PARAMETER)
-    void testParam(Object x) {}
+        value = ElementDefaultRestrictedBottom.class,
+        locations = TypeUseLocation.LOCAL_VARIABLE)
+  })
+  // :: error: (default.qualifier.prohibited.location)
+  void testList() {}
+
+  // PARAMETER is permitted by @TargetLocations({PARAMETER, EXPLICIT_LOWER_BOUND}), so no error
+  // here
+  @DefaultQualifier(
+      value = ElementDefaultRestrictedBottom.class,
+      locations = TypeUseLocation.PARAMETER)
+  void testParam(Object x) {}
 }

@@ -8,16 +8,16 @@ package nestedscope;
 // declaration matters: without it, "DefinedByExample.Api" is itself a resolvable canonical name
 // in the default package, masking the bug this test pins.
 public @interface DefinedByExample {
-    /** The nested enum whose constants are the annotation's possible values. */
-    enum Api {
-        /** An arbitrary enum constant, standing in for {@code DefinedBy.Api.COMPILER}. */
-        COMPILER
-    }
+  /** The nested enum whose constants are the annotation's possible values. */
+  enum Api {
+    /** An arbitrary enum constant, standing in for {@code DefinedBy.Api.COMPILER}. */
+    COMPILER
+  }
 
-    /**
-     * The API this member is defined by.
-     *
-     * @return the API this member is defined by
-     */
-    Api value();
+  /**
+   * The API this member is defined by.
+   *
+   * @return the API this member is defined by
+   */
+  Api value();
 }
