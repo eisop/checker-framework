@@ -1,7 +1,8 @@
 package org.checkerframework.common.util.report;
 
-import javax.annotation.processing.SupportedOptions;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+
+import javax.annotation.processing.SupportedOptions;
 
 /**
  * The Report Checker performs semantic searches over a program, for example, to find all methods
@@ -35,6 +36,6 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 @SupportedOptions({"reportTreeKinds", "reportModifiers"})
 public class ReportChecker extends BaseTypeChecker {
 
-  /** Creates a ReportChecker. */
-  public ReportChecker() {}
+    /** Creates a ReportChecker. */
+    public ReportChecker() {}
 }

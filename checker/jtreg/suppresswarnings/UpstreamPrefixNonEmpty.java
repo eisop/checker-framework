@@ -16,12 +16,12 @@ import java.util.OptionalDouble;
  */
 public class UpstreamPrefixNonEmpty {
 
-  @SuppressWarnings("nonempty")
-  static class Suppressed {
-    OptionalDouble aField;
-  }
+    @SuppressWarnings("nonempty")
+    static class Suppressed {
+        OptionalDouble aField;
+    }
 
-  static class NotSuppressed {
-    OptionalDouble aField;
-  }
+    static class NotSuppressed {
+        OptionalDouble aField;
+    }
 }

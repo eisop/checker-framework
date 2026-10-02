@@ -3,9 +3,9 @@
  * and make this an independent, minimal reproduction.
  */
 class Simple {
-  private Simple() {}
+    private Simple() {}
 
-  public static void main(String[] args) {
-    Simple s = new Simple();
-  }
+    public static void main(String[] args) {
+        Simple s = new Simple();
+    }
 }

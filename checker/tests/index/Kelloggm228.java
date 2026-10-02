@@ -3,12 +3,13 @@ import org.checkerframework.checker.index.qual.LessThan;
 import org.checkerframework.checker.index.qual.Positive;
 
 public class Kelloggm228 {
-  public void subList(
-      @IndexOrHigh("this") @LessThan("#2 + 1") int fromIndex, @IndexOrHigh("this") int toIndex) {
-    if (fromIndex == toIndex) {
-      return;
-    }
+    public void subList(
+            @IndexOrHigh("this") @LessThan("#2 + 1") int fromIndex,
+            @IndexOrHigh("this") int toIndex) {
+        if (fromIndex == toIndex) {
+            return;
+        }
 
-    @Positive int x = toIndex;
-  }
+        @Positive int x = toIndex;
+    }
 }

@@ -8,18 +8,18 @@ package org.checkerframework.afu.scenelib.util;
  */
 @SuppressWarnings("EqualsGetClass")
 public abstract class EqualByStringRepresentation {
-  @Override
-  public abstract String toString();
+    @Override
+    public abstract String toString();
 
-  @Override
-  public final boolean equals(Object that) {
-    return that != null
-        && this.getClass() == that.getClass()
-        && this.toString().equals(that.toString());
-  }
+    @Override
+    public final boolean equals(Object that) {
+        return that != null
+                && this.getClass() == that.getClass()
+                && this.toString().equals(that.toString());
+    }
 
-  @Override
-  public final int hashCode() {
-    return toString().hashCode();
-  }
+    @Override
+    public final int hashCode() {
+        return toString().hashCode();
+    }
 }

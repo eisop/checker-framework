@@ -12,30 +12,30 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 public class AnnotatedForWithUse {
-  class Unannotated {
-    Object o;
+    class Unannotated {
+        Object o;
 
-    Object get() {
-      return null;
+        Object get() {
+            return null;
+        }
+
+        void set(Object of) {}
     }
 
-    void set(Object of) {}
-  }
-
-  @AnnotatedFor("nullness")
-  class AnnotatedUse {
-    void use(Unannotated u) {
-      // 1: OK, 2: OK, 3: OK, 4: Err, 5: OK
-      @NonNull Object obj = u.o;
-      // 1: Err, 2: Err, 3: Err, 4: OK (unsound), 5: Err
-      // Case 4 (conservative defaults) is unsound: protects reads, not writes.
-      // Cases 3 and 5 (permissive defaults) default the field to NonNull, so writes fail.
-      // See https://github.com/eisop/checker-framework/issues/1358 .
-      u.o = null;
-      // 1: OK, 2: OK, 3: OK, 4: Err, 5: OK
-      u.get().toString();
-      // 1: Err, 2: Err, 3: OK, 4: Err, 5: OK
-      u.set(null);
+    @AnnotatedFor("nullness")
+    class AnnotatedUse {
+        void use(Unannotated u) {
+            // 1: OK, 2: OK, 3: OK, 4: Err, 5: OK
+            @NonNull Object obj = u.o;
+            // 1: Err, 2: Err, 3: Err, 4: OK (unsound), 5: Err
+            // Case 4 (conservative defaults) is unsound: protects reads, not writes.
+            // Cases 3 and 5 (permissive defaults) default the field to NonNull, so writes fail.
+            // See https://github.com/eisop/checker-framework/issues/1358 .
+            u.o = null;
+            // 1: OK, 2: OK, 3: OK, 4: Err, 5: OK
+            u.get().toString();
+            // 1: Err, 2: Err, 3: OK, 4: Err, 5: OK
+            u.set(null);
+        }
     }
-  }
 }

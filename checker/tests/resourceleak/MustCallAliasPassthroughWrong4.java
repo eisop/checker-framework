@@ -4,14 +4,15 @@
 // test for it. Issuing an error here is appropriate, because no aliasing relationship
 // actually exists after the constructor returns.
 
-import java.io.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
 
+import java.io.*;
+
 class MustCallAliasPassthroughWrong4 extends FilterInputStream {
-  // :: error: mustcallalias.out.of.scope
-  @MustCallAlias MustCallAliasPassthroughWrong4(@MustCallAlias InputStream is) throws Exception {
-    super(null);
-    is.close();
-  }
+    // :: error: mustcallalias.out.of.scope
+    @MustCallAlias MustCallAliasPassthroughWrong4(@MustCallAlias InputStream is) throws Exception {
+        super(null);
+        is.close();
+    }
 }

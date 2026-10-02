@@ -4,23 +4,23 @@ import java.util.EnumMap;
 
 @SuppressWarnings("all") // only check for crashes
 public class EnumMapCrash {
-  private class Holder<T> {
-    public T held;
+    private class Holder<T> {
+        public T held;
 
-    public Holder(T held) {
-      this.held = held;
+        public Holder(T held) {
+            this.held = held;
+        }
+
+        @Override
+        public String toString() {
+            return String.valueOf(held);
+        }
     }
 
-    @Override
-    public String toString() {
-      return String.valueOf(held);
+    private enum FSEditLogOpCodes {}
+
+    void callHolder(FSEditLogOpCodes f, EnumMap<FSEditLogOpCodes, Holder<Integer>> opCounts) {
+        Holder<Integer> holder = opCounts.get(f);
+        holder.held++;
     }
-  }
-
-  private enum FSEditLogOpCodes {}
-
-  void callHolder(FSEditLogOpCodes f, EnumMap<FSEditLogOpCodes, Holder<Integer>> opCounts) {
-    Holder<Integer> holder = opCounts.get(f);
-    holder.held++;
-  }
 }

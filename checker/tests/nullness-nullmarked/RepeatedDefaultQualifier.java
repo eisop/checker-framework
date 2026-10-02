@@ -36,15 +36,15 @@ import org.jspecify.annotations.NullMarked;
 @DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.FIELD)
 @DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.RETURN)
 public class RepeatedDefaultQualifier<T> {
-  Object f = null;
+    Object f = null;
 
-  Object get() {
-    return null;
-  }
+    Object get() {
+        return null;
+    }
 
-  // UPPER_BOUND is @NonNull, from @NullMarked.
-  // :: error: (type.argument.type.incompatible)
-  void use(RepeatedDefaultQualifier<@Nullable String> p) {}
+    // UPPER_BOUND is @NonNull, from @NullMarked.
+    // :: error: (type.argument.type.incompatible)
+    void use(RepeatedDefaultQualifier<@Nullable String> p) {}
 }
 
 /**
@@ -54,12 +54,12 @@ public class RepeatedDefaultQualifier<T> {
 @NullMarked
 @DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.FIELD)
 class SingleDefaultQualifierWithNullMarked<T> {
-  // The written @DefaultQualifier applies: fields default to @Nullable.
-  Object f = null;
+    // The written @DefaultQualifier applies: fields default to @Nullable.
+    Object f = null;
 
-  // @NullMarked's UPPER_BOUND default applies: the type argument must be @NonNull.
-  // :: error: (type.argument.type.incompatible)
-  void use(SingleDefaultQualifierWithNullMarked<@Nullable String> p) {}
+    // @NullMarked's UPPER_BOUND default applies: the type argument must be @NonNull.
+    // :: error: (type.argument.type.incompatible)
+    void use(SingleDefaultQualifierWithNullMarked<@Nullable String> p) {}
 }
 
 /**
@@ -70,13 +70,13 @@ class SingleDefaultQualifierWithNullMarked<T> {
 @DefaultQualifier(value = MonotonicNonNull.class, locations = TypeUseLocation.UPPER_BOUND)
 // :: error: (conflicting.defaults)
 class NullMarkedBeforeDefaultQualifier<T> {
-  // UPPER_BOUND is @NonNull, from @NullMarked: the first observable reports, the second does not.
-  // :: error: (type.argument.type.incompatible)
-  void use(NullMarkedBeforeDefaultQualifier<@Nullable String> p) {}
+    // UPPER_BOUND is @NonNull, from @NullMarked: the first observable reports, the second does not.
+    // :: error: (type.argument.type.incompatible)
+    void use(NullMarkedBeforeDefaultQualifier<@Nullable String> p) {}
 
-  @NonNull Object bound(T t) {
-    return t;
-  }
+    @NonNull Object bound(T t) {
+        return t;
+    }
 }
 
 /**
@@ -87,15 +87,15 @@ class NullMarkedBeforeDefaultQualifier<T> {
 @NullMarked
 // :: error: (conflicting.defaults)
 class DefaultQualifierBeforeNullMarked<T> {
-  // UPPER_BOUND is @MonotonicNonNull, from the written @DefaultQualifier: both observables
-  // report, which no other outcome does.
-  // :: error: (type.argument.type.incompatible)
-  void use(DefaultQualifierBeforeNullMarked<@Nullable String> p) {}
+    // UPPER_BOUND is @MonotonicNonNull, from the written @DefaultQualifier: both observables
+    // report, which no other outcome does.
+    // :: error: (type.argument.type.incompatible)
+    void use(DefaultQualifierBeforeNullMarked<@Nullable String> p) {}
 
-  @NonNull Object bound(T t) {
-    // :: error: (return.type.incompatible)
-    return t;
-  }
+    @NonNull Object bound(T t) {
+        // :: error: (return.type.incompatible)
+        return t;
+    }
 }
 
 /**
@@ -109,16 +109,16 @@ class DefaultQualifierBeforeNullMarked<T> {
 @DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.FIELD)
 // :: error: (conflicting.defaults)
 class RepeatedDefaultQualifierConflictingWithNullMarked<T> {
-  // The non-conflicting half of the same @DefaultQualifier.List still applies.
-  Object f = null;
+    // The non-conflicting half of the same @DefaultQualifier.List still applies.
+    Object f = null;
 
-  // UPPER_BOUND is @NonNull, from @NullMarked.
-  // :: error: (type.argument.type.incompatible)
-  void use(RepeatedDefaultQualifierConflictingWithNullMarked<@Nullable String> p) {}
+    // UPPER_BOUND is @NonNull, from @NullMarked.
+    // :: error: (type.argument.type.incompatible)
+    void use(RepeatedDefaultQualifierConflictingWithNullMarked<@Nullable String> p) {}
 
-  @NonNull Object bound(T t) {
-    return t;
-  }
+    @NonNull Object bound(T t) {
+        return t;
+    }
 }
 
 /**
@@ -130,16 +130,16 @@ class RepeatedDefaultQualifierConflictingWithNullMarked<T> {
 @NullMarked
 // :: error: (conflicting.defaults)
 class RepeatedDefaultQualifierBeforeNullMarked<T> {
-  Object f = null;
+    Object f = null;
 
-  // UPPER_BOUND is @MonotonicNonNull, from the written @DefaultQualifier.
-  // :: error: (type.argument.type.incompatible)
-  void use(RepeatedDefaultQualifierBeforeNullMarked<@Nullable String> p) {}
+    // UPPER_BOUND is @MonotonicNonNull, from the written @DefaultQualifier.
+    // :: error: (type.argument.type.incompatible)
+    void use(RepeatedDefaultQualifierBeforeNullMarked<@Nullable String> p) {}
 
-  @NonNull Object bound(T t) {
-    // :: error: (return.type.incompatible)
-    return t;
-  }
+    @NonNull Object bound(T t) {
+        // :: error: (return.type.incompatible)
+        return t;
+    }
 }
 
 /**
@@ -153,14 +153,14 @@ class RepeatedDefaultQualifierBeforeNullMarked<T> {
 @DefaultQualifier(value = MonotonicNonNull.class, locations = TypeUseLocation.UPPER_BOUND)
 // :: error: (conflicting.defaults)
 class NullMarkedBetweenRepeatedDefaultQualifiers<T> {
-  Object f = null;
+    Object f = null;
 
-  // UPPER_BOUND is @MonotonicNonNull, from the written @DefaultQualifier.
-  // :: error: (type.argument.type.incompatible)
-  void use(NullMarkedBetweenRepeatedDefaultQualifiers<@Nullable String> p) {}
+    // UPPER_BOUND is @MonotonicNonNull, from the written @DefaultQualifier.
+    // :: error: (type.argument.type.incompatible)
+    void use(NullMarkedBetweenRepeatedDefaultQualifiers<@Nullable String> p) {}
 
-  @NonNull Object bound(T t) {
-    // :: error: (return.type.incompatible)
-    return t;
-  }
+    @NonNull Object bound(T t) {
+        // :: error: (return.type.incompatible)
+        return t;
+    }
 }

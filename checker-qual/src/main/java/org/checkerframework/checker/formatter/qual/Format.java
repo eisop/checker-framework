@@ -1,11 +1,12 @@
 package org.checkerframework.checker.formatter.qual;
 
+import org.checkerframework.framework.qual.SubtypeOf;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * This annotation, attached to a String type, indicates that the String may be passed to {@link
@@ -37,12 +38,12 @@ import org.checkerframework.framework.qual.SubtypeOf;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf(UnknownFormat.class)
 public @interface Format {
-  /**
-   * An array of {@link ConversionCategory}, indicating the types of legal remaining arguments when
-   * a value of the annotated type is used as the first argument to {@link
-   * java.util.Formatter#format(String, Object...) Formatter.format} and similar methods.
-   *
-   * @return types that can be used as values when a value of this type is the format string
-   */
-  ConversionCategory[] value();
+    /**
+     * An array of {@link ConversionCategory}, indicating the types of legal remaining arguments
+     * when a value of the annotated type is used as the first argument to {@link
+     * java.util.Formatter#format(String, Object...) Formatter.format} and similar methods.
+     *
+     * @return types that can be used as values when a value of this type is the format string
+     */
+    ConversionCategory[] value();
 }

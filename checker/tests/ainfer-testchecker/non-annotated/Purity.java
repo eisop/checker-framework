@@ -6,24 +6,24 @@
 import org.checkerframework.dataflow.qual.*;
 
 interface PureFunc {
-  @Pure
-  String doNothing();
+    @Pure
+    String doNothing();
 }
 
 class TestPure1 {
 
-  static String myMethod() {
-    return "";
-  }
+    static String myMethod() {
+        return "";
+    }
 
-  @Pure
-  static String myPureMethod() {
-    return "";
-  }
+    @Pure
+    static String myPureMethod() {
+        return "";
+    }
 
-  void context() {
-    PureFunc f1 = TestPure1::myPureMethod;
-    // :: warning: (purity.methodref)
-    PureFunc f2 = TestPure1::myMethod;
-  }
+    void context() {
+        PureFunc f1 = TestPure1::myPureMethod;
+        // :: warning: (purity.methodref)
+        PureFunc f2 = TestPure1::myMethod;
+    }
 }

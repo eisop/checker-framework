@@ -15,9 +15,9 @@
 import org.checkerframework.checker.tainting.qual.Untainted;
 
 public class BadOptionArgument {
-  static String tainted() {
-    return "tainted";
-  }
+    static String tainted() {
+        return "tainted";
+    }
 
-  @Untainted String f = tainted();
+    @Untainted String f = tainted();
 }
