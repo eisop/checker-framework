@@ -349,7 +349,7 @@ allprojects { currentProj ->
             } else {
                 googleJavaFormat(libs.google.java.format.get().version) // the formatter to apply to Java files
             }
-            formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
+            formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual").addTypeAnnotation("Immutable").addTypeAnnotation("Readonly").addTypeAnnotation("Mutable").addTypeAnnotation("ReceiverDependentMutable").addTypeAnnotation("PolyMutable")
 
             // There are currently many tests with wildcard imports, so do not enable this for tests.
             // TODO: Spotless has no easy way to only enable this for a subset of the target.
