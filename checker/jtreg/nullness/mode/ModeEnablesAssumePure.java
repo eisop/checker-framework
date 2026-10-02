@@ -14,14 +14,14 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 
 @AnnotatedFor("nullness")
 public class ModeEnablesAssumePure {
-    @Nullable Object f;
+  @Nullable Object f;
 
-    void sideEffect() {}
+  void sideEffect() {}
 
-    void refinementSurvivesCall() {
-        if (f != null) {
-            sideEffect();
-            f.toString();
-        }
+  void refinementSurvivesCall() {
+    if (f != null) {
+      sideEffect();
+      f.toString();
     }
+  }
 }

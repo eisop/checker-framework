@@ -5,102 +5,102 @@ import org.checkerframework.common.returnsreceiver.qual.*;
 
 class ReturnsReceiverExamples {
 
-    @InheritableMustCall("a")
-    class Foo {
-        void a() {}
+  @InheritableMustCall("a")
+  class Foo {
+    void a() {}
 
-        @This Foo b() {
-            return this;
-        }
-
-        void c() {}
+    @This Foo b() {
+      return this;
     }
 
-    @Owning
-    Foo makeFoo() {
-        return new Foo();
-    }
+    void c() {}
+  }
 
-    @Owning
-    @CalledMethods({"b"}) Foo makeFooFinalize2() {
-        Foo f = new Foo();
-        f.b();
-        return f;
-    }
+  @Owning
+  Foo makeFoo() {
+    return new Foo();
+  }
 
-    void CallMethodsInSequence2() {
-        makeFoo().b().a();
-    }
+  @Owning
+  @CalledMethods({"b"}) Foo makeFooFinalize2() {
+    Foo f = new Foo();
+    f.b();
+    return f;
+  }
 
-    void testFluentAPIWrong() {
-        // :: error: (required.method.not.called)
-        makeFoo().b();
-    }
+  void CallMethodsInSequence2() {
+    makeFoo().b().a();
+  }
 
-    void testFluentAPIWrong2() {
-        // :: error: (required.method.not.called)
-        makeFoo();
-    }
+  void testFluentAPIWrong() {
+    // :: error: (required.method.not.called)
+    makeFoo().b();
+  }
 
-    @CalledMethods({"a"}) Foo makeFooFinalize() {
-        Foo f = new Foo();
-        f.a();
-        return f;
-    }
+  void testFluentAPIWrong2() {
+    // :: error: (required.method.not.called)
+    makeFoo();
+  }
 
-    void invokeMethodWithCallA() {
-        makeFooFinalize();
-    }
+  @CalledMethods({"a"}) Foo makeFooFinalize() {
+    Foo f = new Foo();
+    f.a();
+    return f;
+  }
 
-    void invokeMethodWithCallBWrong() {
-        // :: error: (required.method.not.called)
-        makeFooFinalize2();
-    }
+  void invokeMethodWithCallA() {
+    makeFooFinalize();
+  }
 
-    void invokeMethodAndCallCWrong() {
-        // :: error: (required.method.not.called)
-        makeFoo().c();
-    }
+  void invokeMethodWithCallBWrong() {
+    // :: error: (required.method.not.called)
+    makeFooFinalize2();
+  }
 
-    void makeFooFinalizeWrong() {
-        Foo m;
-        // :: error: (required.method.not.called)
-        m = new Foo();
-        // :: error: (required.method.not.called)
-        Foo f = new Foo();
-        f.b();
-    }
+  void invokeMethodAndCallCWrong() {
+    // :: error: (required.method.not.called)
+    makeFoo().c();
+  }
 
-    Foo ifElseWithReturnExit(boolean b, boolean c) {
-        // :: error: (required.method.not.called)
-        Foo f1 = makeFoo();
-        // :: error: (required.method.not.called)
-        Foo f3 = new Foo();
-        // :: error: (required.method.not.called)
-        Foo f4 = new Foo();
+  void makeFooFinalizeWrong() {
+    Foo m;
+    // :: error: (required.method.not.called)
+    m = new Foo();
+    // :: error: (required.method.not.called)
+    Foo f = new Foo();
+    f.b();
+  }
 
-        if (b) {
-            // :: error: (required.method.not.called)
-            Foo f2 = new Foo();
-            if (c) {
-                f4.a();
-            } else {
-                f4.b();
-            }
-            return f1;
-        } else {
-            // :: error: (required.method.not.called)
-            Foo f2 = new Foo();
-            f2 = new Foo();
-            f2.a();
-        }
-        return f3;
-    }
+  Foo ifElseWithReturnExit(boolean b, boolean c) {
+    // :: error: (required.method.not.called)
+    Foo f1 = makeFoo();
+    // :: error: (required.method.not.called)
+    Foo f3 = new Foo();
+    // :: error: (required.method.not.called)
+    Foo f4 = new Foo();
 
-    void ownershipTransfer() {
-        Foo f1 = new Foo();
-        Foo f2 = f1;
-        Foo f3 = f2.b();
-        f3.a();
+    if (b) {
+      // :: error: (required.method.not.called)
+      Foo f2 = new Foo();
+      if (c) {
+        f4.a();
+      } else {
+        f4.b();
+      }
+      return f1;
+    } else {
+      // :: error: (required.method.not.called)
+      Foo f2 = new Foo();
+      f2 = new Foo();
+      f2.a();
     }
+    return f3;
+  }
+
+  void ownershipTransfer() {
+    Foo f1 = new Foo();
+    Foo f2 = f1;
+    Foo f3 = f2.b();
+    f3.a();
+  }
 }

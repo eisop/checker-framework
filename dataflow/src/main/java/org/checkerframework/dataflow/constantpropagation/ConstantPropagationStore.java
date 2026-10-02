@@ -1,5 +1,7 @@
 package org.checkerframework.dataflow.constantpropagation;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
 import org.checkerframework.dataflow.cfg.node.IntegerLiteralNode;
@@ -10,150 +12,147 @@ import org.checkerframework.dataflow.expression.JavaExpression;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.MapsP;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 /** A store that records information about constant values. */
 public class ConstantPropagationStore implements Store<ConstantPropagationStore> {
 
-    /** Information about variables gathered so far. */
-    private final Map<Node, Constant> contents;
+  /** Information about variables gathered so far. */
+  private final Map<Node, Constant> contents;
 
-    /** Creates a new ConstantPropagationStore. */
-    public ConstantPropagationStore() {
-        contents = new LinkedHashMap<>();
+  /** Creates a new ConstantPropagationStore. */
+  public ConstantPropagationStore() {
+    contents = new LinkedHashMap<>();
+  }
+
+  protected ConstantPropagationStore(Map<Node, Constant> contents) {
+    this.contents = contents;
+  }
+
+  public Constant getInformation(Node n) {
+    Constant c = contents.get(n);
+    return c != null ? c : new Constant(Constant.Type.TOP);
+  }
+
+  public void mergeInformation(Node n, Constant val) {
+    Constant existing = contents.get(n);
+    Constant value = existing != null ? val.leastUpperBound(existing) : val;
+    // TODO: remove (only two nodes supported atm)
+    assert n instanceof IntegerLiteralNode || n instanceof LocalVariableNode;
+    contents.put(n, value);
+  }
+
+  public void setInformation(Node n, Constant val) {
+    // TODO: remove (only two nodes supported atm)
+    assert n instanceof IntegerLiteralNode || n instanceof LocalVariableNode;
+    contents.put(n, val);
+  }
+
+  @Override
+  public ConstantPropagationStore copy() {
+    return new ConstantPropagationStore(new LinkedHashMap<>(contents));
+  }
+
+  @Override
+  public ConstantPropagationStore leastUpperBound(ConstantPropagationStore other) {
+    Map<Node, Constant> newContents =
+        ArrayMap.newArrayMapOrLinkedHashMap(contents.size() + other.contents.size());
+
+    // go through all of the information of the other class
+    for (Map.Entry<Node, Constant> e : other.contents.entrySet()) {
+      Node n = e.getKey();
+      Constant otherVal = e.getValue();
+      Constant thisVal = contents.get(n);
+      if (thisVal != null) {
+        // merge if both contain information about a variable
+        newContents.put(n, otherVal.leastUpperBound(thisVal));
+      } else {
+        // add new information
+        newContents.put(n, otherVal);
+      }
     }
 
-    protected ConstantPropagationStore(Map<Node, Constant> contents) {
-        this.contents = contents;
+    for (Map.Entry<Node, Constant> e : contents.entrySet()) {
+      Node n = e.getKey();
+      Constant thisVal = e.getValue();
+      if (!other.contents.containsKey(n)) {
+        // add new information
+        newContents.put(n, thisVal);
+      }
     }
 
-    public Constant getInformation(Node n) {
-        Constant c = contents.get(n);
-        return c != null ? c : new Constant(Constant.Type.TOP);
+    return new ConstantPropagationStore(newContents);
+  }
+
+  @Override
+  public ConstantPropagationStore widenedUpperBound(ConstantPropagationStore previous) {
+    return leastUpperBound(previous);
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
     }
-
-    public void mergeInformation(Node n, Constant val) {
-        Constant existing = contents.get(n);
-        Constant value = existing != null ? val.leastUpperBound(existing) : val;
-        // TODO: remove (only two nodes supported atm)
-        assert n instanceof IntegerLiteralNode || n instanceof LocalVariableNode;
-        contents.put(n, value);
+    if (!(o instanceof ConstantPropagationStore)) {
+      return false;
     }
-
-    public void setInformation(Node n, Constant val) {
-        // TODO: remove (only two nodes supported atm)
-        assert n instanceof IntegerLiteralNode || n instanceof LocalVariableNode;
-        contents.put(n, val);
+    ConstantPropagationStore other = (ConstantPropagationStore) o;
+    // go through all of the information of the other object
+    for (Map.Entry<Node, Constant> e : other.contents.entrySet()) {
+      Node n = e.getKey();
+      Constant otherVal = e.getValue();
+      if (otherVal.isBottom()) {
+        continue; // no information
+      }
+      Constant thisVal = contents.get(n);
+      if (thisVal == null || !otherVal.equals(thisVal)) {
+        return false;
+      }
     }
-
-    @Override
-    public ConstantPropagationStore copy() {
-        return new ConstantPropagationStore(new LinkedHashMap<>(contents));
+    // go through all of the information of the this object
+    for (Map.Entry<Node, Constant> e : contents.entrySet()) {
+      Node n = e.getKey();
+      Constant thisVal = e.getValue();
+      if (thisVal.isBottom()) {
+        continue; // no information
+      }
+      if (!other.contents.containsKey(n)) {
+        return false;
+      }
     }
+    return true;
+  }
 
-    @Override
-    public ConstantPropagationStore leastUpperBound(ConstantPropagationStore other) {
-        Map<Node, Constant> newContents =
-                ArrayMap.newArrayMapOrLinkedHashMap(contents.size() + other.contents.size());
-
-        // go through all of the information of the other class
-        for (Map.Entry<Node, Constant> e : other.contents.entrySet()) {
-            Node n = e.getKey();
-            Constant otherVal = e.getValue();
-            Constant thisVal = contents.get(n);
-            if (thisVal != null) {
-                // merge if both contain information about a variable
-                newContents.put(n, otherVal.leastUpperBound(thisVal));
-            } else {
-                // add new information
-                newContents.put(n, otherVal);
-            }
-        }
-
-        for (Map.Entry<Node, Constant> e : contents.entrySet()) {
-            Node n = e.getKey();
-            Constant thisVal = e.getValue();
-            if (!other.contents.containsKey(n)) {
-                // add new information
-                newContents.put(n, thisVal);
-            }
-        }
-
-        return new ConstantPropagationStore(newContents);
+  @Override
+  public int hashCode() {
+    int s = 0;
+    for (Map.Entry<Node, Constant> e : contents.entrySet()) {
+      if (!e.getValue().isBottom()) {
+        s += e.hashCode();
+      }
     }
+    return s;
+  }
 
-    @Override
-    public ConstantPropagationStore widenedUpperBound(ConstantPropagationStore previous) {
-        return leastUpperBound(previous);
+  @Override
+  public String toString() {
+    // Only output local variable information.
+    // This output is very terse, so a CFG containing it fits well in the manual.
+    Map<Node, Constant> contentsLocalVars = new LinkedHashMap<>(MapsP.mapCapacity(contents));
+    for (Map.Entry<Node, Constant> e : contents.entrySet()) {
+      if (e.getKey() instanceof LocalVariableNode) {
+        contentsLocalVars.put(e.getKey(), e.getValue());
+      }
     }
+    return contentsLocalVars.toString();
+  }
 
-    @Override
-    public boolean equals(@Nullable Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof ConstantPropagationStore)) {
-            return false;
-        }
-        ConstantPropagationStore other = (ConstantPropagationStore) o;
-        // go through all of the information of the other object
-        for (Map.Entry<Node, Constant> e : other.contents.entrySet()) {
-            Node n = e.getKey();
-            Constant otherVal = e.getValue();
-            if (otherVal.isBottom()) {
-                continue; // no information
-            }
-            Constant thisVal = contents.get(n);
-            if (thisVal == null || !otherVal.equals(thisVal)) {
-                return false;
-            }
-        }
-        // go through all of the information of the this object
-        for (Map.Entry<Node, Constant> e : contents.entrySet()) {
-            Node n = e.getKey();
-            Constant thisVal = e.getValue();
-            if (thisVal.isBottom()) {
-                continue; // no information
-            }
-            if (!other.contents.containsKey(n)) {
-                return false;
-            }
-        }
-        return true;
-    }
+  @Override
+  public boolean canAlias(JavaExpression a, JavaExpression b) {
+    return true;
+  }
 
-    @Override
-    public int hashCode() {
-        int s = 0;
-        for (Map.Entry<Node, Constant> e : contents.entrySet()) {
-            if (!e.getValue().isBottom()) {
-                s += e.hashCode();
-            }
-        }
-        return s;
-    }
-
-    @Override
-    public String toString() {
-        // Only output local variable information.
-        // This output is very terse, so a CFG containing it fits well in the manual.
-        Map<Node, Constant> contentsLocalVars = new LinkedHashMap<>(MapsP.mapCapacity(contents));
-        for (Map.Entry<Node, Constant> e : contents.entrySet()) {
-            if (e.getKey() instanceof LocalVariableNode) {
-                contentsLocalVars.put(e.getKey(), e.getValue());
-            }
-        }
-        return contentsLocalVars.toString();
-    }
-
-    @Override
-    public boolean canAlias(JavaExpression a, JavaExpression b) {
-        return true;
-    }
-
-    @Override
-    public String visualize(CFGVisualizer<?, ConstantPropagationStore, ?> viz) {
-        return viz.visualizeStoreKeyVal("constant propagation", toString());
-    }
+  @Override
+  public String visualize(CFGVisualizer<?, ConstantPropagationStore, ?> viz) {
+    return viz.visualizeStoreKeyVal("constant propagation", toString());
+  }
 }

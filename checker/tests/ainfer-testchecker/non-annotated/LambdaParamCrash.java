@@ -8,18 +8,18 @@ import java.util.function.BiConsumer;
 @SuppressWarnings("all") // only checking for crashes
 public class LambdaParamCrash {
 
-    void groupAndSend() {
-        addListener(
-                (r, e1) -> {
-                    if (e1 == null) {
-                        e1 = badResponse();
-                    }
-                });
-    }
+  void groupAndSend() {
+    addListener(
+        (r, e1) -> {
+          if (e1 == null) {
+            e1 = badResponse();
+          }
+        });
+  }
 
-    private IOException badResponse() {
-        return new IOException();
-    }
+  private IOException badResponse() {
+    return new IOException();
+  }
 
-    public static <T> void addListener(BiConsumer<? super T, ? super Throwable> action) {}
+  public static <T> void addListener(BiConsumer<? super T, ? super Throwable> action) {}
 }

@@ -1,5 +1,16 @@
 package org.checkerframework.common.basetype;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.PackageElement;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.ClassGetName;
@@ -19,19 +30,6 @@ import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.Set;
-
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.PackageElement;
 
 /**
  * An abstract {@link SourceChecker} that provides a simple {@link
@@ -76,421 +74,414 @@ import javax.lang.model.element.PackageElement;
 @SupportedLintOptions({"cast", "cast:redundant", "cast:unsafe", "instanceof", "instanceof:unsafe"})
 public abstract class BaseTypeChecker extends SourceChecker {
 
-    /**
-     * A mapping from an element to whether it is in an {@code @AnnotatedFor} scope for this checker
-     * or an upstream checker. The value is the fully-resolved answer for the element: it accounts
-     * for enclosing elements and for {@code @UnannotatedFor} exclusions.
-     */
-    private final IdentityHashMap<Element, Boolean> elementAnnotatedForThisCheckerOrUpstreamCache =
-            new IdentityHashMap<>();
+  /**
+   * A mapping from an element to whether it is in an {@code @AnnotatedFor} scope for this checker
+   * or an upstream checker. The value is the fully-resolved answer for the element: it accounts for
+   * enclosing elements and for {@code @UnannotatedFor} exclusions.
+   */
+  private final IdentityHashMap<Element, Boolean> elementAnnotatedForThisCheckerOrUpstreamCache =
+      new IdentityHashMap<>();
 
-    /**
-     * A mapping from a package to whether that package's subpackages are covered by an
-     * {@code @AnnotatedFor} for this checker or an upstream checker, written on it or on an
-     * enclosing package. Separate from {@link #elementAnnotatedForThisCheckerOrUpstreamCache}
-     * because an {@code @AnnotatedFor} that opts out of subpackages still covers its own package,
-     * so the two answers differ for the same package. The value accounts for
-     * {@code @UnannotatedFor} exclusions, as {@link #elementAnnotatedForThisCheckerOrUpstreamCache}
-     * does.
-     */
-    private final IdentityHashMap<PackageElement, Boolean> annotatedForReachesSubpackagesCache =
-            new IdentityHashMap<>();
+  /**
+   * A mapping from a package to whether that package's subpackages are covered by an
+   * {@code @AnnotatedFor} for this checker or an upstream checker, written on it or on an enclosing
+   * package. Separate from {@link #elementAnnotatedForThisCheckerOrUpstreamCache} because an
+   * {@code @AnnotatedFor} that opts out of subpackages still covers its own package, so the two
+   * answers differ for the same package. The value accounts for {@code @UnannotatedFor} exclusions,
+   * as {@link #elementAnnotatedForThisCheckerOrUpstreamCache} does.
+   */
+  private final IdentityHashMap<PackageElement, Boolean> annotatedForReachesSubpackagesCache =
+      new IdentityHashMap<>();
 
-    /**
-     * Declarations already reported for carrying both an {@code @AnnotatedFor} and an
-     * {@code @UnannotatedFor} that name this checker. Consulted through the ultimate parent
-     * checker, so the warning is issued once rather than once per subchecker that the annotations
-     * name.
-     */
-    private final Set<Element> conflictingAnnotatedForReported =
-            Collections.newSetFromMap(new IdentityHashMap<>());
+  /**
+   * Declarations already reported for carrying both an {@code @AnnotatedFor} and an
+   * {@code @UnannotatedFor} that name this checker. Consulted through the ultimate parent checker,
+   * so the warning is issued once rather than once per subchecker that the annotations name.
+   */
+  private final Set<Element> conflictingAnnotatedForReported =
+      Collections.newSetFromMap(new IdentityHashMap<>());
 
-    /** An array containing just {@code BaseTypeChecker.class}. */
-    protected static Class<?>[] baseTypeCheckerClassArray = new Class<?>[] {BaseTypeChecker.class};
+  /** An array containing just {@code BaseTypeChecker.class}. */
+  protected static Class<?>[] baseTypeCheckerClassArray = new Class<?>[] {BaseTypeChecker.class};
 
-    /** Create a new BaseTypeChecker. */
-    protected BaseTypeChecker() {}
+  /** Create a new BaseTypeChecker. */
+  protected BaseTypeChecker() {}
 
-    /**
-     * Returns the appropriate visitor that type-checks the compilation unit according to the type
-     * system rules.
-     *
-     * <p>This implementation uses the checker naming convention to create the appropriate visitor.
-     * If no visitor is found, it returns an instance of {@link BaseTypeVisitor}. It reflectively
-     * invokes the constructor that accepts this checker and the compilation unit tree (in that
-     * order) as arguments.
-     *
-     * <p>Subclasses have to override this method to create the appropriate visitor if they do not
-     * follow the checker naming convention.
-     *
-     * @return the type-checking visitor
-     */
-    @Override
-    protected BaseTypeVisitor<?> createSourceVisitor() {
-        // Try to reflectively load the visitor.
-        Class<?> checkerClass = this.getClass();
-        Object[] thisArray = new Object[] {this};
-        while (checkerClass != BaseTypeChecker.class) {
-            BaseTypeVisitor<?> result =
-                    invokeConstructorFor(
-                            BaseTypeChecker.getRelatedClassName(checkerClass, "Visitor"),
-                            baseTypeCheckerClassArray,
-                            thisArray);
-            if (result != null) {
-                return result;
-            }
-            checkerClass = checkerClass.getSuperclass();
-        }
-
-        // If a visitor couldn't be loaded reflectively, return the default.
-        return new BaseTypeVisitor<BaseAnnotatedTypeFactory>(this);
-    }
-
-    /**
-     * A public variant of {@link #createSourceVisitor}. Only use this if you know what you are
-     * doing.
-     *
-     * @return the type-checking visitor
-     */
-    public BaseTypeVisitor<?> createSourceVisitorPublic() {
-        return createSourceVisitor();
-    }
-
-    @Override
-    public BaseTypeVisitor<?> getVisitor() {
-        return (BaseTypeVisitor<?>) super.getVisitor();
-    }
-
-    /**
-     * Returns the type factory associated with this checker.
-     *
-     * @return the type factory associated with this checker
-     */
-    public GenericAnnotatedTypeFactory<?, ?, ?, ?> getTypeFactory() {
-        BaseTypeVisitor<?> visitor = getVisitor();
-        // Avoid NPE if this method is called during initialization.
-        if (visitor == null) {
-            throw new TypeSystemError("Called getTypeFactory() before initialization was complete");
-        }
-        return visitor.getTypeFactory();
-    }
-
-    @Override
-    public AnnotationProvider getAnnotationProvider() {
-        return getTypeFactory();
-    }
-
-    /**
-     * Returns the type factory used by a subchecker. Returns null if no matching subchecker was
-     * found or if the type factory is null. The caller must know the exact checker class to
-     * request.
-     *
-     * <p>Because the visitor state is copied, call this method each time a subfactory is needed
-     * rather than store the returned subfactory in a field.
-     *
-     * @param subCheckerClass the class of the subchecker
-     * @param <T> the type of {@code subCheckerClass}'s {@link AnnotatedTypeFactory}
-     * @return the type factory of the requested subchecker or null if not found
-     */
-    @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
-    public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>>
-            @Nullable T getTypeFactoryOfSubcheckerOrNull(
-                    Class<? extends BaseTypeChecker> subCheckerClass) {
-        return getTypeFactory().getTypeFactoryOfSubcheckerOrNull(subCheckerClass);
-    }
-
-    @Override
-    protected Object processErrorMessageArg(Object arg) {
-        if (arg instanceof Collection) {
-            Collection<?> carg = (Collection<?>) arg;
-            return CollectionsPlume.mapList(this::processErrorMessageArg, carg);
-        } else if (arg instanceof AnnotationMirror && getTypeFactory() != null) {
-            return getTypeFactory()
-                    .getAnnotationFormatter()
-                    .formatAnnotationMirror((AnnotationMirror) arg);
-        } else {
-            return super.processErrorMessageArg(arg);
-        }
-    }
-
-    @Override
-    protected boolean shouldAddShutdownHook() {
-        if (super.shouldAddShutdownHook() || getTypeFactory().getCFGVisualizer() != null) {
-            return true;
-        }
-        for (SourceChecker checker : getSubcheckers()) {
-            if ((checker instanceof BaseTypeChecker)
-                    && ((BaseTypeChecker) checker).getTypeFactory().getCFGVisualizer() != null) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Override
-    protected void shutdownHook() {
-        super.shutdownHook();
-
-        CFGVisualizer<?, ?, ?> viz = getTypeFactory().getCFGVisualizer();
-        if (viz != null) {
-            viz.shutdown();
-        }
-
-        for (SourceChecker checker : getSubcheckers()) {
-            if (checker instanceof BaseTypeChecker) {
-                viz = ((BaseTypeChecker) checker).getTypeFactory().getCFGVisualizer();
-                if (viz != null) {
-                    viz.shutdown();
-                }
-            }
-        }
-    }
-
-    /** A cache for {@link #getUltimateParentChecker}. */
-    protected @MonotonicNonNull BaseTypeChecker ultimateParentChecker;
-
-    /**
-     * Finds the ultimate parent checker of this checker. The ultimate parent checker is the checker
-     * that the user actually requested, i.e. the one with no parent. The ultimate parent might be
-     * this checker itself.
-     *
-     * @return the first checker in the parent checker chain with no parent checker of its own,
-     *     i.e., the ultimate parent checker
-     */
-    public BaseTypeChecker getUltimateParentChecker() {
-        if (ultimateParentChecker == null) {
-            ultimateParentChecker = this;
-            while (ultimateParentChecker.getParentChecker() instanceof BaseTypeChecker) {
-                ultimateParentChecker = (BaseTypeChecker) ultimateParentChecker.getParentChecker();
-            }
-        }
-
-        return ultimateParentChecker;
-    }
-
-    /**
-     * Invokes the constructor belonging to the class named by {@code name} having the given
-     * parameter types on the given arguments. Returns {@code null} if the class cannot be found.
-     * Otherwise, throws an exception if there is trouble with the constructor invocation.
-     *
-     * @param <T> the type to which the constructor belongs
-     * @param className the name of the class to which the constructor belongs
-     * @param paramTypes the types of the constructor's parameters
-     * @param args the arguments on which to invoke the constructor
-     * @return the result of the constructor invocation on {@code args}, or null if the class does
-     *     not exist
-     */
-    @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"}) // Intentional abuse
-    public static <T> @Nullable T invokeConstructorFor(
-            @ClassGetName String className, Class<?>[] paramTypes, Object[] args) {
-
-        // Load the class.
-        Class<T> cls;
-        try {
-            cls = (Class<T>) Class.forName(className);
-        } catch (Exception e) {
-            // no class is found, simply return null
-            return null;
-        }
-
-        assert cls != null : "reflectively loading " + className + " failed";
-
-        // Invoke the constructor.
-        try {
-            Constructor<T> ctor = cls.getConstructor(paramTypes);
-            return ctor.newInstance(args);
-        } catch (Throwable t) {
-            if (t instanceof InvocationTargetException) {
-                Throwable err = t.getCause();
-                if (err instanceof UserError || err instanceof TypeSystemError) {
-                    // Don't add more information about the constructor invocation.
-                    throw (RuntimeException) err;
-                }
-            } else if (t instanceof NoSuchMethodException) {
-                // Note: it's possible that NoSuchMethodException was caused by
-                // `ctor.newInstance(args)`, if the constructor itself uses reflection.
-                // But this case is unlikely.
-                throw new TypeSystemError(
-                        "Could not find constructor %s(%s)",
-                        className, StringsPlume.join(", ", paramTypes));
-            }
-
-            Throwable cause;
-            String causeMessage;
-            if (t instanceof InvocationTargetException) {
-                cause = t.getCause();
-                if (cause == null || cause.getMessage() == null) {
-                    causeMessage = t.getMessage();
-                } else if (t.getMessage() == null) {
-                    causeMessage = cause.getMessage();
-                } else {
-                    causeMessage = t.getMessage() + ": " + cause.getMessage();
-                }
-            } else {
-                cause = t;
-                causeMessage = (cause == null) ? "null" : cause.getMessage();
-            }
-            throw new BugInCF(
-                    cause,
-                    "Error when invoking constructor %s(%s) on args %s; cause: %s",
-                    className,
-                    StringsPlume.join(", ", paramTypes),
-                    Arrays.toString(args),
-                    causeMessage);
-        }
-    }
-
-    @Override
-    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        if (elt == null) {
-            return false;
-        }
-
-        Boolean cached = elementAnnotatedForThisCheckerOrUpstreamCache.get(elt);
-        if (cached != null) {
-            return cached;
-        }
-
-        AnnotatedTypeFactory atypeFactory = getTypeFactory();
-        boolean elementAnnotatedForThisChecker = hasApplicableAnnotatedFor(elt, false);
-        boolean elementUnannotatedForThisChecker = hasApplicableUnannotatedFor(elt, false);
-        if (elementAnnotatedForThisChecker && elementUnannotatedForThisChecker) {
-            // The two contradict each other; the one written first wins.  See
-            // AnnotatedTypeFactory#annotatedForPrecedesUnannotatedFor for why source order rather
-            // than a fixed precedence.  BaseTypeVisitor warns about the pair separately.
-            elementAnnotatedForThisChecker = atypeFactory.annotatedForPrecedesUnannotatedFor(elt);
-            elementUnannotatedForThisChecker = !elementAnnotatedForThisChecker;
-        }
-
-        // @UnannotatedFor only subtracts from an enclosing @AnnotatedFor scope, so it is consulted
-        // only when this element is not itself annotated for this checker, and it stops the walk
-        // to the enclosing element.
-        if (!elementAnnotatedForThisChecker && !elementUnannotatedForThisChecker) {
-            if (elt.getKind() == ElementKind.PACKAGE) {
-                // A package is covered by an enclosing package only if that package's
-                // @AnnotatedFor applies to subpackages.
-                elementAnnotatedForThisChecker =
-                        doesAnnotatedForReachSubpackages(
-                                ElementUtils.parentPackage(
-                                        (PackageElement) elt, atypeFactory.getElementUtils()));
-            } else {
-                // A non-package element is inside its enclosing element rather than in a
-                // subpackage of it, so applyToSubpackages does not apply to this step.
-                Element parent = elt.getEnclosingElement();
-                elementAnnotatedForThisChecker =
-                        parent != null && isElementAnnotatedForThisCheckerOrUpstreamChecker(parent);
-            }
-        }
-
-        elementAnnotatedForThisCheckerOrUpstreamCache.put(elt, elementAnnotatedForThisChecker);
-        return elementAnnotatedForThisChecker;
-    }
-
-    /**
-     * Returns true if the subpackages of {@code pkg} are covered by an {@code @AnnotatedFor} for
-     * this checker or an upstream checker. Such an annotation may be written on {@code pkg} itself
-     * or on any enclosing package: a package that opts out of subpackages does not shield its own
-     * subpackages from an enclosing package that opts in. An {@code @UnannotatedFor} that reaches
-     * subpackages does shield them: the innermost package whose annotation reaches subpackages
-     * decides.
-     *
-     * @param pkg a package, or null for no package
-     * @return true if an {@code @AnnotatedFor} covers the subpackages of {@code pkg}
-     */
-    private boolean doesAnnotatedForReachSubpackages(@Nullable PackageElement pkg) {
-        if (pkg == null) {
-            return false;
-        }
-
-        Boolean cached = annotatedForReachesSubpackagesCache.get(pkg);
-        if (cached != null) {
-            return cached;
-        }
-
-        AnnotatedTypeFactory atypeFactory = getTypeFactory();
-        boolean result = hasApplicableAnnotatedFor(pkg, true);
-        boolean unannotated = hasApplicableUnannotatedFor(pkg, true);
-        if (result && unannotated) {
-            // Resolved the same way as on a non-package element; see
-            // isElementAnnotatedForThisCheckerOrUpstreamChecker.
-            result = atypeFactory.annotatedForPrecedesUnannotatedFor(pkg);
-            unannotated = !result;
-        }
-        // An @UnannotatedFor on pkg that reaches subpackages cancels any enclosing @AnnotatedFor
-        // for them, so the walk stops here with the answer false.
-        if (!result && !unannotated) {
-            result =
-                    doesAnnotatedForReachSubpackages(
-                            ElementUtils.parentPackage(pkg, atypeFactory.getElementUtils()));
-        }
-
-        annotatedForReachesSubpackagesCache.put(pkg, result);
+  /**
+   * Returns the appropriate visitor that type-checks the compilation unit according to the type
+   * system rules.
+   *
+   * <p>This implementation uses the checker naming convention to create the appropriate visitor. If
+   * no visitor is found, it returns an instance of {@link BaseTypeVisitor}. It reflectively invokes
+   * the constructor that accepts this checker and the compilation unit tree (in that order) as
+   * arguments.
+   *
+   * <p>Subclasses have to override this method to create the appropriate visitor if they do not
+   * follow the checker naming convention.
+   *
+   * @return the type-checking visitor
+   */
+  @Override
+  protected BaseTypeVisitor<?> createSourceVisitor() {
+    // Try to reflectively load the visitor.
+    Class<?> checkerClass = this.getClass();
+    Object[] thisArray = new Object[] {this};
+    while (checkerClass != BaseTypeChecker.class) {
+      BaseTypeVisitor<?> result =
+          invokeConstructorFor(
+              BaseTypeChecker.getRelatedClassName(checkerClass, "Visitor"),
+              baseTypeCheckerClassArray,
+              thisArray);
+      if (result != null) {
         return result;
+      }
+      checkerClass = checkerClass.getSuperclass();
     }
 
-    /**
-     * Does {@code elt} carry an {@code @AnnotatedFor} that applies to this checker or an upstream
-     * checker? Unlike {@link #isElementAnnotatedForThisCheckerOrUpstreamChecker} and {@link
-     * #doesAnnotatedForReachSubpackages}, this considers only {@code elt} itself, not enclosing
-     * elements or packages.
-     *
-     * <p>One element may carry several: {@code @AnnotatedFor} is repeatable, and an alias such as
-     * {@code @NullMarked} adds another. Any one of them naming this checker is enough. When {@code
-     * requireSubpackages} is true, both conditions must hold of the <em>same</em> annotation,
-     * though not of the same one for every checker: a package annotated
-     * {@code @AnnotatedFor("index") @NullMarked} reaches subpackages for the Index Checker and not
-     * for the Nullness Checker, because the {@code @NullMarked} alias sets {@code
-     * applyToSubpackages=false}.
-     *
-     * @param elt the element to check
-     * @param requireSubpackages if true, also require the annotation to apply to {@code elt}'s
-     *     subpackages; pass false to ask only whether it applies to {@code elt} itself
-     * @return true if such an annotation is written on, or aliased onto, {@code elt}
-     */
-    /*package-private*/ boolean hasApplicableAnnotatedFor(Element elt, boolean requireSubpackages) {
-        AnnotatedTypeFactory atypeFactory = getTypeFactory();
-        for (AnnotationMirror annotatedFor : atypeFactory.getAnnotatedForAnnotations(elt)) {
-            if (atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)
-                    && (!requireSubpackages
-                            || atypeFactory.doesAnnotatedForApplyToSubpackages(annotatedFor))) {
-                return true;
-            }
+    // If a visitor couldn't be loaded reflectively, return the default.
+    return new BaseTypeVisitor<BaseAnnotatedTypeFactory>(this);
+  }
+
+  /**
+   * A public variant of {@link #createSourceVisitor}. Only use this if you know what you are doing.
+   *
+   * @return the type-checking visitor
+   */
+  public BaseTypeVisitor<?> createSourceVisitorPublic() {
+    return createSourceVisitor();
+  }
+
+  @Override
+  public BaseTypeVisitor<?> getVisitor() {
+    return (BaseTypeVisitor<?>) super.getVisitor();
+  }
+
+  /**
+   * Returns the type factory associated with this checker.
+   *
+   * @return the type factory associated with this checker
+   */
+  public GenericAnnotatedTypeFactory<?, ?, ?, ?> getTypeFactory() {
+    BaseTypeVisitor<?> visitor = getVisitor();
+    // Avoid NPE if this method is called during initialization.
+    if (visitor == null) {
+      throw new TypeSystemError("Called getTypeFactory() before initialization was complete");
+    }
+    return visitor.getTypeFactory();
+  }
+
+  @Override
+  public AnnotationProvider getAnnotationProvider() {
+    return getTypeFactory();
+  }
+
+  /**
+   * Returns the type factory used by a subchecker. Returns null if no matching subchecker was found
+   * or if the type factory is null. The caller must know the exact checker class to request.
+   *
+   * <p>Because the visitor state is copied, call this method each time a subfactory is needed
+   * rather than store the returned subfactory in a field.
+   *
+   * @param subCheckerClass the class of the subchecker
+   * @param <T> the type of {@code subCheckerClass}'s {@link AnnotatedTypeFactory}
+   * @return the type factory of the requested subchecker or null if not found
+   */
+  @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
+  public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>>
+      @Nullable T getTypeFactoryOfSubcheckerOrNull(
+          Class<? extends BaseTypeChecker> subCheckerClass) {
+    return getTypeFactory().getTypeFactoryOfSubcheckerOrNull(subCheckerClass);
+  }
+
+  @Override
+  protected Object processErrorMessageArg(Object arg) {
+    if (arg instanceof Collection) {
+      Collection<?> carg = (Collection<?>) arg;
+      return CollectionsPlume.mapList(this::processErrorMessageArg, carg);
+    } else if (arg instanceof AnnotationMirror && getTypeFactory() != null) {
+      return getTypeFactory()
+          .getAnnotationFormatter()
+          .formatAnnotationMirror((AnnotationMirror) arg);
+    } else {
+      return super.processErrorMessageArg(arg);
+    }
+  }
+
+  @Override
+  protected boolean shouldAddShutdownHook() {
+    if (super.shouldAddShutdownHook() || getTypeFactory().getCFGVisualizer() != null) {
+      return true;
+    }
+    for (SourceChecker checker : getSubcheckers()) {
+      if ((checker instanceof BaseTypeChecker)
+          && ((BaseTypeChecker) checker).getTypeFactory().getCFGVisualizer() != null) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  protected void shutdownHook() {
+    super.shutdownHook();
+
+    CFGVisualizer<?, ?, ?> viz = getTypeFactory().getCFGVisualizer();
+    if (viz != null) {
+      viz.shutdown();
+    }
+
+    for (SourceChecker checker : getSubcheckers()) {
+      if (checker instanceof BaseTypeChecker) {
+        viz = ((BaseTypeChecker) checker).getTypeFactory().getCFGVisualizer();
+        if (viz != null) {
+          viz.shutdown();
         }
-        return false;
+      }
+    }
+  }
+
+  /** A cache for {@link #getUltimateParentChecker}. */
+  protected @MonotonicNonNull BaseTypeChecker ultimateParentChecker;
+
+  /**
+   * Finds the ultimate parent checker of this checker. The ultimate parent checker is the checker
+   * that the user actually requested, i.e. the one with no parent. The ultimate parent might be
+   * this checker itself.
+   *
+   * @return the first checker in the parent checker chain with no parent checker of its own, i.e.,
+   *     the ultimate parent checker
+   */
+  public BaseTypeChecker getUltimateParentChecker() {
+    if (ultimateParentChecker == null) {
+      ultimateParentChecker = this;
+      while (ultimateParentChecker.getParentChecker() instanceof BaseTypeChecker) {
+        ultimateParentChecker = (BaseTypeChecker) ultimateParentChecker.getParentChecker();
+      }
     }
 
-    /**
-     * Does {@code elt} carry an {@code @UnannotatedFor} that applies to this checker or an upstream
-     * checker? The {@code @UnannotatedFor} counterpart of {@link #hasApplicableAnnotatedFor}; see
-     * that method, which this mirrors in every respect.
-     *
-     * @param elt the element to check
-     * @param requireSubpackages if true, also require the annotation to apply to {@code elt}'s
-     *     subpackages; pass false to ask only whether it applies to {@code elt} itself
-     * @return true if such an annotation is written on, or aliased onto, {@code elt}
-     */
-    /*package-private*/ boolean hasApplicableUnannotatedFor(
-            Element elt, boolean requireSubpackages) {
-        AnnotatedTypeFactory atypeFactory = getTypeFactory();
-        for (AnnotationMirror unannotatedFor : atypeFactory.getUnannotatedForAnnotations(elt)) {
-            if (atypeFactory.doesUnannotatedForApplyToThisChecker(unannotatedFor)
-                    && (!requireSubpackages
-                            || atypeFactory.doesUnannotatedForApplyToSubpackages(unannotatedFor))) {
-                return true;
-            }
+    return ultimateParentChecker;
+  }
+
+  /**
+   * Invokes the constructor belonging to the class named by {@code name} having the given parameter
+   * types on the given arguments. Returns {@code null} if the class cannot be found. Otherwise,
+   * throws an exception if there is trouble with the constructor invocation.
+   *
+   * @param <T> the type to which the constructor belongs
+   * @param className the name of the class to which the constructor belongs
+   * @param paramTypes the types of the constructor's parameters
+   * @param args the arguments on which to invoke the constructor
+   * @return the result of the constructor invocation on {@code args}, or null if the class does not
+   *     exist
+   */
+  @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"}) // Intentional abuse
+  public static <T> @Nullable T invokeConstructorFor(
+      @ClassGetName String className, Class<?>[] paramTypes, Object[] args) {
+
+    // Load the class.
+    Class<T> cls;
+    try {
+      cls = (Class<T>) Class.forName(className);
+    } catch (Exception e) {
+      // no class is found, simply return null
+      return null;
+    }
+
+    assert cls != null : "reflectively loading " + className + " failed";
+
+    // Invoke the constructor.
+    try {
+      Constructor<T> ctor = cls.getConstructor(paramTypes);
+      return ctor.newInstance(args);
+    } catch (Throwable t) {
+      if (t instanceof InvocationTargetException) {
+        Throwable err = t.getCause();
+        if (err instanceof UserError || err instanceof TypeSystemError) {
+          // Don't add more information about the constructor invocation.
+          throw (RuntimeException) err;
         }
-        return false;
+      } else if (t instanceof NoSuchMethodException) {
+        // Note: it's possible that NoSuchMethodException was caused by
+        // `ctor.newInstance(args)`, if the constructor itself uses reflection.
+        // But this case is unlikely.
+        throw new TypeSystemError(
+            "Could not find constructor %s(%s)", className, StringsPlume.join(", ", paramTypes));
+      }
+
+      Throwable cause;
+      String causeMessage;
+      if (t instanceof InvocationTargetException) {
+        cause = t.getCause();
+        if (cause == null || cause.getMessage() == null) {
+          causeMessage = t.getMessage();
+        } else if (t.getMessage() == null) {
+          causeMessage = cause.getMessage();
+        } else {
+          causeMessage = t.getMessage() + ": " + cause.getMessage();
+        }
+      } else {
+        cause = t;
+        causeMessage = (cause == null) ? "null" : cause.getMessage();
+      }
+      throw new BugInCF(
+          cause,
+          "Error when invoking constructor %s(%s) on args %s; cause: %s",
+          className,
+          StringsPlume.join(", ", paramTypes),
+          Arrays.toString(args),
+          causeMessage);
+    }
+  }
+
+  @Override
+  public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+    if (elt == null) {
+      return false;
     }
 
-    /**
-     * Returns true the first time it is called with {@code elt} for this checker hierarchy, so that
-     * a conflicting {@code @AnnotatedFor}/{@code @UnannotatedFor} pair on {@code elt} is reported
-     * once even though several subcheckers may see it.
-     *
-     * @param elt a declaration with a conflicting annotation pair
-     * @return true if the conflict on {@code elt} has not been reported yet
-     */
-    /*package-private*/ boolean shouldReportConflictingAnnotatedFor(Element elt) {
-        return getUltimateParentChecker().conflictingAnnotatedForReported.add(elt);
+    Boolean cached = elementAnnotatedForThisCheckerOrUpstreamCache.get(elt);
+    if (cached != null) {
+      return cached;
     }
+
+    AnnotatedTypeFactory atypeFactory = getTypeFactory();
+    boolean elementAnnotatedForThisChecker = hasApplicableAnnotatedFor(elt, false);
+    boolean elementUnannotatedForThisChecker = hasApplicableUnannotatedFor(elt, false);
+    if (elementAnnotatedForThisChecker && elementUnannotatedForThisChecker) {
+      // The two contradict each other; the one written first wins.  See
+      // AnnotatedTypeFactory#annotatedForPrecedesUnannotatedFor for why source order rather
+      // than a fixed precedence.  BaseTypeVisitor warns about the pair separately.
+      elementAnnotatedForThisChecker = atypeFactory.annotatedForPrecedesUnannotatedFor(elt);
+      elementUnannotatedForThisChecker = !elementAnnotatedForThisChecker;
+    }
+
+    // @UnannotatedFor only subtracts from an enclosing @AnnotatedFor scope, so it is consulted
+    // only when this element is not itself annotated for this checker, and it stops the walk
+    // to the enclosing element.
+    if (!elementAnnotatedForThisChecker && !elementUnannotatedForThisChecker) {
+      if (elt.getKind() == ElementKind.PACKAGE) {
+        // A package is covered by an enclosing package only if that package's
+        // @AnnotatedFor applies to subpackages.
+        elementAnnotatedForThisChecker =
+            doesAnnotatedForReachSubpackages(
+                ElementUtils.parentPackage((PackageElement) elt, atypeFactory.getElementUtils()));
+      } else {
+        // A non-package element is inside its enclosing element rather than in a
+        // subpackage of it, so applyToSubpackages does not apply to this step.
+        Element parent = elt.getEnclosingElement();
+        elementAnnotatedForThisChecker =
+            parent != null && isElementAnnotatedForThisCheckerOrUpstreamChecker(parent);
+      }
+    }
+
+    elementAnnotatedForThisCheckerOrUpstreamCache.put(elt, elementAnnotatedForThisChecker);
+    return elementAnnotatedForThisChecker;
+  }
+
+  /**
+   * Returns true if the subpackages of {@code pkg} are covered by an {@code @AnnotatedFor} for this
+   * checker or an upstream checker. Such an annotation may be written on {@code pkg} itself or on
+   * any enclosing package: a package that opts out of subpackages does not shield its own
+   * subpackages from an enclosing package that opts in. An {@code @UnannotatedFor} that reaches
+   * subpackages does shield them: the innermost package whose annotation reaches subpackages
+   * decides.
+   *
+   * @param pkg a package, or null for no package
+   * @return true if an {@code @AnnotatedFor} covers the subpackages of {@code pkg}
+   */
+  private boolean doesAnnotatedForReachSubpackages(@Nullable PackageElement pkg) {
+    if (pkg == null) {
+      return false;
+    }
+
+    Boolean cached = annotatedForReachesSubpackagesCache.get(pkg);
+    if (cached != null) {
+      return cached;
+    }
+
+    AnnotatedTypeFactory atypeFactory = getTypeFactory();
+    boolean result = hasApplicableAnnotatedFor(pkg, true);
+    boolean unannotated = hasApplicableUnannotatedFor(pkg, true);
+    if (result && unannotated) {
+      // Resolved the same way as on a non-package element; see
+      // isElementAnnotatedForThisCheckerOrUpstreamChecker.
+      result = atypeFactory.annotatedForPrecedesUnannotatedFor(pkg);
+      unannotated = !result;
+    }
+    // An @UnannotatedFor on pkg that reaches subpackages cancels any enclosing @AnnotatedFor
+    // for them, so the walk stops here with the answer false.
+    if (!result && !unannotated) {
+      result =
+          doesAnnotatedForReachSubpackages(
+              ElementUtils.parentPackage(pkg, atypeFactory.getElementUtils()));
+    }
+
+    annotatedForReachesSubpackagesCache.put(pkg, result);
+    return result;
+  }
+
+  /**
+   * Does {@code elt} carry an {@code @AnnotatedFor} that applies to this checker or an upstream
+   * checker? Unlike {@link #isElementAnnotatedForThisCheckerOrUpstreamChecker} and {@link
+   * #doesAnnotatedForReachSubpackages}, this considers only {@code elt} itself, not enclosing
+   * elements or packages.
+   *
+   * <p>One element may carry several: {@code @AnnotatedFor} is repeatable, and an alias such as
+   * {@code @NullMarked} adds another. Any one of them naming this checker is enough. When {@code
+   * requireSubpackages} is true, both conditions must hold of the <em>same</em> annotation, though
+   * not of the same one for every checker: a package annotated
+   * {@code @AnnotatedFor("index") @NullMarked} reaches subpackages for the Index Checker and not
+   * for the Nullness Checker, because the {@code @NullMarked} alias sets {@code
+   * applyToSubpackages=false}.
+   *
+   * @param elt the element to check
+   * @param requireSubpackages if true, also require the annotation to apply to {@code elt}'s
+   *     subpackages; pass false to ask only whether it applies to {@code elt} itself
+   * @return true if such an annotation is written on, or aliased onto, {@code elt}
+   */
+  /*package-private*/ boolean hasApplicableAnnotatedFor(Element elt, boolean requireSubpackages) {
+    AnnotatedTypeFactory atypeFactory = getTypeFactory();
+    for (AnnotationMirror annotatedFor : atypeFactory.getAnnotatedForAnnotations(elt)) {
+      if (atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)
+          && (!requireSubpackages
+              || atypeFactory.doesAnnotatedForApplyToSubpackages(annotatedFor))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Does {@code elt} carry an {@code @UnannotatedFor} that applies to this checker or an upstream
+   * checker? The {@code @UnannotatedFor} counterpart of {@link #hasApplicableAnnotatedFor}; see
+   * that method, which this mirrors in every respect.
+   *
+   * @param elt the element to check
+   * @param requireSubpackages if true, also require the annotation to apply to {@code elt}'s
+   *     subpackages; pass false to ask only whether it applies to {@code elt} itself
+   * @return true if such an annotation is written on, or aliased onto, {@code elt}
+   */
+  /*package-private*/ boolean hasApplicableUnannotatedFor(Element elt, boolean requireSubpackages) {
+    AnnotatedTypeFactory atypeFactory = getTypeFactory();
+    for (AnnotationMirror unannotatedFor : atypeFactory.getUnannotatedForAnnotations(elt)) {
+      if (atypeFactory.doesUnannotatedForApplyToThisChecker(unannotatedFor)
+          && (!requireSubpackages
+              || atypeFactory.doesUnannotatedForApplyToSubpackages(unannotatedFor))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Returns true the first time it is called with {@code elt} for this checker hierarchy, so that a
+   * conflicting {@code @AnnotatedFor}/{@code @UnannotatedFor} pair on {@code elt} is reported once
+   * even though several subcheckers may see it.
+   *
+   * @param elt a declaration with a conflicting annotation pair
+   * @return true if the conflict on {@code elt} has not been reported yet
+   */
+  /*package-private*/ boolean shouldReportConflictingAnnotatedFor(Element elt) {
+    return getUltimateParentChecker().conflictingAnnotatedForReported.add(elt);
+  }
 }

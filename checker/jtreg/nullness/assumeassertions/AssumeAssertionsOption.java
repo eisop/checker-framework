@@ -17,8 +17,8 @@
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class AssumeAssertionsOption {
-    int length(@Nullable String s) {
-        assert s != null;
-        return s.length();
-    }
+  int length(@Nullable String s) {
+    assert s != null;
+    return s.length();
+  }
 }

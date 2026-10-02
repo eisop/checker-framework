@@ -5,21 +5,21 @@
 
 public class NullXorComparison {
 
-    static class Node {}
+  static class Node {}
 
-    static boolean exactlyOneNull(Node a, Node b) {
-        if (a == null || b == null) {
-            // :: error: (not.interned)
-            return a != b;
-        }
-        return false;
+  static boolean exactlyOneNull(Node a, Node b) {
+    if (a == null || b == null) {
+      // :: error: (not.interned)
+      return a != b;
     }
+    return false;
+  }
 
-    // The fix: compare nullness itself (a boolean), not object identity.
-    static boolean exactlyOneNullFixed(Node a, Node b) {
-        if (a == null || b == null) {
-            return (a == null) != (b == null);
-        }
-        return false;
+  // The fix: compare nullness itself (a boolean), not object identity.
+  static boolean exactlyOneNullFixed(Node a, Node b) {
+    if (a == null || b == null) {
+      return (a == null) != (b == null);
     }
+    return false;
+  }
 }

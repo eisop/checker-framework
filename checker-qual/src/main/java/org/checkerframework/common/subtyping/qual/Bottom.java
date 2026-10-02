@@ -1,12 +1,11 @@
 package org.checkerframework.common.subtyping.qual;
 
-import org.checkerframework.framework.qual.SubtypeOf;
-import org.checkerframework.framework.qual.TargetLocations;
-import org.checkerframework.framework.qual.TypeUseLocation;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.SubtypeOf;
+import org.checkerframework.framework.qual.TargetLocations;
+import org.checkerframework.framework.qual.TypeUseLocation;
 
 /**
  * A special annotation intended solely for representing the bottom type in the qualifier hierarchy.

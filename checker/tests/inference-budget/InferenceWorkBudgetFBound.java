@@ -16,64 +16,77 @@
 // (sweep D, the chain length, to reproduce the super-linear cost this budget now bounds).
 public class InferenceWorkBudgetFBound {
 
-    interface I1<T1 extends I1<T1>> {}
+  interface I1<T1 extends I1<T1>> {}
 
-    interface I2<T1 extends I1<T1>, T2 extends I2<T1, T2>> {}
+  interface I2<T1 extends I1<T1>, T2 extends I2<T1, T2>> {}
 
-    interface I3<T1 extends I1<T1>, T2 extends I2<T1, T2>, T3 extends I3<T1, T2, T3>> {}
+  interface I3<T1 extends I1<T1>, T2 extends I2<T1, T2>, T3 extends I3<T1, T2, T3>> {}
 
-    interface I4<
-            T1 extends I1<T1>,
-            T2 extends I2<T1, T2>,
-            T3 extends I3<T1, T2, T3>,
-            T4 extends I4<T1, T2, T3, T4>> {}
+  interface I4<
+      T1 extends I1<T1>,
+      T2 extends I2<T1, T2>,
+      T3 extends I3<T1, T2, T3>,
+      T4 extends I4<T1, T2, T3, T4>> {}
 
-    interface I5<
-            T1 extends I1<T1>,
-            T2 extends I2<T1, T2>,
-            T3 extends I3<T1, T2, T3>,
-            T4 extends I4<T1, T2, T3, T4>,
-            T5 extends I5<T1, T2, T3, T4, T5>> {}
+  interface I5<
+      T1 extends I1<T1>,
+      T2 extends I2<T1, T2>,
+      T3 extends I3<T1, T2, T3>,
+      T4 extends I4<T1, T2, T3, T4>,
+      T5 extends I5<T1, T2, T3, T4, T5>> {}
 
-    interface I6<
-            T1 extends I1<T1>,
-            T2 extends I2<T1, T2>,
-            T3 extends I3<T1, T2, T3>,
-            T4 extends I4<T1, T2, T3, T4>,
-            T5 extends I5<T1, T2, T3, T4, T5>,
-            T6 extends I6<T1, T2, T3, T4, T5, T6>> {}
+  interface I6<
+      T1 extends I1<T1>,
+      T2 extends I2<T1, T2>,
+      T3 extends I3<T1, T2, T3>,
+      T4 extends I4<T1, T2, T3, T4>,
+      T5 extends I5<T1, T2, T3, T4, T5>,
+      T6 extends I6<T1, T2, T3, T4, T5, T6>> {}
 
-    interface I7<
-            T1 extends I1<T1>,
-            T2 extends I2<T1, T2>,
-            T3 extends I3<T1, T2, T3>,
-            T4 extends I4<T1, T2, T3, T4>,
-            T5 extends I5<T1, T2, T3, T4, T5>,
-            T6 extends I6<T1, T2, T3, T4, T5, T6>,
-            T7 extends I7<T1, T2, T3, T4, T5, T6, T7>> {}
+  interface I7<
+      T1 extends I1<T1>,
+      T2 extends I2<T1, T2>,
+      T3 extends I3<T1, T2, T3>,
+      T4 extends I4<T1, T2, T3, T4>,
+      T5 extends I5<T1, T2, T3, T4, T5>,
+      T6 extends I6<T1, T2, T3, T4, T5, T6>,
+      T7 extends I7<T1, T2, T3, T4, T5, T6, T7>> {}
 
-    interface I8<
-            T1 extends I1<T1>,
-            T2 extends I2<T1, T2>,
-            T3 extends I3<T1, T2, T3>,
-            T4 extends I4<T1, T2, T3, T4>,
-            T5 extends I5<T1, T2, T3, T4, T5>,
-            T6 extends I6<T1, T2, T3, T4, T5, T6>,
-            T7 extends I7<T1, T2, T3, T4, T5, T6, T7>,
-            T8 extends I8<T1, T2, T3, T4, T5, T6, T7, T8>> {}
+  interface I8<
+      T1 extends I1<T1>,
+      T2 extends I2<T1, T2>,
+      T3 extends I3<T1, T2, T3>,
+      T4 extends I4<T1, T2, T3, T4>,
+      T5 extends I5<T1, T2, T3, T4, T5>,
+      T6 extends I6<T1, T2, T3, T4, T5, T6>,
+      T7 extends I7<T1, T2, T3, T4, T5, T6, T7>,
+      T8 extends I8<T1, T2, T3, T4, T5, T6, T7, T8>> {}
 
-    interface I9<
-            T1 extends I1<T1>,
-            T2 extends I2<T1, T2>,
-            T3 extends I3<T1, T2, T3>,
-            T4 extends I4<T1, T2, T3, T4>,
-            T5 extends I5<T1, T2, T3, T4, T5>,
-            T6 extends I6<T1, T2, T3, T4, T5, T6>,
-            T7 extends I7<T1, T2, T3, T4, T5, T6, T7>,
-            T8 extends I8<T1, T2, T3, T4, T5, T6, T7, T8>,
-            T9 extends I9<T1, T2, T3, T4, T5, T6, T7, T8, T9>> {}
+  interface I9<
+      T1 extends I1<T1>,
+      T2 extends I2<T1, T2>,
+      T3 extends I3<T1, T2, T3>,
+      T4 extends I4<T1, T2, T3, T4>,
+      T5 extends I5<T1, T2, T3, T4, T5>,
+      T6 extends I6<T1, T2, T3, T4, T5, T6>,
+      T7 extends I7<T1, T2, T3, T4, T5, T6, T7>,
+      T8 extends I8<T1, T2, T3, T4, T5, T6, T7, T8>,
+      T9 extends I9<T1, T2, T3, T4, T5, T6, T7, T8, T9>> {}
 
-    interface I10<
+  interface I10<
+      T1 extends I1<T1>,
+      T2 extends I2<T1, T2>,
+      T3 extends I3<T1, T2, T3>,
+      T4 extends I4<T1, T2, T3, T4>,
+      T5 extends I5<T1, T2, T3, T4, T5>,
+      T6 extends I6<T1, T2, T3, T4, T5, T6>,
+      T7 extends I7<T1, T2, T3, T4, T5, T6, T7>,
+      T8 extends I8<T1, T2, T3, T4, T5, T6, T7, T8>,
+      T9 extends I9<T1, T2, T3, T4, T5, T6, T7, T8, T9>,
+      T10 extends I10<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> {}
+
+  static class Factory {
+    static <
             T1 extends I1<T1>,
             T2 extends I2<T1, T2>,
             T3 extends I3<T1, T2, T3>,
@@ -83,51 +96,38 @@ public class InferenceWorkBudgetFBound {
             T7 extends I7<T1, T2, T3, T4, T5, T6, T7>,
             T8 extends I8<T1, T2, T3, T4, T5, T6, T7, T8>,
             T9 extends I9<T1, T2, T3, T4, T5, T6, T7, T8, T9>,
-            T10 extends I10<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> {}
-
-    static class Factory {
-        static <
-                        T1 extends I1<T1>,
-                        T2 extends I2<T1, T2>,
-                        T3 extends I3<T1, T2, T3>,
-                        T4 extends I4<T1, T2, T3, T4>,
-                        T5 extends I5<T1, T2, T3, T4, T5>,
-                        T6 extends I6<T1, T2, T3, T4, T5, T6>,
-                        T7 extends I7<T1, T2, T3, T4, T5, T6, T7>,
-                        T8 extends I8<T1, T2, T3, T4, T5, T6, T7, T8>,
-                        T9 extends I9<T1, T2, T3, T4, T5, T6, T7, T8, T9>,
-                        T10 extends I10<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>
-                I10<?, ?, ?, ?, ?, ?, ?, ?, ?, ?> create() {
-            return null;
-        }
+            T10 extends I10<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>
+        I10<?, ?, ?, ?, ?, ?, ?, ?, ?, ?> create() {
+      return null;
     }
+  }
 
-    void tooManyMutuallyFBoundedTypeParameters() {
-        // :: error: (type.argument.inference.budget)
-        Factory.create();
-    }
+  void tooManyMutuallyFBoundedTypeParameters() {
+    // :: error: (type.argument.inference.budget)
+    Factory.create();
+  }
 
-    // The same shape with a chain of only 6.  The counts that scale with the *number* of inference
-    // variables (the charges in Resolution#resolveSmallestSet and
-    // VariableBounds#doApplyInstantiationsToBounds) stay under this directory's small budget at
-    // this length; it exceeds the budget only because InferenceType#applyInstantiations also
-    // charges the SIZE of the instantiations it substitutes, which doubles with each variable
-    // resolved.  Keep this method: without that charge the chain below is not abandoned.
-    static class ShorterFactory {
-        static <
-                        T1 extends I1<T1>,
-                        T2 extends I2<T1, T2>,
-                        T3 extends I3<T1, T2, T3>,
-                        T4 extends I4<T1, T2, T3, T4>,
-                        T5 extends I5<T1, T2, T3, T4, T5>,
-                        T6 extends I6<T1, T2, T3, T4, T5, T6>>
-                I6<?, ?, ?, ?, ?, ?> create() {
-            return null;
-        }
+  // The same shape with a chain of only 6.  The counts that scale with the *number* of inference
+  // variables (the charges in Resolution#resolveSmallestSet and
+  // VariableBounds#doApplyInstantiationsToBounds) stay under this directory's small budget at
+  // this length; it exceeds the budget only because InferenceType#applyInstantiations also
+  // charges the SIZE of the instantiations it substitutes, which doubles with each variable
+  // resolved.  Keep this method: without that charge the chain below is not abandoned.
+  static class ShorterFactory {
+    static <
+            T1 extends I1<T1>,
+            T2 extends I2<T1, T2>,
+            T3 extends I3<T1, T2, T3>,
+            T4 extends I4<T1, T2, T3, T4>,
+            T5 extends I5<T1, T2, T3, T4, T5>,
+            T6 extends I6<T1, T2, T3, T4, T5, T6>>
+        I6<?, ?, ?, ?, ?, ?> create() {
+      return null;
     }
+  }
 
-    void sixMutuallyFBoundedTypeParameters() {
-        // :: error: (type.argument.inference.budget)
-        ShorterFactory.create();
-    }
+  void sixMutuallyFBoundedTypeParameters() {
+    // :: error: (type.argument.inference.budget)
+    ShorterFactory.create();
+  }
 }

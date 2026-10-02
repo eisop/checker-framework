@@ -2,49 +2,49 @@ import org.checkerframework.checker.testchecker.ainfer.qual.AinferSiblingWithFie
 
 public class AnnotationWithFieldTest {
 
-    private String fields;
+  private String fields;
 
-    private String emptyFields;
+  private String emptyFields;
 
-    void testAnnotationWithFields() {
-        fields = getAinferSiblingWithFields();
-        // :: warning: (argument.type.incompatible)
-        expectsAinferSiblingWithFields(fields);
-    }
+  void testAnnotationWithFields() {
+    fields = getAinferSiblingWithFields();
+    // :: warning: (argument.type.incompatible)
+    expectsAinferSiblingWithFields(fields);
+  }
 
-    void testAnnotationWithEmptyFields() {
-        emptyFields = getAinferSiblingWithFieldsEmpty();
-        // :: warning: (argument.type.incompatible)
-        expectsAinferSiblingWithEmptyFields(emptyFields);
-    }
+  void testAnnotationWithEmptyFields() {
+    emptyFields = getAinferSiblingWithFieldsEmpty();
+    // :: warning: (argument.type.incompatible)
+    expectsAinferSiblingWithEmptyFields(emptyFields);
+  }
 
-    void expectsAinferSiblingWithFields(
-            @AinferSiblingWithFields(
-                            value = {"test", "test2"},
-                            value2 = "test3")
-                    String s) {}
+  void expectsAinferSiblingWithFields(
+      @AinferSiblingWithFields(
+              value = {"test", "test2"},
+              value2 = "test3")
+          String s) {}
 
-    void expectsAinferSiblingWithEmptyFields(
-            @AinferSiblingWithFields(
-                            value = {},
-                            value2 = "")
-                    String s) {}
+  void expectsAinferSiblingWithEmptyFields(
+      @AinferSiblingWithFields(
+              value = {},
+              value2 = "")
+          String s) {}
 
-    @SuppressWarnings("cast.unsafe")
-    String getAinferSiblingWithFields() {
-        return (@AinferSiblingWithFields(
-                        value = {"test", "test2"},
-                        value2 = "test3")
-                String)
-                "";
-    }
+  @SuppressWarnings("cast.unsafe")
+  String getAinferSiblingWithFields() {
+    return (@AinferSiblingWithFields(
+            value = {"test", "test2"},
+            value2 = "test3")
+        String)
+        "";
+  }
 
-    @SuppressWarnings("cast.unsafe")
-    String getAinferSiblingWithFieldsEmpty() {
-        return (@AinferSiblingWithFields(
-                        value = {},
-                        value2 = "")
-                String)
-                "";
-    }
+  @SuppressWarnings("cast.unsafe")
+  String getAinferSiblingWithFieldsEmpty() {
+    return (@AinferSiblingWithFields(
+            value = {},
+            value2 = "")
+        String)
+        "";
+  }
 }

@@ -18,10 +18,10 @@ import java.lang.annotation.Target;
 @Target({ElementType.PACKAGE, ElementType.TYPE})
 public @interface ReportUse {
 
-    /**
-     * When used on a package, whether this annotation should also apply to subpackages.
-     *
-     * @return whether this annotation should be inherited by subpackages
-     */
-    boolean applyToSubpackages() default true;
+  /**
+   * When used on a package, whether this annotation should also apply to subpackages.
+   *
+   * @return whether this annotation should be inherited by subpackages
+   */
+  boolean applyToSubpackages() default true;
 }

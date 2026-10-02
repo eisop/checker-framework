@@ -13,14 +13,14 @@
 // bug present, the abstract values on the `b = a`, `b = 4`, and `return b` nodes disappear
 // from the visualized output; with the fix they are present.  See Expected.out.
 public class CfgVizNodeValues {
-    int m(boolean cond) {
-        int a = 0;
-        int b;
-        if (cond) {
-            b = a;
-        } else {
-            b = 4;
-        }
-        return b;
+  int m(boolean cond) {
+    int a = 0;
+    int b;
+    if (cond) {
+      b = a;
+    } else {
+      b = 4;
     }
+    return b;
+  }
 }

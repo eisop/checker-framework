@@ -5,11 +5,11 @@
 // real checker loads SourceChecker, GenericAnnotatedTypeFactory and the dataflow machinery,
 // which is what caught framework-all shipping without Guava.
 public class FrameworkAllSmoke {
-    public static int len(String s) {
-        return s.length();
-    }
+  public static int len(String s) {
+    return s.length();
+  }
 
-    public static void main(String[] args) {
-        System.out.println(len("ok"));
-    }
+  public static void main(String[] args) {
+    System.out.println(len("ok"));
+  }
 }

@@ -4,15 +4,15 @@
 import java.net.Socket;
 
 class MCAWithThis extends Socket {
-    public MCAWithThis() {
-        super();
-    }
+  public MCAWithThis() {
+    super();
+  }
 
-    public void test() throws Exception {
-        this.getInputStream();
-    }
+  public void test() throws Exception {
+    this.getInputStream();
+  }
 
-    public void test2() throws Exception {
-        getInputStream();
-    }
+  public void test2() throws Exception {
+    getInputStream();
+  }
 }
