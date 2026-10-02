@@ -61,7 +61,9 @@ import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.ToolProvider;
 
-/** This program inserts annotations from an ajava file into a Java file. See {@link #main}. */
+/**
+ * This program reads an ajava file and inserts its annotations in a Java file. See {@link #main}.
+ */
 public class InsertAjavaAnnotations {
     /** Element utilities. */
     private final Elements elements;

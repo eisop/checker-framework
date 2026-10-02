@@ -582,18 +582,15 @@ is implicitly the bottom annotation: \code {@NonNull}.
 
 \subsectionAndLabel{Default qualifiers for \<.class> files (library defaults)}{defaults-classfile}
 
-(\emph{Note:} Currently, the conservative library defaults presented in this section
-are off by default and can be turned on by supplying the \<-AuseConservativeDefaultsForUncheckedCode=bytecode>
-command-line option.  In a future release, they will be turned on
-by default and it will be possible to turn them off by supplying a
-\<-AuseConservativeDefaultsForUncheckedCode=-bytecode> command-line option.)
-
 The defaulting rules presented so far apply to source code that is read by
 the compiler.  When the compiler reads a \<.class> file, different
-defaulting rules apply.
+defaulting rules apply.  The rules are the same regardless of whether the
+\<.class> file is from your own codebase or from a library, including the
+JDK\@.
 
-If the checker was run during the compiler execution that created the
-\<.class> file,
+If the \<.class> file was compiled \emph{using} the checker (that is,
+if the checker was run during the compiler execution that created
+the \<.class> file),
 %% This caveat is true, but it's a distraction at this point in the manual.
 %% Also, not having a top and a bottom qualifier is an uncommon case.
 % (and the qualifier hierarchy has both a top and a bottom
@@ -602,16 +599,20 @@ then there is no need for
 defaults:  the \<.class> file has an explicit qualifier at each type use.
 (Furthermore, unless warnings were suppressed, those qualifiers are
 guaranteed to be correct.)
-When you are performing pluggable type-checking,
-it is best to ensure that the compiler only reads such \<.class> files.
-Section~\ref{compiling-libraries} discusses how to create annotated
-libraries.
+%% True, but it distracts from the point of this section.
+% When you are performing pluggable type-checking,
+% it is best if the compiler only reads such \<.class> files.
+% Section~\ref{compiling-libraries} discusses how to create annotated
+% libraries.
 %% True, but not relevant to the point of this paragraph.
 % , even if the library source code is only partially annotated.
 
-If the checker was not run during the compiler execution that created the
-\<.class> file, then the \<.class> file contains only the type qualifiers
-that the programmer wrote explicitly.  (Furthermore, there is no guarantee
+The rest of this section discusses the situation when the \<.class> file
+was \emph{not} compiled using the checker (that is, the checker was not run
+during the compiler execution that created the \<.class> file).
+The \<.class> file contains only the type qualifiers
+that the programmer wrote explicitly --- possibly none.
+(Furthermore, there is no guarantee
 that these qualifiers are correct, since they have not been checked.)
 In this case, each checker decides what qualifier to use for the
 locations where the programmer did not write an annotation.  (However, if the
@@ -622,19 +623,12 @@ Section~\ref{AuseConservativeDefaultsForUncheckedCodesource}.)  Unless otherwise
 noted, the choice is:
 
 \begin{itemize}
-\item
-  For method parameters and lower bounds, use the bottom qualifier (see
-  Section~\ref{creating-bottom-qualifier}).
-\item
-  For method return values, fields, and upper bounds, use the top qualifier (see
-  Section~\ref{creating-top-qualifier}).
-\end{itemize}
+\item With \<-AuseConservativeDefaultsForUncheckedCode=-bytecode>:
+(This is also the behavior if
+\<-AuseConservativeDefaultsForUncheckedCode> is not supplied or is supplied
+without ``bytecode'' in its argument.)
 
-These choices are conservative.  They are likely to cause many
-false-positive type-checking errors, which will help you to know which
-library methods need annotations.  You can then write those library
-annotations (see Chapter~\ref{annotating-libraries}) or alternately
-suppress the warnings (see Chapter~\ref{suppressing-warnings}).
+The source code defaulting rules are used.
 
 For example, an unannotated method
 
@@ -646,7 +640,7 @@ For example, an unannotated method
 in a classfile would be interpreted as
 
 \begin{Verbatim}
-  @Top String concatenate(@Bottom String p1, @Bottom String p2)
+  @Default String concatenate(@Default String p1, @Default String p2)
 \end{Verbatim}
 
 Alternatively, the \<-AusePermissiveDefaultsForUncheckedCode=bytecode> option applies
@@ -686,17 +680,7 @@ misbehave at run time.
 %% TODO: should give rules for other locations, such as type parameters
 %% (which should behave like fields), bounds, etc.
 
-% If you supply the command-line option
-% \<-AunsafeDefaultsForUnannotatedBytecode>,
-% then the checker does defaulting for unannotated bytecode like it does for
-% annotated source code.  In other words, when a type use in a \<.class> file
-% has no explicit annotation, it is defaulted using the same rules as for the
-% corresponding source code location.  You should only use this command-line
-% option as temporary measure, because it is unsafe:  the checker might issue
-% no warnings even though the code could violate the type guarantee at run
-% time.  However, it can be useful when you are first annotating a codebase,
-% to help you focus on errors within the codebase before you have annotated
-% external libraries.
+\end{itemize}
 
 
 \sectionAndLabel{Annotations on constructors}{annotations-on-constructors}
