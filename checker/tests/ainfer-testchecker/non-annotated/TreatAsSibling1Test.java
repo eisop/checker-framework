@@ -5,7 +5,7 @@ import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1;
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferTreatAsSibling1;
 
 public class TreatAsSibling1Test {
-  public void test(@AinferTreatAsSibling1 Object y) {
-    @AinferSibling1 Object x = y;
-  }
+    public void test(@AinferTreatAsSibling1 Object y) {
+        @AinferSibling1 Object x = y;
+    }
 }

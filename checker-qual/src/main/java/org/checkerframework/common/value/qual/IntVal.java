@@ -1,11 +1,12 @@
 package org.checkerframework.common.value.qual;
 
+import org.checkerframework.framework.qual.SubtypeOf;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * An annotation indicating the possible values for a byte, short, char, int, or long type. If an
@@ -19,6 +20,6 @@ import org.checkerframework.framework.qual.SubtypeOf;
 @Target({ElementType.TYPE_PARAMETER, ElementType.TYPE_USE})
 @SubtypeOf({UnknownVal.class})
 public @interface IntVal {
-  /** The values that the expression might evaluate to. */
-  long[] value();
+    /** The values that the expression might evaluate to. */
+    long[] value();
 }

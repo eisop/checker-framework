@@ -9,48 +9,48 @@ import java.util.function.Supplier;
 
 public class LambdaReturnInference {
 
-  static <R> R run(Supplier<R> s) {
-    throw new Error();
-  }
+    static <R> R run(Supplier<R> s) {
+        throw new Error();
+    }
 
-  static <T> T[] arr(T[] a) {
-    return a;
-  }
+    static <T> T[] arr(T[] a) {
+        return a;
+    }
 
-  static <T> List<T> lst(T[] a) {
-    throw new Error();
-  }
+    static <T> List<T> lst(T[] a) {
+        throw new Error();
+    }
 
-  String[] expressionBody() {
-    return run(() -> arr(new String[0]));
-  }
+    String[] expressionBody() {
+        return run(() -> arr(new String[0]));
+    }
 
-  String[] blockBody() {
-    return run(
-        () -> {
-          return arr(new String[0]);
-        });
-  }
+    String[] blockBody() {
+        return run(
+                () -> {
+                    return arr(new String[0]);
+                });
+    }
 
-  String[] nestedReturn(boolean b) {
-    return run(
-        () -> {
-          if (b) {
-            return arr(new String[0]);
-          }
-          return arr(new String[] {});
-        });
-  }
+    String[] nestedReturn(boolean b) {
+        return run(
+                () -> {
+                    if (b) {
+                        return arr(new String[0]);
+                    }
+                    return arr(new String[] {});
+                });
+    }
 
-  List<String> list() {
-    return run(() -> lst(new String[0]));
-  }
+    List<String> list() {
+        return run(() -> lst(new String[0]));
+    }
 
-  String[] nestedLambda() {
-    return run(() -> run(() -> arr(new String[0])));
-  }
+    String[] nestedLambda() {
+        return run(() -> run(() -> arr(new String[0])));
+    }
 
-  void notGeneric() {
-    Supplier<String[]> s = () -> arr(new String[0]);
-  }
+    void notGeneric() {
+        Supplier<String[]> s = () -> arr(new String[0]);
+    }
 }

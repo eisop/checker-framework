@@ -7,23 +7,23 @@
 // @infer-stubs-skip-test
 public class UnnamedPattern {
 
-  public sealed interface IntOrBool {}
+    public sealed interface IntOrBool {}
 
-  public record WrappedInt(int a) implements IntOrBool {}
+    public record WrappedInt(int a) implements IntOrBool {}
 
-  public record WrappedBoolean(boolean b) implements IntOrBool {}
+    public record WrappedBoolean(boolean b) implements IntOrBool {}
 
-  public int test(IntOrBool i) {
-    int x_up = 0;
-    return switch (i) {
-      case WrappedInt(_) -> {
-        x_up = x_up + 1;
-        yield x_up;
-      }
-      case WrappedBoolean(_) -> {
-        x_up = x_up + 2;
-        yield x_up;
-      }
-    };
-  }
+    public int test(IntOrBool i) {
+        int x_up = 0;
+        return switch (i) {
+            case WrappedInt(_) -> {
+                x_up = x_up + 1;
+                yield x_up;
+            }
+            case WrappedBoolean(_) -> {
+                x_up = x_up + 2;
+                yield x_up;
+            }
+        };
+    }
 }

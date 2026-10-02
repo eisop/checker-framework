@@ -1,10 +1,11 @@
 package org.checkerframework.checker.index.growonly;
 
-import java.util.Collection;
-import java.util.Iterator;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.RelevantJavaTypes;
 import org.checkerframework.framework.source.SuppressWarningsPrefix;
+
+import java.util.Collection;
+import java.util.Iterator;
 
 /**
  * A type-checker that enforces rules about mutable-length sequences.
@@ -19,6 +20,6 @@ import org.checkerframework.framework.source.SuppressWarningsPrefix;
 @RelevantJavaTypes({Collection.class, Iterator.class})
 @SuppressWarningsPrefix({"index", "mutable"})
 public class GrowOnlyChecker extends BaseTypeChecker {
-  /** Creates a new GrowOnlyChecker. */
-  public GrowOnlyChecker() {}
+    /** Creates a new GrowOnlyChecker. */
+    public GrowOnlyChecker() {}
 }

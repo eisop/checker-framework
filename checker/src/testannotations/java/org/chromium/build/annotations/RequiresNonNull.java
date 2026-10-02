@@ -16,6 +16,6 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.CLASS)
 public @interface RequiresNonNull {
-  /** List of fields that must be non-null before the method. */
-  String[] value();
+    /** List of fields that must be non-null before the method. */
+    String[] value();
 }

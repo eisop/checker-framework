@@ -16,13 +16,13 @@
 import java.util.function.Function;
 
 public class ElementTypeCacheWildcardBound {
-  @SuppressWarnings("rawtypes")
-  static <K extends Comparable> int f(Function<?, K> fn) {
-    return g(fn);
-  }
+    @SuppressWarnings("rawtypes")
+    static <K extends Comparable> int f(Function<?, K> fn) {
+        return g(fn);
+    }
 
-  @SuppressWarnings("rawtypes")
-  static <K extends Comparable> int g(Function<?, K> fn) {
-    return 0;
-  }
+    @SuppressWarnings("rawtypes")
+    static <K extends Comparable> int g(Function<?, K> fn) {
+        return 0;
+    }
 }

@@ -2,25 +2,26 @@
 
 // @skip-test until the bug is fixed
 
-import java.io.IOException;
-import java.net.Socket;
 import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethods;
 import org.checkerframework.checker.mustcall.qual.InheritableMustCall;
 import org.checkerframework.checker.mustcall.qual.Owning;
 
+import java.io.IOException;
+import java.net.Socket;
+
 @InheritableMustCall("close")
 public class InitializationAfterSuperTest implements AutoCloseable {
 
-  @Owning Socket mySocket;
+    @Owning Socket mySocket;
 
-  public InitializationAfterSuperTest(@Owning Socket mySocket) {
-    super();
-    this.mySocket = mySocket;
-  }
+    public InitializationAfterSuperTest(@Owning Socket mySocket) {
+        super();
+        this.mySocket = mySocket;
+    }
 
-  @EnsuresCalledMethods(value = "mySocket", methods = "close")
-  @Override
-  public void close() throws IOException {
-    mySocket.close();
-  }
+    @EnsuresCalledMethods(value = "mySocket", methods = "close")
+    @Override
+    public void close() throws IOException {
+        mySocket.close();
+    }
 }

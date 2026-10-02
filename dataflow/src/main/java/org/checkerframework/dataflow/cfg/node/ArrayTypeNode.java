@@ -2,13 +2,16 @@ package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.Tree;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Objects;
-import javax.lang.model.util.Types;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Objects;
+
+import javax.lang.model.util.Types;
 
 /**
  * A node representing an array type used in an expression such as a field access.
@@ -17,52 +20,52 @@ import org.checkerframework.javacutil.TreeUtils;
  */
 public class ArrayTypeNode extends Node {
 
-  protected final ArrayTypeTree tree;
+    protected final ArrayTypeTree tree;
 
-  /** For Types.isSameType. */
-  protected final Types types;
+    /** For Types.isSameType. */
+    protected final Types types;
 
-  public ArrayTypeNode(ArrayTypeTree tree, Types types) {
-    super(TreeUtils.typeOf(tree));
-    this.tree = tree;
-    this.types = types;
-  }
-
-  @Override
-  public Tree getTree() {
-    return tree;
-  }
-
-  @Override
-  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-    return visitor.visitArrayType(this, p);
-  }
-
-  @Override
-  public String toString() {
-    return tree.toString();
-  }
-
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    if (this == obj) {
-      return true;
+    public ArrayTypeNode(ArrayTypeTree tree, Types types) {
+        super(TreeUtils.typeOf(tree));
+        this.tree = tree;
+        this.types = types;
     }
-    if (!(obj instanceof ArrayTypeNode)) {
-      return false;
+
+    @Override
+    public Tree getTree() {
+        return tree;
     }
-    ArrayTypeNode other = (ArrayTypeNode) obj;
-    return types.isSameType(getType(), other.getType());
-  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(getType());
-  }
+    @Override
+    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+        return visitor.visitArrayType(this, p);
+    }
 
-  @Override
-  @SideEffectFree
-  public Collection<Node> getOperands() {
-    return Collections.emptyList();
-  }
+    @Override
+    public String toString() {
+        return tree.toString();
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof ArrayTypeNode)) {
+            return false;
+        }
+        ArrayTypeNode other = (ArrayTypeNode) obj;
+        return types.isSameType(getType(), other.getType());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getType());
+    }
+
+    @Override
+    @SideEffectFree
+    public Collection<Node> getOperands() {
+        return Collections.emptyList();
+    }
 }

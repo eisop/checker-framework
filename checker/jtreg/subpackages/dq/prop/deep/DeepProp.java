@@ -7,10 +7,10 @@ package dq.prop.deep;
  * dq's (Nullable).
  */
 public class DeepProp {
-  Object f = new Object();
+    Object f = new Object();
 
-  void use() {
-    f.toString();
-    f = null;
-  }
+    void use() {
+        f.toString();
+        f = null;
+    }
 }

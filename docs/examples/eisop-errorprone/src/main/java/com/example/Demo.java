@@ -9,17 +9,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class Demo {
 
-  /** A field that may be null. */
-  private @Nullable Object field;
+    /** A field that may be null. */
+    private @Nullable Object field;
 
-  /**
-   * Dereferences a possibly-null field, which the Nullness Checker reports when run via the {@code
-   * eisopcf} Error Prone plugin.
-   *
-   * @return the field's string form
-   */
-  public String describe() {
-    // Error: 'field' may be null here.
-    return field.toString();
-  }
+    /**
+     * Dereferences a possibly-null field, which the Nullness Checker reports when run via the
+     * {@code eisopcf} Error Prone plugin.
+     *
+     * @return the field's string form
+     */
+    public String describe() {
+        // Error: 'field' may be null here.
+        return field.toString();
+    }
 }

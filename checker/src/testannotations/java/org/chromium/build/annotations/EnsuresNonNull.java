@@ -16,6 +16,6 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @Retention(RetentionPolicy.CLASS)
 public @interface EnsuresNonNull {
-  /** List of fields that are non-null after the method. */
-  String[] value();
+    /** List of fields that are non-null after the method. */
+    String[] value();
 }

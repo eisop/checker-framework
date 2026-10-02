@@ -1,11 +1,12 @@
 package org.checkerframework.checker.nullness;
 
-import java.util.NavigableSet;
 import org.checkerframework.checker.initialization.InitializationChecker;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedModes;
+
+import java.util.NavigableSet;
 
 /**
  * An implementation of the nullness type-system, parameterized by an initialization type-system for
@@ -43,81 +44,82 @@ import org.checkerframework.framework.source.SupportedModes;
 @StubFiles({"java-lang-classfile.astub", "junit-assertions.astub", "log4j.astub"})
 public class NullnessChecker extends InitializationChecker {
 
-  /**
-   * The JSpecify compatibility mode.
-   *
-   * <p>{@link #MODE_JSPECIFY} restricts checking to code in the scope of an {@code @AnnotatedFor},
-   * treats {@code @NullMarked} as a defaulting annotation, and turns off the initialization and
-   * map-key checks, none of which JSpecify specifies. It also assumes that every called method is
-   * pure and that assertions are enabled. Code outside such a scope has what JSpecify calls
-   * unspecified nullness, which JSpecify lets each tool treat anywhere from strictly to leniently;
-   * see the <a href="https://jspecify.dev/docs/spec/#multiple-worlds">"multiple worlds"
-   * discussion</a> in the JSpecify specification. The mode currently interprets it leniently, with
-   * permissive defaults for both source code and bytecode, unless the command line chooses
-   * conservative defaults.
-   */
-  public static final String MODE_JSPECIFY = "jspecify";
+    /**
+     * The JSpecify compatibility mode.
+     *
+     * <p>{@link #MODE_JSPECIFY} restricts checking to code in the scope of an
+     * {@code @AnnotatedFor}, treats {@code @NullMarked} as a defaulting annotation, and turns off
+     * the initialization and map-key checks, none of which JSpecify specifies. It also assumes that
+     * every called method is pure and that assertions are enabled. Code outside such a scope has
+     * what JSpecify calls unspecified nullness, which JSpecify lets each tool treat anywhere from
+     * strictly to leniently; see the <a
+     * href="https://jspecify.dev/docs/spec/#multiple-worlds">"multiple worlds" discussion</a> in
+     * the JSpecify specification. The mode currently interprets it leniently, with permissive
+     * defaults for both source code and bytecode, unless the command line chooses conservative
+     * defaults.
+     */
+    public static final String MODE_JSPECIFY = "jspecify";
 
-  /** Should we be strict about initialization of {@link MonotonicNonNull} variables? */
-  public static final String LINT_NOINITFORMONOTONICNONNULL = "noInitForMonotonicNonNull";
+    /** Should we be strict about initialization of {@link MonotonicNonNull} variables? */
+    public static final String LINT_NOINITFORMONOTONICNONNULL = "noInitForMonotonicNonNull";
 
-  /** Default for {@link #LINT_NOINITFORMONOTONICNONNULL}. */
-  public static final boolean LINT_DEFAULT_NOINITFORMONOTONICNONNULL = false;
+    /** Default for {@link #LINT_NOINITFORMONOTONICNONNULL}. */
+    public static final boolean LINT_DEFAULT_NOINITFORMONOTONICNONNULL = false;
 
-  /**
-   * Warn about redundant comparisons of an expression with {@code null}, if the expression is known
-   * to be non-null.
-   */
-  public static final String LINT_REDUNDANTNULLCOMPARISON = "redundantNullComparison";
+    /**
+     * Warn about redundant comparisons of an expression with {@code null}, if the expression is
+     * known to be non-null.
+     */
+    public static final String LINT_REDUNDANTNULLCOMPARISON = "redundantNullComparison";
 
-  /** Default for {@link #LINT_REDUNDANTNULLCOMPARISON}. */
-  public static final boolean LINT_DEFAULT_REDUNDANTNULLCOMPARISON = false;
+    /** Default for {@link #LINT_REDUNDANTNULLCOMPARISON}. */
+    public static final boolean LINT_DEFAULT_REDUNDANTNULLCOMPARISON = false;
 
-  /**
-   * Should the Nullness Checker unsoundly trust {@code @ArrayLen(0)} annotations to improve
-   * handling of {@link java.util.Collection#toArray()} by {@link CollectionToArrayHeuristics}?
-   */
-  public static final String LINT_TRUSTARRAYLENZERO = "trustArrayLenZero";
+    /**
+     * Should the Nullness Checker unsoundly trust {@code @ArrayLen(0)} annotations to improve
+     * handling of {@link java.util.Collection#toArray()} by {@link CollectionToArrayHeuristics}?
+     */
+    public static final String LINT_TRUSTARRAYLENZERO = "trustArrayLenZero";
 
-  /** Default for {@link #LINT_TRUSTARRAYLENZERO}. */
-  public static final boolean LINT_DEFAULT_TRUSTARRAYLENZERO = false;
+    /** Default for {@link #LINT_TRUSTARRAYLENZERO}. */
+    public static final boolean LINT_DEFAULT_TRUSTARRAYLENZERO = false;
 
-  /**
-   * If true, client code may clear system properties. If false (the default), some calls to {@code
-   * System.getProperty} are refined to return @NonNull.
-   */
-  public static final String LINT_PERMITCLEARPROPERTY = "permitClearProperty";
+    /**
+     * If true, client code may clear system properties. If false (the default), some calls to
+     * {@code System.getProperty} are refined to return @NonNull.
+     */
+    public static final String LINT_PERMITCLEARPROPERTY = "permitClearProperty";
 
-  /** Default for {@link #LINT_PERMITCLEARPROPERTY}. */
-  public static final boolean LINT_DEFAULT_PERMITCLEARPROPERTY = false;
+    /** Default for {@link #LINT_PERMITCLEARPROPERTY}. */
+    public static final boolean LINT_DEFAULT_PERMITCLEARPROPERTY = false;
 
-  /**
-   * Warn when {@code @MonotonicNonNull} is written on a {@code static} field, which the manual
-   * documents as a code smell that may indicate poor design.
-   */
-  public static final String LINT_MONOTONICNONNULLONSTATIC = "monotonicNonNullOnStatic";
+    /**
+     * Warn when {@code @MonotonicNonNull} is written on a {@code static} field, which the manual
+     * documents as a code smell that may indicate poor design.
+     */
+    public static final String LINT_MONOTONICNONNULLONSTATIC = "monotonicNonNullOnStatic";
 
-  /** Default for {@link #LINT_MONOTONICNONNULLONSTATIC}. */
-  public static final boolean LINT_DEFAULT_MONOTONICNONNULLONSTATIC = false;
+    /** Default for {@link #LINT_MONOTONICNONNULLONSTATIC}. */
+    public static final boolean LINT_DEFAULT_MONOTONICNONNULLONSTATIC = false;
 
-  /** Default constructor for NullnessChecker. */
-  public NullnessChecker() {}
+    /** Default constructor for NullnessChecker. */
+    public NullnessChecker() {}
 
-  @Override
-  public boolean checkPrimitives() {
-    return false;
-  }
+    @Override
+    public boolean checkPrimitives() {
+        return false;
+    }
 
-  @Override
-  public Class<? extends BaseTypeChecker> getTargetCheckerClass() {
-    return NullnessNoInitSubchecker.class;
-  }
+    @Override
+    public Class<? extends BaseTypeChecker> getTargetCheckerClass() {
+        return NullnessNoInitSubchecker.class;
+    }
 
-  @Override
-  public NavigableSet<String> getSuppressWarningsPrefixes() {
-    NavigableSet<String> result = super.getSuppressWarningsPrefixes();
-    // The prefix to suppress both nullness and initialization warnings.
-    result.add("nullnessinitialization");
-    return result;
-  }
+    @Override
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
+        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+        // The prefix to suppress both nullness and initialization warnings.
+        result.add("nullnessinitialization");
+        return result;
+    }
 }

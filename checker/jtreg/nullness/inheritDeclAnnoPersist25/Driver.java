@@ -31,86 +31,89 @@ import java.util.List;
  */
 public class Driver {
 
-  private static final PrintStream out = System.out;
+    private static final PrintStream out = System.out;
 
-  /**
-   * Entry point to run test methods of the specified test class.
-   *
-   * @param args command-line arguments specifying the test class name
-   * @throws Exception if reflection, compilation, or test execution fails
-   */
-  public static void main(String[] args) throws Exception {
-    if (args.length != 1) {
-      throw new IllegalArgumentException("Usage: java Driver <HarnessClass>");
-    }
-    Object harness = Class.forName(args[0]).getDeclaredConstructor().newInstance();
-    new Driver().runDriver(harness);
-  }
-
-  /**
-   * Runs all test methods defined on the given test instance.
-   *
-   * @param harness the test suite instance
-   * @throws Exception if test execution fails
-   */
-  private void runDriver(Object harness) throws Exception {
-    int passed = 0, failed = 0;
-    Class<?> clazz = harness.getClass();
-    out.println("Tests for " + clazz.getName());
-
-    for (Method m : clazz.getMethods()) {
-      List<String> expected = expectedOf(m);
-      if (expected == null) continue;
-
-      if (m.getReturnType() != String.class) {
-        throw new IllegalArgumentException("Test method must return string: " + m);
-      }
-
-      try {
-        String compact = (String) m.invoke(harness);
-        String fullSrc = PersistUtil.wrap(compact);
-        String testCls = PersistUtil.testClassOf(m);
-
-        File clazzFile = PersistUtil.compile(fullSrc, testCls);
-        ClassModel cm = ClassFile.of().parse(clazzFile.toPath());
-
-        List<Annotation> actual = ReferenceInfoUtil.extendedAnnotationsOf(cm);
-
-        String diag =
-            String.join(
-                "; ", "method=" + m.getName(), "compact=" + compact, "testClass=" + testCls);
-
-        ReferenceInfoUtil.compare(expected, actual, diag);
-
-        out.printf("PASSED:  %s%n", m.getName());
-        ++passed;
-      } catch (Throwable ex) {
-        out.printf("FAILED:  %s — %s%n", m.getName(), ex.getMessage());
-        ++failed;
-      }
+    /**
+     * Entry point to run test methods of the specified test class.
+     *
+     * @param args command-line arguments specifying the test class name
+     * @throws Exception if reflection, compilation, or test execution fails
+     */
+    public static void main(String[] args) throws Exception {
+        if (args.length != 1) {
+            throw new IllegalArgumentException("Usage: java Driver <HarnessClass>");
+        }
+        Object harness = Class.forName(args[0]).getDeclaredConstructor().newInstance();
+        new Driver().runDriver(harness);
     }
 
-    out.printf("%n%d total: %d PASSED, %d FAILED%n", passed + failed, passed, failed);
-    if (failed != 0) throw new RuntimeException(failed + " tests failed");
-  }
+    /**
+     * Runs all test methods defined on the given test instance.
+     *
+     * @param harness the test suite instance
+     * @throws Exception if test execution fails
+     */
+    private void runDriver(Object harness) throws Exception {
+        int passed = 0, failed = 0;
+        Class<?> clazz = harness.getClass();
+        out.println("Tests for " + clazz.getName());
 
-  /**
-   * Extracts the expected declaration annotations declared on the given method.
-   *
-   * @param m the test method
-   * @return the list of expected annotation class names, or null if unannotated
-   */
-  private List<String> expectedOf(Method m) {
-    ADescription one = m.getAnnotation(ADescription.class);
-    ADescriptions many = m.getAnnotation(ADescriptions.class);
+        for (Method m : clazz.getMethods()) {
+            List<String> expected = expectedOf(m);
+            if (expected == null) continue;
 
-    if (one == null && many == null) return null;
+            if (m.getReturnType() != String.class) {
+                throw new IllegalArgumentException("Test method must return string: " + m);
+            }
 
-    List<String> L = new ArrayList<>();
-    if (one != null) L.add(one.annotation());
-    if (many != null) for (ADescription d : many.value()) L.add(d.annotation());
-    return L;
-  }
+            try {
+                String compact = (String) m.invoke(harness);
+                String fullSrc = PersistUtil.wrap(compact);
+                String testCls = PersistUtil.testClassOf(m);
+
+                File clazzFile = PersistUtil.compile(fullSrc, testCls);
+                ClassModel cm = ClassFile.of().parse(clazzFile.toPath());
+
+                List<Annotation> actual = ReferenceInfoUtil.extendedAnnotationsOf(cm);
+
+                String diag =
+                        String.join(
+                                "; ",
+                                "method=" + m.getName(),
+                                "compact=" + compact,
+                                "testClass=" + testCls);
+
+                ReferenceInfoUtil.compare(expected, actual, diag);
+
+                out.printf("PASSED:  %s%n", m.getName());
+                ++passed;
+            } catch (Throwable ex) {
+                out.printf("FAILED:  %s — %s%n", m.getName(), ex.getMessage());
+                ++failed;
+            }
+        }
+
+        out.printf("%n%d total: %d PASSED, %d FAILED%n", passed + failed, passed, failed);
+        if (failed != 0) throw new RuntimeException(failed + " tests failed");
+    }
+
+    /**
+     * Extracts the expected declaration annotations declared on the given method.
+     *
+     * @param m the test method
+     * @return the list of expected annotation class names, or null if unannotated
+     */
+    private List<String> expectedOf(Method m) {
+        ADescription one = m.getAnnotation(ADescription.class);
+        ADescriptions many = m.getAnnotation(ADescriptions.class);
+
+        if (one == null && many == null) return null;
+
+        List<String> L = new ArrayList<>();
+        if (one != null) L.add(one.annotation());
+        if (many != null) for (ADescription d : many.value()) L.add(d.annotation());
+        return L;
+    }
 }
 
 /**
@@ -127,13 +130,13 @@ public class Driver {
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @interface ADescription {
-  /**
-   * The expected annotation type name (either a simple name like {@code "NonNull"} or a fully
-   * qualified name).
-   *
-   * @return the annotation name
-   */
-  String annotation();
+    /**
+     * The expected annotation type name (either a simple name like {@code "NonNull"} or a fully
+     * qualified name).
+     *
+     * @return the annotation name
+     */
+    String annotation();
 }
 
 /**
@@ -144,10 +147,10 @@ public class Driver {
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @interface ADescriptions {
-  /**
-   * The array of {@link ADescription} annotations.
-   *
-   * @return the descriptions
-   */
-  ADescription[] value() default {};
+    /**
+     * The array of {@link ADescription} annotations.
+     *
+     * @return the descriptions
+     */
+    ADescription[] value() default {};
 }
