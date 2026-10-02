@@ -2616,7 +2616,7 @@ public class AnnotationFileElementTypes {
     /**
      * Returns a JarURLConnection to "/jdk*".
      *
-     * @return a JarURLConnection to "/jdk*"
+     * @return a JarURLConnection to "/annotated-jdk"
      */
     private JarURLConnection getJarURLConnectionToJdk() {
         URL resourceURL = atypeFactory.getClass().getResource("/" + ANNOTATED_JDK_PATH);
@@ -2638,7 +2638,7 @@ public class AnnotationFileElementTypes {
 
     /**
      * Walk through the JDK directory and create a mapping, {@link #remainingJdkStubFiles}, from
-     * file name to the class contained with in it. Also, parses all package-info.java files.
+     * file name to the class contained within it. Also, parses all {@code package-info.java} files.
      */
     private void prepJdkStubs() {
         if (!shouldParseJdk) {
@@ -2766,7 +2766,7 @@ public class AnnotationFileElementTypes {
 
     /**
      * Walk through the JDK directory and create a mapping, {@link #remainingJdkStubFiles}, from
-     * file name to the class contained with in it. Also, parses all package-info.java files.
+     * file name to the class contained within it. Also, parses all {@code package-info.java} files.
      *
      * @param jdkDirectory the URL pointing to the JDK directory
      * @param binaryLoaded {@code true} if package and module annotations were successfully loaded
@@ -3029,7 +3029,7 @@ public class AnnotationFileElementTypes {
 
     /**
      * Walk through the JDK directory and create a mapping, {@link #remainingJdkStubFilesJar}, from
-     * file name to the class contained with in it. Also, parses all package-info.java files.
+     * file name to the class contained within it. Also, parses all {@code package-info.java} files.
      *
      * @param binaryLoaded {@code true} if package and module annotations were successfully loaded
      *     from the binary stub file

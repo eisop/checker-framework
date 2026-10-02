@@ -8,14 +8,14 @@ dependencies {
     api(project(":checker-qual"))
 
     // Node implements org.plumelib.util.UniqueId, so this dependency must be "api".
-    api("org.plumelib:plume-util:${plumeUtilVersion}")
+    api(libs.plume.util)
     // plume-util has an `implementation` dependency on hashmap-util.
     // That follows Gradle's rules, but Gradle's rules are not entirely correct:
     // https://github.com/gradle/gradle/issues/30054
     // To build with JDK 22+, we need to redeclare that dependency here.
-    implementation("org.plumelib:hashmap-util:${hashmapUtilVersion}")
+    implementation(libs.hashmap.util)
 
-    testImplementation("junit:junit:${junitVersion}")
+    testImplementation(libs.junit)
 
     // External dependencies:
     // If you add an external dependency, you must shadow its packages both in the dataflow-shaded
@@ -83,11 +83,6 @@ tasks.register("manual", Exec) {
 
 tasks.named("clean") {
     delete("manual/checker-framework-dataflow-manual.aux", "manual/checker-framework-dataflow-manual.log", "manual/checker-framework-dataflow-manual.out", "manual/checker-framework-dataflow-manual.pdf")
-}
-
-tasks.withType(Test).configureEach {
-    // The `test` task runs the JUnit tests and also the dataflow analysis tests in `allDataflowTests`.
-    dependsOn("allDataflowTests")
 }
 
 tasks.register("allDataflowTests") {

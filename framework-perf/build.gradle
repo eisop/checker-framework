@@ -18,7 +18,7 @@ plugins {
     id("java")
     // JMH Gradle plugin. Pinned because newer JMH-plugin releases occasionally
     // change task names; bump deliberately, not opportunistically.
-    id("me.champeau.jmh").version("0.7.3")
+    alias(libs.plugins.me.champeau.jmh)
 }
 
 dependencies {
@@ -26,7 +26,7 @@ dependencies {
     jmh project(":dataflow")
     jmh project(":framework")
     jmh project(":checker-qual")
-    jmh "org.plumelib:plume-util:${plumeUtilVersion}"
+    jmh libs.plume.util
 }
 
 jmh {

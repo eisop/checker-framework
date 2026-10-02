@@ -1,0 +1,84 @@
+# The versions of the plugins and libraries that the build uses.  Build files refer to them as
+# `libs.plugins.*` and `libs.*`.  The names follow typetools' catalog (gradle/libs.versions.toml in
+# typetools/checker-framework) where it has an entry, to keep merges from typetools simple.
+
+[versions]
+
+error-prone = "2.50.0"
+junit-junit = "4.13.2"
+
+[plugins]
+
+biz-aqute-bnd-builder = { id = "biz.aQute.bnd.builder", version = "7.4.0" }
+
+com-diffplug-spotless = { id = "com.diffplug.spotless", version = "8.10.2" }
+
+com-dorongold-task-tree = { id = "com.dorongold.task-tree", version = "4.0.2" }
+
+com-gorylenko-gradle-git-properties = { id = "com.gorylenko.gradle-git-properties", version = "4.0.1" }
+
+com-gradleup-shadow = { id = "com.gradleup.shadow", version = "9.6.1" }
+
+de-undercouch-download = { id = "de.undercouch.download", version = "5.7.0" }
+
+io-github-andygoossens-modernizer = { id = "io.github.andygoossens.modernizer", version = "2.0.0" }
+
+me-champeau-jmh = { id = "me.champeau.jmh", version = "0.7.3" }
+
+net-ltgt-errorprone = { id = "net.ltgt.errorprone", version = "5.1.1" }
+
+[libraries]
+
+# If you update the error-prone version:
+#  * Temporarily comment out "-Werror" in build.gradle files.
+#  * Repeatedly run `./gradlew clean compileJava` and fix all errors.
+#  * Uncomment "-Werror".
+# https://mvnrepository.com/artifact/com.google.errorprone/error_prone_core
+error-prone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "error-prone" }
+
+error-prone-check-api = { module = "com.google.errorprone:error_prone_check_api", version.ref = "error-prone" }
+
+error-prone-test-helpers = { module = "com.google.errorprone:error_prone_test_helpers", version.ref = "error-prone" }
+
+javac = "com.google.errorprone:javac:9+181-r4173-1"
+
+require-javadoc = "org.plumelib:require-javadoc:2.0.0"
+
+# The annotated Guava, which the Checker Framework uses as an annotation processor path and in
+# the Annotation File Utilities.
+guava = "org.checkerframework.annotatedlib:guava:33.1.0.2-jre"
+
+# The unannotated Guava, which the Checker Framework depends on.
+google-guava = "com.google.guava:guava:33.7.1-jre"
+
+options = "org.plumelib:options:2.0.3"
+
+# plume-util includes a version of reflection-util.  When updating, ensure the versions are consistent.
+plume-util = "org.plumelib:plume-util:1.12.3"
+
+reflection-util = "org.plumelib:reflection-util:1.1.6"
+
+hashmap-util = "org.plumelib:hashmap-util:0.0.1"
+
+stubparser = "org.checkerframework:stubparser:3.27.1"
+
+asm = "org.ow2.asm:asm:9.9.1"
+
+junit = { group = "junit", name = "junit", version.ref = "junit-junit" }
+
+auto-value-annotations = "com.google.auto.value:auto-value-annotations:1.11.1"
+
+auto-value = "com.google.auto.value:auto-value:1.11.1"
+
+auto-value-parcel = "com.ryanharter.auto.value:auto-value-parcel:0.2.9"
+
+lombok = "org.projectlombok:lombok:1.18.48"
+
+aws-java-sdk-bom = "com.amazonaws:aws-java-sdk-bom:1.12.797"
+
+javax-servlet-api = "javax.servlet:javax.servlet-api:4.0.1"
+
+commons-io = "commons-io:commons-io:2.22.0"
+
+# Google Java Format requires JDK 17 or higher as of version 1.25.0.
+google-java-format = "com.google.googlejavaformat:google-java-format:1.35.0"
