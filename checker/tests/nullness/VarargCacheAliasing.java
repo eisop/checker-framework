@@ -10,10 +10,10 @@ import java.util.Arrays;
 import java.util.List;
 
 public class VarargCacheAliasing {
-  void use(String s) throws Exception {
-    List<String> xs = Arrays.asList(s, s, s);
-    List<String> ys = Arrays.asList(s);
-    String f = String.format("%s %s", s, s);
-    java.lang.reflect.Method m = VarargCacheAliasing.class.getMethod("use", String.class);
-  }
+    void use(String s) throws Exception {
+        List<String> xs = Arrays.asList(s, s, s);
+        List<String> ys = Arrays.asList(s);
+        String f = String.format("%s %s", s, s);
+        java.lang.reflect.Method m = VarargCacheAliasing.class.getMethod("use", String.class);
+    }
 }

@@ -1,6 +1,7 @@
 package org.checkerframework.checker.index;
 
 import com.sun.source.tree.MemberSelectTree;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.value.ValueCheckerUtils;
 import org.checkerframework.dataflow.expression.JavaExpression;
@@ -16,28 +17,28 @@ import org.checkerframework.javacutil.TreeUtils;
  * addition or subtraction of several Java expressions. For example, {@code array.length - 1}.
  */
 public class OffsetDependentTypesHelper extends DependentTypesHelper {
-  public OffsetDependentTypesHelper(AnnotatedTypeFactory atypeFactory) {
-    super(atypeFactory);
-  }
+    public OffsetDependentTypesHelper(AnnotatedTypeFactory atypeFactory) {
+        super(atypeFactory);
+    }
 
-  @Override
-  protected @Nullable JavaExpression transform(JavaExpression javaExpr) {
-    return ValueCheckerUtils.optimize(javaExpr, atypeFactory);
-  }
+    @Override
+    protected @Nullable JavaExpression transform(JavaExpression javaExpr) {
+        return ValueCheckerUtils.optimize(javaExpr, atypeFactory);
+    }
 
-  @Override
-  public TreeAnnotator createDependentTypesTreeAnnotator() {
-    return new DependentTypesTreeAnnotator(atypeFactory, this) {
-      @Override
-      public Void visitMemberSelect(MemberSelectTree tree, AnnotatedTypeMirror type) {
-        // UpperBoundTreeAnnotator changes the type of array.length to @LTEL("array").
-        // If the DependentTypesTreeAnnotator tries to viewpoint-adapt it based on the
-        // declaration of length, it will fail.
-        if (TreeUtils.isArrayLengthAccess(tree)) {
-          return null;
-        }
-        return super.visitMemberSelect(tree, type);
-      }
-    };
-  }
+    @Override
+    public TreeAnnotator createDependentTypesTreeAnnotator() {
+        return new DependentTypesTreeAnnotator(atypeFactory, this) {
+            @Override
+            public Void visitMemberSelect(MemberSelectTree tree, AnnotatedTypeMirror type) {
+                // UpperBoundTreeAnnotator changes the type of array.length to @LTEL("array").
+                // If the DependentTypesTreeAnnotator tries to viewpoint-adapt it based on the
+                // declaration of length, it will fail.
+                if (TreeUtils.isArrayLengthAccess(tree)) {
+                    return null;
+                }
+                return super.visitMemberSelect(tree, type);
+            }
+        };
+    }
 }

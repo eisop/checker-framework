@@ -13,25 +13,25 @@ import org.checkerframework.dataflow.cfg.node.Node;
 /** Accumulates the names of fields that are initialized. */
 public class InitializedFieldsTransfer extends AccumulationTransfer {
 
-  /**
-   * Create an InitializedFieldsTransfer.
-   *
-   * @param analysis the analysis
-   */
-  public InitializedFieldsTransfer(AccumulationAnalysis analysis) {
-    super(analysis);
-  }
-
-  @Override
-  public TransferResult<AccumulationValue, AccumulationStore> visitAssignment(
-      AssignmentNode node, TransferInput<AccumulationValue, AccumulationStore> input) {
-    TransferResult<AccumulationValue, AccumulationStore> result =
-        super.visitAssignment(node, input);
-    Node lhs = node.getTarget();
-    if (lhs instanceof FieldAccessNode) {
-      FieldAccessNode fieldAccess = (FieldAccessNode) lhs;
-      accumulate(fieldAccess.getReceiver(), result, fieldAccess.getFieldName());
+    /**
+     * Create an InitializedFieldsTransfer.
+     *
+     * @param analysis the analysis
+     */
+    public InitializedFieldsTransfer(AccumulationAnalysis analysis) {
+        super(analysis);
     }
-    return result;
-  }
+
+    @Override
+    public TransferResult<AccumulationValue, AccumulationStore> visitAssignment(
+            AssignmentNode node, TransferInput<AccumulationValue, AccumulationStore> input) {
+        TransferResult<AccumulationValue, AccumulationStore> result =
+                super.visitAssignment(node, input);
+        Node lhs = node.getTarget();
+        if (lhs instanceof FieldAccessNode) {
+            FieldAccessNode fieldAccess = (FieldAccessNode) lhs;
+            accumulate(fieldAccess.getReceiver(), result, fieldAccess.getFieldName());
+        }
+        return result;
+    }
 }

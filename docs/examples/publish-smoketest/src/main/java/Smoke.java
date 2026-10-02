@@ -6,11 +6,11 @@
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Smoke {
-  public static @Nullable String greet() {
-    return "ok";
-  }
+    public static @Nullable String greet() {
+        return "ok";
+    }
 
-  public static void main(String[] args) {
-    System.out.println(greet());
-  }
+    public static void main(String[] args) {
+        System.out.println(greet());
+    }
 }

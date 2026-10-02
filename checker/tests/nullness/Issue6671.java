@@ -2,19 +2,19 @@ package open.falsepos;
 
 // Use the Nullness Checker
 public interface Issue6671<E extends Exception> {
-  Object _apply(Object t) throws E;
+    Object _apply(Object t) throws E;
 
-  default Object apply(Object t) {
-    try {
-      return _apply(t);
-    } catch (Exception e) {
-      sneakyThrow(e);
-      throw new RuntimeException(e);
+    default Object apply(Object t) {
+        try {
+            return _apply(t);
+        } catch (Exception e) {
+            sneakyThrow(e);
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @SuppressWarnings("unchecked")
-  public static <T extends Throwable> void sneakyThrow(final Throwable x) throws T {
-    throw (T) x;
-  }
+    @SuppressWarnings("unchecked")
+    public static <T extends Throwable> void sneakyThrow(final Throwable x) throws T {
+        throw (T) x;
+    }
 }

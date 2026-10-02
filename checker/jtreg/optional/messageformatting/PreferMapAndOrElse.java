@@ -18,16 +18,16 @@ import java.util.Optional;
 
 public class PreferMapAndOrElse {
 
-  static class Customer {}
+    static class Customer {}
 
-  static Customer identity(Customer c) {
-    return c;
-  }
-
-  @SuppressWarnings("optional:parameter")
-  void m(Optional<Customer> optCustomer) {
-    if (optCustomer.isPresent()) {
-      Customer c = identity(optCustomer.get());
+    static Customer identity(Customer c) {
+        return c;
     }
-  }
+
+    @SuppressWarnings("optional:parameter")
+    void m(Optional<Customer> optCustomer) {
+        if (optCustomer.isPresent()) {
+            Customer c = identity(optCustomer.get());
+        }
+    }
 }

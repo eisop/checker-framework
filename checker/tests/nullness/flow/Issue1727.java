@@ -7,25 +7,25 @@ class B {}
 
 public class Issue1727 {
 
-  private B foo() {
-    // Default type for local variable b is @UnknownInitialization @Nullable
-    B b;
+    private B foo() {
+        // Default type for local variable b is @UnknownInitialization @Nullable
+        B b;
 
-    while (true) {
-      B op = getB();
-      if (op == null) {
-        b = new B();
-        break;
-      } else {
-        b = op;
-        break;
-      }
+        while (true) {
+            B op = getB();
+            if (op == null) {
+                b = new B();
+                break;
+            } else {
+                b = op;
+                break;
+            }
+        }
+
+        return b;
     }
 
-    return b;
-  }
-
-  private @Nullable B getB() {
-    return new B();
-  }
+    private @Nullable B getB() {
+        return new B();
+    }
 }

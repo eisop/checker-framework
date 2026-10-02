@@ -1,43 +1,44 @@
+import org.checkerframework.checker.nullness.qual.*;
+
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
-import org.checkerframework.checker.nullness.qual.*;
 
 class EntryReader {
-  public EntryReader() throws IOException {}
+    public EntryReader() throws IOException {}
 }
 
 public class TryCatch {
-  void constructorException() throws IOException {
-    List<Exception> file_errors = new ArrayList<>();
-    try {
-      new EntryReader();
-    } catch (FileNotFoundException e) {
-      file_errors.add(e);
+    void constructorException() throws IOException {
+        List<Exception> file_errors = new ArrayList<>();
+        try {
+            new EntryReader();
+        } catch (FileNotFoundException e) {
+            file_errors.add(e);
+        }
     }
-  }
 
-  // See checker/tests/nullness-ignoredeadcode/UnreachableCatch.java for the same code checked
-  // with -AignoreDeadCode, where these errors do not occur.
-  void unreachableCatch(String[] xs) {
-    String t = "";
-    t.toString();
-    try {
-    } catch (Throwable e) {
-      // Note that this code is dead.
-      // :: error: (dereference.of.nullable) :: error: (method.invocation.invalid)
-      t.toString();
+    // See checker/tests/nullness-ignoredeadcode/UnreachableCatch.java for the same code checked
+    // with -AignoreDeadCode, where these errors do not occur.
+    void unreachableCatch(String[] xs) {
+        String t = "";
+        t.toString();
+        try {
+        } catch (Throwable e) {
+            // Note that this code is dead.
+            // :: error: (dereference.of.nullable) :: error: (method.invocation.invalid)
+            t.toString();
+        }
     }
-  }
 
-  void noClassDefFoundError(@Nullable Object x) {
-    try {
-      Class cls = EntryReader.class;
-    } catch (NoClassDefFoundError e) {
-      if (x != null) {
-        // OK
-        x.toString();
-      }
+    void noClassDefFoundError(@Nullable Object x) {
+        try {
+            Class cls = EntryReader.class;
+        } catch (NoClassDefFoundError e) {
+            if (x != null) {
+                // OK
+                x.toString();
+            }
+        }
     }
-  }
 }
