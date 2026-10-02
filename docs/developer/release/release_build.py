@@ -22,7 +22,6 @@ from release_utils import (  # ty: ignore # TODO: limitation in ty
     delete_directory_if_exists,
     delete_if_exists,
     ensure_group_access,
-    ensure_user_access,
     has_command_line_option,
     increment_version,
     print_step,
