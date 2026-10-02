@@ -41,6 +41,7 @@ local.properties
 api
 build
 dist
+buildSrc/.gradle
 docs/tmpapi/
 *.pyc
 checker/build-temp

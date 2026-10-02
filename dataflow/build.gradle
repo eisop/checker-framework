@@ -85,11 +85,6 @@ tasks.named("clean") {
     delete("manual/checker-framework-dataflow-manual.aux", "manual/checker-framework-dataflow-manual.log", "manual/checker-framework-dataflow-manual.out", "manual/checker-framework-dataflow-manual.pdf")
 }
 
-tasks.withType(Test).configureEach {
-    // The `test` task runs the JUnit tests and also the dataflow analysis tests in `allDataflowTests`.
-    dependsOn("allDataflowTests")
-}
-
 tasks.register("allDataflowTests") {
     group = "Verification"
     description = "Run all dataflow analysis tests"
