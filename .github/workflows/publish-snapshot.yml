@@ -11,7 +11,7 @@ name: Publish snapshot
 # Snapshots are unsigned (gradle-mvn-push.gradle signs releases only), so no
 # GPG key is needed here.
 
-on:
+on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '0 9 * * *'  # Daily at 09:00 UTC, after the 07:00 CI run.
   workflow_dispatch:
