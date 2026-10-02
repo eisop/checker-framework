@@ -45,6 +45,7 @@ jobs:
           - {script: 'plume-lib',                   java: {version: '21', experimental: false}}
           - {script: 'daikon-part1',                java: {version: '21', experimental: false}}
           - {script: 'daikon-part2',                java: {version: '21', experimental: false}}
+          - {script: 'daikon-part3',                java: {version: '21', experimental: false}}
           - {script: 'jspecify-conformance',        java: {version: '21', experimental: false}}
           - {script: 'jspecify-reference-checker',  java: {version: '21', experimental: false}}
           - {script: 'templatefora-checker',        java: {version: '21', experimental: false}}
@@ -82,6 +83,7 @@ jobs:
           - {script: 'cftests-ajavachecks',         java: {version: '17', experimental: false}}
           - {script: 'daikon-part1',                java: {version: '17', experimental: false}}
           - {script: 'daikon-part2',                java: {version: '17', experimental: false}}
+          - {script: 'daikon-part3',                java: {version: '17', experimental: false}}
           # --- JDK 11 ---
           - {script: 'cftests-junit',               java: {version: '11', experimental: false}}
           - {script: 'cftests-nonjunit',            java: {version: '11', experimental: false}}
