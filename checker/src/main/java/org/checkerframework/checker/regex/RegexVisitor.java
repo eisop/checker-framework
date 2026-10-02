@@ -23,9 +23,9 @@ import javax.lang.model.element.VariableElement;
  *
  * <ol>
  *   <li value="1">Allows any String to be passed to Pattern.compile if the Pattern.LITERAL flag is
- *       passed.
+ *                 passed.
  *   <li value="2">Checks calls to {@code MatchResult.start}, {@code MatchResult.end} and {@code
- *       MatchResult.group} to ensure that a valid group number is passed.
+ *                 MatchResult.group} to ensure that a valid group number is passed.
  * </ol>
  *
  * @see RegexChecker

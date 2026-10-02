@@ -81,4 +81,4 @@ javax-servlet-api = "javax.servlet:javax.servlet-api:4.0.1"
 commons-io = "commons-io:commons-io:2.22.0"
 
 # Google Java Format requires JDK 17 or higher as of version 1.25.0.
-google-java-format = "com.google.googlejavaformat:google-java-format:1.35.0"
+google-java-format = "com.google.googlejavaformat:google-java-format:1.36.1"
