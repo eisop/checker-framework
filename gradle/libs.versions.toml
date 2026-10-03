@@ -62,7 +62,7 @@ hashmap-util = "org.plumelib:hashmap-util:0.0.1"
 
 stubparser = "org.checkerframework:stubparser:3.27.1"
 
-asm = "org.ow2.asm:asm:9.9.1"
+asm = "org.ow2.asm:asm:9.10.1"
 
 junit = { group = "junit", name = "junit", version.ref = "junit-junit" }
 
