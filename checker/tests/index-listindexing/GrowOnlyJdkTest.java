@@ -1,5 +1,5 @@
 import org.checkerframework.checker.index.qual.GrowOnly;
-import org.checkerframework.checker.index.qual.UncheckedShrinkable;
+import org.checkerframework.checker.index.qual.UncheckedCanShrink;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,8 +22,8 @@ public class GrowOnlyJdkTest {
         localList.clear();
     }
 
-    void testUncheckedShrinkable() {
-        @UncheckedShrinkable List<String> list = new @UncheckedShrinkable ArrayList<>();
+    void testUncheckedCanShrink() {
+        @UncheckedCanShrink List<String> list = new @UncheckedCanShrink ArrayList<>();
         list.add("hello");
         list.remove(0);
     }

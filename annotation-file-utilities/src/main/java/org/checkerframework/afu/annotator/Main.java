@@ -480,7 +480,7 @@ public class Main {
                                                 path, varTree, rec.varName);
                                 int m = methTree.getStartPosition();
                                 int a = varTree.getStartPosition();
-                                int b = varTree.getEndPosition(tree.endPositions);
+                                int b = TreePathUtil.getEndPosition(varTree, tree);
                                 LocalLocation loc = new LocalLocation(i, a - m, b - a);
                                 decl = meth.body.locals.getVivify(loc);
                                 break;
