@@ -10,8 +10,10 @@ import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.UntrackedTask;
 import org.gradle.process.ExecOperations;
@@ -33,7 +35,7 @@ public abstract class CloneOrUpdateRelatedTask extends DefaultTask {
   /**
    * The GitHub organization to use to clone the related repository if a matching org is not found.
    */
-  private static final String DEFAULT_ORG = "typetools";
+  private static final String DEFAULT_ORG = "eisop";
 
   /** The branch to use to clone the related repository if a matching branch is not found */
   private static final String DEFAULT_BRANCH = "master";
@@ -45,6 +47,16 @@ public abstract class CloneOrUpdateRelatedTask extends DefaultTask {
    */
   @Input
   public abstract Property<String> getRelatedRepo();
+
+  /**
+   * The root directory of the Checker Framework checkout, which is next to the related repository.
+   * It is a property, rather than read from {@code getProject()} while the task runs, so that the
+   * task works with Gradle's configuration cache.
+   *
+   * @return the root directory of the Checker Framework checkout
+   */
+  @Internal
+  public abstract DirectoryProperty getCfDirectory();
 
   /** Used to run exec commands. */
   private final ExecOperations execOperations;
@@ -63,7 +75,7 @@ public abstract class CloneOrUpdateRelatedTask extends DefaultTask {
   @TaskAction
   public void doTaskAction() {
     String relatedRepoName = getRelatedRepo().get();
-    File cfDir = getProject().getRootDir();
+    File cfDir = getCfDirectory().get().getAsFile();
     File relatedRepoDir = new File(cfDir.getParentFile(), relatedRepoName);
     if (relatedRepoDir.exists() && new File(relatedRepoDir, ".git").exists()) {
       checkOrgBranch(relatedRepoDir);
@@ -87,7 +99,7 @@ public abstract class CloneOrUpdateRelatedTask extends DefaultTask {
    * @param relatedRepoDir a related repository
    */
   private void checkOrgBranch(File relatedRepoDir) {
-    File cfDir = getProject().getRootDir();
+    File cfDir = getCfDirectory().get().getAsFile();
 
     String relatedRepoName = getRelatedRepo().get();
     OrgBranch fbCf = getOrgBranch(new File(cfDir, ".git"));
@@ -167,7 +179,7 @@ public abstract class CloneOrUpdateRelatedTask extends DefaultTask {
       String org;
       if (remoteUrl.startsWith("git@github.com:")) {
         // `remoteUrl` has the form:
-        // git@github.com:typetools/checker-framework.git
+        // git@github.com:eisop/checker-framework.git
         int slashPos = remoteUrl.indexOf("/");
         if (slashPos == -1) {
           System.err.println("Unexpected URL format " + remoteUrl);

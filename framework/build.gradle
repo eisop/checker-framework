@@ -139,11 +139,10 @@ dependencies {
     testImplementation(libs.lombok)
 }
 
-tasks.register("cloneAnnotatedJdk", CloneTask) {
-    description = "Obtain or update the annotated JDK."
-    url.set("https://github.com/eisop/jdk.git")
-    directory.set(file(annotatedJdkHome))
-    outputs.upToDateWhen { false }
+tasks.register("cloneAnnotatedJdk", CloneOrUpdateRelatedTask) {
+    description = "Obtain or update the annotated JDK, from the same organization and branch as this checkout of the Checker Framework if they exist there."
+    relatedRepo = "jdk"
+    cfDirectory = rootProject.layout.projectDirectory
 }
 
 tasks.register("copyAndMinimizeAnnotatedJdkFiles", JavaExec) {
