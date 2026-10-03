@@ -671,8 +671,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
         // If the assertion contains "@AssumeAssertion", then this visitor skips over the assertion
         // (never issues a warning about it), but the refinement (which was established when the CFG
-        // was
-        // built) still takes effect.
+        // was built) still takes effect.
 
         // In cases where neither assumption is made about assertions and @AssumeAssertions is not
         // used, checkForNullability is still called since the CFGBuilder will have generated one

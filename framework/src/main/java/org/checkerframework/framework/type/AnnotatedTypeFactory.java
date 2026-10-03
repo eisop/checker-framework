@@ -1690,8 +1690,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         Set<Class<? extends Annotation>> annotations = loader.getBundledAnnotationClasses();
 
         // This works because this method (`loadTypeAnnotationsFromQualDir`) is called in
-        // `postInit()`,
-        // but `addAliasedTypeAnnotation` is called before `postInit()`.
+        // `postInit()`, but `addAliasedTypeAnnotation` is called before `postInit()`.
         annotations.removeIf(this::isAliasedTypeAnnotation);
 
         // Add in all explicitly listed qualifiers.
