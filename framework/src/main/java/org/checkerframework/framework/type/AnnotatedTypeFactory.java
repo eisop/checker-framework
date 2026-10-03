@@ -877,6 +877,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                       + " should be one of: -Ainfer=jaifs, -Ainfer=stubs, -Ainfer=ajava");
           }
           boolean showWpiFailedInferences = checker.hasOption("showWpiFailedInferences");
+          String inferOutputDirectory =
+              checker.getOption("inferOutputDirectory", "build/whole-program-inference");
           boolean inferOutputOriginal = checker.hasOption("inferOutputOriginal");
           if (inferOutputOriginal && wpiOutputFormat != WholeProgramInference.OutputFormat.AJAVA) {
             checker.message(
@@ -887,20 +889,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             wholeProgramInference =
                 new WholeProgramInferenceImplementation<AnnotatedTypeMirror>(
                     this,
-                    new WholeProgramInferenceJavaParserStorage(this, inferOutputOriginal),
+                    new WholeProgramInferenceJavaParserStorage(
+                        this, inferOutputDirectory, inferOutputOriginal),
                     showWpiFailedInferences);
           } else {
             wholeProgramInference =
                 new WholeProgramInferenceImplementation<ATypeElement>(
-                    this, new WholeProgramInferenceScenesStorage(this), showWpiFailedInferences);
+                    this,
+                    new WholeProgramInferenceScenesStorage(this, inferOutputDirectory),
+                    showWpiFailedInferences);
           }
           if (!checker.hasOption("warns")) {
             // Without -Awarns, the inference output may be incomplete, because javac halts
             // after issuing an error.
             checker.message(Diagnostic.Kind.ERROR, "Do not supply -Ainfer without -Awarns");
           }
-        } else {
-          wholeProgramInference = null;
         }
         */
 
@@ -1089,7 +1092,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Requires that supportedQuals is non-null and non-empty and each element is a type qualifier.
      * That is, no element has a {@code @Target} meta-annotation that contains something besides
-     * TYPE_USE or TYPE_PARAMETER. (@Target({}) is allowed.) @
+     * TYPE_USE or TYPE_PARAMETER. ({@code @Target({})} is allowed.)
      *
      * @throws BugInCF If supportedQuals is empty or contaions a non-type qualifier
      */
@@ -1602,7 +1605,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * <p>To support a different set of annotations than those in the {@literal qual} subdirectory,
      * or that have other {@code ElementType} values, see examples below.
      *
-     * <p>In total, there are 5 ways to indicate annotations that are supported by a checker:
+     * <p>In total, there are 3 ways to indicate annotations that are supported by a checker:
      *
      * <ol>
      *   <li>Only support annotations located in a checker's {@literal qual} directory:
@@ -1615,22 +1618,27 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *       #getBundledTypeQualifiers(Class...)} with a varargs parameter list of the other
      *       annotations. Code example:
      *       <pre>
-     * {@code @Override protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-     *      return getBundledTypeQualifiers(Regex.class, PartialRegex.class, RegexBottom.class, UnknownRegex.class);
+     * {@code @Override
+     * protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+     *   return getBundledTypeQualifiers(
+     *     // These annotations are in the Called Methods Checker, not the Resource Leak Checker.
+     *     CalledMethods.class, CalledMethodsBottom.class, CalledMethodsPredicate.class);
      *  } }
      * </pre>
-     *   <li>Supporting only annotations that are explicitly listed: Override {@link
+     *   <li>Support only annotations that are explicitly listed. This is common when a single
+     *       directory holds qualifiers for multiple qualifier hierarchies. Override {@link
      *       #createSupportedTypeQualifiers()} and return a mutable set of the supported
      *       annotations. Code example:
      *       <pre>
-     * {@code @Override protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+     * {@code @Override
+     * protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
      *      return new HashSet<Class<? extends Annotation>>(
      *              Arrays.asList(A.class, B.class));
      *  } }
      * </pre>
      *       The set of qualifiers returned by {@link #createSupportedTypeQualifiers()} must be a
      *       fresh, mutable set. The methods {@link #getBundledTypeQualifiers(Class...)} must return
-     *       a fresh, mutable set
+     *       a fresh, mutable set.
      * </ol>
      *
      * @return the type qualifiers supported this processor, or an empty set if none
@@ -1640,16 +1648,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Loads all annotations contained in the qual directory of a checker via reflection; if a
-     * polymorphic type qualifier exists, and an explicit array of annotations to the set of
-     * annotation classes.
+     * Loads, via reflection, all bundled qualifiers. A bundled qualifier is one that is shipped
+     * with the Checker Framework, in the qual directory of a checker. Returns the bundled
+     * annotations and the annotations passed as arguments.
      *
      * <p>This method can be called in the overridden versions of {@link
      * #createSupportedTypeQualifiers()} in each checker.
      *
      * @param explicitlyListedAnnotations a varargs array of explicitly listed annotation classes to
-     *     be added to the returned set. For example, it is used frequently to add Bottom
-     *     qualifiers.
+     *     be added to the returned set
      * @return a mutable set of the loaded and listed annotation classes
      */
     @SafeVarargs
@@ -1659,15 +1666,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Instantiates the AnnotationClassLoader and loads all annotations contained in the qual
-     * directory of a checker via reflection, and has the option to include an explicitly stated
-     * list of annotations (eg ones found in a different directory than qual).
+     * Instantiates the AnnotationClassLoader and loads, by reflection, all bundled annotations --
+     * those contained in the qual directory of a checker. Also includes the annotations passed as
+     * arguments (e.g., ones found in a different directory than qual).
      *
-     * <p>The annotations that are automatically loaded must have the {@link
-     * java.lang.annotation.Target Target} meta-annotation with the value of {@link
-     * ElementType#TYPE_USE} (and optionally {@link ElementType#TYPE_PARAMETER}). If it has other
-     * {@link ElementType} values, it won't be loaded. Other annotation classes must be explicitly
-     * listed even if they are in the same directory as the checker's qual directory.
+     * <p>Only type qualifier annotations are loaded (as defined by {@link
+     * AnnotationClassLoader#isTypeQualifierAnnotation}). Other annotation classes must be
+     * explicitly listed even if they are in the same directory as the checker's qual directory.
      *
      * @param explicitlyListedAnnotations a set of explicitly listed annotation classes to be added
      *     to the returned set, for example, it is used frequently to add Bottom qualifiers
@@ -1684,7 +1689,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         Set<Class<? extends Annotation>> annotations = loader.getBundledAnnotationClasses();
 
-        // add in all explicitly Listed qualifiers
+        // This works because this method (`loadTypeAnnotationsFromQualDir`) is called in
+        // `postInit()`, but `addAliasedTypeAnnotation` is called before `postInit()`.
+        annotations.removeIf(this::isAliasedTypeAnnotation);
+
+        // Add in all explicitly listed qualifiers.
         if (explicitlyListedAnnotations != null) {
             annotations.addAll(Arrays.asList(explicitlyListedAnnotations));
         }
@@ -4650,6 +4659,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * If you want the elements to be copied over as well, use {@link
      * #addAliasedTypeAnnotation(Class, Class, boolean, String...)}.
      *
+     * <p>This method must be called before {@link #postInit}.
+     *
      * @param aliasClass the class of the aliased annotation
      * @param canonicalAnno the canonical annotation
      */
@@ -4770,28 +4781,38 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the canonical annotation for the passed annotation. Returns null if the passed
-     * annotation is not an alias of a canonical one in the framework.
+     * Returns true if the given annotation class is an alias for some other annotation.
+     *
+     * @param annoClass an annotation class
+     * @return true if the given annotation class is an alias for some other annotation
+     */
+    public boolean isAliasedTypeAnnotation(Class<?> annoClass) {
+        return aliases.containsKey(annoClass.getCanonicalName());
+    }
+
+    /**
+     * Returns the canonical annotation for the passed annotation. May return its argument: that is
+     * the result if the passed annotation is not an alias of a canonical one in the framework.
      *
      * <p>A canonical annotation is the internal annotation that will be used by the Checker
      * Framework in the aliased annotation's place.
      *
-     * <p>Most callers do not want this method directly: it returns null both when {@code am} is
-     * already canonical and when {@code am} is unrelated to this checker, which a caller usually
-     * has to tell apart. Use {@link #canonicalAnnotationOrWritten} to resolve an annotation as
-     * written to what it stands for, or {@link #asSupportedQualifier}/{@link
-     * #isSupportedQualifierOrAlias} to also filter to this checker's supported qualifiers in the
-     * same step.
+     * <p>Use this on an annotation as written, such as one read from an {@link
+     * com.sun.source.tree.AnnotationTree}, before comparing it against a canonical annotation. If
+     * the comparison is instead against this checker's supported qualifiers -- the most common case
+     * -- use {@link #asSupportedQualifier} or {@link #isSupportedQualifierOrAlias} directly: {@code
+     * am} may resolve to an annotation this checker does not support, which those two methods
+     * filter out and this one does not.
      *
-     * @param am the qualifier to check for an alias
-     * @return the canonical annotation, or null if none exists
+     * @param am the qualifier to canonicalize
+     * @return the canonical annotation, which is {@code am} itself if {@code am} is not an alias
      */
-    public @Nullable AnnotationMirror canonicalAnnotation(AnnotationMirror am) {
+    public AnnotationMirror canonicalAnnotation(AnnotationMirror am) {
         TypeElement elem = (TypeElement) am.getAnnotationType().asElement();
         String qualName = ElementUtils.getQualifiedName(elem);
         Alias alias = aliases.get(qualName);
         if (alias == null) {
-            return null;
+            return am;
         }
         if (alias.copyElements) {
             AnnotationBuilder builder = new AnnotationBuilder(processingEnv, alias.canonicalName);
@@ -4803,38 +4824,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the canonical form of {@code writtenAnno} if it is an alias, and {@code writtenAnno}
-     * itself otherwise.
-     *
-     * <p>Use this on an annotation as written, such as one read from an {@link
-     * com.sun.source.tree.AnnotationTree}, before comparing it against a canonical annotation.
-     * {@link #canonicalAnnotation} returns null for an annotation that is not an alias, which every
-     * such caller would otherwise have to undo.
-     *
-     * <p>If the comparison is instead against this checker's supported qualifiers -- the most
-     * common case -- use {@link #asSupportedQualifier} or {@link #isSupportedQualifierOrAlias}
-     * directly rather than this method plus a separate {@code isSupportedQualifier} check: {@code
-     * writtenAnno} may resolve to an annotation this checker does not support, which those two
-     * methods filter out and this one does not.
-     *
-     * @param writtenAnno an annotation as written, possibly an alias
-     * @return the annotation that {@code writtenAnno} stands for
-     */
-    public AnnotationMirror canonicalAnnotationOrWritten(AnnotationMirror writtenAnno) {
-        AnnotationMirror canonical = canonicalAnnotation(writtenAnno);
-        return canonical != null ? canonical : writtenAnno;
-    }
-
-    /**
      * Returns {@code writtenAnno} if it is a supported qualifier, or its canonical form if that is
      * a supported qualifier, or null if neither is.
      *
      * <p>Use this on an annotation as written when the caller needs the qualifier itself afterward,
      * not just whether one exists -- for example, to add it to a type or to build a default from
-     * it. Unlike {@link #canonicalAnnotationOrWritten}, which returns a value regardless of whether
-     * it is actually supported, this filters to only a supported qualifier: {@code writtenAnno}
-     * might be neither this checker's qualifier nor an alias for one, in which case there is
-     * nothing this checker can use it for.
+     * it. Unlike {@link #canonicalAnnotation}, which returns a value regardless of whether it is
+     * actually supported, this filters to only a supported qualifier: {@code writtenAnno} might be
+     * neither this checker's qualifier nor an alias for one, in which case there is nothing this
+     * checker can use it for.
      *
      * @param writtenAnno an annotation as written, possibly an alias
      * @return {@code writtenAnno} or its canonical form, whichever is a supported qualifier; null
@@ -4844,7 +4842,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (isSupportedQualifier(writtenAnno)) {
             return writtenAnno;
         }
-        return canonicalAnnotation(writtenAnno);
+        AnnotationMirror canonical = canonicalAnnotation(writtenAnno);
+        return isSupportedQualifier(canonical) ? canonical : null;
     }
 
     /**
@@ -4875,7 +4874,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public boolean containsSameOrAlias(
             Collection<? extends AnnotationMirror> writtenAnnos, AnnotationMirror target) {
         for (AnnotationMirror writtenAnno : writtenAnnos) {
-            if (AnnotationUtils.areSame(canonicalAnnotationOrWritten(writtenAnno), target)) {
+            if (AnnotationUtils.areSame(canonicalAnnotation(writtenAnno), target)) {
                 return true;
             }
         }

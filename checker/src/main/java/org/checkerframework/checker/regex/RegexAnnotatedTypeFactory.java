@@ -41,7 +41,6 @@ import org.checkerframework.javacutil.TypeSystemError;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -142,13 +141,6 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         super(checker);
 
         this.postInit();
-    }
-
-    @Override
-    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-        return getBundledTypeQualifiers(
-                Regex.class, PartialRegex.class,
-                RegexBottom.class, UnknownRegex.class);
     }
 
     @Override

@@ -1106,7 +1106,7 @@ public class NullnessNoInitAnnotatedTypeFactory
     protected boolean isNullnessAnnotation(AnnotationMirror am) {
         // Resolve the alias once, then test the four canonical names, instead of calling
         // isXOrAlias, which each resolves aliasing.
-        AnnotationMirror toCheck = canonicalAnnotationOrWritten(am);
+        AnnotationMirror toCheck = canonicalAnnotation(am);
         return AnnotationUtils.areSameByName(toCheck, NONNULL)
                 || AnnotationUtils.areSameByName(toCheck, NULLABLE)
                 || AnnotationUtils.areSameByName(toCheck, MONOTONIC_NONNULL)
@@ -1120,7 +1120,7 @@ public class NullnessNoInitAnnotatedTypeFactory
      * @return true if the given annotation is {@code @NonNull} or an alias for it
      */
     protected boolean isNonNullOrAlias(AnnotationMirror am) {
-        return AnnotationUtils.areSameByName(canonicalAnnotationOrWritten(am), NONNULL);
+        return AnnotationUtils.areSameByName(canonicalAnnotation(am), NONNULL);
     }
 
     /**
@@ -1130,7 +1130,7 @@ public class NullnessNoInitAnnotatedTypeFactory
      * @return true if the given annotation is {@code @Nullable} or an alias for it
      */
     protected boolean isNullableOrAlias(AnnotationMirror am) {
-        return AnnotationUtils.areSameByName(canonicalAnnotationOrWritten(am), NULLABLE);
+        return AnnotationUtils.areSameByName(canonicalAnnotation(am), NULLABLE);
     }
 
     /**
@@ -1140,7 +1140,7 @@ public class NullnessNoInitAnnotatedTypeFactory
      * @return true if the given annotation is {@code @PolyNull} or an alias for it
      */
     protected boolean isPolyNullOrAlias(AnnotationMirror am) {
-        return AnnotationUtils.areSameByName(canonicalAnnotationOrWritten(am), POLYNULL);
+        return AnnotationUtils.areSameByName(canonicalAnnotation(am), POLYNULL);
     }
 
     // If a reference field has no initializer, then its default value is null.  Treat that as

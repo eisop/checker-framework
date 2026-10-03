@@ -122,13 +122,15 @@ dependencies {
     // To test for an obscure crash in CFG construction for try-with-resources;
     // see https://github.com/typetools/checker-framework/issues/6396
     // Declared non-transitively, with only the artifacts SparkSession's own signature needs
-    // on the classpath: spark-core for org.apache.spark.internal.Logging and scala-library
+    // on the classpath: spark-common-utils (spark-core before Spark 3.5) for org.apache.spark.internal.Logging and scala-library
     // for scala.Serializable.  Spark's full transitive tree is ~100 jars (ZooKeeper, Avro,
     // Netty, Jackson, Protobuf, ...) that appear in no published artifact but do generate
     // Dependabot alerts, and none of them is needed to compile this one test.
-    def sparkVersion = "3.3.2"
+    def sparkVersion = "3.5.8"
     testImplementation("org.apache.spark:spark-sql_2.12:${sparkVersion}") { transitive = false }
     testImplementation("org.apache.spark:spark-core_2.12:${sparkVersion}") { transitive = false }
+    // Since Spark 3.5, org.apache.spark.internal.Logging is in spark-common-utils, not spark-core.
+    testImplementation("org.apache.spark:spark-common-utils_2.12:${sparkVersion}") { transitive = false }
     testImplementation("org.scala-lang:scala-library:2.12.15")
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
@@ -1042,6 +1044,9 @@ tasks.register("wpiManyTest", Exec) {
     // This test must always be re-run when requested.
     outputs.upToDateWhen { false }
 
+  // wpi (really dljc) is unmaintained, errs with: ModuleNotFoundError: No module named 'distutils'
+  enabled = false
+
     def projectDir = project.projectDir
     def injectedFiles = project.objects.newInstance(InjectedFileOps)
 
@@ -1174,6 +1179,9 @@ tasks.register("wpiPlumeLibTest", Exec) {
     description = "Tests whole-program inference on the plume-lib projects. Requires an Internet connection."
     dependsOn("assembleForJavac")
     dependsOn(":getDoLikeJavac")
+
+  // wpi (really dljc) is unmaintained, errs with: ModuleNotFoundError: No module named 'distutils'
+  enabled = false
 
     // This test must always be re-run when requested.
     outputs.upToDateWhen { false }

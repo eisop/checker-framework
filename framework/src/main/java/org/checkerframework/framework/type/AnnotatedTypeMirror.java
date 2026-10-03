@@ -10,7 +10,6 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
 import org.checkerframework.framework.util.AnnotatedTypes;
-import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
@@ -674,20 +673,6 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     public void replaceAnnotation(AnnotationMirror a) {
         this.removeAnnotationInHierarchy(a);
         this.addAnnotation(a);
-    }
-
-    /**
-     * Adds an annotation to this type.
-     *
-     * @param a the class of the annotation to add
-     * @deprecated This method creates a new {@code AnnotationMirror} every time it is called.
-     *     Instead of calling this method, store the {@code AnnotationMirror} in a field and use
-     *     {@link #addAnnotation(AnnotationMirror)} instead.
-     */
-    @Deprecated // 2023-06-15
-    public void addAnnotation(Class<? extends Annotation> a) {
-        AnnotationMirror anno = AnnotationBuilder.fromClass(atypeFactory.elements, a);
-        addAnnotation(anno);
     }
 
     /**
