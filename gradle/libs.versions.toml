@@ -11,7 +11,7 @@ junit-junit = "4.13.2"
 
 biz-aqute-bnd-builder = { id = "biz.aQute.bnd.builder", version = "7.4.0" }
 
-com-diffplug-spotless = { id = "com.diffplug.spotless", version = "8.10.2" }
+com-diffplug-spotless = { id = "com.diffplug.spotless", version = "8.10.3" }
 
 com-dorongold-task-tree = { id = "com.dorongold.task-tree", version = "4.0.2" }
 
