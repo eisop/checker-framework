@@ -159,6 +159,10 @@ members that follow the record.
 
 ### Implementation details
 
+The test framework accepts an expected error key in square brackets, as in
+`// :: error: [assignment]`, as well as in parentheses, so tests written for
+typetools' bracket syntax work unchanged.
+
 Performance optimizations:
 
 - Capped type argument inference work via `-AinferenceWorkBudget=N` (default

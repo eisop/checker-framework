@@ -116,6 +116,8 @@ To indicate the expected failure, insert the line
 ```
 
 directly preceding the expected error line.
+The error key may also be written in square brackets, `[<error-message-key>]`, as typetools does;
+both forms are accepted and mean the same.
 If a warning rather than an error is expected, insert the line
 
 ```java
