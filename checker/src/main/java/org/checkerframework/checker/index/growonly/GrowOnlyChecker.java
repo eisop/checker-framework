@@ -7,6 +7,7 @@ import org.checkerframework.framework.source.SuppressWarningsPrefix;
 import java.util.Collection;
 import java.util.Iterator;
 
+// TODO: In the future, this should be discarded in favor of the Mutability Checker.
 /**
  * A type-checker that enforces rules about mutable-length sequences.
  *

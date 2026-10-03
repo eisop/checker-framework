@@ -54,7 +54,7 @@ google-guava = "com.google.guava:guava:33.7.1-jre"
 options = "org.plumelib:options:2.0.3"
 
 # plume-util includes a version of reflection-util.  When updating, ensure the versions are consistent.
-plume-util = "org.plumelib:plume-util:1.12.3"
+plume-util = "org.plumelib:plume-util:1.13.0"
 
 reflection-util = "org.plumelib:reflection-util:1.1.6"
 
