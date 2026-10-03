@@ -26,6 +26,7 @@ public class LocalizableKeyAnnotatedTypeFactory extends PropertyKeyAnnotatedType
 
     @Override
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+        // The directory contains two type systems, I18nChecker and LocalizableKeyChecker.
         return new LinkedHashSet<>(
                 Arrays.asList(
                         LocalizableKey.class,
