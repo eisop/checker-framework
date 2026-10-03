@@ -27,7 +27,7 @@ import java.util.StringJoiner;
  */
 public abstract class TypeConstraint implements Constraint {
 
-    /** T, the type on the right hand side of the constraint; may contain inference variables. */
+    /** T, the type on the right-hand side of the constraint; may contain inference variables. */
     protected AbstractType T;
 
     /**
@@ -46,7 +46,7 @@ public abstract class TypeConstraint implements Constraint {
      * Creates a type constraint.
      *
      * @param source a string describing where this constraint came from
-     * @param T the type of the right hand side of the constraint
+     * @param T the type of the right-hand side of the constraint
      */
     protected TypeConstraint(String source, AbstractType T) {
         assert T != null : "Can't create a constraint with a null type.";
@@ -59,7 +59,7 @@ public abstract class TypeConstraint implements Constraint {
      * Creates a type constraint.
      *
      * @param parent the constraint whose reduction created this constraint
-     * @param T the type of the right hand side of the constraint
+     * @param T the type of the right-hand side of the constraint
      */
     protected TypeConstraint(Constraint parent, AbstractType T) {
         assert T != null : "Can't create a constraint with a null type.";
@@ -96,9 +96,9 @@ public abstract class TypeConstraint implements Constraint {
     }
 
     /**
-     * Returns T which is the type on the right hand side of the constraint.
+     * Returns T which is the type on the right-hand side of the constraint.
      *
-     * @return t, that is the type on the right hand side of the constraint
+     * @return t, that is the type on the right-hand side of the constraint
      */
     public AbstractType getT() {
         return T;
@@ -158,7 +158,7 @@ public abstract class TypeConstraint implements Constraint {
      * https://docs.oracle.com/javase/specs/jls/se8/html/jls-18.html#jls-18.5.2-200
      *
      * @param tree an expression tree
-     * @param T the type of the right hand side of the constraint
+     * @param T the type of the right-hand side of the constraint
      * @return the input variables for this constraint
      */
     protected Set<Variable> getInputVariablesForExpression(ExpressionTree tree, AbstractType T) {

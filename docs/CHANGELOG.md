@@ -363,6 +363,42 @@ typetools#2816,
 typetools#3203,
 typetools#8055.
 
+## Version 3.54.0 (2026-03-02)
+
+### User-visible changes
+
+Command-line arguments:
+
+- Added `-AinferOutputDirectory`.
+- Removed long-deprecated `-Alint=forbidnonnullarraycomponents`.
+
+New command-line argument `-Aonelinemsg` puts error messages on a single line.
+This is useful when using a tool that only shows the first line of the error.
+
+The command-line argument `-Anomsgtext` surrounds the error key with brackets
+instead of parenthesis. This matches Java error messages.
+
+### Implementation details
+
+In `AnnotatedTypeFactory`, `canonicalAnnotation()` returns a non-null value.
+
+In `AnnotationClassLoader`:
+
+- Renamed `hasWellDefinedTargetMetaAnnotation()` to `isTypeQualifierAnnotation()`.
+  The method now returns `true` for annotations bearing `@InvisibleQualifier`
+  or `@SubtypeOf`, in addition to the existing `@Target(TYPE_USE)` check.
+
+In `TestDiagnostic`:
+
+- Renamed field `message` to `key`.
+- Added new nullable field `message` for the full message without the key.
+
+Removed classes and methods that have been deprecated for more than two years.
+
+### Closed issues
+
+\#6874, #7471, #7475, #7486.
+
 ## Version 3.53.1 (2026-02-02)
 
 ### Closed issues

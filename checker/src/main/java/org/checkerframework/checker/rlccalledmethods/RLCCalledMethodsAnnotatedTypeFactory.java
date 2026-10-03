@@ -136,6 +136,8 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
     @Override
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
         return getBundledTypeQualifiers(
+                // These annotations are in the Called Methods Checker, not the Resource Leak
+                // Checker.
                 CalledMethods.class, CalledMethodsBottom.class, CalledMethodsPredicate.class);
     }
 

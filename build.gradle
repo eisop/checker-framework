@@ -1181,31 +1181,31 @@ tasks.register("downloadJtreg", Download) {
     }
 }
 
-tasks.register("getGitScripts", CloneTask) {
+tasks.register("getGitScripts", CloneOrUpdateTask) {
     url.set("https://github.com/eisop-plume-lib/git-scripts.git")
     directory.set(file(gitScriptsHome))
     outputs.upToDateWhen { false }
 }
 
-tasks.register("getPlumeScripts", CloneTask) {
+tasks.register("getPlumeScripts", CloneOrUpdateTask) {
     url.set("https://github.com/eisop-plume-lib/plume-scripts.git")
     directory.set(file(plumeScriptsHome))
     outputs.upToDateWhen { false }
 }
 
-tasks.register("getHtmlTools", CloneTask) {
+tasks.register("getHtmlTools", CloneOrUpdateTask) {
     url.set("https://github.com/plume-lib/html-tools.git")
     directory.set(file(htmlToolsHome))
     outputs.upToDateWhen { false }
 }
 
-tasks.register("getDoLikeJavac", CloneTask) {
+tasks.register("getDoLikeJavac", CloneOrUpdateTask) {
     url.set("https://github.com/opprop/do-like-javac.git")
     directory.set(file(doLikeJavacHome))
     outputs.upToDateWhen { false }
 }
 
-tasks.register("getDemos", CloneTask) {
+tasks.register("getDemos", CloneOrUpdateTask) {
     url.set("https://github.com/eisop/checker-framework.demos.git")
     directory.set(file(demosDir))
     outputs.upToDateWhen { false }

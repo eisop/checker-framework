@@ -27,7 +27,6 @@ import org.checkerframework.checker.signature.qual.Identifier;
 import org.checkerframework.checker.signature.qual.IdentifierOrPrimitiveType;
 import org.checkerframework.checker.signature.qual.InternalForm;
 import org.checkerframework.checker.signature.qual.PrimitiveType;
-import org.checkerframework.checker.signature.qual.SignatureBottom;
 import org.checkerframework.checker.signature.qual.SignatureUnknown;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -40,9 +39,6 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.reflection.SignatureRegexes;
-
-import java.lang.annotation.Annotation;
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -121,11 +117,6 @@ public class SignatureAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         super(checker);
 
         this.postInit();
-    }
-
-    @Override
-    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-        return getBundledTypeQualifiers(SignatureUnknown.class, SignatureBottom.class);
     }
 
     @Override
