@@ -35,6 +35,9 @@ import java.lang.annotation.Target;
 public @interface IndexOrHigh {
     /**
      * Sequences that the annotated expression is a valid index for or is equal to the length of.
+     *
+     * @return sequences that the annotated expression is a valid index for or is equal to the
+     *     length of
      */
     String[] value();
 }
