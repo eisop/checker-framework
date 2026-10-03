@@ -6,43 +6,43 @@ import java.util.Random;
 
 public class OverrideIncompatiblePurity {
 
-  interface MyInterface {
-    // WPI should not infer @Pure for this unless all implementations are pure.
-    void method();
-  }
-
-  class MyImplementation implements MyInterface {
-
-    int field;
-
-    @java.lang.Override
-    public void method() {
-      // Side effect!
-      field = 5;
+    interface MyInterface {
+        // WPI should not infer @Pure for this unless all implementations are pure.
+        void method();
     }
-  }
 
-  class Foo {
+    class MyImplementation implements MyInterface {
 
-    // This implementation is pure, but an overriding implementation in Bar is not.
-    String getA(int x) {
-      return "A";
+        int field;
+
+        @java.lang.Override
+        public void method() {
+            // Side effect!
+            field = 5;
+        }
     }
-  }
 
-  class Bar extends Foo {
+    class Foo {
 
-    String y;
-
-    // This implementation is neither deterministic nor side-effect free.
-    @java.lang.Override
-    String getA(int x) {
-      if (new Random().nextInt(5) > x) {
-        return "B";
-      } else {
-        y = "C";
-        return y;
-      }
+        // This implementation is pure, but an overriding implementation in Bar is not.
+        String getA(int x) {
+            return "A";
+        }
     }
-  }
+
+    class Bar extends Foo {
+
+        String y;
+
+        // This implementation is neither deterministic nor side-effect free.
+        @java.lang.Override
+        String getA(int x) {
+            if (new Random().nextInt(5) > x) {
+                return "B";
+            } else {
+                y = "C";
+                return y;
+            }
+        }
+    }
 }

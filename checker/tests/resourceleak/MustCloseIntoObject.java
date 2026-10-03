@@ -4,8 +4,8 @@
 import java.net.Socket;
 
 class MustCloseIntoObject {
-  void test() throws Exception {
-    // :: error: required.method.not.called
-    Object o = new Socket("", 0);
-  }
+    void test() throws Exception {
+        // :: error: required.method.not.called
+        Object o = new Socket("", 0);
+    }
 }

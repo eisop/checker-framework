@@ -3,55 +3,55 @@ import org.checkerframework.checker.signedness.qual.UnknownSignedness;
 import org.checkerframework.checker.signedness.qual.Unsigned;
 
 public class UnsignedConcat {
-  @UnknownSignedness int unknownInt = -3;
-  @Unsigned short unsignedShort = -2;
-  @Unsigned int unsignedInt = -2;
-  @Signed short signedShort = -2;
-  @Signed int signedInt = -2;
+    @UnknownSignedness int unknownInt = -3;
+    @Unsigned short unsignedShort = -2;
+    @Unsigned int unsignedInt = -2;
+    @Signed short signedShort = -2;
+    @Signed int signedInt = -2;
 
-  void test1(char c, Character charObj) {
-    // :: error: (unsigned.concat)
-    String s1 = "" + unsignedShort;
-    // :: error: (unsigned.concat)
-    String s2 = "" + unsignedInt;
-    // :: error: (unsigned.concat)
-    String s1b = unsignedShort + "";
-    // :: error: (unsigned.concat)
-    String s2b = "" + unsignedInt + "";
-    String s3 = "" + signedShort;
-    String s4 = "" + signedInt;
-    // :: error: (unsigned.concat)
-    String s5 = "" + unknownInt;
-    String s6 = "" + -1;
+    void test1(char c, Character charObj) {
+        // :: error: (unsigned.concat)
+        String s1 = "" + unsignedShort;
+        // :: error: (unsigned.concat)
+        String s2 = "" + unsignedInt;
+        // :: error: (unsigned.concat)
+        String s1b = unsignedShort + "";
+        // :: error: (unsigned.concat)
+        String s2b = "" + unsignedInt + "";
+        String s3 = "" + signedShort;
+        String s4 = "" + signedInt;
+        // :: error: (unsigned.concat)
+        String s5 = "" + unknownInt;
+        String s6 = "" + -1;
 
-    String s7 = "" + c;
-    String s8 = "" + charObj;
-  }
-
-  void test2(String s, char c, Character charObj) {
-    // :: error: (unsigned.concat)
-    s += unsignedShort;
-    // :: error: (unsigned.concat)
-    s += +unsignedInt;
-    s += "" + signedShort;
-    s += signedInt;
-    // :: error: (unsigned.concat)
-    s += unknownInt;
-    s += 9;
-    s += c;
-    s += charObj;
-  }
-
-  void test3() {
-    String a = "World";
-    String s = "Hi " + (int) a.charAt(0);
-  }
-
-  void test4(String s) {
-    Class<? extends String> sc = null;
-    if (s != null) {
-      sc = s.getClass();
+        String s7 = "" + c;
+        String s8 = "" + charObj;
     }
-    System.out.println("In: " + sc);
-  }
+
+    void test2(String s, char c, Character charObj) {
+        // :: error: (unsigned.concat)
+        s += unsignedShort;
+        // :: error: (unsigned.concat)
+        s += +unsignedInt;
+        s += "" + signedShort;
+        s += signedInt;
+        // :: error: (unsigned.concat)
+        s += unknownInt;
+        s += 9;
+        s += c;
+        s += charObj;
+    }
+
+    void test3() {
+        String a = "World";
+        String s = "Hi " + (int) a.charAt(0);
+    }
+
+    void test4(String s) {
+        Class<? extends String> sc = null;
+        if (s != null) {
+            sc = s.getClass();
+        }
+        System.out.println("In: " + sc);
+    }
 }

@@ -4,10 +4,10 @@ import java.io.InputStream;
 
 public abstract class SafeCast {
 
-  protected abstract Closeable alloc() throws Exception;
+    protected abstract Closeable alloc() throws Exception;
 
-  public void f() throws Exception {
-    InputStream s = (InputStream) alloc();
-    s.close();
-  }
+    public void f() throws Exception {
+        InputStream s = (InputStream) alloc();
+        s.close();
+    }
 }

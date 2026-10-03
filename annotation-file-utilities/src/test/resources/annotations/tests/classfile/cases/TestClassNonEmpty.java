@@ -1,24 +1,24 @@
 package annotations.tests.classfile.cases;
 
 public class TestClassNonEmpty {
-  public int i;
-  private String a;
+    public int i;
+    private String a;
 
-  private TestClassNonEmpty() {
-    i = 0;
-  }
+    private TestClassNonEmpty() {
+        i = 0;
+    }
 
-  protected TestClassNonEmpty(String s) {
-    a = s;
-  }
+    protected TestClassNonEmpty(String s) {
+        a = s;
+    }
 
-  public int i() {
-    return i;
-  }
+    public int i() {
+        return i;
+    }
 
-  public String a() {
-    String s = new String(a);
-    s = s + s;
-    return s;
-  }
+    public String a() {
+        String s = new String(a);
+        s = s + s;
+        return s;
+    }
 }

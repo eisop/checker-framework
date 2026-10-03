@@ -8,9 +8,9 @@ import org.checkerframework.checker.index.qual.PolyUpperBound;
 
 public final class MathPlumeClasscastCrash {
 
-  @SuppressWarnings("index:return")
-  public static @NonNegative @LessThan("#2") @PolyUpperBound long modPositive(
-      long x, @PolyUpperBound long y) {
-    return 0;
-  }
+    @SuppressWarnings("index:return")
+    public static @NonNegative @LessThan("#2") @PolyUpperBound long modPositive(
+            long x, @PolyUpperBound long y) {
+        return 0;
+    }
 }

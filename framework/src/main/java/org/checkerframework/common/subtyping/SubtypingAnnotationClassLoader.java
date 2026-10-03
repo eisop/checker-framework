@@ -5,7 +5,7 @@ import org.checkerframework.framework.type.AnnotationClassLoader;
 
 public class SubtypingAnnotationClassLoader extends AnnotationClassLoader {
 
-  public SubtypingAnnotationClassLoader(BaseTypeChecker checker) {
-    super(checker);
-  }
+    public SubtypingAnnotationClassLoader(BaseTypeChecker checker) {
+        super(checker);
+    }
 }

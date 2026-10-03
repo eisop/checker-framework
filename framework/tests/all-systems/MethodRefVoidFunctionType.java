@@ -6,17 +6,17 @@
 
 public class MethodRefVoidFunctionType {
 
-  interface Sink<A, B> {
-    void accept(A a);
-  }
+    interface Sink<A, B> {
+        void accept(A a);
+    }
 
-  static <X> int identity(X x) {
-    return 0;
-  }
+    static <X> int identity(X x) {
+        return 0;
+    }
 
-  static <T, B> void run(T t, Sink<T, B> s) {}
+    static <T, B> void run(T t, Sink<T, B> s) {}
 
-  void test() {
-    run(1, MethodRefVoidFunctionType::identity);
-  }
+    void test() {
+        run(1, MethodRefVoidFunctionType::identity);
+    }
 }

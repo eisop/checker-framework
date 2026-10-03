@@ -5,20 +5,21 @@
  * @compile/fail/ref=Use.out -XDrawDiagnostics -processor org.checkerframework.checker.tainting.TaintingChecker -Astubs=typeparambound.astub Use.java
  */
 
-import java.util.Collections;
-import java.util.Iterator;
 import org.checkerframework.checker.tainting.qual.Untainted;
 
+import java.util.Collections;
+import java.util.Iterator;
+
 public class Use {
-  void argAboveBound(Iterator<String> it) {}
+    void argAboveBound(Iterator<String> it) {}
 
-  void argAtBound(Iterator<@Untainted String> it) {}
+    void argAtBound(Iterator<@Untainted String> it) {}
 
-  void methodArgAboveBound() {
-    Collections.<String>emptyList();
-  }
+    void methodArgAboveBound() {
+        Collections.<String>emptyList();
+    }
 
-  void methodArgAtBound() {
-    Collections.<@Untainted String>emptyList();
-  }
+    void methodArgAtBound() {
+        Collections.<@Untainted String>emptyList();
+    }
 }

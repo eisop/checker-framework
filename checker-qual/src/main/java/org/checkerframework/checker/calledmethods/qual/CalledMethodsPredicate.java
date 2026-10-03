@@ -1,10 +1,11 @@
 package org.checkerframework.checker.calledmethods.qual;
 
+import org.checkerframework.framework.qual.SubtypeOf;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * This annotation represents a predicate on {@code @}{@link CalledMethods} annotations. If method
@@ -18,14 +19,14 @@ import org.checkerframework.framework.qual.SubtypeOf;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf({CalledMethods.class})
 public @interface CalledMethodsPredicate {
-  /**
-   * A boolean expression constructed from the following grammar:
-   *
-   * <p>S &rarr; method name | S &amp;&amp; S | S || S | !S | (S)
-   *
-   * <p>The expression uses standard Java operator precedence: "!" then "&amp;&amp;" then "||".
-   *
-   * @return the boolean expression
-   */
-  String value();
+    /**
+     * A boolean expression constructed from the following grammar:
+     *
+     * <p>S &rarr; method name | S &amp;&amp; S | S || S | !S | (S)
+     *
+     * <p>The expression uses standard Java operator precedence: "!" then "&amp;&amp;" then "||".
+     *
+     * @return the boolean expression
+     */
+    String value();
 }

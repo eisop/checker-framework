@@ -8,9 +8,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * and this code's warnings are issued.
  */
 public class Deep {
-  void take(Object nn) {}
+    void take(Object nn) {}
 
-  void m(@Nullable Object nble) {
-    take(nble);
-  }
+    void m(@Nullable Object nble) {
+        take(nble);
+    }
 }
