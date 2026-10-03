@@ -24,70 +24,70 @@ import org.checkerframework.afu.annotator.find.Criterion;
  * Criteria.
  */
 public class CriterionList {
-    // This really is a simple data structure to facilitate creation
-    //  of specifications.  TODO: make it a private class?
-    private Criterion current;
-    private CriterionList next;
+  // This really is a simple data structure to facilitate creation
+  //  of specifications.  TODO: make it a private class?
+  private Criterion current;
+  private CriterionList next;
 
-    /** Creates a new CriterionList with no criterion. */
-    public CriterionList() {
-        next = null;
-        current = null;
+  /** Creates a new CriterionList with no criterion. */
+  public CriterionList() {
+    next = null;
+    current = null;
+  }
+
+  /**
+   * Creates a new CriterionList containing just the given Criterion.
+   *
+   * @param c the sole criterion the list contains at the moment
+   */
+  public CriterionList(Criterion c) {
+    current = c;
+    next = null;
+  }
+
+  private CriterionList(Criterion c, CriterionList n) {
+    current = c;
+    next = n;
+  }
+
+  /**
+   * Adds the given criterion to the present list and returns a newly-allocated list containing the
+   * result. Does not modify its argument.
+   *
+   * @param c the criterion to add
+   * @return a new list containing the given criterion and the rest of the criterion already in this
+   *     list
+   */
+  public CriterionList add(Criterion c) {
+    return new CriterionList(c, this);
+  }
+
+  /**
+   * Creates a Criteria object representing all the criterion in this list.
+   *
+   * @return a Criteria that contains all the criterion in this list
+   */
+  public Criteria criteria() {
+    Criteria criteria = new Criteria();
+
+    CriterionList c = this;
+    while (c != null && c.current != null) {
+      criteria.add(c.current);
+      c = c.next;
     }
 
-    /**
-     * Creates a new CriterionList containing just the given Criterion.
-     *
-     * @param c the sole criterion the list contains at the moment
-     */
-    public CriterionList(Criterion c) {
-        current = c;
-        next = null;
+    return criteria;
+  }
+
+  @Override
+  public String toString() {
+    if (current == null) {
+      return "[]";
     }
-
-    private CriterionList(Criterion c, CriterionList n) {
-        current = c;
-        next = n;
+    StringBuilder sb = new StringBuilder("[").append(current);
+    for (CriterionList n = next; n.next != null; n = n.next) {
+      sb.append(", ").append(n.current);
     }
-
-    /**
-     * Adds the given criterion to the present list and returns a newly-allocated list containing
-     * the result. Does not modify its argument.
-     *
-     * @param c the criterion to add
-     * @return a new list containing the given criterion and the rest of the criterion already in
-     *     this list
-     */
-    public CriterionList add(Criterion c) {
-        return new CriterionList(c, this);
-    }
-
-    /**
-     * Creates a Criteria object representing all the criterion in this list.
-     *
-     * @return a Criteria that contains all the criterion in this list
-     */
-    public Criteria criteria() {
-        Criteria criteria = new Criteria();
-
-        CriterionList c = this;
-        while (c != null && c.current != null) {
-            criteria.add(c.current);
-            c = c.next;
-        }
-
-        return criteria;
-    }
-
-    @Override
-    public String toString() {
-        if (current == null) {
-            return "[]";
-        }
-        StringBuilder sb = new StringBuilder("[").append(current);
-        for (CriterionList n = next; n.next != null; n = n.next) {
-            sb.append(", ").append(n.current);
-        }
-        return sb.append("]").toString();
-    }
+    return sb.append("]").toString();
+  }
 }

@@ -10,20 +10,20 @@
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 public class NotAnnotatedForNoError {
-    @AnnotatedFor("nullness")
-    class A {
-        // :: error: (assignment.type.incompatible)
-        Object o = null;
-    }
+  @AnnotatedFor("nullness")
+  class A {
+    // :: error: (assignment.type.incompatible)
+    Object o = null;
+  }
 
-    @AnnotatedFor("regex")
-    class B {
-        // No expected error, because code is not annotated for nullness.
-        Object o = null;
-    }
+  @AnnotatedFor("regex")
+  class B {
+    // No expected error, because code is not annotated for nullness.
+    Object o = null;
+  }
 
-    class C {
-        // No expected error, because code is not annotated for nullness.
-        Object o = null;
-    }
+  class C {
+    // No expected error, because code is not annotated for nullness.
+    Object o = null;
+  }
 }

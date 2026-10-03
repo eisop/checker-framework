@@ -34,10 +34,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.ANNOTATION_TYPE)
 public @interface TargetLocations {
-    /**
-     * Type uses at which the qualifier is permitted to be applied in source code.
-     *
-     * @return type-use locations declared in this meta-annotation
-     */
-    TypeUseLocation[] value();
+  /**
+   * Type uses at which the qualifier is permitted to be applied in source code.
+   *
+   * @return type-use locations declared in this meta-annotation
+   */
+  TypeUseLocation[] value();
 }

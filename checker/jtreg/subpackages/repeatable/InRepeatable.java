@@ -10,15 +10,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * whatever their applyToSubpackages says.
  */
 public class InRepeatable {
-    void takeNonNull(Object nn) {}
+  void takeNonNull(Object nn) {}
 
-    void nullness(@Nullable Object n) {
-        takeNonNull(n);
-    }
+  void nullness(@Nullable Object n) {
+    takeNonNull(n);
+  }
 
-    void takeNonNegative(@NonNegative int i) {}
+  void takeNonNegative(@NonNegative int i) {}
 
-    void index(int i) {
-        takeNonNegative(i);
-    }
+  void index(int i) {
+    takeNonNegative(i);
+  }
 }

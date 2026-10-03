@@ -22,10 +22,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface SupportedModes {
-    /**
-     * Returns the supported mode names.
-     *
-     * @return the supported mode names
-     */
-    String[] value();
+  /**
+   * Returns the supported mode names.
+   *
+   * @return the supported mode names
+   */
+  String[] value();
 }

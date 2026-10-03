@@ -1,14 +1,13 @@
 package org.checkerframework.framework.testchecker.striplocation.quals;
 
-import org.checkerframework.framework.qual.SubtypeOf;
-import org.checkerframework.framework.qual.TargetLocations;
-import org.checkerframework.framework.qual.TypeUseLocation;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.SubtypeOf;
+import org.checkerframework.framework.qual.TargetLocations;
+import org.checkerframework.framework.qual.TypeUseLocation;
 
 /**
  * A middle qualifier of the striplocation test type system whose {@link TargetLocations} permit it
@@ -20,9 +19,9 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @TargetLocations({
-    TypeUseLocation.UPPER_BOUND,
-    TypeUseLocation.EXPLICIT_UPPER_BOUND,
-    TypeUseLocation.IMPLICIT_UPPER_BOUND
+  TypeUseLocation.UPPER_BOUND,
+  TypeUseLocation.EXPLICIT_UPPER_BOUND,
+  TypeUseLocation.IMPLICIT_UPPER_BOUND
 })
 @SubtypeOf({StripTop.class})
 public @interface StripUpperOnly {}

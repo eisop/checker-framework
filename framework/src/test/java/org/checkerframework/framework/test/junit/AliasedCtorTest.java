@@ -1,11 +1,10 @@
 package org.checkerframework.framework.test.junit;
 
+import java.io.File;
+import java.util.List;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.checkerframework.framework.testchecker.aliasedctor.AliasedCtorChecker;
 import org.junit.runners.Parameterized.Parameters;
-
-import java.io.File;
-import java.util.List;
 
 /**
  * Tests that a constructor's own explicit annotation, written using an alias rather than the
@@ -15,20 +14,20 @@ import java.util.List;
  */
 public class AliasedCtorTest extends CheckerFrameworkPerDirectoryTest {
 
-    /**
-     * @param testFiles the files containing test code, which will be type-checked
-     */
-    public AliasedCtorTest(List<File> testFiles) {
-        super(testFiles, AliasedCtorChecker.class, "aliasedctor");
-    }
+  /**
+   * @param testFiles the files containing test code, which will be type-checked
+   */
+  public AliasedCtorTest(List<File> testFiles) {
+    super(testFiles, AliasedCtorChecker.class, "aliasedctor");
+  }
 
-    /**
-     * Define the test directories for this test.
-     *
-     * @return the test directories
-     */
-    @Parameters
-    public static String[] getTestDirs() {
-        return new String[] {"aliasedctor"};
-    }
+  /**
+   * Define the test directories for this test.
+   *
+   * @return the test directories
+   */
+  @Parameters
+  public static String[] getTestDirs() {
+    return new String[] {"aliasedctor"};
+  }
 }

@@ -1,130 +1,129 @@
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class CopyOfArray {
-    protected void makeCopy(Object[] args, int i) {
-        Object[] copyExact1 = Arrays.copyOf(args, args.length);
-        @Nullable Object[] copyExact2 = Arrays.copyOf(args, args.length);
+  protected void makeCopy(Object[] args, int i) {
+    Object[] copyExact1 = Arrays.copyOf(args, args.length);
+    @Nullable Object[] copyExact2 = Arrays.copyOf(args, args.length);
 
-        // :: warning: (arrays.copyof.size.mismatch)
-        // :: error: (assignment.type.incompatible)
-        Object[] copyInexact1 = Arrays.copyOf(args, i);
-        @Nullable Object[] copyInexact2 = Arrays.copyOf(args, i);
+    // :: warning: (arrays.copyof.size.mismatch)
+    // :: error: (assignment.type.incompatible)
+    Object[] copyInexact1 = Arrays.copyOf(args, i);
+    @Nullable Object[] copyInexact2 = Arrays.copyOf(args, i);
+  }
+
+  static int callCount = 0;
+
+  static String[] getArray() {
+    callCount++;
+    if (callCount == 1) {
+      return new String[] {"a"};
+    } else {
+      return new String[] {"a", "b", "c"};
     }
+  }
 
-    static int callCount = 0;
+  void testSideEffect() {
+    // getArray() has side effects, so Arrays.copyOf returns an array of @Nullable elements.
+    // Assigning it to an array of @NonNull elements should be an error.
+    // :: warning: (arrays.copyof.impure)
+    // :: error: (assignment.type.incompatible)
+    String[] result = Arrays.copyOf(getArray(), getArray().length);
+  }
 
-    static String[] getArray() {
-        callCount++;
-        if (callCount == 1) {
-            return new String[] {"a"};
-        } else {
-            return new String[] {"a", "b", "c"};
-        }
-    }
+  @org.checkerframework.dataflow.qual.Pure
+  static String[] getPureArray() {
+    return new String[] {"a", "b", "c"};
+  }
 
-    void testSideEffect() {
-        // getArray() has side effects, so Arrays.copyOf returns an array of @Nullable elements.
-        // Assigning it to an array of @NonNull elements should be an error.
-        // :: warning: (arrays.copyof.impure)
-        // :: error: (assignment.type.incompatible)
-        String[] result = Arrays.copyOf(getArray(), getArray().length);
-    }
+  void testPureMethod() {
+    // getPureArray() is pure, so this should not produce an error!
+    String[] result = Arrays.copyOf(getPureArray(), getPureArray().length);
+  }
 
-    @org.checkerframework.dataflow.qual.Pure
-    static String[] getPureArray() {
-        return new String[] {"a", "b", "c"};
-    }
+  String[] fieldArray = new String[] {"a"};
 
-    void testPureMethod() {
-        // getPureArray() is pure, so this should not produce an error!
-        String[] result = Arrays.copyOf(getPureArray(), getPureArray().length);
-    }
+  void testMemberSelect() {
+    String[] result = Arrays.copyOf(this.fieldArray, this.fieldArray.length);
+  }
 
-    String[] fieldArray = new String[] {"a"};
+  void testArrayAccess(String[][] matrix) {
+    String[] result = Arrays.copyOf(matrix[0], matrix[0].length);
+  }
 
-    void testMemberSelect() {
-        String[] result = Arrays.copyOf(this.fieldArray, this.fieldArray.length);
-    }
+  void testCast(Object[] args) {
+    String[] result = Arrays.copyOf((String[]) args, ((String[]) args).length);
+  }
 
-    void testArrayAccess(String[][] matrix) {
-        String[] result = Arrays.copyOf(matrix[0], matrix[0].length);
-    }
+  void testParenthesized(String[] args) {
+    String[] result = Arrays.copyOf((args), (args).length);
+  }
 
-    void testCast(Object[] args) {
-        String[] result = Arrays.copyOf((String[]) args, ((String[]) args).length);
-    }
+  void testAssignment(String[] args) {
+    String[] other;
+    // :: warning: (arrays.copyof.impure)
+    // :: error: (assignment.type.incompatible)
+    String[] result = Arrays.copyOf(other = args, (other = args).length);
+  }
 
-    void testParenthesized(String[] args) {
-        String[] result = Arrays.copyOf((args), (args).length);
-    }
+  void testPreIncrement(String[][] matrix, int i) {
+    // :: warning: (arrays.copyof.impure)
+    // :: error: (assignment.type.incompatible)
+    String[] result = Arrays.copyOf(matrix[++i], matrix[++i].length);
+  }
 
-    void testAssignment(String[] args) {
-        String[] other;
-        // :: warning: (arrays.copyof.impure)
-        // :: error: (assignment.type.incompatible)
-        String[] result = Arrays.copyOf(other = args, (other = args).length);
-    }
+  <T extends Object> void testTypeVar(T[] args, int i) {
+    T[] copyExact1 = Arrays.copyOf(args, args.length);
+    @Nullable T[] copyExact2 = Arrays.copyOf(args, args.length);
 
-    void testPreIncrement(String[][] matrix, int i) {
-        // :: warning: (arrays.copyof.impure)
-        // :: error: (assignment.type.incompatible)
-        String[] result = Arrays.copyOf(matrix[++i], matrix[++i].length);
-    }
+    // :: warning: (arrays.copyof.size.mismatch)
+    // :: error: (assignment.type.incompatible)
+    T[] copyInexact1 = Arrays.copyOf(args, i);
+    @Nullable T[] copyInexact2 = Arrays.copyOf(args, i);
+  }
 
-    <T extends Object> void testTypeVar(T[] args, int i) {
-        T[] copyExact1 = Arrays.copyOf(args, args.length);
-        @Nullable T[] copyExact2 = Arrays.copyOf(args, args.length);
+  <T extends @Nullable Object> void testNullableTypeVar(T[] args) {
+    T[] copyExact = Arrays.copyOf(args, args.length);
+  }
 
-        // :: warning: (arrays.copyof.size.mismatch)
-        // :: error: (assignment.type.incompatible)
-        T[] copyInexact1 = Arrays.copyOf(args, i);
-        @Nullable T[] copyInexact2 = Arrays.copyOf(args, i);
-    }
+  // Test case for https://github.com/eisop/checker-framework/issues/2155
+  static List<?>[] testNewType(Object[] args, int i) {
+    List<?>[] copyExact = Arrays.copyOf(args, args.length, List[].class);
+    // :: warning: (arrays.copyof.size.mismatch)
+    // :: error: (assignment.type.incompatible)
+    List<?>[] copyInexact1 = Arrays.copyOf(args, i, List[].class);
+    @Nullable List<?>[] copyInexact2 = Arrays.copyOf(args, i, List[].class);
+    return Arrays.copyOf(args, args.length, List[].class);
+  }
 
-    <T extends @Nullable Object> void testNullableTypeVar(T[] args) {
-        T[] copyExact = Arrays.copyOf(args, args.length);
-    }
+  static CompletableFuture<?>[] testNewTypeFuture(Object[] args) {
+    return Arrays.copyOf(args, args.length, CompletableFuture[].class);
+  }
 
-    // Test case for https://github.com/eisop/checker-framework/issues/2155
-    static List<?>[] testNewType(Object[] args, int i) {
-        List<?>[] copyExact = Arrays.copyOf(args, args.length, List[].class);
-        // :: warning: (arrays.copyof.size.mismatch)
-        // :: error: (assignment.type.incompatible)
-        List<?>[] copyInexact1 = Arrays.copyOf(args, i, List[].class);
-        @Nullable List<?>[] copyInexact2 = Arrays.copyOf(args, i, List[].class);
-        return Arrays.copyOf(args, args.length, List[].class);
-    }
+  void testNewTypeNullableElements(@Nullable Object[] args) {
+    // :: error: (assignment.type.incompatible)
+    List<?>[] copyExact1 = Arrays.copyOf(args, args.length, List[].class);
+    @Nullable List<?>[] copyExact2 = Arrays.copyOf(args, args.length, List[].class);
+  }
 
-    static CompletableFuture<?>[] testNewTypeFuture(Object[] args) {
-        return Arrays.copyOf(args, args.length, CompletableFuture[].class);
-    }
+  <U extends Object> void testNewTypeTypeVar(U[] args) {
+    List<?>[] copyExact = Arrays.copyOf(args, args.length, List[].class);
+  }
 
-    void testNewTypeNullableElements(@Nullable Object[] args) {
-        // :: error: (assignment.type.incompatible)
-        List<?>[] copyExact1 = Arrays.copyOf(args, args.length, List[].class);
-        @Nullable List<?>[] copyExact2 = Arrays.copyOf(args, args.length, List[].class);
-    }
+  <U extends @Nullable Object> void testNewTypeNullableTypeVar(U[] args) {
+    // :: error: (assignment.type.incompatible)
+    List<?>[] copyExact1 = Arrays.copyOf(args, args.length, List[].class);
+    @Nullable List<?>[] copyExact2 = Arrays.copyOf(args, args.length, List[].class);
+  }
 
-    <U extends Object> void testNewTypeTypeVar(U[] args) {
-        List<?>[] copyExact = Arrays.copyOf(args, args.length, List[].class);
-    }
+  protected void makeCopyOfRange(Object[] args, int i) {
+    Object[] copyExact1 = Arrays.copyOfRange(args, 2, args.length);
+    @Nullable Object[] copyExact2 = Arrays.copyOfRange(args, 2, args.length);
 
-    <U extends @Nullable Object> void testNewTypeNullableTypeVar(U[] args) {
-        // :: error: (assignment.type.incompatible)
-        List<?>[] copyExact1 = Arrays.copyOf(args, args.length, List[].class);
-        @Nullable List<?>[] copyExact2 = Arrays.copyOf(args, args.length, List[].class);
-    }
-
-    protected void makeCopyOfRange(Object[] args, int i) {
-        Object[] copyExact1 = Arrays.copyOfRange(args, 2, args.length);
-        @Nullable Object[] copyExact2 = Arrays.copyOfRange(args, 2, args.length);
-
-        // :: error: (assignment.type.incompatible)
-        Object[] copyInexact1 = Arrays.copyOfRange(args, 2, i);
-        @Nullable Object[] copyInexact2 = Arrays.copyOfRange(args, 2, i);
-    }
+    // :: error: (assignment.type.incompatible)
+    Object[] copyInexact1 = Arrays.copyOfRange(args, 2, i);
+    @Nullable Object[] copyInexact2 = Arrays.copyOfRange(args, 2, i);
+  }
 }

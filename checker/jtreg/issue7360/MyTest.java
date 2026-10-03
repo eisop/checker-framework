@@ -7,7 +7,7 @@
  * @compile -XDrawDiagnostics -processor org.checkerframework.checker.optional.OptionalChecker MyTest.java
  */
 class MyTest {
-    public void from() {
-        W.wrap(C.create());
-    }
+  public void from() {
+    W.wrap(C.create());
+  }
 }

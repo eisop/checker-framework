@@ -8,21 +8,21 @@ import lib.MemberOnly;
  */
 public class Ok {
 
-    // The absent class appears only in this class's member signatures, which are never looked up.
-    MemberOnly memberOnlyField;
+  // The absent class appears only in this class's member signatures, which are never looked up.
+  MemberOnly memberOnlyField;
 
-    Object memberOnlyClassLiteral() {
-        return MemberOnly.class;
-    }
+  Object memberOnlyClassLiteral() {
+    return MemberOnly.class;
+  }
 
-    Object memberOnlyCreation() {
-        return new MemberOnly();
-    }
+  Object memberOnlyCreation() {
+    return new MemberOnly();
+  }
 
-    // The generic supertype itself does not mention the absent class.
-    Box<String> boxField;
+  // The generic supertype itself does not mention the absent class.
+  Box<String> boxField;
 
-    Object boxClassLiteral() {
-        return Box.class;
-    }
+  Object boxClassLiteral() {
+    return Box.class;
+  }
 }

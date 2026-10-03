@@ -16,95 +16,95 @@ import java.util.Set;
  */
 public class Dependencies {
 
-    /** Creates Dependencies. */
-    public Dependencies() {}
+  /** Creates Dependencies. */
+  public Dependencies() {}
 
-    /** A map from a variable to the variables, including itself, on which it depends. */
-    private final Map<Variable, LinkedHashSet<Variable>> map = new LinkedHashMap<>();
+  /** A map from a variable to the variables, including itself, on which it depends. */
+  private final Map<Variable, LinkedHashSet<Variable>> map = new LinkedHashMap<>();
 
-    /**
-     * Add {@code value} as a dependency of {@code key}.
-     *
-     * @param key a key to add
-     * @param value a value to add
-     */
-    public void putOrAdd(Variable key, Variable value) {
-        LinkedHashSet<Variable> set = map.computeIfAbsent(key, k -> new LinkedHashSet<>());
-        set.add(value);
-    }
+  /**
+   * Add {@code value} as a dependency of {@code key}.
+   *
+   * @param key a key to add
+   * @param value a value to add
+   */
+  public void putOrAdd(Variable key, Variable value) {
+    LinkedHashSet<Variable> set = map.computeIfAbsent(key, k -> new LinkedHashSet<>());
+    set.add(value);
+  }
 
-    /**
-     * Add {@code values} as dependencies of {@code key}.
-     *
-     * @param key a key to add
-     * @param values values to add
-     */
-    public void putOrAddAll(Variable key, Collection<? extends Variable> values) {
-        LinkedHashSet<Variable> set = map.computeIfAbsent(key, k -> new LinkedHashSet<>());
-        set.addAll(values);
-    }
+  /**
+   * Add {@code values} as dependencies of {@code key}.
+   *
+   * @param key a key to add
+   * @param values values to add
+   */
+  public void putOrAddAll(Variable key, Collection<? extends Variable> values) {
+    LinkedHashSet<Variable> set = map.computeIfAbsent(key, k -> new LinkedHashSet<>());
+    set.addAll(values);
+  }
 
-    /**
-     * Calculate and add transitive dependencies.
-     *
-     * <p>JLS 18.4 "An inference variable alpha depends on the resolution of an inference variable
-     * beta if there exists an inference variable gamma such that alpha depends on the resolution of
-     * gamma and gamma depends on the resolution of beta."
-     */
-    public void calculateTransitiveDependencies() {
-        for (Map.Entry<Variable, LinkedHashSet<Variable>> entry : map.entrySet()) {
-            LinkedHashSet<Variable> reachable = entry.getValue();
-            Queue<Variable> queue = new ArrayDeque<>(reachable);
+  /**
+   * Calculate and add transitive dependencies.
+   *
+   * <p>JLS 18.4 "An inference variable alpha depends on the resolution of an inference variable
+   * beta if there exists an inference variable gamma such that alpha depends on the resolution of
+   * gamma and gamma depends on the resolution of beta."
+   */
+  public void calculateTransitiveDependencies() {
+    for (Map.Entry<Variable, LinkedHashSet<Variable>> entry : map.entrySet()) {
+      LinkedHashSet<Variable> reachable = entry.getValue();
+      Queue<Variable> queue = new ArrayDeque<>(reachable);
 
-            while (!queue.isEmpty()) {
-                Variable curr = queue.poll();
-                LinkedHashSet<Variable> nexts = map.get(curr);
-                if (nexts != null) {
-                    for (Variable next : nexts) {
-                        if (reachable.add(next)) {
-                            queue.add(next);
-                        }
-                    }
-                }
+      while (!queue.isEmpty()) {
+        Variable curr = queue.poll();
+        LinkedHashSet<Variable> nexts = map.get(curr);
+        if (nexts != null) {
+          for (Variable next : nexts) {
+            if (reachable.add(next)) {
+              queue.add(next);
             }
+          }
         }
+      }
     }
+  }
 
-    /**
-     * Returns a non-modifiable view of the dependencies of {@code alpha}. The returned set is
-     * backed by the internal map; callers must not mutate it and must treat it as read-only.
-     *
-     * @param alpha a variable
-     * @return a non-modifiable view of the dependencies of {@code alpha}
-     */
-    public Set<Variable> dependsOn(Variable alpha) {
-        Set<Variable> s = map.get(alpha);
-        return s == null ? Collections.emptySet() : Collections.unmodifiableSet(s);
-    }
+  /**
+   * Returns a non-modifiable view of the dependencies of {@code alpha}. The returned set is backed
+   * by the internal map; callers must not mutate it and must treat it as read-only.
+   *
+   * @param alpha a variable
+   * @return a non-modifiable view of the dependencies of {@code alpha}
+   */
+  public Set<Variable> dependsOn(Variable alpha) {
+    Set<Variable> s = map.get(alpha);
+    return s == null ? Collections.emptySet() : Collections.unmodifiableSet(s);
+  }
 
-    /**
-     * Returns a fresh, mutable set of the dependencies of {@code alpha}. Use this only when the
-     * caller needs to mutate the returned set; otherwise use {@link #dependsOn(Variable)}.
-     *
-     * @param alpha a variable
-     * @return a fresh, mutable copy of the dependencies of {@code alpha}
-     */
-    public Set<Variable> get(Variable alpha) {
-        return new LinkedHashSet<>(map.get(alpha));
-    }
+  /**
+   * Returns a fresh, mutable set of the dependencies of {@code alpha}. Use this only when the
+   * caller needs to mutate the returned set; otherwise use {@link #dependsOn(Variable)}.
+   *
+   * @param alpha a variable
+   * @return a fresh, mutable copy of the dependencies of {@code alpha}
+   */
+  public Set<Variable> get(Variable alpha) {
+    return new LinkedHashSet<>(map.get(alpha));
+  }
 
-    /**
-     * Returns the set of dependencies for all variables in {@code variables}. The returned set is
-     * freshly allocated and mutable.
-     *
-     * @param variables collection of variables
-     * @return the set of dependencies for all variables in {@code variables}
-     */
-    public Set<Variable> get(Collection<? extends Variable> variables) {
-        LinkedHashSet<Variable> set = new LinkedHashSet<>();
-        for (Variable v : variables) {
-            set.addAll(map.get(v));
-        }
-        return set;
+  /**
+   * Returns the set of dependencies for all variables in {@code variables}. The returned set is
+   * freshly allocated and mutable.
+   *
+   * @param variables collection of variables
+   * @return the set of dependencies for all variables in {@code variables}
+   */
+  public Set<Variable> get(Collection<? extends Variable> variables) {
+    LinkedHashSet<Variable> set = new LinkedHashSet<>();
+    for (Variable v : variables) {
+      set.addAll(map.get(v));
     }
+    return set;
+  }
 }

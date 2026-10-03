@@ -15,12 +15,12 @@ import org.checkerframework.common.value.qual.IntVal;
  */
 public class UpstreamPrefixIndex {
 
-    @SuppressWarnings("index")
-    static void suppressed() {
-        @IntVal(1) int x = 2;
-    }
+  @SuppressWarnings("index")
+  static void suppressed() {
+    @IntVal(1) int x = 2;
+  }
 
-    static void notSuppressed() {
-        @IntVal(1) int x = 2;
-    }
+  static void notSuppressed() {
+    @IntVal(1) int x = 2;
+  }
 }
