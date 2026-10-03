@@ -1131,8 +1131,7 @@ public class WholeProgramInferenceJavaParserStorage
             // This commented implementation uses JavaParser's lexical preserving printing, which
             // writes the file such that its formatting is close to the original source file it was
             // parsed from as possible. It is commented out because the JavaParser feature is very
-            // buggy
-            // and crashes when adding annotations in certain locations.
+            // buggy and crashes when adding annotations in certain locations.
             // LexicalPreservingPrinter.print(root.declaration, writer);
 
             // Do not print invisible qualifiers, to avoid cluttering the output.

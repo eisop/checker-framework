@@ -116,12 +116,12 @@ public abstract class CloneOrUpdateTask extends DefaultTask {
     try (Git git = Git.open(directory)) {
       git.pull().call();
     } catch (GitAPIException e) {
-      //       If the repository remote is configured using ssh, e.g.,
-      // git@github.com:eisop/checker-framework.git,
-      //       then the above may get permission problems such as:
-      //       org.eclipse.jgit.api.errors.TransportException: git@github.com:smillst/jdk.git:
+      // If the repository remote is configured using ssh, e.g.,
+      // git@github.com:eisop/checker-framework.git, then the above may get permission problems
+      // such as:
+      // org.eclipse.jgit.api.errors.TransportException: git@github.com:smillst/jdk.git:
       // invalid privatekey: ...
-      //       So fall back to running git pull on the command line.
+      // So fall back to running git pull on the command line.
       org.gradle.process.ExecResult execResult =
           execOperations.exec(
               execSpec -> {
