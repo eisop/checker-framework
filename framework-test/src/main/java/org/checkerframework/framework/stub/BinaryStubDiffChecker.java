@@ -1090,7 +1090,7 @@ public class BinaryStubDiffChecker {
             // com.sun.istack.internal.Interned).
             if (isPlatformAnnotationName(name)
                     && !atypeFactory.isSupportedQualifier(am)
-                    && atypeFactory.canonicalAnnotation(am) == null) {
+                    && atypeFactory.canonicalAnnotation(am) == am) {
                 continue;
             }
             names.add(name);
