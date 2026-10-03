@@ -262,8 +262,8 @@ Other improvements and bug fixes:
 - Fixed `@DefaultQualifier` on a package lost for deeper subpackages.
 - Source-tree annotations resolve aliases first;
   `getExplicitAnnotations` returns canonical form; new
-  `asSupportedQualifier`, `isSupportedQualifierOrAlias`,
-  `canonicalAnnotationOrWritten`.
+  `asSupportedQualifier` and `isSupportedQualifierOrAlias`;
+  `canonicalAnnotation` returns its argument if it is not an alias.
 - `addAliasedTypeAnnotation` fails fast if canonical is unsupported or alias
   is in the hierarchy.
 - Stubifier resolves nested annotations through enclosing classes.

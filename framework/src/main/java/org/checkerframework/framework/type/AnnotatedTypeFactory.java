@@ -4791,28 +4791,28 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the canonical annotation for the passed annotation. Returns null if the passed
-     * annotation is not an alias of a canonical one in the framework.
+     * Returns the canonical annotation for the passed annotation. May return its argument: that is
+     * the result if the passed annotation is not an alias of a canonical one in the framework.
      *
      * <p>A canonical annotation is the internal annotation that will be used by the Checker
      * Framework in the aliased annotation's place.
      *
-     * <p>Most callers do not want this method directly: it returns null both when {@code am} is
-     * already canonical and when {@code am} is unrelated to this checker, which a caller usually
-     * has to tell apart. Use {@link #canonicalAnnotationOrWritten} to resolve an annotation as
-     * written to what it stands for, or {@link #asSupportedQualifier}/{@link
-     * #isSupportedQualifierOrAlias} to also filter to this checker's supported qualifiers in the
-     * same step.
+     * <p>Use this on an annotation as written, such as one read from an {@link
+     * com.sun.source.tree.AnnotationTree}, before comparing it against a canonical annotation. If
+     * the comparison is instead against this checker's supported qualifiers -- the most common case
+     * -- use {@link #asSupportedQualifier} or {@link #isSupportedQualifierOrAlias} directly: {@code
+     * am} may resolve to an annotation this checker does not support, which those two methods
+     * filter out and this one does not.
      *
-     * @param am the qualifier to check for an alias
-     * @return the canonical annotation, or null if none exists
+     * @param am the qualifier to canonicalize
+     * @return the canonical annotation, which is {@code am} itself if {@code am} is not an alias
      */
-    public @Nullable AnnotationMirror canonicalAnnotation(AnnotationMirror am) {
+    public AnnotationMirror canonicalAnnotation(AnnotationMirror am) {
         TypeElement elem = (TypeElement) am.getAnnotationType().asElement();
         String qualName = ElementUtils.getQualifiedName(elem);
         Alias alias = aliases.get(qualName);
         if (alias == null) {
-            return null;
+            return am;
         }
         if (alias.copyElements) {
             AnnotationBuilder builder = new AnnotationBuilder(processingEnv, alias.canonicalName);
@@ -4824,38 +4824,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the canonical form of {@code writtenAnno} if it is an alias, and {@code writtenAnno}
-     * itself otherwise.
-     *
-     * <p>Use this on an annotation as written, such as one read from an {@link
-     * com.sun.source.tree.AnnotationTree}, before comparing it against a canonical annotation.
-     * {@link #canonicalAnnotation} returns null for an annotation that is not an alias, which every
-     * such caller would otherwise have to undo.
-     *
-     * <p>If the comparison is instead against this checker's supported qualifiers -- the most
-     * common case -- use {@link #asSupportedQualifier} or {@link #isSupportedQualifierOrAlias}
-     * directly rather than this method plus a separate {@code isSupportedQualifier} check: {@code
-     * writtenAnno} may resolve to an annotation this checker does not support, which those two
-     * methods filter out and this one does not.
-     *
-     * @param writtenAnno an annotation as written, possibly an alias
-     * @return the annotation that {@code writtenAnno} stands for
-     */
-    public AnnotationMirror canonicalAnnotationOrWritten(AnnotationMirror writtenAnno) {
-        AnnotationMirror canonical = canonicalAnnotation(writtenAnno);
-        return canonical != null ? canonical : writtenAnno;
-    }
-
-    /**
      * Returns {@code writtenAnno} if it is a supported qualifier, or its canonical form if that is
      * a supported qualifier, or null if neither is.
      *
      * <p>Use this on an annotation as written when the caller needs the qualifier itself afterward,
      * not just whether one exists -- for example, to add it to a type or to build a default from
-     * it. Unlike {@link #canonicalAnnotationOrWritten}, which returns a value regardless of whether
-     * it is actually supported, this filters to only a supported qualifier: {@code writtenAnno}
-     * might be neither this checker's qualifier nor an alias for one, in which case there is
-     * nothing this checker can use it for.
+     * it. Unlike {@link #canonicalAnnotation}, which returns a value regardless of whether it is
+     * actually supported, this filters to only a supported qualifier: {@code writtenAnno} might be
+     * neither this checker's qualifier nor an alias for one, in which case there is nothing this
+     * checker can use it for.
      *
      * @param writtenAnno an annotation as written, possibly an alias
      * @return {@code writtenAnno} or its canonical form, whichever is a supported qualifier; null
@@ -4865,7 +4842,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (isSupportedQualifier(writtenAnno)) {
             return writtenAnno;
         }
-        return canonicalAnnotation(writtenAnno);
+        AnnotationMirror canonical = canonicalAnnotation(writtenAnno);
+        return isSupportedQualifier(canonical) ? canonical : null;
     }
 
     /**
@@ -4896,7 +4874,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public boolean containsSameOrAlias(
             Collection<? extends AnnotationMirror> writtenAnnos, AnnotationMirror target) {
         for (AnnotationMirror writtenAnno : writtenAnnos) {
-            if (AnnotationUtils.areSame(canonicalAnnotationOrWritten(writtenAnno), target)) {
+            if (AnnotationUtils.areSame(canonicalAnnotation(writtenAnno), target)) {
                 return true;
             }
         }
