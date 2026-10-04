@@ -6,12 +6,12 @@ import org.checkerframework.framework.testchecker.defaulting.UpperBoundQual.UbIm
 @DefaultQualifier(value = UbExplicit.class, locations = TypeUseLocation.RETURN)
 public class ScopeShadowing {
 
-  @DefaultQualifier(value = UbImplicit.class, locations = TypeUseLocation.RETURN)
-  public Object testShadowing() {
-    return null;
-  }
+    @DefaultQualifier(value = UbImplicit.class, locations = TypeUseLocation.RETURN)
+    public Object testShadowing() {
+        return null;
+    }
 
-  public void test() {
-    @UbImplicit Object result = testShadowing();
-  }
+    public void test() {
+        @UbImplicit Object result = testShadowing();
+    }
 }

@@ -7,15 +7,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // applyToSubpackages=true, so this subpackage stays excluded; index set applyToSubpackages=false,
 // so package pkg's AnnotatedFor reaches through and the Index Checker reports here.
 public class Deep {
-  void takeNonNull(Object nn) {}
+    void takeNonNull(Object nn) {}
 
-  void nullness(@Nullable Object n) {
-    takeNonNull(n);
-  }
+    void nullness(@Nullable Object n) {
+        takeNonNull(n);
+    }
 
-  void takeNonNegative(@NonNegative int i) {}
+    void takeNonNegative(@NonNegative int i) {}
 
-  void index(int i) {
-    takeNonNegative(i);
-  }
+    void index(int i) {
+        takeNonNegative(i);
+    }
 }

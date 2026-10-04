@@ -16,8 +16,8 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 
 @AnnotatedFor("nullness")
 public class ModeAssertionsOverride {
-  void assertionRefines(@Nullable Object o) {
-    assert o != null;
-    o.toString();
-  }
+    void assertionRefines(@Nullable Object o) {
+        assert o != null;
+        o.toString();
+    }
 }

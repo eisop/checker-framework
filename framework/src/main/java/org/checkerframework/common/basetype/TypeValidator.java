@@ -1,6 +1,7 @@
 package org.checkerframework.common.basetype;
 
 import com.sun.source.tree.Tree;
+
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 
@@ -10,32 +11,33 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
  */
 public interface TypeValidator {
 
-  /**
-   * The entry point to the type validator. Validate the type against the given tree.
-   *
-   * @param type the type to validate
-   * @param tree the tree from which the type originated. If the tree is a method tree, then
-   *     validate its return type. If the tree is a variable tree, then validate its field type.
-   * @return true, iff the type is valid
-   */
-  boolean isValid(AnnotatedTypeMirror type, Tree tree);
+    /**
+     * The entry point to the type validator. Validate the type against the given tree.
+     *
+     * @param type the type to validate
+     * @param tree the tree from which the type originated. If the tree is a method tree, then
+     *     validate its return type. If the tree is a variable tree, then validate its field type.
+     * @return true, iff the type is valid
+     */
+    boolean isValid(AnnotatedTypeMirror type, Tree tree);
 
-  /**
-   * Validates whether the qualifiers on the variable tree are at the correct type-use locations, as
-   * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
-   *
-   * @param type the annotated type of the variable
-   * @param tree the variable tree
-   */
-  void validateVariableTargetLocation(AnnotatedTypeMirror type, Tree tree);
+    /**
+     * Validates whether the qualifiers on the variable tree are at the correct type-use locations,
+     * as specified by the meta-annotation {@link
+     * org.checkerframework.framework.qual.TargetLocations}.
+     *
+     * @param type the annotated type of the variable
+     * @param tree the variable tree
+     */
+    void validateVariableTargetLocation(AnnotatedTypeMirror type, Tree tree);
 
-  /**
-   * Validates whether the qualifiers on the tree are at the correct type-use locations, as
-   * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
-   *
-   * @param type the type of the tree
-   * @param tree the tree whose qualifiers are to be validated
-   * @param required the required TypeUseLocation
-   */
-  void validateTargetLocation(AnnotatedTypeMirror type, Tree tree, TypeUseLocation required);
+    /**
+     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
+     *
+     * @param type the type of the tree
+     * @param tree the tree whose qualifiers are to be validated
+     * @param required the required TypeUseLocation
+     */
+    void validateTargetLocation(AnnotatedTypeMirror type, Tree tree, TypeUseLocation required);
 }

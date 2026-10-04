@@ -10,26 +10,27 @@ import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
 /** Used in busyExpressionTest Gradle task to test the BusyExpression analysis. */
 public class BusyExpression {
 
-  /** Do not instantiate. */
-  private BusyExpression() {
-    throw new Error("Do not instantiate");
-  }
+    /** Do not instantiate. */
+    private BusyExpression() {
+        throw new Error("Do not instantiate");
+    }
 
-  /**
-   * The main method expects to be run in dataflow/tests/busy-expression directory.
-   *
-   * @param args not used
-   */
-  public static void main(String[] args) {
+    /**
+     * The main method expects to be run in dataflow/tests/busy-expression directory.
+     *
+     * @param args not used
+     */
+    public static void main(String[] args) {
 
-    String inputFile = "Test.java"; // input file name;
-    String method = "test";
-    String clazz = "Test";
-    String outputFile = "Out.txt";
+        String inputFile = "Test.java"; // input file name;
+        String method = "test";
+        String clazz = "Test";
+        String outputFile = "Out.txt";
 
-    BusyExprTransfer transfer = new BusyExprTransfer();
-    BackwardAnalysis<UnusedAbstractValue, BusyExprStore, BusyExprTransfer> backwardAnalysis =
-        new BackwardAnalysisImpl<>(transfer);
-    CFGVisualizeLauncher.writeStringOfCFG(inputFile, method, clazz, outputFile, backwardAnalysis);
-  }
+        BusyExprTransfer transfer = new BusyExprTransfer();
+        BackwardAnalysis<UnusedAbstractValue, BusyExprStore, BusyExprTransfer> backwardAnalysis =
+                new BackwardAnalysisImpl<>(transfer);
+        CFGVisualizeLauncher.writeStringOfCFG(
+                inputFile, method, clazz, outputFile, backwardAnalysis);
+    }
 }

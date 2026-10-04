@@ -7,23 +7,23 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * annotation interface member's return type is always either a contradiction or redundant.
  */
 public class AnnotationMemberType {
-  @interface Unannotated {
-    String value();
-  }
+    @interface Unannotated {
+        String value();
+    }
 
-  @interface RootNonNull {
-    // :: error: (nullness.on.annotation.member)
-    @NonNull String value();
-  }
+    @interface RootNonNull {
+        // :: error: (nullness.on.annotation.member)
+        @NonNull String value();
+    }
 
-  @interface RootNullable {
-    // :: error: (nullness.on.annotation.member)
-    @Nullable String value();
-  }
+    @interface RootNullable {
+        // :: error: (nullness.on.annotation.member)
+        @Nullable String value();
+    }
 
-  @interface ComponentNullable {
-    // "Any component", so an array's element type is reported too.
-    // :: error: (nullness.on.annotation.member)
-    @Nullable String[] value();
-  }
+    @interface ComponentNullable {
+        // "Any component", so an array's element type is reported too.
+        // :: error: (nullness.on.annotation.member)
+        @Nullable String[] value();
+    }
 }

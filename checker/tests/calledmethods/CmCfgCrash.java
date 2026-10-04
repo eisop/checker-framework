@@ -1,6 +1,6 @@
 public class CmCfgCrash {
 
-  static void f() {
-    for (int i = 0; ; ) {}
-  }
+    static void f() {
+        for (int i = 0; ; ) {}
+    }
 }

@@ -5,10 +5,10 @@
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling2;
 
 public class UsesAnnotationAsClass {
-  public static String test(@AinferSibling2 AinferSibling1 annotation) {
-    String value = annotation.value();
-    // goal of this is to trigger inference for AinferSibling1's definition.
-    String anotherValue = annotation.anotherValue();
-    return value + anotherValue;
-  }
+    public static String test(@AinferSibling2 AinferSibling1 annotation) {
+        String value = annotation.value();
+        // goal of this is to trigger inference for AinferSibling1's definition.
+        String anotherValue = annotation.anotherValue();
+        return value + anotherValue;
+    }
 }

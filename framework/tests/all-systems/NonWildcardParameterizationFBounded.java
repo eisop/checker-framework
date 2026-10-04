@@ -12,72 +12,72 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class NonWildcardParameterizationFBounded {
-  static class Node<T extends Node<T>> {
-    T self() {
-      throw new Error();
+    static class Node<T extends Node<T>> {
+        T self() {
+            throw new Error();
+        }
     }
-  }
 
-  static class Sub extends Node<Sub> {}
+    static class Sub extends Node<Sub> {}
 
-  interface NodeSupplier<T extends Node<T>> {
-    T get();
-  }
+    interface NodeSupplier<T extends Node<T>> {
+        T get();
+    }
 
-  interface NodeFunction<T extends Node<T>> {
-    T apply(T t);
-  }
+    interface NodeFunction<T extends Node<T>> {
+        T apply(T t);
+    }
 
-  interface ListMaker<A, B extends List<A>> {
-    B make(A a);
-  }
+    interface ListMaker<A, B extends List<A>> {
+        B make(A a);
+    }
 
-  static <U> U supply(Supplier<U> s) {
-    return s.get();
-  }
+    static <U> U supply(Supplier<U> s) {
+        return s.get();
+    }
 
-  static <U> U applySub(Function<Sub, U> f) {
-    throw new Error();
-  }
+    static <U> U applySub(Function<Sub, U> f) {
+        throw new Error();
+    }
 
-  static <U> U withSupplier(U u, NodeSupplier<? extends Sub> s) {
-    return u;
-  }
+    static <U> U withSupplier(U u, NodeSupplier<? extends Sub> s) {
+        return u;
+    }
 
-  static <U> U withFunction(U u, NodeFunction<? extends Sub> f) {
-    return u;
-  }
+    static <U> U withFunction(U u, NodeFunction<? extends Sub> f) {
+        return u;
+    }
 
-  static <U> U withListMaker(U u, ListMaker<String, ? extends ArrayList<String>> m) {
-    return u;
-  }
+    static <U> U withListMaker(U u, ListMaker<String, ? extends ArrayList<String>> m) {
+        return u;
+    }
 
-  static Sub makeSub() {
-    return new Sub();
-  }
+    static Sub makeSub() {
+        return new Sub();
+    }
 
-  static Sub identity(Sub s) {
-    return s;
-  }
+    static Sub identity(Sub s) {
+        return s;
+    }
 
-  // A bound method reference whose receiver has a wildcard-parameterized type.
-  Sub boundMethodReference(NodeSupplier<? extends Sub> s) {
-    return supply(s::get);
-  }
+    // A bound method reference whose receiver has a wildcard-parameterized type.
+    Sub boundMethodReference(NodeSupplier<? extends Sub> s) {
+        return supply(s::get);
+    }
 
-  // An unbound method reference to a method of the F-bounded class.
-  Sub unboundMethodReference() {
-    return applySub(Sub::self);
-  }
+    // An unbound method reference to a method of the F-bounded class.
+    Sub unboundMethodReference() {
+        return applySub(Sub::self);
+    }
 
-  // Lambdas and method references whose target is a wildcard-parameterized functional interface
-  // type.
-  void targets() {
-    String a = withSupplier("", () -> new Sub());
-    String b = withSupplier("", NonWildcardParameterizationFBounded::makeSub);
-    String c = withFunction("", x -> x);
-    String d = withFunction("", NonWildcardParameterizationFBounded::identity);
-    // The bound of B mentions the other type parameter A.
-    String e = withListMaker("", x -> new ArrayList<>());
-  }
+    // Lambdas and method references whose target is a wildcard-parameterized functional interface
+    // type.
+    void targets() {
+        String a = withSupplier("", () -> new Sub());
+        String b = withSupplier("", NonWildcardParameterizationFBounded::makeSub);
+        String c = withFunction("", x -> x);
+        String d = withFunction("", NonWildcardParameterizationFBounded::identity);
+        // The bound of B mentions the other type parameter A.
+        String e = withListMaker("", x -> new ArrayList<>());
+    }
 }

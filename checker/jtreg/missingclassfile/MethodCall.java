@@ -7,7 +7,7 @@ import lib.Factory;
  */
 public class MethodCall {
 
-  long callChain() {
-    return Factory.make().self().size();
-  }
+    long callChain() {
+        return Factory.make().self().size();
+    }
 }

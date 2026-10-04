@@ -5,84 +5,84 @@ import viewpointtest.quals.*;
 
 public class IntersectionTypes {
 
-  interface Foo {}
+    interface Foo {}
 
-  interface Bar {}
+    interface Bar {}
 
-  @ReceiverDependentQual interface Accessor {
-    @ReceiverDependentQual Object get();
+    @ReceiverDependentQual interface Accessor {
+        @ReceiverDependentQual Object get();
 
-    void set(@ReceiverDependentQual Object o);
-  }
-
-  @SuppressWarnings({"super.invocation.invalid", "inconsistent.constructor.type"})
-  @ReceiverDependentQual class Baz implements Foo, Bar, Accessor {
-    @Override
-    public @ReceiverDependentQual Object get() {
-      return null;
+        void set(@ReceiverDependentQual Object o);
     }
 
-    @Override
-    public void set(@ReceiverDependentQual Object o) {}
-  }
+    @SuppressWarnings({"super.invocation.invalid", "inconsistent.constructor.type"})
+    @ReceiverDependentQual class Baz implements Foo, Bar, Accessor {
+        @Override
+        public @ReceiverDependentQual Object get() {
+            return null;
+        }
 
-  <T extends Foo & Bar> void call(T p) {}
-
-  @SuppressWarnings("type.invalid.annotations.on.use")
-  <T extends Foo & Accessor> void callAccessor(T p) {}
-
-  class ViewpointAdaptedIntersectionBound<T extends @ReceiverDependentQual Accessor & Foo> {
-    void viewpointAdaptedIntersectionBound(@A T p, @A Object aObj, @B Object bObj) {
-      @A Object adapted = p.get();
-      // :: error: (assignment.type.incompatible)
-      @B Object notAdaptedToB = p.get();
-
-      p.set(aObj);
-      // :: error: (argument.type.incompatible)
-      p.set(bObj);
+        @Override
+        public void set(@ReceiverDependentQual Object o) {}
     }
-  }
 
-  void foo(@A Object aObj, @B Object bObj) {
-    Baz baz = new @A Baz();
-    call(baz);
-    callAccessor(baz);
+    <T extends Foo & Bar> void call(T p) {}
 
-    @A Object adapted = baz.get();
-    // :: error: (assignment.type.incompatible)
-    @B Object notAdaptedToB = baz.get();
+    @SuppressWarnings("type.invalid.annotations.on.use")
+    <T extends Foo & Accessor> void callAccessor(T p) {}
 
-    baz.set(aObj);
-    // :: error: (argument.type.incompatible)
-    baz.set(bObj);
-  }
+    class ViewpointAdaptedIntersectionBound<T extends @ReceiverDependentQual Accessor & Foo> {
+        void viewpointAdaptedIntersectionBound(@A T p, @A Object aObj, @B Object bObj) {
+            @A Object adapted = p.get();
+            // :: error: (assignment.type.incompatible)
+            @B Object notAdaptedToB = p.get();
 
-  @SuppressWarnings("type.invalid.annotations.on.use")
-  void intersectionCasts(Object obj) {
-    Foo fooAndBar = (Foo & Bar) obj;
-    Accessor fooAndAccessor = (Foo & Accessor) obj;
-  }
+            p.set(aObj);
+            // :: error: (argument.type.incompatible)
+            p.set(bObj);
+        }
+    }
 
-  void annotatedIntersectionCast(@B Object obj) {
-    // :: warning: (cast.unsafe)
-    Accessor fooAndAccessor = (@A Foo & Accessor) obj;
-  }
+    void foo(@A Object aObj, @B Object bObj) {
+        Baz baz = new @A Baz();
+        call(baz);
+        callAccessor(baz);
 
-  interface BType<X> {}
+        @A Object adapted = baz.get();
+        // :: error: (assignment.type.incompatible)
+        @B Object notAdaptedToB = baz.get();
 
-  interface CType<X> {}
+        baz.set(aObj);
+        // :: error: (argument.type.incompatible)
+        baz.set(bObj);
+    }
 
-  abstract class D<X extends BType<X> & CType<X>> {}
+    @SuppressWarnings("type.invalid.annotations.on.use")
+    void intersectionCasts(Object obj) {
+        Foo fooAndBar = (Foo & Bar) obj;
+        Accessor fooAndAccessor = (Foo & Accessor) obj;
+    }
 
-  class BC implements BType<BC>, CType<BC> {}
+    void annotatedIntersectionCast(@B Object obj) {
+        // :: warning: (cast.unsafe)
+        Accessor fooAndAccessor = (@A Foo & Accessor) obj;
+    }
 
-  class E extends D<BC> {}
+    interface BType<X> {}
 
-  <T extends BType<T> & CType<T>> void callBC(T p) {}
+    interface CType<X> {}
 
-  // Documents the current decision for https://github.com/eisop/checker-framework/issues/1735:
-  // when multiple bounds in an intersection type have explicit qualifiers in the same hierarchy,
-  // the later qualifier is ignored (and flagged).
-  // :: warning: (explicit.annotation.ignored)
-  <T extends @A Foo & @B Bar> void callAnnotatedBounds(T p) {}
+    abstract class D<X extends BType<X> & CType<X>> {}
+
+    class BC implements BType<BC>, CType<BC> {}
+
+    class E extends D<BC> {}
+
+    <T extends BType<T> & CType<T>> void callBC(T p) {}
+
+    // Documents the current decision for https://github.com/eisop/checker-framework/issues/1735:
+    // when multiple bounds in an intersection type have explicit qualifiers in the same hierarchy,
+    // the later qualifier is ignored (and flagged).
+    // :: warning: (explicit.annotation.ignored)
+    <T extends @A Foo & @B Bar> void callAnnotatedBounds(T p) {}
 }

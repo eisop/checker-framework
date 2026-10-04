@@ -8,10 +8,10 @@ package elementdefault.pkg.sub;
  * are responsible for.
  */
 public class InSub {
-  Object f;
+    Object f;
 
-  void use() {
-    // :: error: (assignment.type.incompatible)
-    f = new Object();
-  }
+    void use() {
+        // :: error: (assignment.type.incompatible)
+        f = new Object();
+    }
 }

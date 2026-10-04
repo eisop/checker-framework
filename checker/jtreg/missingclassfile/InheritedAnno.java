@@ -1,4 +1,5 @@
 import lib.SubOfQualParam;
+
 import org.checkerframework.checker.tainting.qual.Tainted;
 import org.checkerframework.checker.tainting.qual.Untainted;
 
@@ -8,9 +9,9 @@ import org.checkerframework.checker.tainting.qual.Untainted;
  */
 public class InheritedAnno {
 
-  void m(@Untainted SubOfQualParam u) {
-    // Assigning @Untainted to @Tainted is an error only because SubOfQualParam inherits
-    // @HasQualifierParameter from lib.QualParam, which makes the qualifier invariant.
-    @Tainted SubOfQualParam t = u;
-  }
+    void m(@Untainted SubOfQualParam u) {
+        // Assigning @Untainted to @Tainted is an error only because SubOfQualParam inherits
+        // @HasQualifierParameter from lib.QualParam, which makes the qualifier invariant.
+        @Tainted SubOfQualParam t = u;
+    }
 }

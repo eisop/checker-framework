@@ -14,7 +14,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 
 @AnnotatedFor("nullness")
 public class Use {
-  void f(Lib lib) {
-    @NonNull Object o = lib.get();
-  }
+    void f(Lib lib) {
+        @NonNull Object o = lib.get();
+    }
 }

@@ -5,6 +5,6 @@ package parent.child;
 // -AonlyAnnotatedFor that means no error is reported, matching the @DefaultQualifier half of
 // the alias, which likewise stops at package parent.
 public class InChildPackage {
-  // No expected error, because this subpackage is not annotated for nullness.
-  Object o = null;
+    // No expected error, because this subpackage is not annotated for nullness.
+    Object o = null;
 }

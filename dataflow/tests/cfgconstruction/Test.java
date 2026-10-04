@@ -1,26 +1,26 @@
 public class Test {
 
-  public void manyNestedTryFinallyBlocks() {
-    try {
-      System.out.println("!");
-    } finally {
-      try {
-        System.out.println("!");
-      } finally {
+    public void manyNestedTryFinallyBlocks() {
         try {
-          System.out.println("!");
-        } finally {
-          try {
             System.out.println("!");
-          } finally {
+        } finally {
             try {
-              System.out.println("!");
+                System.out.println("!");
             } finally {
-              System.out.println("!");
+                try {
+                    System.out.println("!");
+                } finally {
+                    try {
+                        System.out.println("!");
+                    } finally {
+                        try {
+                            System.out.println("!");
+                        } finally {
+                            System.out.println("!");
+                        }
+                    }
+                }
             }
-          }
         }
-      }
     }
-  }
 }

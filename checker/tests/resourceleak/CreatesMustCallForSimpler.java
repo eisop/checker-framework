@@ -6,25 +6,25 @@ import org.checkerframework.checker.mustcall.qual.*;
 @InheritableMustCall("a")
 class CreatesMustCallForSimpler {
 
-  @CreatesMustCallFor
-  void reset() {}
+    @CreatesMustCallFor
+    void reset() {}
 
-  @CreatesMustCallFor("this")
-  void resetThis() {}
+    @CreatesMustCallFor("this")
+    void resetThis() {}
 
-  void a() {}
+    void a() {}
 
-  static @MustCall({}) CreatesMustCallForSimpler makeNoMC() {
-    return null;
-  }
+    static @MustCall({}) CreatesMustCallForSimpler makeNoMC() {
+        return null;
+    }
 
-  static void test1() {
-    // :: error: required.method.not.called
-    CreatesMustCallForSimpler cos = makeNoMC();
-    @MustCall({}) CreatesMustCallForSimpler a = cos;
-    cos.reset();
-    // :: error: assignment.type.incompatible
-    @CalledMethods({"reset"}) CreatesMustCallForSimpler b = cos;
-    @CalledMethods({}) CreatesMustCallForSimpler c = cos;
-  }
+    static void test1() {
+        // :: error: required.method.not.called
+        CreatesMustCallForSimpler cos = makeNoMC();
+        @MustCall({}) CreatesMustCallForSimpler a = cos;
+        cos.reset();
+        // :: error: assignment.type.incompatible
+        @CalledMethods({"reset"}) CreatesMustCallForSimpler b = cos;
+        @CalledMethods({}) CreatesMustCallForSimpler c = cos;
+    }
 }

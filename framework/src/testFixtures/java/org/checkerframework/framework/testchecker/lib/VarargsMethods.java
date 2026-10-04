@@ -5,35 +5,35 @@ import org.checkerframework.common.value.qual.StaticallyExecutable;
 /** Used by framework/tests/value/VarargsRe.java */
 public class VarargsMethods {
 
-  /** Do not instantiate. */
-  private VarargsMethods() {
-    throw new Error("Do not instantiate");
-  }
-
-  @StaticallyExecutable
-  public static int test0(Object... objects) {
-    if (objects == null) {
-      return -1;
-    } else {
-      return objects.length;
+    /** Do not instantiate. */
+    private VarargsMethods() {
+        throw new Error("Do not instantiate");
     }
-  }
 
-  @StaticallyExecutable
-  public static int test1(String s, Object... objects) {
-    if (objects == null) {
-      return -1;
-    } else {
-      return objects.length;
+    @StaticallyExecutable
+    public static int test0(Object... objects) {
+        if (objects == null) {
+            return -1;
+        } else {
+            return objects.length;
+        }
     }
-  }
 
-  @StaticallyExecutable
-  public static int test2(String s, String s2, Object... objects) {
-    if (objects == null) {
-      return -1;
-    } else {
-      return objects.length;
+    @StaticallyExecutable
+    public static int test1(String s, Object... objects) {
+        if (objects == null) {
+            return -1;
+        } else {
+            return objects.length;
+        }
     }
-  }
+
+    @StaticallyExecutable
+    public static int test2(String s, String s2, Object... objects) {
+        if (objects == null) {
+            return -1;
+        } else {
+            return objects.length;
+        }
+    }
 }

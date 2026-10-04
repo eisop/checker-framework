@@ -3,8 +3,8 @@
 import java.util.*;
 
 class StringSort {
-  public static void sort() {
-    List<String> myList = new ArrayList<String>();
-    Collections.sort(myList);
-  }
+    public static void sort() {
+        List<String> myList = new ArrayList<String>();
+        Collections.sort(myList);
+    }
 }
