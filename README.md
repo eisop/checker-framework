@@ -24,7 +24,7 @@ See below for EISOP Checker Framework development notes.
    ./gradlew assemble
    ```
 
-   This will clone the required [eisop/jdk](https://github.com/eisop/jdk) project to a sibling directory called `jdk` and build everything without running the test suite.
+   This will clone the required [eisop/jdk](https://github.com/eisop/jdk) project to a sibling directory called `jdk` (from the same GitHub organization and branch as your checkout of the Checker Framework if they exist there, otherwise `eisop/jdk` `master`) and build everything without running the test suite.
    There will be warnings about missing javadoc, but overall the build should be successful.
 
 3. Run a simple test:

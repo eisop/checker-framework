@@ -159,6 +159,10 @@ members that follow the record.
 
 ### Implementation details
 
+The test framework accepts an expected error key in square brackets, as in
+`// :: error: [assignment]`, as well as in parentheses, so tests written for
+typetools' bracket syntax work unchanged.
+
 Performance optimizations:
 
 - Capped type argument inference work via `-AinferenceWorkBudget=N` (default
@@ -258,8 +262,8 @@ Other improvements and bug fixes:
 - Fixed `@DefaultQualifier` on a package lost for deeper subpackages.
 - Source-tree annotations resolve aliases first;
   `getExplicitAnnotations` returns canonical form; new
-  `asSupportedQualifier`, `isSupportedQualifierOrAlias`,
-  `canonicalAnnotationOrWritten`.
+  `asSupportedQualifier` and `isSupportedQualifierOrAlias`;
+  `canonicalAnnotation` returns its argument if it is not an alias.
 - `addAliasedTypeAnnotation` fails fast if canonical is unsupported or alias
   is in the hierarchy.
 - Stubifier resolves nested annotations through enclosing classes.
@@ -362,6 +366,42 @@ typetools#399,
 typetools#2816,
 typetools#3203,
 typetools#8055.
+
+## Version 3.54.0 (2026-03-02)
+
+### User-visible changes
+
+Command-line arguments:
+
+- Added `-AinferOutputDirectory`.
+- Removed long-deprecated `-Alint=forbidnonnullarraycomponents`.
+
+New command-line argument `-Aonelinemsg` puts error messages on a single line.
+This is useful when using a tool that only shows the first line of the error.
+
+The command-line argument `-Anomsgtext` surrounds the error key with brackets
+instead of parenthesis. This matches Java error messages.
+
+### Implementation details
+
+In `AnnotatedTypeFactory`, `canonicalAnnotation()` returns a non-null value.
+
+In `AnnotationClassLoader`:
+
+- Renamed `hasWellDefinedTargetMetaAnnotation()` to `isTypeQualifierAnnotation()`.
+  The method now returns `true` for annotations bearing `@InvisibleQualifier`
+  or `@SubtypeOf`, in addition to the existing `@Target(TYPE_USE)` check.
+
+In `TestDiagnostic`:
+
+- Renamed field `message` to `key`.
+- Added new nullable field `message` for the full message without the key.
+
+Removed classes and methods that have been deprecated for more than two years.
+
+### Closed issues
+
+\#6874, #7471, #7475, #7486.
 
 ## Version 3.53.1 (2026-02-02)
 

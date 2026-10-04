@@ -53,11 +53,6 @@
       "schedule": ["before 3am on the first day of the month"]
     },
     {
-      "description": "We want specifically version 3.3.2, which caused a crash before",
-      "matchPackageNames": ["org.apache.spark:spark-sql_2.12"],
-      "enabled": false
-    },
-    {
       "description": "Never update com.google.errorprone:javac; Renovate proposes 9-dev-r4023-3 as an update to our pinned 9+181-r4173-1, but that is not a version we want.",
       "matchPackageNames": ["com.google.errorprone:javac"],
       "enabled": false

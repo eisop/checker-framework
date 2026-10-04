@@ -22,7 +22,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeKind;
 
 /**
- * {@link PropagationTypeAnnotator} adds qualifiers to types where the qualifier to add should be
+ * {@link PropagationTypeAnnotator} adds qualifiers to types, where the qualifier to add should be
  * transferred from one or more other types.
  *
  * <p>At the moment, the only function PropagationTypeAnnotator provides, is the propagation of

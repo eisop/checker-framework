@@ -1,4 +1,4 @@
-PreferMapAndOrElse.java:29:9: compiler.warn.proc.messager: [prefer.map.and.orelse] It is better style to use map and orElse.
+PreferMapAndOrElse.java:29:9: compiler.warn.proc.messager: [prefer.map] It is better style to use map.
 Consider changing to:
-optCustomer.map(ENCLOSINGCLASS::identity).orElse(null)
+optCustomer.map(PreferMapAndOrElse::identity)
 1 warning

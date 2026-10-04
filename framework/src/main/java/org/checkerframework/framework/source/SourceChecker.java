@@ -278,6 +278,9 @@ import javax.tools.Diagnostic;
     // "-Ainfer=stubs" or "-Ainfer=jaifs".
     "infer",
 
+    // The directory into which to write whole-program inference results.
+    "inferOutputDirectory",
+
     // Whether to output a copy of each file for which annotations were inferred, formatted
     // as an ajava file. Can only be used with -Ainfer=ajava
     "inferOutputOriginal",
@@ -411,6 +414,10 @@ import javax.tools.Diagnostic;
     // Only output error code, useful for testing framework.
     // org.checkerframework.framework.source.SourceChecker.message(Kind, Object, String, Object...)
     "nomsgtext",
+
+    // Convert newlines to " / ", so error messages fit on one line.
+    // org.checkerframework.framework.source.SourceChecker.message(Kind, Object, String, Object...)
+    "onelinemsg",
 
     // Do not perform a JRE version check.
     "noJreVersionCheck",
@@ -2000,12 +2007,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             messageText = prefix + (fmtString == null ? "" : String.format(fmtString, args));
         } catch (Exception e) {
             throw new BugInCF(
-                    "Invalid format string: \"" + fmtString + "\" args: " + Arrays.toString(args),
+                    String.format(
+                            "Invalid format string or number of args for %s: \"%s\" args: %s",
+                            messageKey, fmtString, Arrays.toString(args)),
                     e);
         }
 
         if (kind == Diagnostic.Kind.ERROR && warns) {
             kind = Diagnostic.Kind.MANDATORY_WARNING;
+        }
+
+        if (hasOption("onelinemsg")) {
+            // Use a virgule (/), as indicates a line break in poetry.
+            messageText = messageText.replace(System.lineSeparator(), " / ");
         }
 
         if (preciseSource == null) {
@@ -3489,7 +3503,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     if (suppressWarningsString.equals(prefix)
                             || (suppressWarningsString.startsWith(prefix + ":")
                                     && !suppressWarningsString.equals(
-                                            prefix + ":unneeded.suppression"))) {
+                                            prefix + ":" + UNNEEDED_SUPPRESSION_KEY))) {
                         reportUnneededSuppression(tree, suppressWarningsString);
                         break; // Don't report the same warning string more than once.
                     }
