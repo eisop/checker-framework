@@ -7,13 +7,13 @@ import java.util.function.Predicate;
 // `filter.test` does not side-effect anything else.
 class PredicateTestMethod {
 
-    public static <T> List<T> filter1(Collection<T> coll, Predicate<? super T> filter) {
-        List<T> result = new ArrayList<>();
-        for (T elt : coll) {
-            if (filter.test(elt)) {
-                result.add(elt);
-            }
-        }
-        return result;
+  public static <T> List<T> filter1(Collection<T> coll, Predicate<? super T> filter) {
+    List<T> result = new ArrayList<>();
+    for (T elt : coll) {
+      if (filter.test(elt)) {
+        result.add(elt);
+      }
     }
+    return result;
+  }
 }

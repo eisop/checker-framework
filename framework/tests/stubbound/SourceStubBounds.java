@@ -17,12 +17,12 @@ class SourceNarrowMe<E> {}
 
 @SuppressWarnings("inconsistent.constructor.type")
 public class SourceStubBounds {
-    void test() {
-        SourceWidenMe<@NTDTop Object> okWiden = null;
-        SourceWidenMe<@NTDMiddle Object> okMiddle = null;
+  void test() {
+    SourceWidenMe<@NTDTop Object> okWiden = null;
+    SourceWidenMe<@NTDMiddle Object> okMiddle = null;
 
-        SourceNarrowMe<@NTDBottom Object> okNarrow = null;
-        // :: error: (type.argument.type.incompatible)
-        SourceNarrowMe<@NTDMiddle Object> errorMiddle = null;
-    }
+    SourceNarrowMe<@NTDBottom Object> okNarrow = null;
+    // :: error: (type.argument.type.incompatible)
+    SourceNarrowMe<@NTDMiddle Object> errorMiddle = null;
+  }
 }

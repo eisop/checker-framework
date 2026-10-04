@@ -6,13 +6,13 @@ import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 
 public class Suppression {
 
-    Suppression t;
+  Suppression t;
 
-    @SuppressWarnings("initialization.fields.uninitialized")
-    public Suppression(Suppression arg) {}
+  @SuppressWarnings("initialization.fields.uninitialized")
+  public Suppression(Suppression arg) {}
 
-    @SuppressWarnings({"initialization"})
-    void foo(@UnknownInitialization Suppression arg) {
-        t = arg; // initialization error
-    }
+  @SuppressWarnings({"initialization"})
+  void foo(@UnknownInitialization Suppression arg) {
+    t = arg; // initialization error
+  }
 }

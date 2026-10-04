@@ -2,7 +2,13 @@ package org.checkerframework.framework.util.element;
 
 import com.sun.tools.javac.code.Attribute.TypeCompound;
 import com.sun.tools.javac.code.TargetType;
-
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.type.TypeKind;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -11,15 +17,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVari
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
 import org.checkerframework.javacutil.BugInCF;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.type.TypeKind;
-
 /**
  * Applies Element annotations to a single AnnotatedTypeVariable representing a type parameter.
  * Note, the index of IndexedElementAnnotationApplier refers to the type parameter's index in the
@@ -27,217 +24,213 @@ import javax.lang.model.type.TypeKind;
  */
 abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotationApplier {
 
-    /**
-     * Returns true if element is a TYPE_PARAMETER.
-     *
-     * @param typeMirror ignored
-     * @param element the element that might be a TYPE_PARAMETER
-     * @return true if element is a TYPE_PARAMETER
-     */
-    public static boolean accepts(AnnotatedTypeMirror typeMirror, Element element) {
-        return element.getKind() == ElementKind.TYPE_PARAMETER;
+  /**
+   * Returns true if element is a TYPE_PARAMETER.
+   *
+   * @param typeMirror ignored
+   * @param element the element that might be a TYPE_PARAMETER
+   * @return true if element is a TYPE_PARAMETER
+   */
+  public static boolean accepts(AnnotatedTypeMirror typeMirror, Element element) {
+    return element.getKind() == ElementKind.TYPE_PARAMETER;
+  }
+
+  protected final AnnotatedTypeVariable typeParam;
+  protected final AnnotatedTypeFactory atypeFactory;
+
+  /**
+   * Returns target type that represents the location of the lower bound of element.
+   *
+   * @return target type that represents the location of the lower bound of element
+   */
+  protected abstract TargetType lowerBoundTarget();
+
+  /**
+   * Returns target type that represents the location of the upper bound of element.
+   *
+   * @return target type that represents the location of the upper bound of element
+   */
+  protected abstract TargetType upperBoundTarget();
+
+  /**
+   * Constructor.
+   *
+   * @param type the type to annotate
+   * @param element the corresponding element
+   * @param atypeFactory the type factory
+   */
+  /*package-private*/ TypeParamElementAnnotationApplier(
+      AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory atypeFactory) {
+    super(type, element);
+    this.typeParam = type;
+    this.atypeFactory = atypeFactory;
+  }
+
+  /**
+   * Cached {lower-bound, upper-bound} target pair. Lazily initialized in {@link
+   * #annotatedTargets()}; populated at most once per applier instance.
+   */
+  private TargetType @MonotonicNonNull [] cachedAnnotatedTargets;
+
+  /**
+   * Returns the lower bound and upper bound targets.
+   *
+   * @return the lower bound and upper bound targets
+   */
+  @Override
+  protected TargetType[] annotatedTargets() {
+    TargetType[] result = cachedAnnotatedTargets;
+    if (result == null) {
+      result = new TargetType[] {lowerBoundTarget(), upperBoundTarget()};
+      cachedAnnotatedTargets = result;
+    }
+    return result;
+  }
+
+  /**
+   * Returns the parameter_index of anno's TypeAnnotationPosition which will actually point to the
+   * type parameter's index in its enclosing type parameter list.
+   *
+   * @return the parameter_index of anno's TypeAnnotationPosition which will actually point to the
+   *     type parameter's index in its enclosing type parameter list
+   */
+  @Override
+  public int getTypeCompoundIndex(TypeCompound anno) {
+    return anno.getPosition().parameter_index;
+  }
+
+  /**
+   * @param targeted the list of annotations that were on the lower/upper bounds of the type
+   *     parameter
+   *     <p>Note: When handling type parameters we NEVER add primary annotations to the type
+   *     parameter. Primary annotations are reserved for the use of a type parameter (e.g. @Nullable
+   *     T t; )
+   *     <p>If an annotation is present on the type parameter itself, it represents the lower-bound
+   *     annotation of that type parameter. Any annotation on the extends bound of a type parameter
+   *     is placed on that bound.
+   */
+  @Override
+  protected void handleTargeted(List<TypeCompound> targeted)
+      throws UnexpectedAnnotationLocationException {
+    int paramIndex = getElementIndex();
+    List<TypeCompound> upperBoundAnnos = new ArrayList<>();
+    List<TypeCompound> lowerBoundAnnos = new ArrayList<>();
+
+    for (TypeCompound anno : targeted) {
+      if (anno.position.parameter_index != paramIndex
+          || !atypeFactory.isSupportedQualifierOrAlias(anno)) {
+        continue;
+      }
+
+      if (ElementAnnotationUtil.isOnComponentType(anno)) {
+        applyComponentAnnotation(anno);
+      } else if (anno.position.type == upperBoundTarget()) {
+        upperBoundAnnos.add(anno);
+      } else {
+        lowerBoundAnnos.add(anno);
+      }
     }
 
-    protected final AnnotatedTypeVariable typeParam;
-    protected final AnnotatedTypeFactory atypeFactory;
+    applyLowerBounds(lowerBoundAnnos);
+    applyUpperBounds(upperBoundAnnos);
+  }
 
-    /**
-     * Returns target type that represents the location of the lower bound of element.
-     *
-     * @return target type that represents the location of the lower bound of element
-     */
-    protected abstract TargetType lowerBoundTarget();
+  /**
+   * Applies a list of annotations to the upperBound of the type parameter. If the type of the upper
+   * bound is an intersection we must first find the correct location for each annotation.
+   */
+  private void applyUpperBounds(List<TypeCompound> upperBounds) {
+    if (!upperBounds.isEmpty()) {
+      AnnotatedTypeMirror upperBoundType = typeParam.getUpperBound();
 
-    /**
-     * Returns target type that represents the location of the upper bound of element.
-     *
-     * @return target type that represents the location of the upper bound of element
-     */
-    protected abstract TargetType upperBoundTarget();
+      if (upperBoundType.getKind() == TypeKind.INTERSECTION) {
+        List<AnnotatedTypeMirror> bounds = ((AnnotatedIntersectionType) upperBoundType).getBounds();
+        int boundIndexOffset = ElementAnnotationUtil.getBoundIndexOffset(bounds);
 
-    /**
-     * Constructor.
-     *
-     * @param type the type to annotate
-     * @param element the corresponding element
-     * @param atypeFactory the type factory
-     */
-    /*package-private*/ TypeParamElementAnnotationApplier(
-            AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory atypeFactory) {
-        super(type, element);
-        this.typeParam = type;
-        this.atypeFactory = atypeFactory;
-    }
+        for (TypeCompound anno : upperBounds) {
+          int boundIndex = anno.position.bound_index + boundIndexOffset;
 
-    /**
-     * Cached {lower-bound, upper-bound} target pair. Lazily initialized in {@link
-     * #annotatedTargets()}; populated at most once per applier instance.
-     */
-    private TargetType @MonotonicNonNull [] cachedAnnotatedTargets;
+          if (boundIndex < 0 || boundIndex >= bounds.size()) {
+            throw new BugInCF(
+                "Invalid bound index on element annotation ( "
+                    + anno
+                    + " ) "
+                    + "for type ( "
+                    + typeParam
+                    + " ) with "
+                    + "upper bound ( "
+                    + typeParam.getUpperBound()
+                    + " ) "
+                    + "and boundIndex( "
+                    + boundIndex
+                    + " ) ");
+          }
 
-    /**
-     * Returns the lower bound and upper bound targets.
-     *
-     * @return the lower bound and upper bound targets
-     */
-    @Override
-    protected TargetType[] annotatedTargets() {
-        TargetType[] result = cachedAnnotatedTargets;
-        if (result == null) {
-            result = new TargetType[] {lowerBoundTarget(), upperBoundTarget()};
-            cachedAnnotatedTargets = result;
+          bounds.get(boundIndex).replaceAnnotation(anno); // TODO: WHY NOT ADD?
         }
-        return result;
+        // Do not summarize the bounds here: see the matching comment in
+        // TypeFromTypeTreeVisitor#visitTypeParameter.
+
+      } else {
+        upperBoundType.addAnnotations(upperBounds);
+      }
     }
+  }
 
-    /**
-     * Returns the parameter_index of anno's TypeAnnotationPosition which will actually point to the
-     * type parameter's index in its enclosing type parameter list.
-     *
-     * @return the parameter_index of anno's TypeAnnotationPosition which will actually point to the
-     *     type parameter's index in its enclosing type parameter list
-     */
-    @Override
-    public int getTypeCompoundIndex(TypeCompound anno) {
-        return anno.getPosition().parameter_index;
+  /**
+   * In the event of multiple annotations on an AnnotatedNullType lower bound we want to preserve
+   * the multiple annotations so that a type.invalid error is issued later.
+   *
+   * @param annos the annotations to add to the lower bound
+   */
+  private void applyLowerBounds(List<? extends AnnotationMirror> annos) {
+    if (!annos.isEmpty()) {
+      AnnotatedTypeMirror lowerBound = typeParam.getLowerBound();
+
+      for (AnnotationMirror anno : annos) {
+        lowerBound.addAnnotation(anno);
+      }
     }
+  }
 
-    /**
-     * @param targeted the list of annotations that were on the lower/upper bounds of the type
-     *     parameter
-     *     <p>Note: When handling type parameters we NEVER add primary annotations to the type
-     *     parameter. Primary annotations are reserved for the use of a type parameter
-     *     (e.g. @Nullable T t; )
-     *     <p>If an annotation is present on the type parameter itself, it represents the
-     *     lower-bound annotation of that type parameter. Any annotation on the extends bound of a
-     *     type parameter is placed on that bound.
-     */
-    @Override
-    protected void handleTargeted(List<TypeCompound> targeted)
-            throws UnexpectedAnnotationLocationException {
-        int paramIndex = getElementIndex();
-        List<TypeCompound> upperBoundAnnos = new ArrayList<>();
-        List<TypeCompound> lowerBoundAnnos = new ArrayList<>();
+  /**
+   * Apply the component annotation.
+   *
+   * @param anno the compound type
+   * @throws UnexpectedAnnotationLocationException when an unexpected annotation location is
+   *     encountered
+   */
+  private void applyComponentAnnotation(TypeCompound anno)
+      throws UnexpectedAnnotationLocationException {
+    AnnotatedTypeMirror upperBoundType = typeParam.getUpperBound();
 
-        for (TypeCompound anno : targeted) {
-            if (anno.position.parameter_index != paramIndex
-                    || !atypeFactory.isSupportedQualifierOrAlias(anno)) {
-                continue;
-            }
+    // Determine the target type, then dispatch on it.
+    AnnotatedTypeMirror targetType;
+    if (anno.position.type == upperBoundTarget()) {
+      if (upperBoundType.getKind() == TypeKind.INTERSECTION) {
+        List<AnnotatedTypeMirror> bounds = ((AnnotatedIntersectionType) upperBoundType).getBounds();
+        int boundIndex =
+            anno.position.bound_index + ElementAnnotationUtil.getBoundIndexOffset(bounds);
 
-            if (ElementAnnotationUtil.isOnComponentType(anno)) {
-                applyComponentAnnotation(anno);
-            } else if (anno.position.type == upperBoundTarget()) {
-                upperBoundAnnos.add(anno);
-            } else {
-                lowerBoundAnnos.add(anno);
-            }
+        if (boundIndex < 0 || boundIndex >= bounds.size()) {
+          throw new BugInCF(
+              "Invalid bound index on element annotation ( "
+                  + anno
+                  + " ) "
+                  + "for type ( "
+                  + typeParam
+                  + " ) with upper bound ( "
+                  + typeParam.getUpperBound()
+                  + " )");
         }
-
-        applyLowerBounds(lowerBoundAnnos);
-        applyUpperBounds(upperBoundAnnos);
+        targetType = bounds.get(boundIndex);
+      } else {
+        targetType = upperBoundType;
+      }
+    } else {
+      targetType = typeParam.getLowerBound();
     }
 
-    /**
-     * Applies a list of annotations to the upperBound of the type parameter. If the type of the
-     * upper bound is an intersection we must first find the correct location for each annotation.
-     */
-    private void applyUpperBounds(List<TypeCompound> upperBounds) {
-        if (!upperBounds.isEmpty()) {
-            AnnotatedTypeMirror upperBoundType = typeParam.getUpperBound();
-
-            if (upperBoundType.getKind() == TypeKind.INTERSECTION) {
-                List<AnnotatedTypeMirror> bounds =
-                        ((AnnotatedIntersectionType) upperBoundType).getBounds();
-                int boundIndexOffset = ElementAnnotationUtil.getBoundIndexOffset(bounds);
-
-                for (TypeCompound anno : upperBounds) {
-                    int boundIndex = anno.position.bound_index + boundIndexOffset;
-
-                    if (boundIndex < 0 || boundIndex >= bounds.size()) {
-                        throw new BugInCF(
-                                "Invalid bound index on element annotation ( "
-                                        + anno
-                                        + " ) "
-                                        + "for type ( "
-                                        + typeParam
-                                        + " ) with "
-                                        + "upper bound ( "
-                                        + typeParam.getUpperBound()
-                                        + " ) "
-                                        + "and boundIndex( "
-                                        + boundIndex
-                                        + " ) ");
-                    }
-
-                    bounds.get(boundIndex).replaceAnnotation(anno); // TODO: WHY NOT ADD?
-                }
-                // Do not summarize the bounds here: see the matching comment in
-                // TypeFromTypeTreeVisitor#visitTypeParameter.
-
-            } else {
-                upperBoundType.addAnnotations(upperBounds);
-            }
-        }
-    }
-
-    /**
-     * In the event of multiple annotations on an AnnotatedNullType lower bound we want to preserve
-     * the multiple annotations so that a type.invalid error is issued later.
-     *
-     * @param annos the annotations to add to the lower bound
-     */
-    private void applyLowerBounds(List<? extends AnnotationMirror> annos) {
-        if (!annos.isEmpty()) {
-            AnnotatedTypeMirror lowerBound = typeParam.getLowerBound();
-
-            for (AnnotationMirror anno : annos) {
-                lowerBound.addAnnotation(anno);
-            }
-        }
-    }
-
-    /**
-     * Apply the component annotation.
-     *
-     * @param anno the compound type
-     * @throws UnexpectedAnnotationLocationException when an unexpected annotation location is
-     *     encountered
-     */
-    private void applyComponentAnnotation(TypeCompound anno)
-            throws UnexpectedAnnotationLocationException {
-        AnnotatedTypeMirror upperBoundType = typeParam.getUpperBound();
-
-        // Determine the target type, then dispatch on it.
-        AnnotatedTypeMirror targetType;
-        if (anno.position.type == upperBoundTarget()) {
-            if (upperBoundType.getKind() == TypeKind.INTERSECTION) {
-                List<AnnotatedTypeMirror> bounds =
-                        ((AnnotatedIntersectionType) upperBoundType).getBounds();
-                int boundIndex =
-                        anno.position.bound_index
-                                + ElementAnnotationUtil.getBoundIndexOffset(bounds);
-
-                if (boundIndex < 0 || boundIndex >= bounds.size()) {
-                    throw new BugInCF(
-                            "Invalid bound index on element annotation ( "
-                                    + anno
-                                    + " ) "
-                                    + "for type ( "
-                                    + typeParam
-                                    + " ) with upper bound ( "
-                                    + typeParam.getUpperBound()
-                                    + " )");
-                }
-                targetType = bounds.get(boundIndex);
-            } else {
-                targetType = upperBoundType;
-            }
-        } else {
-            targetType = typeParam.getLowerBound();
-        }
-
-        ElementAnnotationUtil.annotateViaTypeAnnoPosition(
-                targetType, Collections.singletonList(anno));
-    }
+    ElementAnnotationUtil.annotateViaTypeAnnoPosition(targetType, Collections.singletonList(anno));
+  }
 }

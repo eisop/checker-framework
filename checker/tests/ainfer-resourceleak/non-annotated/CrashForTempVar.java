@@ -4,23 +4,23 @@
  */
 public abstract class CrashForTempVar<T extends Number> {
 
-    private final CrashForTempVar<T> _base;
+  private final CrashForTempVar<T> _base;
 
-    protected CrashForTempVar(final CrashForTempVar<T> base) {
-        _base = base;
-    }
+  protected CrashForTempVar(final CrashForTempVar<T> base) {
+    _base = base;
+  }
 
-    public T getValue() {
-        return _base.getValue();
-    }
+  public T getValue() {
+    return _base.getValue();
+  }
 
-    protected CrashForTempVar<T> getBase() {
-        return _base;
-    }
+  protected CrashForTempVar<T> getBase() {
+    return _base;
+  }
 
-    protected abstract boolean evaluateLayer(final T baseValue, final T testValue);
+  protected abstract boolean evaluateLayer(final T baseValue, final T testValue);
 
-    public boolean evaluate(final T testValue) {
-        return evaluateLayer(getBase().getValue(), testValue);
-    }
+  public boolean evaluate(final T testValue) {
+    return evaluateLayer(getBase().getValue(), testValue);
+  }
 }

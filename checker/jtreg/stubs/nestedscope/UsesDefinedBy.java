@@ -13,5 +13,5 @@ package nestedscope;
 // scope ("DefinedByExample.Api") that is itself a field access, not a simple name -- see that
 // file for the construct this pins.
 public class UsesDefinedBy {
-    void bar() {}
+  void bar() {}
 }

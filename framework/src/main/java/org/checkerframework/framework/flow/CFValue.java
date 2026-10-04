@@ -1,8 +1,7 @@
 package org.checkerframework.framework.flow;
 
-import org.checkerframework.javacutil.AnnotationMirrorSet;
-
 import javax.lang.model.type.TypeMirror;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 // TODO: CFAbstractValue is also a set of annotations and a TypeMirror.
 // This documentation does not clarify how this class is different.
@@ -11,17 +10,17 @@ import javax.lang.model.type.TypeMirror;
  */
 public class CFValue extends CFAbstractValue<CFValue> {
 
-    /**
-     * Creates a new CFValue.
-     *
-     * @param analysis the analysis
-     * @param annotations the annotations
-     * @param underlyingType the underlying type
-     */
-    public CFValue(
-            CFAbstractAnalysis<CFValue, ?, ?> analysis,
-            AnnotationMirrorSet annotations,
-            TypeMirror underlyingType) {
-        super(analysis, annotations, underlyingType);
-    }
+  /**
+   * Creates a new CFValue.
+   *
+   * @param analysis the analysis
+   * @param annotations the annotations
+   * @param underlyingType the underlying type
+   */
+  public CFValue(
+      CFAbstractAnalysis<CFValue, ?, ?> analysis,
+      AnnotationMirrorSet annotations,
+      TypeMirror underlyingType) {
+    super(analysis, annotations, underlyingType);
+  }
 }

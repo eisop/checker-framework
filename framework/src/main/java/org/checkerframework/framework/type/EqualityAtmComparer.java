@@ -1,10 +1,9 @@
 package org.checkerframework.framework.type;
 
+import javax.lang.model.type.TypeMirror;
 import org.checkerframework.checker.interning.qual.EqualsMethod;
 import org.checkerframework.framework.type.visitor.EquivalentAtmComboScanner;
 import org.checkerframework.javacutil.AnnotationUtils;
-
-import javax.lang.model.type.TypeMirror;
 
 /**
  * Compares two annotated type mirrors for structural equality using only the primary annotations
@@ -23,65 +22,64 @@ import javax.lang.model.type.TypeMirror;
  */
 public class EqualityAtmComparer extends EquivalentAtmComboScanner<Boolean, Void> {
 
-    /** Create an instance. */
-    public EqualityAtmComparer() {}
+  /** Create an instance. */
+  public EqualityAtmComparer() {}
 
-    /**
-     * Returns true if {@code type1} and {@code type2} have equivalent sets of annotations.
-     *
-     * @param type1 a type
-     * @param type2 a type
-     * @return true if {@code type1} and {@code type2} have equivalent sets of annotations
-     */
-    protected boolean arePrimaryAnnosEqual(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
-        return AnnotationUtils.areSame(type1.getAnnotationsField(), type2.getAnnotationsField());
+  /**
+   * Returns true if {@code type1} and {@code type2} have equivalent sets of annotations.
+   *
+   * @param type1 a type
+   * @param type2 a type
+   * @return true if {@code type1} and {@code type2} have equivalent sets of annotations
+   */
+  protected boolean arePrimaryAnnosEqual(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
+    return AnnotationUtils.areSame(type1.getAnnotationsField(), type2.getAnnotationsField());
+  }
+
+  /**
+   * Returns true if the twe types are the same.
+   *
+   * @param type1 the first type to compare
+   * @param type2 the second type to compare
+   * @return true if the twe types are the same
+   */
+  @EqualsMethod // to make Interning Checker permit the == comparison
+  protected boolean compare(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
+    if (type1 == type2) {
+      return true;
+    }
+    if (type1 == null || type2 == null) {
+      return false;
     }
 
-    /**
-     * Returns true if the twe types are the same.
-     *
-     * @param type1 the first type to compare
-     * @param type2 the second type to compare
-     * @return true if the twe types are the same
-     */
-    @EqualsMethod // to make Interning Checker permit the == comparison
-    protected boolean compare(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
-        if (type1 == type2) {
-            return true;
-        }
-        if (type1 == null || type2 == null) {
-            return false;
-        }
+    TypeMirror ut1 = type1.underlyingType;
+    TypeMirror ut2 = type2.underlyingType;
+    @SuppressWarnings("TypeEquals") // TODO
+    boolean sameUnderlyingType = (ut1 == ut2) || ut1.equals(ut2);
+    return sameUnderlyingType && arePrimaryAnnosEqual(type1, type2);
+  }
 
-        TypeMirror ut1 = type1.underlyingType;
-        TypeMirror ut2 = type2.underlyingType;
-        @SuppressWarnings("TypeEquals") // TODO
-        boolean sameUnderlyingType = (ut1 == ut2) || ut1.equals(ut2);
-        return sameUnderlyingType && arePrimaryAnnosEqual(type1, type2);
-    }
+  @SuppressWarnings("interning:not.interned")
+  @Override
+  protected Boolean scanWithNull(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, Void aVoid) {
+    // one of them should be null, therefore they are only equal if the other is null
+    return type1 == type2;
+  }
 
-    @SuppressWarnings("interning:not.interned")
-    @Override
-    protected Boolean scanWithNull(
-            AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, Void aVoid) {
-        // one of them should be null, therefore they are only equal if the other is null
-        return type1 == type2;
-    }
+  @Override
+  protected Boolean scan(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, Void v) {
+    return compare(type1, type2) && reduce(true, super.scan(type1, type2, v));
+  }
 
-    @Override
-    protected Boolean scan(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, Void v) {
-        return compare(type1, type2) && reduce(true, super.scan(type1, type2, v));
+  /** Used to combine the results from component types or a type and its component types. */
+  @Override
+  protected Boolean reduce(Boolean r1, Boolean r2) {
+    if (r1 == null) {
+      return r2;
+    } else if (r2 == null) {
+      return r1;
+    } else {
+      return r1 && r2;
     }
-
-    /** Used to combine the results from component types or a type and its component types. */
-    @Override
-    protected Boolean reduce(Boolean r1, Boolean r2) {
-        if (r1 == null) {
-            return r2;
-        } else if (r2 == null) {
-            return r1;
-        } else {
-            return r1 && r2;
-        }
-    }
+  }
 }

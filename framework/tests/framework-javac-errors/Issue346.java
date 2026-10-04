@@ -4,6 +4,6 @@
 class Before {}
 
 class Context {
-    // :: error: cannot find symbol
-    Unknown f;
+  // :: error: cannot find symbol
+  Unknown f;
 }

@@ -10,8 +10,8 @@
 import org.checkerframework.checker.tainting.qual.Untainted;
 
 public class InstanceofLintOptionDisabled {
-    void bar(Object o) {
-        if (o instanceof @Untainted String s) {}
-        if (o instanceof @Untainted String) {}
-    }
+  void bar(Object o) {
+    if (o instanceof @Untainted String s) {}
+    if (o instanceof @Untainted String) {}
+  }
 }

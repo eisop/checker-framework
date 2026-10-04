@@ -15,6 +15,6 @@ import org.checkerframework.framework.source.SuppressWarningsPrefix;
 // int.class is for @SubstringIndexFor
 @RelevantJavaTypes({CharSequence.class, Object[].class, int.class})
 public class SubstringIndexChecker extends BaseTypeChecker {
-    /** Creates a SubstringIndexChecker. */
-    public SubstringIndexChecker() {}
+  /** Creates a SubstringIndexChecker. */
+  public SubstringIndexChecker() {}
 }

@@ -19,46 +19,46 @@ import org.checkerframework.framework.testchecker.nontopdefault.qual.NTDTop;
 // This test locks in the CF behavior that investigation verified correct.
 @SuppressWarnings("inconsistent.constructor.type") // not the point of this test
 class CaptureGlbWildcardBound {
-    interface Bar {}
+  interface Bar {}
 
-    interface Foo<T extends @NTDTop Object> {
-        T get();
-    }
+  interface Foo<T extends @NTDTop Object> {
+    T get();
+  }
 
-    interface FooMid<T extends @NTDMiddle Object> {
-        T get();
-    }
+  interface FooMid<T extends @NTDMiddle Object> {
+    T get();
+  }
 
-    // Implicit wildcard extends bound: Bar defaults to the type-use default @NTDMiddle, which is
-    // below the @NTDTop parameter bound.  glb(@NTDMiddle Bar, @NTDTop Object) == @NTDMiddle Bar, so
-    // x.get() is @NTDMiddle.
-    void implicitBound(Foo<? extends Bar> x) {
-        @NTDMiddle Object m = x.get();
-    }
+  // Implicit wildcard extends bound: Bar defaults to the type-use default @NTDMiddle, which is
+  // below the @NTDTop parameter bound.  glb(@NTDMiddle Bar, @NTDTop Object) == @NTDMiddle Bar, so
+  // x.get() is @NTDMiddle.
+  void implicitBound(Foo<? extends Bar> x) {
+    @NTDMiddle Object m = x.get();
+  }
 
-    // Explicit @NTDMiddle wildcard extends bound: same glb, @NTDMiddle.
-    void explicitMiddleBound(Foo<? extends @NTDMiddle Bar> x) {
-        @NTDMiddle Object m = x.get();
-    }
+  // Explicit @NTDMiddle wildcard extends bound: same glb, @NTDMiddle.
+  void explicitMiddleBound(Foo<? extends @NTDMiddle Bar> x) {
+    @NTDMiddle Object m = x.get();
+  }
 
-    // Discriminating control: an explicit @NTDTop wildcard extends bound equals the parameter
-    // bound, so the glb is @NTDTop, which is not assignable to @NTDMiddle.  This confirms the glb
-    // machinery actually varies with the wildcard's extends bound.
-    void explicitTopBound(Foo<? extends @NTDTop Bar> x) {
-        // :: error: (assignment.type.incompatible)
-        @NTDMiddle Object m = x.get();
-    }
+  // Discriminating control: an explicit @NTDTop wildcard extends bound equals the parameter
+  // bound, so the glb is @NTDTop, which is not assignable to @NTDMiddle.  This confirms the glb
+  // machinery actually varies with the wildcard's extends bound.
+  void explicitTopBound(Foo<? extends @NTDTop Bar> x) {
+    // :: error: (assignment.type.incompatible)
+    @NTDMiddle Object m = x.get();
+  }
 
-    // The parameter bound constrains a less-precise wildcard bound: with a @NTDMiddle parameter
-    // bound, a @NTDTop wildcard extends bound is pulled down by the glb to @NTDMiddle, so x.get()
-    // is @NTDMiddle (not the wildcard's @NTDTop).  A no-error assertion here holds only if the glb
-    // is taken from both sides.
-    void midParamTopWildcard(FooMid<? extends @NTDTop Bar> x) {
-        @NTDMiddle Object m = x.get();
-    }
+  // The parameter bound constrains a less-precise wildcard bound: with a @NTDMiddle parameter
+  // bound, a @NTDTop wildcard extends bound is pulled down by the glb to @NTDMiddle, so x.get()
+  // is @NTDMiddle (not the wildcard's @NTDTop).  A no-error assertion here holds only if the glb
+  // is taken from both sides.
+  void midParamTopWildcard(FooMid<? extends @NTDTop Bar> x) {
+    @NTDMiddle Object m = x.get();
+  }
 
-    // Both sides @NTDMiddle (the implicit default): glb is @NTDMiddle.
-    void midParamImplicit(FooMid<? extends Bar> x) {
-        @NTDMiddle Object m = x.get();
-    }
+  // Both sides @NTDMiddle (the implicit default): glb is @NTDMiddle.
+  void midParamImplicit(FooMid<? extends Bar> x) {
+    @NTDMiddle Object m = x.get();
+  }
 }
