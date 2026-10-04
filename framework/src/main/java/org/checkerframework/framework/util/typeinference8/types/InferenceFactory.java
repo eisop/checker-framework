@@ -931,8 +931,8 @@ public class InferenceFactory {
 
         if (enclosingType.getKind() == TypeKind.DECLARED && memRefKind.isUnbound()) {
             // If compileTimeDeclaration is declared in a super class, then the receiver type is
-            // changed
-            // to that super type. For method references, it should remain the given enclosing type.
+            // changed to that super type. For method references, it should remain the given
+            // enclosing type.
             compileTimeType.setReceiverType((AnnotatedDeclaredType) enclosingType);
         }
 
