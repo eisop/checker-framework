@@ -185,7 +185,7 @@ public abstract class JavaExpression {
      * @see #isUnmodifiableByOtherCode
      * @deprecated use {@link #isAssignableByOtherCode}
      */
-    @Deprecated(since = "2024-04-30")
+    @Deprecated // 2024-04-30
     @Pure
     public boolean isUnassignableByOtherCode() {
         return !isAssignableByOtherCode();
@@ -221,7 +221,7 @@ public abstract class JavaExpression {
      * @see #isUnassignableByOtherCode
      * @deprecated use {@link #isModifiableByOtherCode}
      */
-    @Deprecated(since = "2024-04-30")
+    @Deprecated // 2024-04-30
     @Pure
     public boolean isUnmodifiableByOtherCode() {
         return !isModifiableByOtherCode();
