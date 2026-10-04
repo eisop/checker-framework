@@ -30,7 +30,7 @@ from release_utils import (
     prompt_yes_no,
     set_umask,
 )
-from release_vars import (  # ty: ignore # TODO: limitation in ty
+from release_vars import (
     ANNO_FILE_UTILITIES,
     ANNO_TOOLS,
     CF_VERSION,

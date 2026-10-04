@@ -264,13 +264,13 @@ def push_changes_prompt_if_fail(repo_root: Path) -> None:
     """
     while True:
         cmd = f"(cd {repo_root} && git push --tags)"
-        result = os.system(cmd)
+        subprocess.run(["git", "push", "--tags"], cwd=repo_root, check=False)
         cmd = f"(cd {repo_root} && git push origin master)"
-        result = os.system(cmd)
-        if result == 0:
+        result = subprocess.run(["git", "push", "origin", "master"], cwd=repo_root, check=False)
+        if result.returncode == 0:
             break
         print(
-            f"Could not push from: {repo_root}; result={result} for command: `{cmd}`"
+            f"Could not push from: {repo_root}; result={result.returncode} for command: `{cmd}`"
             f" in {pathlib.Path.cwd()}"
         )
         if not prompt_yn(

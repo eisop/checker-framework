@@ -14,7 +14,7 @@ import zipfile
 from pathlib import Path
 
 from release_errors import ReleaseError
-from release_utils import (  # ty: ignore # TODO: limitation in ty
+from release_utils import (
     are_in_file,
     delete,
     delete_directory,
