@@ -344,12 +344,7 @@ public class ValueTransfer extends CFTransfer {
      */
     private @Nullable List<? extends Number> getNumericalValues(
             Node subNode, TransferInput<CFValue, CFStore> p) {
-        CFValue value = p.getValueOfSubNode(subNode);
-        // Because of crash when using `-Acfgviz=...,verbose`. TODO: fix.
-        if (value == null) {
-            return null;
-        }
-        AnnotationMirror valueAnno = getValueAnnotation(value);
+        AnnotationMirror valueAnno = getValueAnnotation(subNode, p);
         return getNumericalValues(subNode, valueAnno);
     }
 
@@ -428,12 +423,7 @@ public class ValueTransfer extends CFTransfer {
      */
     private boolean isIntRange(Node subNode, TransferInput<CFValue, CFStore> p) {
         CFValue value = p.getValueOfSubNode(subNode);
-        try {
-            return atypeFactory.isIntRange(value.getAnnotations());
-        } catch (Exception e) {
-            // Because of crash when using `-Acfgviz=...,verbose`. TODO: fix.
-            return false;
-        }
+        return atypeFactory.isIntRange(value.getAnnotations());
     }
 
     /**
@@ -459,12 +449,7 @@ public class ValueTransfer extends CFTransfer {
         if (isIntRange(node, p)) {
             return true;
         }
-        CFValue cfValue = p.getValueOfSubNode(node);
-        // Because of crash when using `-Acfgviz=...,verbose`. TODO: fix.
-        if (cfValue == null) {
-            return false;
-        }
-        return isIntegralUnknownVal(node, getValueAnnotation(cfValue));
+        return isIntegralUnknownVal(node, getValueAnnotation(p.getValueOfSubNode(node)));
     }
 
     /**
@@ -1220,15 +1205,8 @@ public class ValueTransfer extends CFTransfer {
             CFStore elseStore,
             boolean isLoopCondition) {
 
-        AnnotationMirror leftAnno;
-        AnnotationMirror rightAnno;
-        try {
-            leftAnno = getValueAnnotation(leftValue);
-            rightAnno = getValueAnnotation(rightValue);
-        } catch (Exception e) {
-            // Because of crash when using `-Acfgviz=...,verbose`. TODO: fix.
-            return null;
-        }
+        AnnotationMirror leftAnno = getValueAnnotation(leftValue);
+        AnnotationMirror rightAnno = getValueAnnotation(rightValue);
 
         if (atypeFactory.isIntRange(leftAnno)
                 || atypeFactory.isIntRange(rightAnno)
