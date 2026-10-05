@@ -46,7 +46,8 @@ if [ "$arg" != "part1" ]; then
   ./gradlew junitPart2 -x javadoc -x allJavadoc --warning-mode=all --no-build-cache
 fi
 
-if [ "$arg" = "both" ]; then
+# Part 2 is the shorter part, so it runs the clean check when the parts are run separately.
+if [ "$arg" != "part1" ]; then
   # Test clean task
   ./gradlew clean
   ./gradlew clean
