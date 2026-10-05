@@ -56,7 +56,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
-import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
@@ -1155,15 +1154,19 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             // method.getElement().getKind() != ElementKind.CONSTRUCTOR) {
             AnnotatedTypeMirror rcv =
                     receiverType != null ? receiverType : atypeFactory.getReceiverType(tree);
-            AnnotationMirrorSet receiverAnnos = rcv.getAnnotations();
-            AnnotatedTypeMirror methodReceiver = methodReceiverType.getErased();
-            AnnotatedTypeMirror treeReceiver = methodReceiver.shallowCopy(false);
-            treeReceiver.addAnnotations(rcv.getEffectiveAnnotations());
-            // If receiver is Nullable, then we don't want to issue a warning about method
-            // invocability (we'd rather have only the "dereference.of.nullable" message).
-            if (treeReceiver.hasAnnotation(NULLABLE)
-                    || receiverAnnos.contains(MONOTONIC_NONNULL)
-                    || treeReceiver.hasAnnotation(POLYNULL)) {
+            // If the receiver may be null, then do not check whether the method can be invoked on
+            // it: visitMemberSelect already issues "dereference.of.nullable", and a second
+            // diagnostic about the receiver would only repeat that one.
+            //
+            // The test is the one of checkForNullability, which issues "dereference.of.nullable":
+            // the receiver does not have the effective annotation @NonNull.  That covers
+            // @Nullable, @MonotonicNonNull, and @PolyNull, and any qualifier that the hierarchy
+            // may gain.  Testing for those three, instead, could skip this check for a receiver
+            // for which no "dereference.of.nullable" is issued, and so lose an error.  Here, every
+            // receiver that is skipped does get "dereference.of.nullable": a non-static method
+            // that is not invoked on this or super is called through a member select, which
+            // visitMemberSelect checks.
+            if (!rcv.hasEffectiveAnnotation(NONNULL)) {
                 return;
             }
         }
