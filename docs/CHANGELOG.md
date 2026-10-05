@@ -3,21 +3,6 @@
 <!-- markdownlint-disable no-duplicate-heading -->
 <!-- pyml disable no-duplicate-heading -->
 
-## Version 3.54.1 (2026-04-01)
-
-### User-visible changes
-
-The Checker Framework runs under JDK 26 -- that is, it runs on a version 26 JVM.
-
-Removed deprecated command-line option `-AskipDirs`; use `-AskipFiles`.
-
-### Implementation details
-
-Removed deprecated method `ObjectCreationNode.getConstructor()`; use
-`getTypeToInstantiate()`.
-
-### Closed issues
-
 ## Version 3.49.5-eisop2 (June ?, 2026)
 
 ### User-visible changes
@@ -392,10 +377,11 @@ Removed deprecated command-line option `-AskipDirs`; use `-AskipFiles`.
 
 ### Implementation details
 
-In `AnnotatedTypeMirror`:
-
-- Renamed `getEffectiveAnnotation*()` to `getAnnotation*()`.
-- Renamed `hasEffectiveAnnotation*()` to `hasAnnotation*()`.
+In `AnnotatedTypeMirror`, typetools renamed `getEffectiveAnnotation*()` to
+`getAnnotation*()` and `hasEffectiveAnnotation*()` to `hasAnnotation*()`.  EISOP
+does not: `getAnnotation*()`, `hasAnnotation*()`, and `getAnnotations()` keep
+meaning the annotations on the type itself, as in javac, and the effective
+variants keep their names.
 
 Removed deprecated method `ObjectCreationNode.getConstructor()`; use
 `getTypeToInstantiate()`.
