@@ -117,7 +117,11 @@ To indicate the expected failure, insert the line
 
 directly preceding the expected error line.
 The error key may also be written in square brackets, `[<error-message-key>]`, as typetools does;
-both forms are accepted and mean the same.
+both forms are accepted and mean the same.  The existing tests of this repository use parentheses,
+so write new tests in the style of the directory they go in.  An import from typetools may bring
+test lines in square brackets; they work, and can be converted back to parentheses.  Square
+brackets that are followed by more text, as in `// :: warning: [unchecked] unchecked cast`, are
+javac's lint category and not an error key.
 If a warning rather than an error is expected, insert the line
 
 ```java
