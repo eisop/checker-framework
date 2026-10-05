@@ -48,6 +48,10 @@ git diff --exit-code docs/manual/contributors.tex \
     && echo "* After that pull request is merged, run: make -C docs/manual contributors.tex" \
     && false)
 
+# Check that the table of naming divergences from typetools in README-eisop.md is generated from
+# its data file.
+./checker/bin-devel/typetools-import-check.py --check-doc docs/developer/README-eisop.md
+
 # Check the definition of qualifiers in Checker Framework against the JDK
 ./checker/bin-devel/check-jdk-consistency.sh
 

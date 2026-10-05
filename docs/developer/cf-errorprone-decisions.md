@@ -629,8 +629,8 @@ example's `Makefile` built the jars itself via a nested `gradlew` invocation.)
 the other examples. Verified: `make all` (local mode) exits 0; the default mode fails
 cleanly with an unresolved-dependency error until the artifacts are published.
 
-**CI.** No workflow change is needed. `./gradlew test` (run by the existing
-`cftests-junit` job, whose primary JDK is 21) includes `:framework-errorprone:test`
+**CI.** No workflow change is needed. `./gradlew test` (run by the
+`cftests-junit-part1` job, whose primary JDK is 21) includes `:framework-errorprone:test`
 automatically when the module is present, and `settings.gradle` excludes the module on
 JDK <= 17. Confirmed with `gradlew test --dry-run`.
 
