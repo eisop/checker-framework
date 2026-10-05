@@ -75,11 +75,11 @@ spotless {
             // not the root project; format all .java and .ajava files in the sub-project
             target("**/*.java", "**/*.ajava")
         } else {
-            // The Annotation File Utilities are not a Gradle subproject here, so the root
-            // project formats their sources.  Their tests/ directory is not formatted: it
+            // The Annotation File Utilities and buildSrc are not Gradle subprojects here, so the
+            // root project formats their sources.  Their tests/ directory is not formatted: it
             // holds test inputs whose expected outputs (the .goal files) depend on the exact
             // formatting of the input.
-            target("annotation-file-utilities/src/**/*.java")
+            target("annotation-file-utilities/src/**/*.java", "buildSrc/src/**/*.java")
         }
         targetExclude(doNotFormat)
 
@@ -116,7 +116,7 @@ spotless {
 
             // removes semicolons at the end of lines
             removeSemicolons()
-            leadingTabsToSpaces(2)
+            leadingTabsToSpaces(4)
             trimTrailingWhitespace()
         }
 

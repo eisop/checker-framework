@@ -13,6 +13,6 @@ import org.gradle.process.ExecOperations
  *   }
  */
 interface InjectedExecOps {
-  @Inject
-  ExecOperations getExecOps()
+    @Inject
+    ExecOperations getExecOps()
 }
