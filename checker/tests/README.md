@@ -112,7 +112,7 @@ or by creating the test and observing the failure.
 To indicate the expected failure, insert the line
 
 ```java
-  // :: error: (<error-message-key>)
+  // :: error: [<error-message-key>]
 ```
 
 directly preceding the expected error line.
@@ -121,7 +121,7 @@ both forms are accepted and mean the same.
 If a warning rather than an error is expected, insert the line
 
 ```java
-  // :: warning: (<warning-message-key>)
+  // :: warning: [<warning-message-key>]
 ```
 
 If a stub parser warning is expected, insert the line
@@ -134,7 +134,7 @@ If multiple errors are expected on a single line, duplicate everything
 except the "//" comment characters, as in
 
 ```java
-  // :: error: (<error-message-key1>) :: error: (<error-message-key2>)
+  // :: error: [<error-message-key1>] :: error: [<error-message-key2>]
 ```
 
 If the expected failures line would be very long, you may break it across

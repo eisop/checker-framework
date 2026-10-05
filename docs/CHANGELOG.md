@@ -3,6 +3,21 @@
 <!-- markdownlint-disable no-duplicate-heading -->
 <!-- pyml disable no-duplicate-heading -->
 
+## Version 3.54.1 (2026-04-01)
+
+### User-visible changes
+
+The Checker Framework runs under JDK 26 -- that is, it runs on a version 26 JVM.
+
+Removed deprecated command-line option `-AskipDirs`; use `-AskipFiles`.
+
+### Implementation details
+
+Removed deprecated method `ObjectCreationNode.getConstructor()`; use
+`getTypeToInstantiate()`.
+
+### Closed issues
+
 ## Version 3.49.5-eisop2 (June ?, 2026)
 
 ### User-visible changes
@@ -366,6 +381,28 @@ typetools#399,
 typetools#2816,
 typetools#3203,
 typetools#8055.
+
+## Version 3.55.0 (2026-04-02)
+
+### User-visible changes
+
+The Checker Framework runs under JDK 26 -- that is, it runs on a version 26 JVM.
+
+Removed deprecated command-line option `-AskipDirs`; use `-AskipFiles`.
+
+### Implementation details
+
+In `AnnotatedTypeMirror`:
+
+- Renamed `getEffectiveAnnotation*()` to `getAnnotation*()`.
+- Renamed `hasEffectiveAnnotation*()` to `hasAnnotation*()`.
+
+Removed deprecated method `ObjectCreationNode.getConstructor()`; use
+`getTypeToInstantiate()`.
+
+### Closed issues
+
+\#7079, #7489, #7539.
 
 ## Version 3.54.0 (2026-03-02)
 

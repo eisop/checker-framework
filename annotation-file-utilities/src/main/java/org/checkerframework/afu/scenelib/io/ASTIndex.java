@@ -57,6 +57,7 @@ import com.sun.tools.javac.tree.JCTree;
 import org.checkerframework.afu.annotator.find.CaseUtils;
 import org.checkerframework.afu.scenelib.util.JVMNames;
 import org.checkerframework.afu.scenelib.util.coll.WrapperMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -183,8 +184,8 @@ public class ASTIndex extends WrapperMap<Tree, ASTRecord> {
     // better to save the current node's entry first, at a small cost to
     // the clarity of the code.)
     private class AstIndexVisitor extends SimpleTreeVisitor<Void, ASTRecord> {
-        private final Deque<Integer> counters = new ArrayDeque<Integer>();
-        private String inMethod = null;
+        private final Deque<Integer> counters = new ArrayDeque<>();
+        private @Nullable String inMethod = null;
 
         private void save(Tree node, ASTRecord rec, Kind kind, String sel) {
             if (node != null) {
@@ -481,7 +482,7 @@ public class ASTIndex extends WrapperMap<Tree, ASTRecord> {
             saveAll(node.getArguments(), rec, kind, ASTPath.ARGUMENT);
             if (classBody != null) {
                 Name name = classBody.getSimpleName();
-                String className = null;
+                String className;
                 if (name == null || name.toString().isEmpty()) {
                     int i = counters.pop();
                     counters.push(++i);

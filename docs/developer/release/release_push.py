@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from release_errors import ReleaseError
-from release_utils import (  # ty: ignore # TODO: limitation in ty
+from release_utils import (
     continue_or_exit,
     current_distribution_by_website,
     delete_directory,
@@ -24,7 +24,7 @@ from release_utils import (  # ty: ignore # TODO: limitation in ty
     set_umask,
     version_number_to_array,
 )
-from release_vars import (  # ty: ignore # TODO: limitation in ty
+from release_vars import (
     AFU_LIVE_RELEASES_DIR,
     ANNO_FILE_UTILITIES,
     CF_VERSION,
@@ -44,7 +44,7 @@ from release_vars import (  # ty: ignore # TODO: limitation in ty
     TMP_DIR,
     execute,
 )
-from sanity_checks import (  # ty: ignore # TODO: limitation in ty
+from sanity_checks import (
     javac_sanity_check,
     maven_sanity_check,
 )

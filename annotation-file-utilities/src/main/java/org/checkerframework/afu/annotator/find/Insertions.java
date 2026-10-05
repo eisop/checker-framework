@@ -168,7 +168,7 @@ public class Insertions implements Iterable<Insertion> {
 
         Set<Insertion> set = map.get(innerClass);
         if (set == null) {
-            set = new LinkedHashSet<Insertion>();
+            set = new LinkedHashSet<>();
             map.put(innerClass, set);
         }
 
@@ -394,8 +394,7 @@ public class Insertions implements Iterable<Insertion> {
                     int d = newArrayInnerTypeDepth(p);
                     if (d > 0) {
                         ASTPath temp = p;
-                        while (!temp.isEmpty()
-                                && (node == null || !(node instanceof NewArrayTree))) {
+                        while (!temp.isEmpty() && !(node instanceof NewArrayTree)) {
                             // TODO: avoid repeating work of newArrayInnerTypeDepth()
                             temp = temp.getParentPath();
                             node = ASTIndex.getNode(cut, rec.replacePath(temp));
@@ -490,10 +489,8 @@ public class Insertions implements Iterable<Insertion> {
                 topLevelTypePath = topLevelTypePath.getParentPath();
             } while (!topLevelTypePath.isEmpty());
             ASTRecord rec;
-            Tree.Kind kind;
             do {
                 topLevelTypePath = astack.pop();
-                kind = topLevelTypePath.getLast().getTreeKind();
                 rec = new ASTRecord(cut, className, methodName, fieldName, topLevelTypePath);
             } while (!(astack.isEmpty() || outerInsertions.containsKey(rec)));
 
@@ -548,7 +545,6 @@ public class Insertions implements Iterable<Insertion> {
                         default:
                             break;
                     }
-                    path = path.getParentPath();
                 }
             }
 
@@ -677,7 +673,7 @@ public class Insertions implements Iterable<Insertion> {
             // skip any declaration nodes
             while (i < n) {
                 ASTPath.ASTEntry entry = localTypePath.get(i);
-                kind = entry.getTreeKind();
+                Tree.Kind kind = entry.getTreeKind();
                 if (kind != Tree.Kind.METHOD && kind != Tree.Kind.VARIABLE) {
                     break;
                 }
@@ -688,7 +684,7 @@ public class Insertions implements Iterable<Insertion> {
             while (i < n) {
                 ASTPath.ASTEntry entry = localTypePath.get(i);
                 rec = rec.extend(entry);
-                kind = entry.getTreeKind();
+                Tree.Kind kind = entry.getTreeKind();
 
                 while (node instanceof AnnotatedTypeTree) {
                     node = ((AnnotatedTypeTree) node).getUnderlyingType();

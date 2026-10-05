@@ -162,7 +162,7 @@ public final class IndexFileParser {
                     found = st.sval;
                     break;
                 case StreamTokenizer.TT_NUMBER:
-                    found = "" + st.nval;
+                    found = String.valueOf(st.nval);
                     break;
                 case StreamTokenizer.TT_EOL:
                     found = "end of line";
@@ -171,7 +171,7 @@ public final class IndexFileParser {
                     found = "end of file";
                     break;
                 default:
-                    found = "'" + ((char) st.ttype) + "'";
+                    found = "'" + String.valueOf((char) st.ttype) + "'";
                     break;
             }
             throw new ParseException("Expected '" + c + "', found " + found);
@@ -243,7 +243,7 @@ public final class IndexFileParser {
             "volatile",
             "while",
         };
-        knownKeywords = new LinkedHashSet<String>();
+        knownKeywords = new LinkedHashSet<>();
         Collections.addAll(knownKeywords, knownKeywords_array);
     }
 
@@ -710,7 +710,7 @@ public final class IndexFileParser {
                 if (i >= 0) {
                     Set<String> importSet = scene.imports.get(annotationFullyQualifiedName);
                     if (importSet == null) {
-                        importSet = new TreeSet<String>();
+                        importSet = new TreeSet<>();
                         scene.imports.put(annotationFullyQualifiedName, importSet);
                     }
                     importSet.add(name);

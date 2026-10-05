@@ -166,7 +166,7 @@ public abstract class Annotations {
                         createValueAnnotation(
                                 adTarget, Arrays.asList("TYPE_PARAMETER", "TYPE_USE")));
 
-        typeQualifierMetaAnnotations = new HashSet<Annotation>();
+        typeQualifierMetaAnnotations = new HashSet<>();
         typeQualifierMetaAnnotations.add(aRetentionRuntime);
         typeQualifierMetaAnnotations.add(aTargetTypeUse);
 
@@ -178,7 +178,7 @@ public abstract class Annotations {
                         "'NonNull' in org/checkerframework/afu/scenelib/annotations/Annotations");
         aNonNull = new Annotation(adNonNull, noFieldValues);
 
-        standardDefs = new LinkedHashSet<AnnotationDef>();
+        standardDefs = new LinkedHashSet<>();
         standardDefs.add(adTarget);
         standardDefs.add(adDocumented);
         standardDefs.add(adRetention);

@@ -193,7 +193,7 @@ public class AnnotationVerifier {
                 Map<String, AnnotationRecorder> questionableAnns,
                 Map<String, AnnotationRecorder> correctAnns) {
             Set<AnnotationRecorder> unresolvedQuestionableAnns =
-                    new HashSet<AnnotationRecorder>(questionableAnns.values());
+                    new HashSet<>(questionableAnns.values());
 
             for (Map.Entry<String, AnnotationRecorder> entry : correctAnns.entrySet()) {
                 String name = entry.getKey();
@@ -448,7 +448,7 @@ public class AnnotationVerifier {
                 Map<String, AnnotationRecorder> questionableAnns,
                 Map<String, AnnotationRecorder> correctAnns) {
             Set<AnnotationRecorder> unresolvedQuestionableAnns =
-                    new HashSet<AnnotationRecorder>(questionableAnns.values());
+                    new HashSet<>(questionableAnns.values());
 
             for (Map.Entry<String, AnnotationRecorder> entry : correctAnns.entrySet()) {
                 String name = entry.getKey();
@@ -549,7 +549,7 @@ public class AnnotationVerifier {
                 Map<String, AnnotationRecorder> questionableAnns,
                 Map<String, AnnotationRecorder> correctAnns) {
             Set<AnnotationRecorder> unresolvedQuestionableAnns =
-                    new HashSet<AnnotationRecorder>(questionableAnns.values());
+                    new HashSet<>(questionableAnns.values());
 
             for (Map.Entry<String, AnnotationRecorder> entry : correctAnns.entrySet()) {
                 String name = entry.getKey();
@@ -657,18 +657,18 @@ public class AnnotationVerifier {
                 int[] index) {
             super(api);
             this.description = description;
-            fieldArgsName = new ArrayList<String>();
-            fieldArgsValue = new ArrayList<Object>();
+            fieldArgsName = new ArrayList<>();
+            fieldArgsValue = new ArrayList<>();
 
-            enumArgsName = new ArrayList<String>();
-            enumArgsDesc = new ArrayList<String>();
-            enumArgsValue = new ArrayList<String>();
+            enumArgsName = new ArrayList<>();
+            enumArgsDesc = new ArrayList<>();
+            enumArgsValue = new ArrayList<>();
 
-            innerAnnotationArgsName = new ArrayList<String>();
-            innerAnnotationArgsDesc = new ArrayList<String>();
+            innerAnnotationArgsName = new ArrayList<>();
+            innerAnnotationArgsDesc = new ArrayList<>();
             innerAnnotationMap = new HashMap<>();
 
-            arrayArgs = new ArrayList<String>();
+            arrayArgs = new ArrayList<>();
             arrayMap = new HashMap<>();
 
             if (typeRef != null) {

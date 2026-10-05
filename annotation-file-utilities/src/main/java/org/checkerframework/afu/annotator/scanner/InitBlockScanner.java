@@ -35,8 +35,6 @@ public class InitBlockScanner extends TreePathScanner<Void, Boolean> {
     private final Tree tree;
 
     private InitBlockScanner(Tree tree) {
-        this.index = -1;
-        this.done = false;
         this.tree = tree;
     }
 

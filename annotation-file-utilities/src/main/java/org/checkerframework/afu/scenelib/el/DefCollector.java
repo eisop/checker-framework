@@ -4,6 +4,7 @@ import org.checkerframework.afu.scenelib.Annotation;
 import org.checkerframework.afu.scenelib.field.AnnotationAFT;
 import org.checkerframework.afu.scenelib.field.AnnotationFieldType;
 import org.checkerframework.afu.scenelib.io.IndexFileWriter;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -28,7 +29,7 @@ public abstract class DefCollector {
      * annotation type, a {@link DefException} is thrown.
      */
     public DefCollector(AScene s) throws DefException {
-        defs = new LinkedHashSet<AnnotationDef>();
+        defs = new LinkedHashSet<>();
         collect(s);
     }
 
@@ -45,7 +46,8 @@ public abstract class DefCollector {
         return null;
     }
 
-    private void collect(AScene s) throws DefException {
+    private void collect(@UnderInitialization(DefCollector.class) DefCollector this, AScene s)
+            throws DefException {
         for (AElement p : s.packages.values()) {
             collect(p);
         }
