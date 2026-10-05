@@ -9,16 +9,16 @@
 import module java.base;
 
 String greeting() {
-  return "Hello, World!";
+    return "Hello, World!";
 }
 
 void main() {
-  IO.println(greeting());
-  String name = IO.readln("Please enter your name: ");
-  IO.print("Pleased to meet you, ");
-  IO.println(name);
-  var authors = List.of("James", "Bill", "Guy", "Alex", "Dan", "Gavin");
-  for (var author : authors) {
-    IO.println(name + ": " + name.length());
-  }
+    IO.println(greeting());
+    String name = IO.readln("Please enter your name: ");
+    IO.print("Pleased to meet you, ");
+    IO.println(name);
+    var authors = List.of("James", "Bill", "Guy", "Alex", "Dan", "Gavin");
+    for (var author : authors) {
+        IO.println(name + ": " + name.length());
+    }
 }
