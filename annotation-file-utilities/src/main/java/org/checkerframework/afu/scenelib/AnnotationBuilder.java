@@ -80,7 +80,7 @@ public class AnnotationBuilder {
         String fieldName;
         AnnotationFieldType aft; // the type for the elements
 
-        List<Object> arrayElements = new ArrayList<Object>();
+        List<Object> arrayElements = new ArrayList<>();
 
         SimpleArrayBuilder(String fieldName, AnnotationFieldType aft) {
             assert aft != null;

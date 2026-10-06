@@ -1,0 +1,153 @@
+plugins {
+    // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
+    // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/".
+    // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
+    id("com.diffplug.spotless") // The version number is in buildSrc/build.gradle.
+}
+
+// The spotless configuration of every project, applied by `apply plugin: "cf-spotless"` in
+// build.gradle, after it sets the extra properties that this script reads.
+
+// patterns of files to skip for individual sub-projects
+def perProjectDoNotFormat = [
+    "checker": [
+        "bin/.do-like-javac/**",
+        "bin-devel/.git-scripts/**",
+        "bin-devel/.html-tools/**",
+        "bin-devel/.plume-scripts/**",
+        "dist/**",
+        "tests/ainfer-*/annotated/**",
+        "tests/build/**",
+        "tests/calledmethods-delomboked/**",
+        "tests/nullness-javac-errors/**",
+    ],
+    "dataflow": ["manual/examples/**"],
+    "docs": [
+        "examples/BazelExample/bazel-BazelExample/**",
+        "examples/lombok/build/**",
+        "manual/plume-bib/.plume-scripts/**",
+    ],
+    "framework": [
+        "tests/build/**",
+        "tests/returnsreceiverdelomboked/**",
+    ],
+]
+spotless {
+    // If you add any formatters to this block that require dependencies, then you must also
+    // add them to spotlessPredeclare block.
+
+    // Never format files under build/ directory.
+    def doNotFormat = ["build/**"]
+    if (project != project.rootProject) {
+        if (perProjectDoNotFormat.containsKey(project.name)) {
+            doNotFormat += perProjectDoNotFormat[project.name]
+        }
+        // if (currentRuntimeJavaVersion < 14) {
+        doNotFormat += ["**/*record*/"]
+        // if (currentRuntimeJavaVersion < 16) {
+        // TODO: directories should be renamed `-switchexpr` or some such,
+        // as they  only contain examples for switch expressions, which were
+        // added in Java 14, not Java 17.
+        doNotFormat += ["**/java17/"]
+        // if (currentRuntimeJavaVersion < 21) {
+        doNotFormat += ["tests/**/java21/"]
+        // TODO: run Gradle on a JDK between 21 and 24.
+        if (currentRuntimeJavaVersion < 22) {
+            doNotFormat += ["tests/**/java22/"]
+        }
+        if (currentRuntimeJavaVersion < 25) {
+            doNotFormat += ["tests/**/java25/"]
+        }
+    }
+
+    format "misc", {
+        // define the files to apply `misc` to
+        target("*.md", "*.tex", ".gitignore")
+        targetExclude(doNotFormat)
+        // define the steps to apply to those files
+        leadingTabsToSpaces(2)
+        trimTrailingWhitespace()
+        // endWithNewline() // Don't want to end empty files with a newline
+    }
+
+    java {
+        if (project != project.rootProject) {
+            // not the root project; format all .java and .ajava files in the sub-project
+            target("**/*.java", "**/*.ajava")
+        } else {
+            // The Annotation File Utilities and buildSrc are not Gradle subprojects here, so the
+            // root project formats their sources.  Their tests/ directory is not formatted: it
+            // holds test inputs whose expected outputs (the .goal files) depend on the exact
+            // formatting of the input.
+            target("annotation-file-utilities/src/**/*.java", "buildSrc/src/**/*.java")
+        }
+        targetExclude(doNotFormat)
+
+        if (eisopFormatting) {
+            googleJavaFormat(libs.google.java.format.get().version).aosp()
+            importOrder("com", "jdk", "lib", "lombok", "org", "java", "javax")
+        } else {
+            googleJavaFormat(libs.google.java.format.get().version) // the formatter to apply to Java files
+        }
+        formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
+
+        // There are currently many tests with wildcard imports, so do not enable this for tests.
+        // TODO: Spotless has no easy way to only enable this for a subset of the target.
+        // forbidWildcardImports()
+    }
+
+    // Only define a groovyGradle task on the root project, for simplicity in setting the target pattern
+    if (project == project.rootProject) {
+        groovyGradle {
+            target("**/*.gradle")
+            targetExclude(doNotFormat)
+            if (eisopFormatting) {
+                leadingTabsToSpaces(4)
+            } else {
+                leadingTabsToSpaces(2)
+            }
+            trimTrailingWhitespace()
+            // endWithNewline() // Don't want to end empty files with a newline
+        }
+
+        groovy {
+            target("buildSrc/**/*.groovy")
+            importOrder()
+
+            // removes semicolons at the end of lines
+            removeSemicolons()
+            leadingTabsToSpaces(4)
+            trimTrailingWhitespace()
+        }
+
+        format "make", {
+            // define the files to apply `make` to
+            target("Makefile")
+            targetExclude(doNotFormat)
+            // define the steps to apply to those files
+            trimTrailingWhitespace()
+            endWithNewline()
+        }
+
+        // Don't do this, because it does not respect "ignore=true" in .editorconfig nor `doNotFormat` here.
+        // shell {
+        //   targetExclude doNotFormat
+        //   shfmt() // configuration is in .editorconfig
+        // }
+    }
+
+    // a useful task for debugging; prints exactly which files are getting formatted by spotless
+    tasks.register("printSpotlessTaskInputs") {
+        doLast {
+            project.tasks.forEach { task ->
+                if (task.name.contains("spotless")) {
+                    println("Inputs for task \"${task.name}\":")
+
+                    task.inputs.files.each { inputFile ->
+                        println("  Input: $inputFile")
+                    }
+                }
+            }
+        }
+    }
+}

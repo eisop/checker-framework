@@ -42,9 +42,12 @@ public class CastScanner extends CommonScanner {
     private static int prevOffset = -1;
     private static int nestLevels = 0;
 
+    /**
+     * Creates a new CastScanner.
+     *
+     * @param tree the tree
+     */
     private CastScanner(Tree tree) {
-        this.index = -1;
-        this.done = false;
         this.tree = tree;
     }
 
@@ -75,7 +78,7 @@ public class CastScanner extends CommonScanner {
     public static void addCastToMethod(String methodName, Integer offset) {
         List<Integer> offsetList = methodNameToCastOffsets.get(methodName);
         if (offsetList == null) {
-            offsetList = new ArrayList<Integer>();
+            offsetList = new ArrayList<>();
             methodNameToCastOffsets.put(methodName, offsetList);
         }
         if (methodName.equals(prevMethodName) && offset - prevOffset == 3) {

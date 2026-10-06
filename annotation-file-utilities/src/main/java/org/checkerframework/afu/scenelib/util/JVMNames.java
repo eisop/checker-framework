@@ -25,8 +25,10 @@ import javax.lang.model.type.TypeMirror;
 /** Class to generate class formatted names from Trees. */
 public class JVMNames {
 
-    /** Creates a new JVMNames. */
-    public JVMNames() {}
+    /** Do not instantiate. */
+    private JVMNames() {
+        throw new Error("Do not instantiate");
+    }
 
     /**
      * Converts a MethodTree into a JVML format method signature. There is probably an API to do
@@ -36,7 +38,7 @@ public class JVMNames {
      * @return a String signature of methodTree in jvml format
      * @deprecated use {@link #getJVMMethodSignature(MethodTree)}
      */
-    @Deprecated // use getJVMMethodSignature(MethodTree)
+    @Deprecated
     @InlineMe(
             replacement = "JVMNames.getJVMMethodSignature(methodTree)",
             imports = "org.checkerframework.afu.scenelib.util.JVMNames")
@@ -93,7 +95,7 @@ public class JVMNames {
      * @return a String signature of methodElement in JVML format
      * @deprecated use {@link #getJVMMethodSignature(ExecutableElement)}
      */
-    @Deprecated // use getJVMMethodSignature(ExecutableElement)
+    @Deprecated
     @InlineMe(
             replacement = "JVMNames.getJVMMethodSignature(methodElement)",
             imports = "org.checkerframework.afu.scenelib.util.JVMNames")

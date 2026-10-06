@@ -447,7 +447,7 @@ public class OptionalImplVisitor
             }
         }
 
-        if (thenStmt == null || !(thenStmt instanceof ExpressionStatementTree)) {
+        if (!(thenStmt instanceof ExpressionStatementTree)) {
             return;
         }
         ExpressionTree thenExpr = ((ExpressionStatementTree) thenStmt).getExpression();

@@ -148,7 +148,7 @@ public class GenericArrayLocationCriterion implements Criterion {
         } else if (leaf instanceof NewArrayTree && typePath != null) {
             child = ((NewArrayTree) leaf).getType();
         }
-        if (child != null && child instanceof MemberSelectTree) {
+        if (child instanceof MemberSelectTree) {
             JCExpression exp = ((JCFieldAccess) child).getExpression();
             if ((exp.type != null && exp.type.getKind() == TypeKind.PACKAGE)
                     || typePath == null
@@ -289,7 +289,6 @@ public class GenericArrayLocationCriterion implements Criterion {
                 if (leaf instanceof ParameterizedTypeTree) {
                     leaf = parent;
                     parentPath = parentPath.getParentPath();
-                    parent = parentPath.getLeaf();
                 }
                 if (!(leaf instanceof MemberSelectTree)) {
                     return false;
@@ -300,7 +299,6 @@ public class GenericArrayLocationCriterion implements Criterion {
                     return false;
                 }
                 locationRemaining.remove(locationRemaining.size() - 1);
-                leaf = fieldAccess.selected;
                 pathRemaining = parentPath;
                 // TreePath.getPath(pathRemaining.getCompilationUnit(), leaf);
             } else if (loc.step == TypePath.WILDCARD_BOUND

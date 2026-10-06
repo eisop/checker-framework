@@ -105,7 +105,7 @@ public class ATypeElementWithType extends ATypeElement {
         return new VivifyingMap<K, ATypeElementWithType>(new LinkedHashMap<>()) {
             @Override
             public ATypeElementWithType createValueFor(K k) {
-                return new ATypeElementWithType("" + k);
+                return new ATypeElementWithType(k.toString());
             }
 
             @Override

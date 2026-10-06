@@ -36,7 +36,8 @@ jobs:
       matrix:
         include:
           # --- Core tests on Primary JDK 21 ---
-          - {script: 'cftests-junit', java: {version: '21', experimental: false}}
+          - {script: 'cftests-junit-part1', java: {version: '21', experimental: false}}
+          - {script: 'cftests-junit-part2', java: {version: '21', experimental: false}}
           - {script: 'cftests-nonjunit', java: {version: '21', experimental: false}}
           # --- Downstream integration tests on Primary JDK 21 ---
           - {script: 'typecheck-part1', java: {version: '21', experimental: false}}
@@ -51,17 +52,20 @@ jobs:
           - {script: 'templatefora-checker', java: {version: '21', experimental: false}}
           - {script: 'misc', java: {version: '21', experimental: false}}
           # --- JDK 8 ---
-          - {script: 'cftests-junit', java: {version: '8', experimental: false}}
+          - {script: 'cftests-junit-part1', java: {version: '8', experimental: false}}
+          - {script: 'cftests-junit-part2', java: {version: '8', experimental: false}}
           - {script: 'cftests-nonjunit', java: {version: '8', experimental: false}}
           - {script: 'typecheck-part1', java: {version: '8', experimental: false}}
           - {script: 'typecheck-part2', java: {version: '8', experimental: false}}
           - {script: 'guava', java: {version: '8', experimental: false}}
           # --- JDK 28 (experimental) ---
-          - {script: 'cftests-junit', java: {version: '28', experimental: true}}
+          - {script: 'cftests-junit-part1', java: {version: '28', experimental: true}}
+          - {script: 'cftests-junit-part2', java: {version: '28', experimental: true}}
           - {script: 'cftests-nonjunit', java: {version: '28', experimental: true}}
           - {script: 'cftests-junit-jdk21', java: {version: '28', experimental: true}}
           # --- JDK 27 ---
-          - {script: 'cftests-junit', java: {version: '27', experimental: false}}
+          - {script: 'cftests-junit-part1', java: {version: '27', experimental: false}}
+          - {script: 'cftests-junit-part2', java: {version: '27', experimental: false}}
           - {script: 'cftests-nonjunit', java: {version: '27', experimental: false}}
           - {script: 'cftests-junit-jdk21', java: {version: '27', experimental: false}}
           - {script: 'typecheck-part1', java: {version: '27', experimental: false}}
@@ -73,11 +77,13 @@ jobs:
           - {script: 'jspecify-reference-checker', java: {version: '27', experimental: false}}
           - {script: 'templatefora-checker', java: {version: '27', experimental: false}}
           # --- JDK 25 ---
-          - {script: 'cftests-junit', java: {version: '25', experimental: false}}
+          - {script: 'cftests-junit-part1', java: {version: '25', experimental: false}}
+          - {script: 'cftests-junit-part2', java: {version: '25', experimental: false}}
           - {script: 'cftests-nonjunit', java: {version: '25', experimental: false}}
           - {script: 'cftests-junit-jdk21', java: {version: '25', experimental: false}}
           # --- JDK 17 ---
-          - {script: 'cftests-junit', java: {version: '17', experimental: false}}
+          - {script: 'cftests-junit-part1', java: {version: '17', experimental: false}}
+          - {script: 'cftests-junit-part2', java: {version: '17', experimental: false}}
           - {script: 'cftests-nonjunit', java: {version: '17', experimental: false}}
           - {script: 'cftests-junit-jdk21', java: {version: '17', experimental: false}}
           - {script: 'cftests-ajavachecks', java: {version: '17', experimental: false}}
@@ -85,7 +91,8 @@ jobs:
           - {script: 'daikon-part2', java: {version: '17', experimental: false}}
           - {script: 'daikon-part3', java: {version: '17', experimental: false}}
           # --- JDK 11 ---
-          - {script: 'cftests-junit', java: {version: '11', experimental: false}}
+          - {script: 'cftests-junit-part1', java: {version: '11', experimental: false}}
+          - {script: 'cftests-junit-part2', java: {version: '11', experimental: false}}
           - {script: 'cftests-nonjunit', java: {version: '11', experimental: false}}
           - {script: 'cftests-junit-jdk21', java: {version: '11', experimental: false}}
     continue-on-error: ${{ matrix.java.experimental }}

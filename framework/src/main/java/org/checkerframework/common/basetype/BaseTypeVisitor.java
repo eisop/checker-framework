@@ -1819,21 +1819,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (exitStore == null) {
             // If there is no regular exitStore, then the method cannot reach the regular exit and
             // there is no need to check anything.
-        } else {
-            CFAbstractValue<?> value = exitStore.getValue(expression);
-            AnnotationMirror inferredAnno = null;
-            if (value != null) {
-                AnnotationMirrorSet annos = value.getAnnotations();
-                inferredAnno = qualHierarchy.findAnnotationInSameHierarchy(annos, annotation);
-            }
-            if (!checkContract(expression, annotation, inferredAnno, exitStore)) {
-                checker.reportError(
-                        methodTree,
-                        "contracts.postcondition.not.satisfied",
-                        methodTree.getName(),
-                        contractExpressionAndType(expression.toString(), inferredAnno),
-                        contractExpressionAndType(expression.toString(), annotation));
-            }
+            return;
+        }
+
+        CFAbstractValue<?> value = exitStore.getValue(expression);
+        AnnotationMirror inferredAnno = null;
+        if (value != null) {
+            AnnotationMirrorSet annos = value.getAnnotations();
+            inferredAnno = qualHierarchy.findAnnotationInSameHierarchy(annos, annotation);
+        }
+        if (!checkContract(expression, annotation, inferredAnno, exitStore)) {
+            checker.reportError(
+                    methodTree,
+                    "contracts.postcondition.not.satisfied",
+                    methodTree.getName(),
+                    contractExpressionAndType(expression.toString(), inferredAnno),
+                    contractExpressionAndType(expression.toString(), annotation));
         }
     }
 
@@ -2008,7 +2009,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         } else {
             // commonAssignmentCheck validates the type of `tree`,
-            // so only validate if commonAssignmentCheck wasn't called
+            // so only validate if commonAssignmentCheck wasn't called.
             validateTypeOf(tree);
         }
         typeValidator.validateVariableTargetLocation(variableType, tree);
@@ -2719,8 +2720,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * Returns true if and only if {@code inferredAnnotation} is valid for a given expression to
      * match the {@code necessaryAnnotation}.
      *
-     * <p>By default, {@code inferredAnnotation} must be a subtype of {@code necessaryAnnotation},
-     * but subclasses might override this behavior.
+     * <p>By default, {@code inferredAnnotation} must be a subtype of (or equal to) {@code
+     * necessaryAnnotation}, but subclasses might override this behavior.
+     *
+     * @param expr an expression
+     * @param necessaryAnnotation the annotation that is required for the expression
+     * @param inferredAnnotation the annotation that is inferred for the expression
+     * @param store the store
+     * @return true if {@code inferredAnnotation} is a subtype of {@code necessaryAnnotation}
      */
     protected boolean checkContract(
             JavaExpression expr,
@@ -3934,7 +3941,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         "%s %s (at %s): actual tree = %s %s%n   expected: %s %s%n",
                         this.getClass().getSimpleName(),
                         "skipping test whether actual is a subtype of expected"
-                                + " because member reference and lambda expression are type checked separately",
+                                + " because member reference and lambda expression are type-checked separately",
                         fileAndLineNumber(valueExpTree),
                         valueExpTree.getKind(),
                         valueExpTree,
@@ -3959,7 +3966,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         "%s %s (at %s): actual tree = %s %s%n   expected: %s %s%n",
                         this.getClass().getSimpleName(),
                         "skipping test whether actual is a subtype of expected"
-                                + " because validateType() returned false",
+                                + " because validateTypeOf() returned false",
                         fileAndLineNumber(valueExpTree),
                         valueExpTree.getKind(),
                         valueExpTree,

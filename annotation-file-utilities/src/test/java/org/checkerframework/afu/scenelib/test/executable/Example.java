@@ -26,6 +26,12 @@ import java.util.Map;
  */
 // This is run by the Gradle task `testExample`.
 public class Example {
+
+    /** Do not instantiate. */
+    private Example() {
+        throw new Error("Do not instantiate");
+    }
+
     public static void main(String[] args) {
         AScene scene;
 

@@ -6,6 +6,7 @@
 
 error-prone = "2.50.0"
 junit-junit = "4.13.2"
+jgit-version = "7.6.0.202603022253-r"
 
 [plugins]
 
@@ -28,6 +29,10 @@ me-champeau-jmh = { id = "me.champeau.jmh", version = "0.7.3" }
 net-ltgt-errorprone = { id = "net.ltgt.errorprone", version = "5.1.1" }
 
 [libraries]
+
+jgit-jgit = { group = "org.eclipse.jgit", name = "org.eclipse.jgit", version.ref = "jgit-version" }
+
+jgit-ssh-apache = { group = "org.eclipse.jgit", name = "org.eclipse.jgit.ssh.apache", version.ref = "jgit-version" }
 
 # If you update the error-prone version:
 #  * Temporarily comment out "-Werror" in build.gradle files.
@@ -60,7 +65,7 @@ reflection-util = "org.plumelib:reflection-util:1.1.6"
 
 hashmap-util = "org.plumelib:hashmap-util:0.0.1"
 
-stubparser = "org.checkerframework:stubparser:3.27.1"
+stubparser = "org.checkerframework:stubparser:3.28.0"
 
 asm = "org.ow2.asm:asm:9.10.1"
 
