@@ -2,8 +2,8 @@
 PASSING_TESTS = Bug109 compat issue265 issue594 issue607 multiple-errors package-anno shorthand issue3597 issue5174 cfgviz-nodevalues
 # The expected output of issue502 contains the constant-pool index of the bytecode of JDK 17 and
 # later; JDK 8 and 11 produce a different index.
-ifeq (,$(findstring 1.8,$(shell javac -version)))
-ifeq (,$(findstring javac 11.,$(shell javac -version)))
+ifeq (,$(findstring 1.8,$(shell javac -version 2>&1)))
+ifeq (,$(findstring javac 11.,$(shell javac -version 2>&1)))
   PASSING_TESTS += issue502
 endif
 endif
