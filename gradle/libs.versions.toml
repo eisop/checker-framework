@@ -63,7 +63,7 @@ plume-util = "org.plumelib:plume-util:1.14.0"
 
 reflection-util = "org.plumelib:reflection-util:1.1.6"
 
-hashmap-util = "org.plumelib:hashmap-util:0.0.1"
+hashmap-util = "org.plumelib:hashmap-util:2.0.0"
 
 stubparser = "org.checkerframework:stubparser:3.28.0"
 
