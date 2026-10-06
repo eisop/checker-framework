@@ -2,17 +2,14 @@ package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.Tree;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.plumelib.util.StringsPlume;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-
 import javax.lang.model.type.TypeMirror;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.plumelib.util.StringsPlume;
 
 /**
  * A node for new array creation.
@@ -25,97 +22,97 @@ import javax.lang.model.type.TypeMirror;
  */
 public class ArrayCreationNode extends Node {
 
-    /** The tree is null when an array is created for variable arity method calls. */
-    protected final @Nullable NewArrayTree tree;
+  /** The tree is null when an array is created for variable arity method calls. */
+  protected final @Nullable NewArrayTree tree;
 
-    /**
-     * The length of this list is the number of dimensions in the array. Each element is the size of
-     * the given dimension. If all the sizes are empty, an initializer must be present, as in {@code
-     * new SomeType[] { expr1, expr2, ... }} or {@code new SomeType[] { }}.
-     */
-    protected final List<Node> dimensions;
+  /**
+   * The length of this list is the number of dimensions in the array. Each element is the size of
+   * the given dimension. If all the sizes are empty, an initializer must be present, as in {@code
+   * new SomeType[] { expr1, expr2, ... }} or {@code new SomeType[] { }}.
+   */
+  protected final List<Node> dimensions;
 
-    protected final List<Node> initializers;
+  protected final List<Node> initializers;
 
-    public ArrayCreationNode(
-            @Nullable NewArrayTree tree,
-            TypeMirror type,
-            List<Node> dimensions,
-            List<Node> initializers) {
-        super(type);
-        this.tree = tree;
-        this.dimensions = dimensions;
-        this.initializers = initializers;
+  public ArrayCreationNode(
+      @Nullable NewArrayTree tree,
+      TypeMirror type,
+      List<Node> dimensions,
+      List<Node> initializers) {
+    super(type);
+    this.tree = tree;
+    this.dimensions = dimensions;
+    this.initializers = initializers;
+  }
+
+  public List<Node> getDimensions() {
+    return dimensions;
+  }
+
+  public Node getDimension(int i) {
+    return dimensions.get(i);
+  }
+
+  public List<Node> getInitializers() {
+    return initializers;
+  }
+
+  public Node getInitializer(int i) {
+    return initializers.get(i);
+  }
+
+  @Override
+  public @Nullable Tree getTree() {
+    return tree;
+  }
+
+  @Override
+  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+    return visitor.visitArrayCreation(this, p);
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("new " + type);
+    if (!dimensions.isEmpty()) {
+      sb.append(" (");
+      sb.append(StringsPlume.join(", ", dimensions));
+      sb.append(")");
     }
-
-    public List<Node> getDimensions() {
-        return dimensions;
+    if (!initializers.isEmpty() || dimensions.isEmpty()) {
+      sb.append(" {");
+      sb.append(StringsPlume.join(", ", initializers));
+      sb.append("}");
     }
+    return sb.toString();
+  }
 
-    public Node getDimension(int i) {
-        return dimensions.get(i);
+  @Override
+  public boolean equals(@Nullable Object obj) {
+    if (this == obj) {
+      return true;
     }
-
-    public List<Node> getInitializers() {
-        return initializers;
+    if (!(obj instanceof ArrayCreationNode)) {
+      return false;
     }
+    ArrayCreationNode other = (ArrayCreationNode) obj;
 
-    public Node getInitializer(int i) {
-        return initializers.get(i);
-    }
+    return getDimensions().equals(other.getDimensions())
+        && getInitializers().equals(other.getInitializers());
+  }
 
-    @Override
-    public @Nullable Tree getTree() {
-        return tree;
-    }
+  @Override
+  public int hashCode() {
+    return Objects.hash(dimensions, initializers);
+  }
 
-    @Override
-    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-        return visitor.visitArrayCreation(this, p);
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("new " + type);
-        if (!dimensions.isEmpty()) {
-            sb.append(" (");
-            sb.append(StringsPlume.join(", ", dimensions));
-            sb.append(")");
-        }
-        if (!initializers.isEmpty() || dimensions.isEmpty()) {
-            sb.append(" {");
-            sb.append(StringsPlume.join(", ", initializers));
-            sb.append("}");
-        }
-        return sb.toString();
-    }
-
-    @Override
-    public boolean equals(@Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (!(obj instanceof ArrayCreationNode)) {
-            return false;
-        }
-        ArrayCreationNode other = (ArrayCreationNode) obj;
-
-        return getDimensions().equals(other.getDimensions())
-                && getInitializers().equals(other.getInitializers());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(dimensions, initializers);
-    }
-
-    @Override
-    @SideEffectFree
-    public Collection<Node> getOperands() {
-        ArrayList<Node> list = new ArrayList<>(dimensions.size() + initializers.size());
-        list.addAll(dimensions);
-        list.addAll(initializers);
-        return list;
-    }
+  @Override
+  @SideEffectFree
+  public Collection<Node> getOperands() {
+    ArrayList<Node> list = new ArrayList<>(dimensions.size() + initializers.size());
+    list.addAll(dimensions);
+    list.addAll(initializers);
+    return list;
+  }
 }

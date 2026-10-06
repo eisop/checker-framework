@@ -13,5 +13,5 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 
 @AnnotatedFor("nullness")
 public class ModeEnablesItsOptions {
-    Object o;
+  Object o;
 }

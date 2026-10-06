@@ -1,14 +1,13 @@
 package org.checkerframework.checker.initialization;
 
+import java.util.List;
+import java.util.Map;
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.nullness.NullnessChecker;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.source.SupportedOptions;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * Part of the freedom-before-commitment type system.
@@ -27,46 +26,46 @@ import java.util.Map;
 @SupportedOptions({"assumeInitialized"})
 public class InitializationFieldAccessSubchecker extends BaseTypeChecker {
 
-    /** Default constructor for InitializationFieldAccessSubchecker. */
-    public InitializationFieldAccessSubchecker() {}
+  /** Default constructor for InitializationFieldAccessSubchecker. */
+  public InitializationFieldAccessSubchecker() {}
 
-    @Override
-    protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {
-        super.addOptionsForMode(mode, activeOptions);
-        switch (mode) {
-            case NullnessChecker.MODE_JSPECIFY:
-                activeOptions.putIfAbsent("assumeInitialized", null);
-                break;
-            default:
-                break;
-        }
+  @Override
+  protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {
+    super.addOptionsForMode(mode, activeOptions);
+    switch (mode) {
+      case NullnessChecker.MODE_JSPECIFY:
+        activeOptions.putIfAbsent("assumeInitialized", null);
+        break;
+      default:
+        break;
     }
+  }
 
-    /**
-     * Also handle {@code AnnotatedFor} annotations for the {@link InitializationChecker}. See
-     * {@link InitializationChecker#getUpstreamCheckerNames()} and the two implementations should be
-     * kept in sync.
-     */
-    @Override
-    public List<@FullyQualifiedName String> getUpstreamCheckerNames() {
-        if (upstreamCheckerNames == null) {
-            super.getUpstreamCheckerNames();
-            upstreamCheckerNames.add(InitializationChecker.class.getName());
-        }
-        return upstreamCheckerNames;
+  /**
+   * Also handle {@code AnnotatedFor} annotations for the {@link InitializationChecker}. See {@link
+   * InitializationChecker#getUpstreamCheckerNames()} and the two implementations should be kept in
+   * sync.
+   */
+  @Override
+  public List<@FullyQualifiedName String> getUpstreamCheckerNames() {
+    if (upstreamCheckerNames == null) {
+      super.getUpstreamCheckerNames();
+      upstreamCheckerNames.add(InitializationChecker.class.getName());
     }
+    return upstreamCheckerNames;
+  }
 
-    // Suppress all errors and warnings, since they are also reported by the InitializationChecker
+  // Suppress all errors and warnings, since they are also reported by the InitializationChecker
 
-    @Override
-    public void reportError(
-            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
-        // do nothing
-    }
+  @Override
+  public void reportError(
+      @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
+    // do nothing
+  }
 
-    @Override
-    public void reportWarning(
-            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
-        // do nothing
-    }
+  @Override
+  public void reportWarning(
+      @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
+    // do nothing
+  }
 }

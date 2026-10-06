@@ -14,14 +14,13 @@
  */
 
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-
 import permissivedefaultslib.Lib;
 
 public class SubcheckerOptionInheritance {
 
-    static @MonotonicNonNull Object staticField;
+  static @MonotonicNonNull Object staticField;
 
-    void test() {
-        Lib.getObject().toString();
-    }
+  void test() {
+    Lib.getObject().toString();
+  }
 }

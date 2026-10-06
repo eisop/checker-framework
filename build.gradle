@@ -45,7 +45,7 @@ def majorVersionToInt(majorVersionString) {
 ext {
     // Whether to use EISOP formatting.
     // Can also be achieved by having a project property with the same name.
-    eisopFormatting = true || project.hasProperty("eisopFormatting")
+    eisopFormatting = false && project.hasProperty("eisopFormatting")
 
     parentDir = file("${rootDir}/../").absolutePath
 

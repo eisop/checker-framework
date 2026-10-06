@@ -11,30 +11,30 @@ package org.checkerframework.afu.scenelib.field;
  */
 public final class ClassTokenAFT extends ScalarAFT {
 
-    /** Create the singleton {@link #ctaft}. */
-    private ClassTokenAFT() {}
+  /** Create the singleton {@link #ctaft}. */
+  private ClassTokenAFT() {}
 
-    /** The singleton {@link ClassTokenAFT}. */
-    public static final ClassTokenAFT ctaft = new ClassTokenAFT();
+  /** The singleton {@link ClassTokenAFT}. */
+  public static final ClassTokenAFT ctaft = new ClassTokenAFT();
 
-    @Override
-    public boolean isValidValue(Object o) {
-        return o instanceof Class;
-    }
+  @Override
+  public boolean isValidValue(Object o) {
+    return o instanceof Class;
+  }
 
-    @Override
-    public String toString() {
-        return "Class";
-    }
+  @Override
+  public String toString() {
+    return "Class";
+  }
 
-    @Override
-    public void format(StringBuilder sb, Object o) {
-        sb.append(((Class<?>) o).getName());
-        sb.append(".class");
-    }
+  @Override
+  public void format(StringBuilder sb, Object o) {
+    sb.append(((Class<?>) o).getName());
+    sb.append(".class");
+  }
 
-    @Override
-    public <R, T> R accept(AFTVisitor<R, T> v, T arg) {
-        return v.visitClassTokenAFT(this, arg);
-    }
+  @Override
+  public <R, T> R accept(AFTVisitor<R, T> v, T arg) {
+    return v.visitClassTokenAFT(this, arg);
+  }
 }

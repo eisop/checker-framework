@@ -7,49 +7,49 @@
 import java.util.concurrent.TimeUnit;
 
 public class EisopIssue2034 {
-    static class Node<T extends Node<T>> {
-        T get() {
-            throw new Error();
-        }
+  static class Node<T extends Node<T>> {
+    T get() {
+      throw new Error();
     }
+  }
 
-    static class Sub extends Node<Sub> {}
+  static class Sub extends Node<Sub> {}
 
-    static class Mid<M extends Mid<M>> extends Node<M> {}
+  static class Mid<M extends Mid<M>> extends Node<M> {}
 
-    static class Sub2 extends Mid<Sub2> {}
+  static class Sub2 extends Mid<Sub2> {}
 
-    interface Tag<T> {}
+  interface Tag<T> {}
 
-    static class MultiNode<T extends MultiNode<T> & Tag<T>> {}
+  static class MultiNode<T extends MultiNode<T> & Tag<T>> {}
 
-    static class MultiSub extends MultiNode<MultiSub> implements Tag<MultiSub> {}
+  static class MultiSub extends MultiNode<MultiSub> implements Tag<MultiSub> {}
 
-    static class Pair<A extends Pair<A, B>, B> {}
+  static class Pair<A extends Pair<A, B>, B> {}
 
-    static class P extends Pair<P, String> {}
+  static class P extends Pair<P, String> {}
 
-    Node<? extends Sub> field = new Sub();
+  Node<? extends Sub> field = new Sub();
 
-    static class ClassBound<U extends Node<? extends Sub>> {}
+  static class ClassBound<U extends Node<? extends Sub>> {}
 
-    <U extends Node<? extends Sub>> void methodBound(U u) {}
+  <U extends Node<? extends Sub>> void methodBound(U u) {}
 
-    void parameter(Node<? extends Sub> n) {}
+  void parameter(Node<? extends Sub> n) {}
 
-    void deeper(Node<? extends Sub2> n, Mid<? extends Sub2> m) {}
+  void deeper(Node<? extends Sub2> n, Mid<? extends Sub2> m) {}
 
-    void multipleBounds(MultiNode<? extends MultiSub> n) {}
+  void multipleBounds(MultiNode<? extends MultiSub> n) {}
 
-    void twoTypeParameters(Pair<? extends P, String> p, Pair<? extends P, ?> q) {}
+  void twoTypeParameters(Pair<? extends P, String> p, Pair<? extends P, ?> q) {}
 
-    void jdkEnum(Enum<? extends TimeUnit> e) {}
+  void jdkEnum(Enum<? extends TimeUnit> e) {}
 
-    <E extends Enum<E>> void jdkEnumTypeVar(Enum<? extends E> e) {}
+  <E extends Enum<E>> void jdkEnumTypeVar(Enum<? extends E> e) {}
 
-    Sub local(Node<Sub> in) {
-        Node<? extends Sub> n = in;
-        Sub s = n.get();
-        return s.get();
-    }
+  Sub local(Node<Sub> in) {
+    Node<? extends Sub> n = in;
+    Sub s = n.get();
+    return s.get();
+  }
 }

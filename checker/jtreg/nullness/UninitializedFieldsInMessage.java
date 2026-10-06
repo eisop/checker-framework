@@ -6,22 +6,22 @@
  */
 
 public class UninitializedFieldsInMessage {
-    String s;
-    Object foo;
+  String s;
+  Object foo;
 
-    // The call sits between the two field initializations, so only "foo" is named.
-    UninitializedFieldsInMessage() {
-        s = "";
-        init();
-        foo = "";
-    }
+  // The call sits between the two field initializations, so only "foo" is named.
+  UninitializedFieldsInMessage() {
+    s = "";
+    init();
+    foo = "";
+  }
 
-    // The call precedes both initializations, so both fields are named.
-    UninitializedFieldsInMessage(int x) {
-        init();
-        s = "";
-        foo = "";
-    }
+  // The call precedes both initializations, so both fields are named.
+  UninitializedFieldsInMessage(int x) {
+    init();
+    s = "";
+    foo = "";
+  }
 
-    void init() {}
+  void init() {}
 }

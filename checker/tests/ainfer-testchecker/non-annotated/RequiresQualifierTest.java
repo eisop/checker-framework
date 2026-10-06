@@ -6,49 +6,49 @@ import org.checkerframework.checker.testchecker.ainfer.qual.AinferTop;
 
 class RequiresQualifierTest {
 
-    @AinferTop int field1;
-    @AinferTop int field2;
+  @AinferTop int field1;
+  @AinferTop int field2;
 
-    @AinferTop int top;
-    @AinferParent int parent;
-    @AinferSibling1 int sibling1;
-    @AinferSibling2 int sibling2;
-    @AinferBottom int bottom;
+  @AinferTop int top;
+  @AinferParent int parent;
+  @AinferSibling1 int sibling1;
+  @AinferSibling2 int sibling2;
+  @AinferBottom int bottom;
 
-    void field1IsParent() {
-        // :: warning: (assignment.type.incompatible)
-        @AinferParent int x = field1;
-    }
+  void field1IsParent() {
+    // :: warning: (assignment.type.incompatible)
+    @AinferParent int x = field1;
+  }
 
-    void field1IsAinferSibling2() {
-        // :: warning: (assignment.type.incompatible)
-        @AinferSibling2 int x = field1;
-    }
+  void field1IsAinferSibling2() {
+    // :: warning: (assignment.type.incompatible)
+    @AinferSibling2 int x = field1;
+  }
 
-    void parentIsAinferSibling1() {
-        // :: warning: (assignment.type.incompatible)
-        @AinferSibling1 int x = parent;
-    }
+  void parentIsAinferSibling1() {
+    // :: warning: (assignment.type.incompatible)
+    @AinferSibling1 int x = parent;
+  }
 
-    void noRequirements() {}
+  void noRequirements() {}
 
-    void client2(@AinferParent int p) {
-        field1 = p;
-        field1IsParent();
-    }
+  void client2(@AinferParent int p) {
+    field1 = p;
+    field1IsParent();
+  }
 
-    void client1() {
-        noRequirements();
+  void client1() {
+    noRequirements();
 
-        field1 = parent;
-        field1IsParent();
+    field1 = parent;
+    field1IsParent();
 
-        field1 = sibling2;
-        field1IsAinferSibling2();
-        field1 = bottom;
-        field1IsAinferSibling2();
+    field1 = sibling2;
+    field1IsAinferSibling2();
+    field1 = bottom;
+    field1IsAinferSibling2();
 
-        parent = sibling1;
-        parentIsAinferSibling1();
-    }
+    parent = sibling1;
+    parentIsAinferSibling1();
+  }
 }

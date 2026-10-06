@@ -8,16 +8,16 @@
 // failure on branch binary-stubs-v2.
 class VarargsArrayAnnotation {
 
-    // Class.getMethod's varargs array itself is @Nullable in the annotated JDK
-    // ("Class<?>@Nullable ... parameterTypes"): passing a null array must be allowed.
-    void positive(Class<?> cls) throws Exception {
-        cls.getMethod("m", (Class<?>[]) null);
-    }
+  // Class.getMethod's varargs array itself is @Nullable in the annotated JDK
+  // ("Class<?>@Nullable ... parameterTypes"): passing a null array must be allowed.
+  void positive(Class<?> cls) throws Exception {
+    cls.getMethod("m", (Class<?>[]) null);
+  }
 
-    // String.format's varargs array itself is not @Nullable (only its elements are): passing a
-    // null array must still be rejected.
-    void negative() {
-        // :: error: (argument.type.incompatible)
-        String.format("%s", (Object[]) null);
-    }
+  // String.format's varargs array itself is not @Nullable (only its elements are): passing a
+  // null array must still be rejected.
+  void negative() {
+    // :: error: (argument.type.incompatible)
+    String.format("%s", (Object[]) null);
+  }
 }

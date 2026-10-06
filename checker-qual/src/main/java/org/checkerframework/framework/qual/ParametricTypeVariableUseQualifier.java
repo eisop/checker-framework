@@ -25,15 +25,15 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.ANNOTATION_TYPE})
 public @interface ParametricTypeVariableUseQualifier {
-    /**
-     * Indicates which type system this annotation refers to (optional, and usually unnecessary).
-     * When multiple type hierarchies are supported by a single type system, then each parametric
-     * qualifier needs to indicate which sub-hierarchy it belongs to. Do so by passing the top
-     * qualifier from the given hierarchy.
-     *
-     * @return the top qualifier in the hierarchy of this qualifier
-     */
-    // We use the meaningless Annotation.class as default value and
-    // then ensure there is a single top qualifier to use.
-    Class<? extends Annotation> value() default Annotation.class;
+  /**
+   * Indicates which type system this annotation refers to (optional, and usually unnecessary). When
+   * multiple type hierarchies are supported by a single type system, then each parametric qualifier
+   * needs to indicate which sub-hierarchy it belongs to. Do so by passing the top qualifier from
+   * the given hierarchy.
+   *
+   * @return the top qualifier in the hierarchy of this qualifier
+   */
+  // We use the meaningless Annotation.class as default value and
+  // then ensure there is a single top qualifier to use.
+  Class<? extends Annotation> value() default Annotation.class;
 }

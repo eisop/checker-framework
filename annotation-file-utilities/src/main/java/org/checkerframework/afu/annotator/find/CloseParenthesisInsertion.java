@@ -6,29 +6,29 @@ package org.checkerframework.afu.annotator.find;
  */
 public class CloseParenthesisInsertion extends Insertion {
 
-    public CloseParenthesisInsertion(Criteria criteria, boolean separateLine) {
-        super(criteria, separateLine);
-    }
+  public CloseParenthesisInsertion(Criteria criteria, boolean separateLine) {
+    super(criteria, separateLine);
+  }
 
-    @Override
-    protected String getText(boolean abbreviate) {
-        return "))";
-    }
+  @Override
+  protected String getText(boolean abbreviate) {
+    return "))";
+  }
 
-    @Override
-    protected boolean addLeadingSpace(boolean gotSeparateLine, int pos, char precedingChar) {
-        // Never add a leading space when inserting closing parentheses.
-        return false;
-    }
+  @Override
+  protected boolean addLeadingSpace(boolean gotSeparateLine, int pos, char precedingChar) {
+    // Never add a leading space when inserting closing parentheses.
+    return false;
+  }
 
-    @Override
-    protected boolean addTrailingSpace(boolean gotSeparateLine) {
-        // Never add a trailing space when inserting closing parentheses.
-        return false;
-    }
+  @Override
+  protected boolean addTrailingSpace(boolean gotSeparateLine) {
+    // Never add a trailing space when inserting closing parentheses.
+    return false;
+  }
 
-    @Override
-    public Kind getKind() {
-        return Kind.CLOSE_PARENTHESIS;
-    }
+  @Override
+  public Kind getKind() {
+    return Kind.CLOSE_PARENTHESIS;
+  }
 }

@@ -7,13 +7,13 @@
 import org.checkerframework.checker.tainting.qual.Tainted;
 
 public class OrderFakeOverrideParamUse {
-    void m(@Tainted int t) {
-        OrderFOSuperParam sup = new OrderFOSuperParam();
-        OrderFOMidParam mid = new OrderFOMidParam();
+  void m(@Tainted int t) {
+    OrderFOSuperParam sup = new OrderFOSuperParam();
+    OrderFOMidParam mid = new OrderFOMidParam();
 
-        // :: error: (argument.type.incompatible)
-        sup.m(t);
-        // :: error: (argument.type.incompatible)
-        mid.m(t);
-    }
+    // :: error: (argument.type.incompatible)
+    sup.m(t);
+    // :: error: (argument.type.incompatible)
+    mid.m(t);
+  }
 }

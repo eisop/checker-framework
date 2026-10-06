@@ -6,59 +6,59 @@ import org.checkerframework.common.returnsreceiver.qual.This;
 
 class RlcThisTest {
 
-    @InheritableMustCall("a")
-    private class Foo {
+  @InheritableMustCall("a")
+  private class Foo {
 
-        void a() {}
+    void a() {}
 
-        @This Foo b1(Foo this) {
-            return this;
-        }
-
-        @MustCallAlias Foo b2(@MustCallAlias Foo this) {
-            return this;
-        }
+    @This Foo b1(Foo this) {
+      return this;
     }
 
-    void test1() {
-        Foo f = new Foo();
-        f.b1();
-        f.a();
+    @MustCallAlias Foo b2(@MustCallAlias Foo this) {
+      return this;
     }
+  }
 
-    void test2() {
-        Foo f = new Foo();
-        f.b2();
-        f.a();
-    }
+  void test1() {
+    Foo f = new Foo();
+    f.b1();
+    f.a();
+  }
 
-    void test3() {
-        Foo f = new Foo();
-        Foo ff = f.b1();
-        ff.a();
-    }
+  void test2() {
+    Foo f = new Foo();
+    f.b2();
+    f.a();
+  }
 
-    void test4() {
-        Foo f = new Foo();
-        Foo ff = f.b2();
-        ff.a();
-    }
+  void test3() {
+    Foo f = new Foo();
+    Foo ff = f.b1();
+    ff.a();
+  }
 
-    void testA() {
-        Foo f = new Foo();
-        f.b1(); // RLC reports a FP at this line
-        f.a();
+  void test4() {
+    Foo f = new Foo();
+    Foo ff = f.b2();
+    ff.a();
+  }
 
-        f = new Foo();
-        f.a();
-    }
+  void testA() {
+    Foo f = new Foo();
+    f.b1(); // RLC reports a FP at this line
+    f.a();
 
-    void testB() {
-        Foo f = new Foo();
-        f.b2(); // RLC reports a FP at this line
-        f.a();
+    f = new Foo();
+    f.a();
+  }
 
-        f = new Foo();
-        f.a();
-    }
+  void testB() {
+    Foo f = new Foo();
+    f.b2(); // RLC reports a FP at this line
+    f.a();
+
+    f = new Foo();
+    f.a();
+  }
 }

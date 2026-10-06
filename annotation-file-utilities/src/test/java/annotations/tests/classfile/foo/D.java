@@ -6,9 +6,9 @@ import java.lang.annotation.RetentionPolicy;
 @Retention(RetentionPolicy.RUNTIME)
 @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
 public @interface D {
-    int fieldA();
+  int fieldA();
 
-    String fieldB();
+  String fieldB();
 
-    int[] fieldC();
+  int[] fieldC();
 }
