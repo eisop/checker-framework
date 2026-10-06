@@ -1,11 +1,12 @@
 package org.checkerframework.common.value.qual;
 
+import org.checkerframework.framework.qual.SubtypeOf;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * An expression with this type evaluates to an integral value (byte, short, char, int, or long) in
@@ -26,17 +27,17 @@ import org.checkerframework.framework.qual.SubtypeOf;
 @Target({ElementType.TYPE_PARAMETER, ElementType.TYPE_USE})
 @SubtypeOf(UnknownVal.class)
 public @interface IntRange {
-  /**
-   * Smallest value in the range, inclusive.
-   *
-   * @return the smallest value in the range, inclusive
-   */
-  long from() default Long.MIN_VALUE;
+    /**
+     * Smallest value in the range, inclusive.
+     *
+     * @return the smallest value in the range, inclusive
+     */
+    long from() default Long.MIN_VALUE;
 
-  /**
-   * Largest value in the range, inclusive.
-   *
-   * @return the largest value in the range, inclusive
-   */
-  long to() default Long.MAX_VALUE;
+    /**
+     * Largest value in the range, inclusive.
+     *
+     * @return the largest value in the range, inclusive
+     */
+    long to() default Long.MAX_VALUE;
 }

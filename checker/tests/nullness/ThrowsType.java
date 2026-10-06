@@ -8,15 +8,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * reason to write one.
  */
 public class ThrowsType {
-  void unannotated() throws Exception {}
+    void unannotated() throws Exception {}
 
-  void nonNull()
-      throws
-          // :: error: (nullness.on.throws)
-          @NonNull Exception {}
+    void nonNull()
+            throws
+                    // :: error: (nullness.on.throws)
+                    @NonNull Exception {}
 
-  void nullable()
-      throws
-          // :: error: (nullness.on.throws)
-          @Nullable Exception {}
+    void nullable()
+            throws
+                    // :: error: (nullness.on.throws)
+                    @Nullable Exception {}
 }

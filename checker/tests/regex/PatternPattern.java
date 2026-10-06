@@ -3,9 +3,9 @@
 import java.util.regex.Pattern;
 
 public class PatternPattern {
-  public static String f() {
-    Pattern abc = Pattern.compile("abc");
-    String str = abc.pattern();
-    return "abc".replaceAll(str, "");
-  }
+    public static String f() {
+        Pattern abc = Pattern.compile("abc");
+        String str = abc.pattern();
+        return "abc".replaceAll(str, "");
+    }
 }

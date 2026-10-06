@@ -1,7 +1,8 @@
 package org.checkerframework.checker.mustcall;
 
-import javax.lang.model.element.ExecutableElement;
 import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
+
+import javax.lang.model.element.ExecutableElement;
 
 /**
  * This interface should be implemented by all type factories that can provide an {@link
@@ -13,17 +14,17 @@ import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
  */
 public interface CreatesMustCallForElementSupplier {
 
-  /**
-   * Returns the CreatesMustCallFor.value field/element.
-   *
-   * @return the CreatesMustCallFor.value field/element
-   */
-  ExecutableElement getCreatesMustCallForValueElement();
+    /**
+     * Returns the CreatesMustCallFor.value field/element.
+     *
+     * @return the CreatesMustCallFor.value field/element
+     */
+    ExecutableElement getCreatesMustCallForValueElement();
 
-  /**
-   * Returns the CreatesMustCallFor.List.value field/element.
-   *
-   * @return the CreatesMustCallFor.List.value field/element
-   */
-  ExecutableElement getCreatesMustCallForListValueElement();
+    /**
+     * Returns the CreatesMustCallFor.List.value field/element.
+     *
+     * @return the CreatesMustCallFor.List.value field/element
+     */
+    ExecutableElement getCreatesMustCallForListValueElement();
 }

@@ -3,19 +3,19 @@
 
 public class IntersectionTypeNoCrash {
 
-  interface Foo {}
+    interface Foo {}
 
-  interface Bar {}
+    interface Bar {}
 
-  class Baz implements Foo, Bar {}
+    class Baz implements Foo, Bar {}
 
-  <T extends Foo & Bar> void call(T p) {}
+    <T extends Foo & Bar> void call(T p) {}
 
-  void test() {
-    call(new Baz());
-  }
+    void test() {
+        call(new Baz());
+    }
 
-  void testCast(Object obj) {
-    Foo fooAndBar = (Foo & Bar) obj;
-  }
+    void testCast(Object obj) {
+        Foo fooAndBar = (Foo & Bar) obj;
+    }
 }

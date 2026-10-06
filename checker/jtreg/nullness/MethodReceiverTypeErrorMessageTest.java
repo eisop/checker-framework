@@ -6,15 +6,15 @@
  */
 public class MethodReceiverTypeErrorMessageTest<T> {
 
-  MethodReceiverTypeErrorMessageTest() {
-    foo();
-  }
-
-  void foo() {}
-
-  static class StringSpecialization extends MethodReceiverTypeErrorMessageTest<String> {
-    StringSpecialization() {
-      foo();
+    MethodReceiverTypeErrorMessageTest() {
+        foo();
     }
-  }
+
+    void foo() {}
+
+    static class StringSpecialization extends MethodReceiverTypeErrorMessageTest<String> {
+        StringSpecialization() {
+            foo();
+        }
+    }
 }

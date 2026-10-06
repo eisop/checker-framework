@@ -1,9 +1,10 @@
 // Test case for Issue 524:
 // https://github.com/typetools/checker-framework/issues/524
 
-import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.lock.qual.GuardedBy;
 import org.checkerframework.checker.lock.qual.GuardedByUnknown;
+
+import java.util.concurrent.locks.ReentrantLock;
 
 // WARNING: this test is nondeterministic, and has already been minimized - if you modify it by
 // removing what appears to be redundant code, it may no longer reproduce the issue or provide
@@ -17,28 +18,28 @@ import org.checkerframework.checker.lock.qual.GuardedByUnknown;
 // Unfortunately a test case that always fails to typecheck using a Checker Framework build
 // prior to the fix for issue 524 has not been found.
 public class Issue524 {
-  class MyClass {
-    public Object field;
-  }
-
-  @GuardedByUnknown MyClass someValue() {
-    return new MyClass();
-  }
-
-  void testLocalVariables() {
-    @GuardedBy({}) ReentrantLock localLock = new ReentrantLock();
-
-    {
-      @SuppressWarnings("assignment") // prevent flow-sensitive type refinement
-      // :: error: (lock.expression.not.final)
-      @GuardedBy("localLock") MyClass q = someValue();
-      localLock.lock();
-      localLock.lock();
-      // Without a fix for issue 524 in place, the error lock.not.held
-      // (unguarded access to field, variable or parameter 'q' guarded by 'localLock') is
-      // issued for the following line.
-      // :: error: (expression.unparsable.type.invalid)
-      q.field.toString();
+    class MyClass {
+        public Object field;
     }
-  }
+
+    @GuardedByUnknown MyClass someValue() {
+        return new MyClass();
+    }
+
+    void testLocalVariables() {
+        @GuardedBy({}) ReentrantLock localLock = new ReentrantLock();
+
+        {
+            @SuppressWarnings("assignment") // prevent flow-sensitive type refinement
+            // :: error: (lock.expression.not.final)
+            @GuardedBy("localLock") MyClass q = someValue();
+            localLock.lock();
+            localLock.lock();
+            // Without a fix for issue 524 in place, the error lock.not.held
+            // (unguarded access to field, variable or parameter 'q' guarded by 'localLock') is
+            // issued for the following line.
+            // :: error: (expression.unparsable.type.invalid)
+            q.field.toString();
+        }
+    }
 }

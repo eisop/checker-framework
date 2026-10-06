@@ -7,9 +7,9 @@ import lib.SuperTypeArg;
  */
 public class Parameter {
 
-  void parameter(SuperTypeArg s) {}
+    void parameter(SuperTypeArg s) {}
 
-  SuperTypeArg returnType() {
-    return Factory.make();
-  }
+    SuperTypeArg returnType() {
+        return Factory.make();
+    }
 }

@@ -4,11 +4,16 @@ import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.Trees;
+
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.io.StringWriter;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
@@ -19,8 +24,6 @@ import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
-import org.junit.Assert;
-import org.junit.Test;
 
 /**
  * Unit test for {@link AnnotationFileElementTypes#buildSigIndex}.
@@ -44,146 +47,149 @@ import org.junit.Test;
  */
 public class AnnotationFileElementTypesTest {
 
-  /**
-   * Returns an in-memory Java source file.
-   *
-   * @param className the simple name of the class, used only to form the file URI
-   * @param code the source text of the file
-   * @return a {@link JavaFileObject} that yields {@code code} as its content
-   */
-  private static JavaFileObject source(String className, String code) {
-    return new SimpleJavaFileObject(
-        URI.create("string:///" + className + ".java"), JavaFileObject.Kind.SOURCE) {
-      @Override
-      public CharSequence getCharContent(boolean ignoreEncodingErrors) {
-        return code;
-      }
-    };
-  }
+    /**
+     * Returns an in-memory Java source file.
+     *
+     * @param className the simple name of the class, used only to form the file URI
+     * @param code the source text of the file
+     * @return a {@link JavaFileObject} that yields {@code code} as its content
+     */
+    private static JavaFileObject source(String className, String code) {
+        return new SimpleJavaFileObject(
+                URI.create("string:///" + className + ".java"), JavaFileObject.Kind.SOURCE) {
+            @Override
+            public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+                return code;
+            }
+        };
+    }
 
-  /**
-   * Compiles {@code code} (with attribution, but no annotation processing) and returns the {@link
-   * TypeElement} for its first top-level class declaration. javac's error recovery attributes an
-   * unresolvable referenced type as {@link TypeKind#ERROR} rather than failing to produce an
-   * element, so this succeeds even for source that does not fully compile (e.g. a method parameter
-   * of a nonexistent type).
-   *
-   * @param className the simple name of the class declared in {@code code}
-   * @param code the source text to compile
-   * @return the {@link TypeElement} for the first top-level class declared in {@code code}
-   * @throws Exception if the compiler task cannot be created
-   */
-  private static TypeElement compileToTypeElement(String className, String code) throws Exception {
-    JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-    JavaCompiler.CompilationTask compilationTask =
-        compiler.getTask(
-            new StringWriter(),
-            null,
-            null,
-            Collections.singletonList("-proc:none"),
-            null,
-            Collections.singletonList(source(className, code)));
-    JavacTask task = (JavacTask) compilationTask;
-    CompilationUnitTree cu = task.parse().iterator().next();
-    task.analyze();
-    Trees trees = Trees.instance(task);
-    ClassTree classTree = (ClassTree) cu.getTypeDecls().get(0);
-    Element classElt = trees.getElement(trees.getPath(cu, classTree));
-    return (TypeElement) classElt;
-  }
+    /**
+     * Compiles {@code code} (with attribution, but no annotation processing) and returns the {@link
+     * TypeElement} for its first top-level class declaration. javac's error recovery attributes an
+     * unresolvable referenced type as {@link TypeKind#ERROR} rather than failing to produce an
+     * element, so this succeeds even for source that does not fully compile (e.g. a method
+     * parameter of a nonexistent type).
+     *
+     * @param className the simple name of the class declared in {@code code}
+     * @param code the source text to compile
+     * @return the {@link TypeElement} for the first top-level class declared in {@code code}
+     * @throws Exception if the compiler task cannot be created
+     */
+    private static TypeElement compileToTypeElement(String className, String code)
+            throws Exception {
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        JavaCompiler.CompilationTask compilationTask =
+                compiler.getTask(
+                        new StringWriter(),
+                        null,
+                        null,
+                        Collections.singletonList("-proc:none"),
+                        null,
+                        Collections.singletonList(source(className, code)));
+        JavacTask task = (JavacTask) compilationTask;
+        CompilationUnitTree cu = task.parse().iterator().next();
+        task.analyze();
+        Trees trees = Trees.instance(task);
+        ClassTree classTree = (ClassTree) cu.getTypeDecls().get(0);
+        Element classElt = trees.getElement(trees.getPath(cu, classTree));
+        return (TypeElement) classElt;
+    }
 
-  /**
-   * Confirms the reproduction: a method parameter whose type is unresolvable is attributed as
-   * {@link TypeKind#ERROR}, and {@code TypesUtils.simpleTypeName} (called by {@code
-   * ElementUtils.getSimpleSignature}, which {@code buildSigIndex} uses) throws for it. This
-   * documents why {@code buildSigIndex} must catch a {@link RuntimeException}, not just skip some
-   * narrower exception type.
-   *
-   * @throws Exception if the test compilation cannot be created
-   */
-  @Test
-  public void unresolvableParameterTypeIsErrorKind() throws Exception {
-    TypeElement typeElt =
-        compileToTypeElement(
-            "HasUnresolvableParam", "class HasUnresolvableParam {" + " void m(NoSuchType x) {} }");
-    List<ExecutableElement> methods = ElementFilter.methodsIn(typeElt.getEnclosedElements());
-    Assert.assertEquals(1, methods.size());
-    List<? extends VariableElement> params = methods.get(0).getParameters();
-    Assert.assertEquals(1, params.size());
-    Assert.assertEquals(TypeKind.ERROR, params.get(0).asType().getKind());
-  }
+    /**
+     * Confirms the reproduction: a method parameter whose type is unresolvable is attributed as
+     * {@link TypeKind#ERROR}, and {@code TypesUtils.simpleTypeName} (called by {@code
+     * ElementUtils.getSimpleSignature}, which {@code buildSigIndex} uses) throws for it. This
+     * documents why {@code buildSigIndex} must catch a {@link RuntimeException}, not just skip some
+     * narrower exception type.
+     *
+     * @throws Exception if the test compilation cannot be created
+     */
+    @Test
+    public void unresolvableParameterTypeIsErrorKind() throws Exception {
+        TypeElement typeElt =
+                compileToTypeElement(
+                        "HasUnresolvableParam",
+                        "class HasUnresolvableParam {" + " void m(NoSuchType x) {} }");
+        List<ExecutableElement> methods = ElementFilter.methodsIn(typeElt.getEnclosedElements());
+        Assert.assertEquals(1, methods.size());
+        List<? extends VariableElement> params = methods.get(0).getParameters();
+        Assert.assertEquals(1, params.size());
+        Assert.assertEquals(TypeKind.ERROR, params.get(0).asType().getKind());
+    }
 
-  /**
-   * The actual regression test: {@code buildSigIndex} must not throw when a method has an
-   * unresolvable (ERROR-kind) parameter type; it must skip that method (it cannot be matched by any
-   * stub record anyway) and still index the other, resolvable methods of the class.
-   *
-   * @throws Exception if the test compilation cannot be created
-   */
-  @Test
-  public void buildSigIndexSkipsUnresolvableParameterType() throws Exception {
-    TypeElement typeElt =
-        compileToTypeElement(
-            "HasUnresolvableParam",
-            "class HasUnresolvableParam {"
-                + " void bad(NoSuchType x) {}"
-                + " void good(int x) {} }");
-    List<ExecutableElement> methods = ElementFilter.methodsIn(typeElt.getEnclosedElements());
-    Assert.assertEquals(2, methods.size());
+    /**
+     * The actual regression test: {@code buildSigIndex} must not throw when a method has an
+     * unresolvable (ERROR-kind) parameter type; it must skip that method (it cannot be matched by
+     * any stub record anyway) and still index the other, resolvable methods of the class.
+     *
+     * @throws Exception if the test compilation cannot be created
+     */
+    @Test
+    public void buildSigIndexSkipsUnresolvableParameterType() throws Exception {
+        TypeElement typeElt =
+                compileToTypeElement(
+                        "HasUnresolvableParam",
+                        "class HasUnresolvableParam {"
+                                + " void bad(NoSuchType x) {}"
+                                + " void good(int x) {} }");
+        List<ExecutableElement> methods = ElementFilter.methodsIn(typeElt.getEnclosedElements());
+        Assert.assertEquals(2, methods.size());
 
-    Map<String, ExecutableElement> index = AnnotationFileElementTypes.buildSigIndex(methods);
+        Map<String, ExecutableElement> index = AnnotationFileElementTypes.buildSigIndex(methods);
 
-    Assert.assertEquals("the resolvable method must still be indexed", 1, index.size());
-    Assert.assertTrue(index.containsKey("good(int)"));
-    Assert.assertFalse(
-        "the method with the unresolvable parameter must be skipped, not indexed",
-        index.containsKey("bad(NoSuchType)"));
-  }
+        Assert.assertEquals("the resolvable method must still be indexed", 1, index.size());
+        Assert.assertTrue(index.containsKey("good(int)"));
+        Assert.assertFalse(
+                "the method with the unresolvable parameter must be skipped, not indexed",
+                index.containsKey("bad(NoSuchType)"));
+    }
 
-  /**
-   * {@code extractFqClassName} handles both forms of the annotated JDK's layout -- a jar entry,
-   * which includes the {@code annotated-jdk} root, and a file path relative to that root -- and
-   * returns null for anything that does not follow the layout, so that the caller skips it instead
-   * of crashing on an unguarded {@code substring}.
-   */
-  @Test
-  public void testExtractFqClassName() {
-    Assert.assertEquals(
-        "java.lang.System",
-        AnnotationFileElementTypes.extractFqClassName(
-            "annotated-jdk/src/java.base/share/classes/java/lang/System.java"));
-    Assert.assertEquals(
-        "java.lang.System",
-        AnnotationFileElementTypes.extractFqClassName(
-            "src/java.base/share/classes/java/lang/System.java"));
-    Assert.assertEquals(
-        "java.lang.package-info",
-        AnnotationFileElementTypes.extractFqClassName(
-            "annotated-jdk/src/java.base/share/classes/java/lang/package-info.java"));
-    // Not the annotated JDK's layout: no "/share/classes/" segment.
-    Assert.assertNull(AnnotationFileElementTypes.extractFqClassName("java/lang/System.java"));
-    // Not a Java file.
-    Assert.assertNull(
-        AnnotationFileElementTypes.extractFqClassName(
-            "annotated-jdk/src/java.base/share/classes/java/lang/System.class"));
-  }
+    /**
+     * {@code extractFqClassName} handles both forms of the annotated JDK's layout -- a jar entry,
+     * which includes the {@code annotated-jdk} root, and a file path relative to that root -- and
+     * returns null for anything that does not follow the layout, so that the caller skips it
+     * instead of crashing on an unguarded {@code substring}.
+     */
+    @Test
+    public void testExtractFqClassName() {
+        Assert.assertEquals(
+                "java.lang.System",
+                AnnotationFileElementTypes.extractFqClassName(
+                        "annotated-jdk/src/java.base/share/classes/java/lang/System.java"));
+        Assert.assertEquals(
+                "java.lang.System",
+                AnnotationFileElementTypes.extractFqClassName(
+                        "src/java.base/share/classes/java/lang/System.java"));
+        Assert.assertEquals(
+                "java.lang.package-info",
+                AnnotationFileElementTypes.extractFqClassName(
+                        "annotated-jdk/src/java.base/share/classes/java/lang/package-info.java"));
+        // Not the annotated JDK's layout: no "/share/classes/" segment.
+        Assert.assertNull(AnnotationFileElementTypes.extractFqClassName("java/lang/System.java"));
+        // Not a Java file.
+        Assert.assertNull(
+                AnnotationFileElementTypes.extractFqClassName(
+                        "annotated-jdk/src/java.base/share/classes/java/lang/System.class"));
+    }
 
-  /**
-   * {@code extractModuleName} returns the module directory segment of a {@code module-info.java}
-   * entry, for both forms of the layout, and null for anything else.
-   */
-  @Test
-  public void testExtractModuleName() {
-    Assert.assertEquals(
-        "java.base",
-        AnnotationFileElementTypes.extractModuleName(
-            "annotated-jdk/src/java.base/share/classes/module-info.java"));
-    Assert.assertEquals(
-        "java.base",
-        AnnotationFileElementTypes.extractModuleName(
-            "src/java.base/share/classes/module-info.java"));
-    // Not the annotated JDK's layout: no "src/" segment, and no "/share/classes/" segment.
-    Assert.assertNull(
-        AnnotationFileElementTypes.extractModuleName("annotated-jdk/java.base/module-info.java"));
-  }
+    /**
+     * {@code extractModuleName} returns the module directory segment of a {@code module-info.java}
+     * entry, for both forms of the layout, and null for anything else.
+     */
+    @Test
+    public void testExtractModuleName() {
+        Assert.assertEquals(
+                "java.base",
+                AnnotationFileElementTypes.extractModuleName(
+                        "annotated-jdk/src/java.base/share/classes/module-info.java"));
+        Assert.assertEquals(
+                "java.base",
+                AnnotationFileElementTypes.extractModuleName(
+                        "src/java.base/share/classes/module-info.java"));
+        // Not the annotated JDK's layout: no "src/" segment, and no "/share/classes/" segment.
+        Assert.assertNull(
+                AnnotationFileElementTypes.extractModuleName(
+                        "annotated-jdk/java.base/module-info.java"));
+    }
 }

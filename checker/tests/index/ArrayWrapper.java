@@ -13,53 +13,53 @@ import org.checkerframework.common.value.qual.MinLen;
 
 /** ArrayWrapper is a fixed-size generic collection. */
 public class ArrayWrapper<T> {
-  private final Object @SameLen("this") [] delegate;
+    private final Object @SameLen("this") [] delegate;
 
-  @SuppressWarnings("index") // constructor creates object of size @SameLen(this) by definition
-  ArrayWrapper(@NonNegative int size) {
-    delegate = new Object[size];
-  }
-
-  public @LengthOf("this") int size() {
-    return delegate.length;
-  }
-
-  public void set(@IndexFor("this") int index, T obj) {
-    delegate[index] = obj;
-  }
-
-  @SuppressWarnings("unchecked") // required for normal Java compilation due to unchecked cast
-  public T get(@IndexFor("this") int index) {
-    return (T) delegate[index];
-  }
-
-  public static void clearIndex1(ArrayWrapper<? extends Object> a, @IndexFor("#1") int i) {
-    a.set(i, null);
-  }
-
-  public static void clearIndex2(ArrayWrapper<? extends Object> a, int i) {
-    if (0 <= i && i < a.size()) {
-      a.set(i, null);
+    @SuppressWarnings("index") // constructor creates object of size @SameLen(this) by definition
+    ArrayWrapper(@NonNegative int size) {
+        delegate = new Object[size];
     }
-  }
 
-  public static void clearIndex3(ArrayWrapper<? extends Object> a, @NonNegative int i) {
-    if (i < a.size()) {
-      a.set(i, null);
+    public @LengthOf("this") int size() {
+        return delegate.length;
     }
-  }
 
-  // The following methods are tests that sequence annotations work correctly with
-  // user-defined sequence types.
+    public void set(@IndexFor("this") int index, T obj) {
+        delegate[index] = obj;
+    }
 
-  public static Object testSameLen(
-      @SameLen("#2") ArrayWrapper<? extends Object> a,
-      @SameLen("#1") ArrayWrapper<? extends Object> b,
-      @IndexFor("#1") int i) {
-    return b.get(i);
-  }
+    @SuppressWarnings("unchecked") // required for normal Java compilation due to unchecked cast
+    public T get(@IndexFor("this") int index) {
+        return (T) delegate[index];
+    }
 
-  public static Object testMinLen(@MinLen(3) ArrayWrapper<? extends Object> a) {
-    return a.get(2);
-  }
+    public static void clearIndex1(ArrayWrapper<? extends Object> a, @IndexFor("#1") int i) {
+        a.set(i, null);
+    }
+
+    public static void clearIndex2(ArrayWrapper<? extends Object> a, int i) {
+        if (0 <= i && i < a.size()) {
+            a.set(i, null);
+        }
+    }
+
+    public static void clearIndex3(ArrayWrapper<? extends Object> a, @NonNegative int i) {
+        if (i < a.size()) {
+            a.set(i, null);
+        }
+    }
+
+    // The following methods are tests that sequence annotations work correctly with
+    // user-defined sequence types.
+
+    public static Object testSameLen(
+            @SameLen("#2") ArrayWrapper<? extends Object> a,
+            @SameLen("#1") ArrayWrapper<? extends Object> b,
+            @IndexFor("#1") int i) {
+        return b.get(i);
+    }
+
+    public static Object testMinLen(@MinLen(3) ArrayWrapper<? extends Object> a) {
+        return a.get(2);
+    }
 }

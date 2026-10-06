@@ -1,5 +1,5 @@
 public class C {
-  public static C create() {
-    return null;
-  }
+    public static C create() {
+        return null;
+    }
 }

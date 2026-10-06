@@ -20,25 +20,25 @@
 // would suppress the framework error under test.
 public class InferenceWorkBudget {
 
-  static <T> Triple<T, T, T> g(T x) {
-    return new Triple<>();
-  }
+    static <T> Triple<T, T, T> g(T x) {
+        return new Triple<>();
+    }
 
-  // The body is irrelevant; only this method's signature matters for the inference under test.
-  @SuppressWarnings("nullness")
-  static <T> T f(Triple<T, ? extends T, ? extends T> p) {
-    return null;
-  }
+    // The body is irrelevant; only this method's signature matters for the inference under test.
+    @SuppressWarnings("nullness")
+    static <T> T f(Triple<T, ? extends T, ? extends T> p) {
+        return null;
+    }
 
-  static class Triple<X, Y, Z> {}
+    static class Triple<X, Y, Z> {}
 
-  String tooDeeplyNested(String x) {
-    // :: error: (type.argument.inference.budget)
-    return f(g(f(g(f(g(f(g(f(g(f(g(f(g(f(g(f(g(f(g(f(g(f(g(f(g(x))))))))))))))))))))))))));
-  }
+    String tooDeeplyNested(String x) {
+        // :: error: (type.argument.inference.budget)
+        return f(g(f(g(f(g(f(g(f(g(f(g(f(g(f(g(f(g(f(g(f(g(f(g(f(g(x))))))))))))))))))))))))));
+    }
 
-  // A shallow invocation stays well under the budget and infers normally.
-  Object shallow(Object x) {
-    return f(g(x));
-  }
+    // A shallow invocation stays well under the budget and infers normally.
+    Object shallow(Object x) {
+        return f(g(x));
+    }
 }

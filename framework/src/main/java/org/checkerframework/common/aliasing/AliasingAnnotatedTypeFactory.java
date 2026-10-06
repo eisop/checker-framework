@@ -1,10 +1,7 @@
 package org.checkerframework.common.aliasing;
 
 import com.sun.source.tree.NewArrayTree;
-import java.lang.annotation.Annotation;
-import java.util.Collection;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.util.Elements;
+
 import org.checkerframework.common.aliasing.qual.LeakedToResult;
 import org.checkerframework.common.aliasing.qual.MaybeAliased;
 import org.checkerframework.common.aliasing.qual.MaybeLeaked;
@@ -23,100 +20,106 @@ import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.javacutil.AnnotationBuilder;
 
+import java.lang.annotation.Annotation;
+import java.util.Collection;
+
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.util.Elements;
+
 /** Annotated type factory for the Aliasing Checker. */
 public class AliasingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
-  /** The @{@link MaybeAliased} annotation. */
-  protected final AnnotationMirror MAYBE_ALIASED =
-      AnnotationBuilder.fromClass(elements, MaybeAliased.class);
+    /** The @{@link MaybeAliased} annotation. */
+    protected final AnnotationMirror MAYBE_ALIASED =
+            AnnotationBuilder.fromClass(elements, MaybeAliased.class);
 
-  /** The @{@link NonLeaked} annotation. */
-  protected final AnnotationMirror NON_LEAKED =
-      AnnotationBuilder.fromClass(elements, NonLeaked.class);
+    /** The @{@link NonLeaked} annotation. */
+    protected final AnnotationMirror NON_LEAKED =
+            AnnotationBuilder.fromClass(elements, NonLeaked.class);
 
-  /** The @{@link Unique} annotation. */
-  protected final AnnotationMirror UNIQUE = AnnotationBuilder.fromClass(elements, Unique.class);
+    /** The @{@link Unique} annotation. */
+    protected final AnnotationMirror UNIQUE = AnnotationBuilder.fromClass(elements, Unique.class);
 
-  /** The @{@link MaybeLeaked} annotation. */
-  protected final AnnotationMirror MAYBE_LEAKED =
-      AnnotationBuilder.fromClass(elements, MaybeLeaked.class);
+    /** The @{@link MaybeLeaked} annotation. */
+    protected final AnnotationMirror MAYBE_LEAKED =
+            AnnotationBuilder.fromClass(elements, MaybeLeaked.class);
 
-  /** Create the type factory. */
-  @SuppressWarnings("this-escape")
-  public AliasingAnnotatedTypeFactory(BaseTypeChecker checker) {
-    super(checker);
-    if (this.getClass() == AliasingAnnotatedTypeFactory.class) {
-      this.postInit();
-    }
-  }
-
-  @Override
-  public CFTransfer createFlowTransferFunction(
-      CFAbstractAnalysis<CFValue, CFStore, CFTransfer> analysis) {
-    CFTransfer ret = new AliasingTransfer(analysis);
-    return ret;
-  }
-
-  protected class AliasingTreeAnnotator extends TreeAnnotator {
-
-    public AliasingTreeAnnotator(AliasingAnnotatedTypeFactory atypeFactory) {
-      super(atypeFactory);
+    /** Create the type factory. */
+    @SuppressWarnings("this-escape")
+    public AliasingAnnotatedTypeFactory(BaseTypeChecker checker) {
+        super(checker);
+        if (this.getClass() == AliasingAnnotatedTypeFactory.class) {
+            this.postInit();
+        }
     }
 
     @Override
-    public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
-      type.replaceAnnotation(UNIQUE);
-      return super.visitNewArray(tree, type);
-    }
-  }
-
-  @Override
-  protected ListTreeAnnotator createTreeAnnotator() {
-    return new ListTreeAnnotator(new AliasingTreeAnnotator(this), super.createTreeAnnotator());
-  }
-
-  @Override
-  protected QualifierHierarchy createQualifierHierarchy() {
-    return new AliasingQualifierHierarchy(this.getSupportedTypeQualifiers(), elements);
-  }
-
-  /** AliasingQualifierHierarchy. */
-  protected class AliasingQualifierHierarchy extends NoElementQualifierHierarchy {
-
-    /**
-     * Create AliasingQualifierHierarchy.
-     *
-     * @param qualifierClasses classes of annotations that are the qualifiers
-     * @param elements element utils
-     */
-    protected AliasingQualifierHierarchy(
-        Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-      super(qualifierClasses, elements, AliasingAnnotatedTypeFactory.this);
+    public CFTransfer createFlowTransferFunction(
+            CFAbstractAnalysis<CFValue, CFStore, CFTransfer> analysis) {
+        CFTransfer ret = new AliasingTransfer(analysis);
+        return ret;
     }
 
-    /**
-     * Returns true is {@code anno} is annotation in the Leaked hierarchy.
-     *
-     * @param anno an annotation
-     * @return true is {@code anno} is annotation in the Leaked hierarchy
-     */
-    private boolean isLeakedQualifier(AnnotationMirror anno) {
-      return areSameByClass(anno, MaybeLeaked.class)
-          || areSameByClass(anno, NonLeaked.class)
-          || areSameByClass(anno, LeakedToResult.class);
+    protected class AliasingTreeAnnotator extends TreeAnnotator {
+
+        public AliasingTreeAnnotator(AliasingAnnotatedTypeFactory atypeFactory) {
+            super(atypeFactory);
+        }
+
+        @Override
+        public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
+            type.replaceAnnotation(UNIQUE);
+            return super.visitNewArray(tree, type);
+        }
     }
 
     @Override
-    public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
-      if (isLeakedQualifier(superAnno) && isLeakedQualifier(subAnno)) {
-        // @LeakedToResult and @NonLeaked were supposed to be non-type-qualifiers
-        // annotations.
-        // Currently the stub parser does not support non-type-qualifier annotations on
-        // receiver parameters (Issue 383), therefore these annotations are implemented as
-        // type qualifiers but the warnings related to the hierarchy are ignored.
-        return true;
-      }
-      return super.isSubtypeQualifiers(subAnno, superAnno);
+    protected ListTreeAnnotator createTreeAnnotator() {
+        return new ListTreeAnnotator(new AliasingTreeAnnotator(this), super.createTreeAnnotator());
     }
-  }
+
+    @Override
+    protected QualifierHierarchy createQualifierHierarchy() {
+        return new AliasingQualifierHierarchy(this.getSupportedTypeQualifiers(), elements);
+    }
+
+    /** AliasingQualifierHierarchy. */
+    protected class AliasingQualifierHierarchy extends NoElementQualifierHierarchy {
+
+        /**
+         * Create AliasingQualifierHierarchy.
+         *
+         * @param qualifierClasses classes of annotations that are the qualifiers
+         * @param elements element utils
+         */
+        protected AliasingQualifierHierarchy(
+                Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
+            super(qualifierClasses, elements, AliasingAnnotatedTypeFactory.this);
+        }
+
+        /**
+         * Returns true is {@code anno} is annotation in the Leaked hierarchy.
+         *
+         * @param anno an annotation
+         * @return true is {@code anno} is annotation in the Leaked hierarchy
+         */
+        private boolean isLeakedQualifier(AnnotationMirror anno) {
+            return areSameByClass(anno, MaybeLeaked.class)
+                    || areSameByClass(anno, NonLeaked.class)
+                    || areSameByClass(anno, LeakedToResult.class);
+        }
+
+        @Override
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+            if (isLeakedQualifier(superAnno) && isLeakedQualifier(subAnno)) {
+                // @LeakedToResult and @NonLeaked were supposed to be non-type-qualifiers
+                // annotations.
+                // Currently the stub parser does not support non-type-qualifier annotations on
+                // receiver parameters (Issue 383), therefore these annotations are implemented as
+                // type qualifiers but the warnings related to the hierarchy are ignored.
+                return true;
+            }
+            return super.isSubtypeQualifiers(subAnno, superAnno);
+        }
+    }
 }

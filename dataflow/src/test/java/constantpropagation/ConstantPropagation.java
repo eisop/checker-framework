@@ -10,26 +10,26 @@ import org.checkerframework.dataflow.constantpropagation.ConstantPropagationTran
 /** Runs the constant propagation analysis on a test file and prints the result. */
 public class ConstantPropagation {
 
-  /** Do not instantiate. */
-  private ConstantPropagation() {
-    throw new Error("Do not instantiate");
-  }
+    /** Do not instantiate. */
+    private ConstantPropagation() {
+        throw new Error("Do not instantiate");
+    }
 
-  /**
-   * The main method expects to be run in dataflow/tests/constant-propagation directory.
-   *
-   * @param args not used
-   */
-  public static void main(String[] args) {
+    /**
+     * The main method expects to be run in dataflow/tests/constant-propagation directory.
+     *
+     * @param args not used
+     */
+    public static void main(String[] args) {
 
-    String inputFile = "Test.java";
-    String method = "test";
-    String clas = "Test";
-    String outputFile = "Out.txt";
+        String inputFile = "Test.java";
+        String method = "test";
+        String clas = "Test";
+        String outputFile = "Out.txt";
 
-    ConstantPropagationTransfer transfer = new ConstantPropagationTransfer();
-    ForwardAnalysis<Constant, ConstantPropagationStore, ConstantPropagationTransfer>
-        forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
-    CFGVisualizeLauncher.writeStringOfCFG(inputFile, method, clas, outputFile, forwardAnalysis);
-  }
+        ConstantPropagationTransfer transfer = new ConstantPropagationTransfer();
+        ForwardAnalysis<Constant, ConstantPropagationStore, ConstantPropagationTransfer>
+                forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
+        CFGVisualizeLauncher.writeStringOfCFG(inputFile, method, clas, outputFile, forwardAnalysis);
+    }
 }
