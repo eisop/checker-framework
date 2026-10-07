@@ -14,7 +14,9 @@
 #   JAVA=${JAVA_HOME}/bin/java
 #   JAVAC=${JAVA_HOME}/bin/javac
 export JAVA?=java -ea
-export JAVAC?=javac
+# Compile the test inputs for Java 8: the annotator reads their class files with ASM,
+# which does not support the class file version of the newest JDKs.
+export JAVAC?=javac -source 8 -target 8 -Xlint:-options
 
 # Java uses ';' as the classpath separator on Windows.
 ifeq ($(OS),Windows_NT)
