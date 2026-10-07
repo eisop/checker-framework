@@ -84,6 +84,12 @@ manual004.gif
 manual004.png
 *.fls
 docs/annotation-file-utilities/annotation-file-format.html
+docs/annotation-file-utilities/annotation-file-format.aux
+docs/annotation-file-utilities/annotation-file-format.bbl
+docs/annotation-file-utilities/annotation-file-format.blg
+docs/annotation-file-utilities/annotation-file-format.fdb_latexmk
+docs/annotation-file-utilities/annotation-file-format.fls
+docs/annotation-file-utilities/annotation-file-format.haux
 docs/annotation-file-utilities/annotation-file-format.htoc
 docs/annotation-file-utilities/annotation-file-format.log
 docs/annotation-file-utilities/annotation-file-format.pdf

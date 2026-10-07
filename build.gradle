@@ -752,7 +752,6 @@ def javadocDirs = [
     project(":framework").sourceSets.test.allJava,
     project(":framework-test").sourceSets.main.allJava,
     project(":framework-test").sourceSets.test.allJava,
-    // NO-AFU project(":annotation-file-utilities').sourceSets.main.allJava,
     project(":javacutil").sourceSets.main.allJava
 ]
 
@@ -856,16 +855,47 @@ tasks.register("cleanManual", Exec) {
     description = "Clean the manual"
     commandLine("make", "-C", "docs/manual", "clean")
 }
-/* NO-AFU
- tasks.register("cleanAfuManual", Exec) {
- description = "Clean the Annotation File Utilities manual"
- commandLine "make", "-C", "docs/annotation-file-utilities/", "clean"
- }
- */
+tasks.register("cleanAfuManual", Exec) {
+    description = "Clean the Annotation File Utilities manual"
+    commandLine("make", "-C", "docs/annotation-file-utilities/", "clean")
+}
 tasks.named("clean") {
     dependsOn("cleanManual")
-    // NO-AFU dependsOn "cleanAfuManual"
+    dependsOn("cleanAfuManual")
     delete(file("${rootDir}/docs/api"))
+}
+
+tasks.register("annotationToolsZip", Zip) {
+    description = "Creates a zip archive for the Annotation File Utilities."
+    dependsOn(":annotation-file-utilities:assemble", "makeAfuManual")
+    archiveFileName = "annotation-tools-${version}.zip"
+    destinationDirectory = layout.buildDirectory
+    into("annotation-tools-${version}")
+
+    from("annotation-file-utilities") {
+        include("LICENSE.txt",
+                "bin/**",
+                "dist/annotation-file-utilities-all.jar",
+                "dist/annotation-file-utilities.jar",
+                "lib/*.jar")
+        into("annotation-file-utilities")
+    }
+    from("docs/annotation-file-utilities") {
+        include("annotation-file-utilities.html",
+                "annotation-file-format.html",
+                "annotation-file-format.pdf",
+                "*.png")
+        into("annotation-file-utilities")
+    }
+
+    // Archive tasks do not keep file-system permissions, but the scripts must be executable.
+    filesMatching("**/bin/*") { details ->
+        if (!details.name.endsWith(".bat")) {
+            details.permissions {
+                unix("rwxr-xr-x")
+            }
+        }
+    }
 }
 
 tasks.register("zip", Zip) {
@@ -887,19 +917,12 @@ tasks.register("zip", Zip) {
 
         include("README.md",
                 "LICENSE.txt",
-                // NO-AFU "annotation-file-utilities/bin/**",
-                // NO-AFU "annotation-file-utilities/dist/**",
-                // NO-AFU "annotation-file-utilities/LICENSE.txt",
                 "checker/bin/**",
                 "checker/dist/**",
                 "checker/resources/**",
                 "docs/CHANGELOG.md",
                 "docs/checker-framework-quick-start.html",
                 "docs/checker-framework-webpage.html",
-                // NO-AFU "docs/annotation-file-utilities/annotation-file-utilities.html",
-                // NO-AFU "docs/annotation-file-utilities/annotation-file-format.pdf",
-                // NO-AFU "docs/annotation-file-utilities/annotation-file-format.html",
-                // NO-AFU "docs/annotation-file-utilities/*.png",
                 "docs/manual/manual.html",
                 "docs/manual/manual.pdf",
                 "docs/manual/*.svg",
@@ -1027,13 +1050,12 @@ tasks.register("manual", Exec) {
     commandLine("make", "-C", "docs/manual", "all")
 }
 
-/* NO-AFU
- tasks.register("makeAfuManual", Exec) {
- description = "Make documentation: annotation-file-format.{html,pdf}."
- executable "make"
- args "-C", "docs/annotation-file-utilities/"
- }
- */
+tasks.register("makeAfuManual", Exec) {
+    group = "Documentation"
+    description = "Make documentation: annotation-file-format.{html,pdf}."
+    executable("make")
+    args("-C", "docs/annotation-file-utilities/")
+}
 
 // No group so it does not show up in the output of `gradlew tasks`
 tasks.register("downloadJtreg", Download) {
@@ -1687,7 +1709,7 @@ tasks.register("buildAll") {
     dependsOn("framework:allJavadocJar", "framework:allSourcesJar", "checker:allJavadocJar", "checker:allSourcesJar", "checker-qual:jar", "checker-util:jar")
     dependsOn("checker:assembleForJavac")
     dependsOn("manual", ":dataflow:manual")
-    // NO-AFU dependsOn("makeAfuManual")
+    dependsOn("makeAfuManual")
 }
 
 // Don't create an empty checker-framework-VERSION.jar

@@ -26,8 +26,7 @@ ext {
 
 // Note about update tasks:
 // It's not possible to update the version numbers in place, so first
-// updateVersionNumbersInDocs (and, once the Annotation File Utilities are a subproject,
-// updateVersionNumbersAFU) copies to a temporary directory with a filter to do replacement, then
+// updateVersionNumbersInDocs copies to a temporary directory with a filter to do replacement, then
 // updateVersionNumbers copies the changed files back to their original locations.
 //
 // docs/examples is deliberately not touched here.  Renovate bumps the Checker Framework version in
@@ -39,32 +38,9 @@ tasks.register("updateVersionNumbers", Copy) {
     description = "Updates the version number and release date in the documentation to releaseVersion."
     // See documentation above.
     dependsOn("updateVersionNumbersInDocs")
-    // NO-AFU dependsOn("updateVersionNumbersAFU")
     from(layout.buildDirectory.dir("updateVersionNumbers"))
     into(layout.projectDirectory)
 }
-
-/* NO-AFU
- tasks.register("updateVersionNumbersAFU", Copy) {
- // See documentation above.
- String classFileReader = "src/main/java/org/checkerframework/afu/scenelib/io/classfile/ClassFileReader.java"
- File classFileReaderFile = file("annotation-file-utilities/${classFileReader}")
- String version = releaseVersion
- String versionRegex = releaseVersionRegex
- inputs.property("releaseVersion", version)
- doFirst {
- if (!classFileReaderFile.exists()) {
- throw new GradleException("File ${classFileReaderFile} not found.")
- }
- }
- into layout.buildDirectory.dir("updateVersionNumbers/annotation-file-utilities")
- from "annotation-file-utilities"
- include classFileReader
- filter { String line ->
- line.replaceAll("Annotation File Utilities v${versionRegex}", "Annotation File Utilities v${version}")
- }
- }
- */
 
 tasks.register("updateVersionNumbersInDocs", Copy) {
     description = "Copies the documentation to the build directory, with releaseVersion and today's date filled in."
@@ -90,7 +66,7 @@ tasks.register("updateVersionNumbersInDocs", Copy) {
         "manual/introduction.tex": [],
         "manual/external-tools.tex": [],
         "manual/manual.tex": ["ReleaseVersion}{", "ReleaseInfo}{"],
-        // NO-AFU "annotation-file-utilities/annotation-file-utilities.html": [],
+        "annotation-file-utilities/annotation-file-utilities.html": [],
     ]
     File docsDir = file("docs")
     doFirst {
@@ -112,12 +88,13 @@ tasks.register("updateVersionNumbersInDocs", Copy) {
     from("docs") {
         include("checker-framework-quick-start.html",
                 "checker-framework-webpage.html",
-                // NO-AFU "annotation-file-utilities/annotation-file-utilities.html",
+                "annotation-file-utilities/annotation-file-utilities.html",
                 "manual/introduction.tex")
 
         filter { String line ->
             String date = LocalDate.now().format(DateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH))
             line = line.replaceAll("checker-framework-${versionRegex}", "checker-framework-${version}")
+            line = line.replaceAll("annotation-tools-${versionRegex}", "annotation-tools-${version}")
             String releaseDatePrefix = "<!-- checker-framework-date -->"
             String releaseDateSuffix = "<!-- /checker-framework-date -->"
             line.replaceAll("${releaseDatePrefix}(.*?)${releaseDateSuffix}", releaseDatePrefix + date + releaseDateSuffix)
@@ -166,12 +143,13 @@ tasks.register("zipMavenExamples", Zip) {
 
 tasks.register("copyToWebsite", Copy) {
     description = "Copy files to location set in the property cfWebsite."
-    dependsOn(":allJavadoc", ":manual", ":dataflow:manual", ":zip", "zipMavenExamples")
+    dependsOn(":allJavadoc", ":manual", ":dataflow:manual", ":zip", ":annotationToolsZip", "zipMavenExamples")
 
     def website = webSiteDir
     into(website) // affects all `into` clauses
 
     from(tasks.named("zip"))
+    from(tasks.named("annotationToolsZip"))
     from("docs") {
         include("checker-framework-webpage.html", "CHANGELOG.md")
     }
@@ -227,17 +205,16 @@ tasks.register("copyToWebsite", Copy) {
         into("api")
     }
 
-    /* NO-AFU
-     from("docs/annotation-file-utilities") {
-     include "annotation-file-utilities.html"
-     include "annotation-file-format.html"
-     include "annotation-file-format.pdf"
-     include "figures/*.svg"
-     include "figures/*.png"
-     include "figures/*.gif"
-     into "annotation-file-utilities"
-     }
-     */
+    // Copy the Annotation File Utilities manual
+    from("docs/annotation-file-utilities") {
+        include("annotation-file-utilities.html",
+                "annotation-file-format.html",
+                "annotation-file-format.pdf",
+                "figures/*.svg",
+                "figures/*.png",
+                "figures/*.gif")
+        into("annotation-file-utilities")
+    }
 
     // Resolve the directory at configuration time; the action below runs at execution time.
     def projectDirPath = layout.projectDirectory.asFile.toPath()
@@ -250,7 +227,7 @@ tasks.register("copyToWebsite", Copy) {
         }
         symlink("index.html", "checker-framework-webpage.html")
         symlink("manual/index.html", "manual.html")
-        // NO-AFU symlink("annotation-file-utilities/index.html", "annotation-file-utilities.html")
+        symlink("annotation-file-utilities/index.html", "annotation-file-utilities.html")
     }
 }
 

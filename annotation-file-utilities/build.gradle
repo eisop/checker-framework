@@ -16,6 +16,14 @@ java {
     }
 }
 
+// The Annotation File Utilities are kept close to typetools' copy, which does not use Modernizer.
+afterEvaluate {
+    // After the root build.gradle configures Modernizer.
+    modernizer {
+        failOnViolations = false
+    }
+}
+
 dependencies {
     // Annotations in checker-qual.jar are used, but no checkers are (currently) run on the code.
     compileOnly(project(":checker-qual"))
