@@ -121,8 +121,6 @@ tasks.register("testAnnotator", Exec) {
     group = "Verification"
     workingDir = "${projectDir}/tests/"
     executable = "make"
-    // The test Makefiles use ':' as the classpath separator and Unix tools such as diff.
-    onlyIf { !System.getProperty("os.name").toLowerCase().contains("windows") }
 }
 
 tasks.register("cleanTestAnnotator", Exec) {

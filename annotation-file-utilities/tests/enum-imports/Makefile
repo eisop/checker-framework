@@ -16,6 +16,13 @@
 JAVA?=java
 JAVAC?=javac
 
+# Java uses ';' as the classpath separator on Windows.
+ifeq ($(OS),Windows_NT)
+PATHSEP := ;
+else
+PATHSEP := :
+endif
+
 # In Java 8, include Java 9 javac.  Without this, tests fail with:
 #   Exception in thread "main" java.lang.NoSuchFieldError: ANNOTATION_PROCESSOR_MODULE_PATH
 ifeq ($(shell java -version 2>&1 | grep version | grep 1.8 > /dev/null; printf $$?), 0)
@@ -54,7 +61,7 @@ results: ../bin/VerifyDiffs.class
 	@echo ""
 	@echo "=== RESULTS ==="
 	@echo ""
-	@$(JAVA) -cp bin:../bin VerifyDiffs --show_all
+	@$(JAVA) -cp "bin$(PATHSEP)../bin" VerifyDiffs --show_all
 
 # Remakes the little java program that checks and compares diffs
 ../bin/VerifyDiffs.class : ../VerifyDiffs.java
@@ -64,7 +71,7 @@ results: ../bin/VerifyDiffs.class
 .PHONY: compile
 compile : $(SRC)
 	mkdir -p bin
-	$(JAVAC) -g -cp bin:../../build/classes/java/main -d bin -sourcepath . $(SRC)
+	$(JAVAC) -g -cp "bin$(PATHSEP)../../build/classes/java/main" -d bin -sourcepath . $(SRC)
 
 # Actually runs the annotator to create the annotated java file.
 # We are required to put annotation-file-utilities-all.jar (and ../bin) on the

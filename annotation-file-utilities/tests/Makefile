@@ -16,6 +16,13 @@
 export JAVA?=java -ea
 export JAVAC?=javac
 
+# Java uses ';' as the classpath separator on Windows.
+ifeq ($(OS),Windows_NT)
+PATHSEP := ;
+else
+PATHSEP := :
+endif
+
 # In Java 8, include Java 9 javac.  Without this, tests fail with:
 #   Exception in thread "main" java.lang.NoSuchFieldError: ANNOTATION_PROCESSOR_MODULE_PATH
 ifeq ($(shell java -version 2>&1 | grep version | grep 1.8 > /dev/null; printf $$?), 0)
@@ -97,13 +104,13 @@ bin/annotator/tests/%.class: %.java
 	mkdir -p bin
 # Added "-Xlint:-options" to see if it permits Jenkins job to succeed, due to
 # problem "target value 1.8 is obsolete and will be removed in a future release"
-	$(JAVAC) -Xlint:-options -g -cp bin:../dist/annotation-file-utilities-all.jar -d bin -sourcepath . $*.java
+	$(JAVAC) -Xlint:-options -g -cp "bin$(PATHSEP)../dist/annotation-file-utilities-all.jar" -d bin -sourcepath . $*.java
 
 # Actually runs the annotator to create the annotated java file.
 .PRECIOUS: %.output
 %.output: %.jaif %.java bin/annotator/tests/%.class ../build/classes/java/main ../dist/annotation-file-utilities-all.jar
 	$(JAVA) \
-	-cp ../dist/annotation-file-utilities-all.jar:bin \
+	-cp "../dist/annotation-file-utilities-all.jar$(PATHSEP)bin" \
 	org.checkerframework.afu.annotator.Main \
 	${DEBUG} \
 	--abbreviate=false \

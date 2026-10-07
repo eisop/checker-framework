@@ -20,6 +20,13 @@
 JAVA?=java
 JAVAC?=javac
 
+# Java uses ';' as the classpath separator on Windows.
+ifeq ($(OS),Windows_NT)
+PATHSEP := ;
+else
+PATHSEP := :
+endif
+
 # In Java 8, include Java 9 javac.  Without this, tests fail with:
 #   Exception in thread "main" java.lang.NoSuchFieldError: ANNOTATION_PROCESSOR_MODULE_PATH
 ifeq ($(shell java -version 2>&1 | grep version | grep 1.8 > /dev/null; printf $$?), 0)
@@ -53,7 +60,7 @@ results: ../bin/VerifyDiffs.class
 	@echo ""
 	@echo "=== RESULTS ==="
 	@echo ""
-	@$(JAVA) -cp bin:../bin VerifyDiffs --show_all
+	@$(JAVA) -cp "bin$(PATHSEP)../bin" VerifyDiffs --show_all
 
 # Remakes the little java program that checks and compares diffs
 ../bin/VerifyDiffs.class : ../VerifyDiffs.java
@@ -63,7 +70,7 @@ results: ../bin/VerifyDiffs.class
 .PRECIOUS: %.output
 %.output: %.jaif %.java ../../build/classes/java/main ../../dist/annotation-file-utilities-all.jar
 	$(JAVA) \
-	-cp ../bin:../../dist/annotation-file-utilities-all.jar:bin \
+	-cp "../bin$(PATHSEP)../../dist/annotation-file-utilities-all.jar$(PATHSEP)bin" \
 	org.checkerframework.afu.annotator.Main \
 	${DEBUG} \
 	--abbreviate=true \
