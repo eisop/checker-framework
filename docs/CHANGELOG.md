@@ -38,6 +38,13 @@ New Maven Central artifacts `io.github.eisop:framework` and
 custom checker without depending on `checker`. See the manual's "Declaring
 dependencies for a custom checker" section.
 
+The Annotation File Utilities, which typetools moved into this repository, are now
+built, tested, and type-checked as the `annotation-file-utilities` subproject.
+They are independent of the other subprojects. They are released separately from the
+Checker Framework: as the Maven artifact `io.github.eisop:annotation-file-utilities`
+and as `annotation-tools-VERSION.zip`. The changes of `eisop/annotation-tools` have
+been merged into them.
+
 Packaging fixes: published artifacts no longer transitively pull in
 `org.checkerframework:checker-qual`; Gradle consumers of
 `io.github.eisop:checker` now get the same jar Maven consumers get;
