@@ -222,7 +222,7 @@ def build_checker_framework_release(
     checker_tutorial_dir = Path(CHECKER_FRAMEWORK) / "docs" / "tutorial"
     execute("make", checker_tutorial_dir)
 
-    # Create checker-framework-X.Y.Z.zip and annotation-tools-X.Y.Z.zip and put them in
+    # Create checker-framework-X.Y.Z.zip and annotation-file-utilities-X.Y.Z.zip and put them in
     # checker_framework_interm_dir
     # copy the remaining checker-framework website files to checker_framework_interm_dir
     gradle_cmd = (

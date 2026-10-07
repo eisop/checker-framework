@@ -473,7 +473,7 @@ def main(argv: list[str]) -> None:
             "Download the following files to your local machine."
             "\n"
             f"  {LIVE_SITE_URL}/checker-framework-{new_cf_version}.zip\n"
-            f"  {LIVE_SITE_URL}/annotation-tools-{new_cf_version}.zip\n"
+            f"  {LIVE_SITE_URL}/annotation-file-utilities-{new_cf_version}.zip\n"
             "\n"
             "To post the Checker Framework release on GitHub:\n"
             "\n"
@@ -489,7 +489,7 @@ def main(argv: list[str]) -> None:
             + '* Find the link below "Attach binaries by dropping them here or selecting them." '
             + 'Click on "selecting them" and upload checker-framework-'
             + new_cf_version
-            + ".zip and annotation-tools-"
+            + ".zip and annotation-file-utilities-"
             + new_cf_version
             + ".zip from your machine.\n"
             + "  The Annotation File Utilities zip must be attached to this release: the web site"

@@ -865,12 +865,12 @@ tasks.named("clean") {
     delete(file("${rootDir}/docs/api"))
 }
 
-tasks.register("annotationToolsZip", Zip) {
+tasks.register("annotationFileUtilitiesZip", Zip) {
     description = "Creates a zip archive for the Annotation File Utilities."
     dependsOn(":annotation-file-utilities:assemble", "makeAfuManual")
-    archiveFileName = "annotation-tools-${version}.zip"
+    archiveFileName = "annotation-file-utilities-${version}.zip"
     destinationDirectory = layout.buildDirectory
-    into("annotation-tools-${version}")
+    into("annotation-file-utilities-${version}")
 
     from("annotation-file-utilities") {
         include("LICENSE.txt",

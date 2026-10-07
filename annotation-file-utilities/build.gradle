@@ -132,7 +132,7 @@ tasks.register("cleanTestAnnotator", Exec) {
 
 clean {
     dependsOn(cleanTestAnnotator)
-    delete("dist/annotation-file-utilities.jar", "dist/annotation-file-utilities-all.jar", "annotation-tools.zip")
+    delete("dist/annotation-file-utilities.jar", "dist/annotation-file-utilities-all.jar", "annotation-file-utilities.zip")
 }
 
 test.dependsOn(testExample)

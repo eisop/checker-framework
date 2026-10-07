@@ -94,7 +94,7 @@ tasks.register("updateVersionNumbersInDocs", Copy) {
         filter { String line ->
             String date = LocalDate.now().format(DateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH))
             line = line.replaceAll("checker-framework-${versionRegex}", "checker-framework-${version}")
-            line = line.replaceAll("annotation-tools-${versionRegex}", "annotation-tools-${version}")
+            line = line.replaceAll("annotation-file-utilities-${versionRegex}", "annotation-file-utilities-${version}")
             String releaseDatePrefix = "<!-- checker-framework-date -->"
             String releaseDateSuffix = "<!-- /checker-framework-date -->"
             line.replaceAll("${releaseDatePrefix}(.*?)${releaseDateSuffix}", releaseDatePrefix + date + releaseDateSuffix)
@@ -143,13 +143,13 @@ tasks.register("zipMavenExamples", Zip) {
 
 tasks.register("copyToWebsite", Copy) {
     description = "Copy files to location set in the property cfWebsite."
-    dependsOn(":allJavadoc", ":manual", ":dataflow:manual", ":zip", ":annotationToolsZip", "zipMavenExamples")
+    dependsOn(":allJavadoc", ":manual", ":dataflow:manual", ":zip", ":annotationFileUtilitiesZip", "zipMavenExamples")
 
     def website = webSiteDir
     into(website) // affects all `into` clauses
 
     from(tasks.named("zip"))
-    from(tasks.named("annotationToolsZip"))
+    from(tasks.named("annotationFileUtilitiesZip"))
     from("docs") {
         include("checker-framework-webpage.html", "CHANGELOG.md")
     }
