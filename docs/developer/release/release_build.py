@@ -21,7 +21,7 @@ from release_utils import (
     current_distribution_by_website,
     delete_directory_if_exists,
     delete_if_exists,
-    ensure_group_access,
+    ensure_writeable,
     has_command_line_option,
     increment_version,
     print_step,
@@ -419,14 +419,14 @@ def main(argv: list[str]) -> None:
 
     print_step("\n\nBuild Step 8: Add group permissions to repos.")
     for interm_repo, build_repo in INTERM_TO_BUILD_REPOS:
-        ensure_group_access(build_repo)
-        ensure_group_access(interm_repo)
+        ensure_writeable(build_repo)
+        ensure_writeable(interm_repo)
 
     # At the moment, this will lead to output error messages because some metadata in some of the
     # dirs I think is owned by Mike or Werner.  We should identify these and have them fix it.
     # But as long as the processes return a zero exit status, we should be ok.
     print_step("\n\nBuild Step 9: Add group permissions to websites.")  # AUTO
-    ensure_group_access(DEV_SITE_DIR)
+    ensure_writeable(DEV_SITE_DIR)
 
     create_empty_file(RELEASE_BUILD_COMPLETED_FLAG_FILE)
 
