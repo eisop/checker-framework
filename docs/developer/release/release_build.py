@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import datetime
 import os
 import shutil
 import sys
@@ -31,8 +30,6 @@ from release_utils import (
     set_umask,
 )
 from release_vars import (
-    ANNO_FILE_UTILITIES,
-    ANNO_TOOLS,
     CF_VERSION,
     CHECKER_FRAMEWORK,
     CHECKLINK,
@@ -53,7 +50,6 @@ from release_vars import (
 
 # Turned on by the --debug command-line option.
 debug = False
-ant_debug = ""
 
 
 def print_usage() -> None:
@@ -148,21 +144,16 @@ def create_dev_website_release_version_dir(project_name: str | None, version: st
     return interm_dir
 
 
-def create_dirs_for_dev_website_release_versions(cf_version: str) -> tuple[Path, Path]:
-    """Create directories for the given version of the CF and AFU projects on the dev web site.
+def create_dir_for_dev_website_release_version(cf_version: str) -> Path:
+    """Create the directory for the given version of the CF on the dev web site.
 
-    For example, <DEV_SITE_DIR>/annotation-file-utilities/releases/<version> and
-    <DEV_SITE_DIR>/releases/<version>.
+    For example, <DEV_SITE_DIR>/releases/<version>.  The Annotation File Utilities are part of the
+    Checker Framework release.
 
     Returns:
-        the dev web site directories for the AFU and for the CF.
+        the dev web site directory for the CF.
     """
-    # NO-AFU: Once the Annotation File Utilities are built from this repository, they are part of
-    # the Checker Framework release and do not need their own directory.
-    afu_interm_dir = create_dev_website_release_version_dir("annotation-file-utilities", cf_version)
-    checker_framework_interm_dir = create_dev_website_release_version_dir(None, cf_version)
-
-    return (afu_interm_dir, checker_framework_interm_dir)
+    return create_dev_website_release_version_dir(None, cf_version)
 
 
 # def update_project_dev_website_symlink(project_name, release_version):
@@ -190,45 +181,6 @@ def update_project_dev_website(project_name: str, release_version: str) -> None:
     shutil.copytree(dev_website_relative_dir, project_dev_site, dirs_exist_ok=True)
 
 
-def get_current_date() -> str:
-    """Return today's date in a string format similar to: 02 May 2016.
-
-    Returns:
-        today's date.
-    """
-    # Use the releaser's local calendar date (not UTC): astimezone() makes the
-    # datetime timezone-aware without changing which local date it names.
-    return datetime.datetime.now().astimezone().date().strftime("%d %b %Y")
-
-
-def build_annotation_tools_release(version: str, afu_interm_dir: Path) -> None:
-    """Build the Annotation File Utilities and place them in the development web site.
-
-    NO-AFU: Until the Annotation File Utilities are built from this repository, they are built and
-    released from eisop/annotation-tools.  Remove this function then.
-    """
-    execute("java -version")
-
-    execute("./gradlew assemble -Prelease=true", ANNO_FILE_UTILITIES)
-
-    date = get_current_date()
-
-    buildfile = Path(ANNO_FILE_UTILITIES) / "build.xml"
-    ant_cmd = (
-        f"ant {ant_debug} -buildfile {buildfile} -e update-versions"
-        f' -Drelease.ver="{version}" -Drelease.date="{date}"'
-    )
-    execute(ant_cmd)
-
-    # Deploy to intermediate site
-    gradle_cmd = (
-        f"./gradlew releaseBuildWithoutTest -Pafu.version={version} -Pdeploy-dir={afu_interm_dir}"
-    )
-    execute(gradle_cmd, ANNO_FILE_UTILITIES)
-
-    update_project_dev_website("annotation-file-utilities", version)
-
-
 def build_and_locally_deploy_maven() -> None:
     """Run `./gradlew publishToMavenLocal -Prelease=true`.
 
@@ -242,7 +194,8 @@ def build_checker_framework_release(
 ) -> None:
     """Build the release files for the Checker Framework project and run tests.
 
-    The release files include the manual and the zip file.
+    The release files include the manuals, the zip file of the Checker Framework, and the zip
+    file of the Annotation File Utilities.
     """
     execute("./gradlew clean", working_dir=CHECKER_FRAMEWORK)
 
@@ -269,7 +222,8 @@ def build_checker_framework_release(
     checker_tutorial_dir = Path(CHECKER_FRAMEWORK) / "docs" / "tutorial"
     execute("make", checker_tutorial_dir)
 
-    # Create checker-framework-X.Y.Z.zip and put it in checker_framework_interm_dir
+    # Create checker-framework-X.Y.Z.zip and annotation-tools-X.Y.Z.zip and put them in
+    # checker_framework_interm_dir
     # copy the remaining checker-framework website files to checker_framework_interm_dir
     gradle_cmd = (
         f"./gradlew copyToWebsite -Prelease=true -PcfWebsite={checker_framework_interm_dir}"
@@ -293,13 +247,11 @@ def commit_to_interm_projects(cf_version: str) -> None:
     """
     # Use project definition instead, see find project location find_project_locations
 
-    commit_tag_and_push(cf_version, ANNO_TOOLS, "")  # NO-AFU
-
     commit_tag_and_push(cf_version, CHECKER_FRAMEWORK, "checker-framework-")
 
 
 def main(argv: list[str]) -> None:
-    """Build the release artifacts for the AFU and the Checker Framework projects.
+    """Build the release artifacts for the Checker Framework, including the AFU.
 
     Also place them in the development web site. It can also be used to review
     the documentation and changelogs for the projects.
@@ -311,14 +263,12 @@ def main(argv: list[str]) -> None:
 
     set_umask()
 
-    global debug, ant_debug
+    global debug
     debug = has_command_line_option(argv, "--debug")
-    if debug:
-        ant_debug = "-debug"
 
     # For each project, build what is necessary but don't push
 
-    print("Building a new release of Annotation Tools and the Checker Framework!")
+    print("Building a new release of the Checker Framework and the Annotation File Utilities!")
 
     print("\nPATH:\n" + os.environ["PATH"] + "\n")
 
@@ -380,24 +330,17 @@ def main(argv: list[str]) -> None:
 
     print_step("Build Step 4: Create directories for the current release on the dev site.")  # AUTO
 
-    (
-        afu_interm_dir,
-        checker_framework_interm_dir,
-    ) = create_dirs_for_dev_website_release_versions(cf_version)
+    checker_framework_interm_dir = create_dir_for_dev_website_release_version(cf_version)
 
-    # The projects are built in the following order:
-    # Annotation File Utilities and Checker Framework. Furthermore, their
-    # manuals and websites are also built and placed in their relevant locations
+    # The Checker Framework and the Annotation File Utilities are built together. Furthermore,
+    # their manuals and websites are also built and placed in their relevant locations
     # on the dev site.  This is the most time-consuming
     # piece of the release. There are no prompts from this step forward; you
     # might want to get a cup of coffee and do something else until it is done.
 
     print_step("Build Step 5: Build projects and websites.")  # AUTO
 
-    print_step("Step 5a: Build Annotation File Utilities.")  # NO-AFU
-    build_annotation_tools_release(cf_version, afu_interm_dir)
-
-    print_step("Step 5b: Build Checker Framework.")
+    print_step("Step 5a: Build Checker Framework and Annotation File Utilities.")
     build_checker_framework_release(cf_version, old_cf_version, checker_framework_interm_dir)
 
     print_step("Build Step 6: Overwrite .htaccess and CFLogo.png .")  # AUTO

@@ -130,7 +130,7 @@ Answering 'no' to a prompt does not exit the script unless otherwise indicated.
         prevent such pull requests for the next month.)
       </li>
       <li>
-        <b>Update AFU and Checker Framework change logs</b> by following the instructions
+        <b>Update the Checker Framework change log</b>, which also covers the Annotation File Utilities, by following the instructions
         at <a href="#content_guidelines">content guidelines</a>.
       </li>
       <li> <b>Update the Checker Framework version number</b>
@@ -175,15 +175,6 @@ TreeAnnotator
         <p>
         A rule of thumb is that any framework change that requires changes to more than one type-checker should be at least a minor version (middle number in the version number) bump.
         </p>
-      </li>
-      <li>
-        <b>Update the Annotation Tools version number</b>, again <em>in the <code>master</code> branch</em>,
-        in <code>annotation-file-utilities/build.gradle</code> of the
-        <a href="https://github.com/eisop/annotation-tools">eisop/annotation-tools</a> repository.
-        (TODO: Are any other replacements necessary?)
-        <!-- NO-AFU: The Annotation File Utilities are released from eisop/annotation-tools until
-             they are built as part of this repository.  Then, remove this step and the other
-             Annotation File Utilities steps. -->
       </li>
       <li>
         <b>Commit and push</b> these changes to eisop/master.
@@ -252,10 +243,6 @@ TreeAnnotator
     Those instructions do not work on macOS, so you may need to use the
     <a href="#release_docker">Release Docker image</a> to make the changes.
   </li>
-  <li><strong>Update the Annotation Tools' use of the Checker Framework</strong>
-    by making a pull request that changes two occurrences of the old version number in
-    <code>annotation-file-utilities/build.gradle</code> of the eisop/annotation-tools repository.
-  </li>
   <li> <strong>Make Daikon use the latest Checker Framework version.</strong>
 
     Follow the  instructions in
@@ -271,7 +258,6 @@ TreeAnnotator
   </p>
 
   <ul>
-    <li>Annotation File Utilities: <a href="https://dev.azure.com/eisop/annotation-tools/_build/latest?definitionId=2&branchName=master"><img src="https://dev.azure.com/eisop/annotation-tools/_apis/build/status/eisop.annotation-tools?branchName=master" alt="Azure Pipelines eisop/annotation-tools status"/></a></li>
     <li>Checker Framework: <a href="https://dev.azure.com/eisop/checker-framework/_build/latest?definitionId=2&branchName=master"><img src="https://dev.azure.com/eisop/checker-framework/_apis/build/status/eisop.checker-framework?branchName=master" alt="Azure Pipelines eisop/checker-framework status"/></a></li>
     <li>checker-framework.demos: <a href="https://travis-ci.org/eisop/checker-framework.demos/branches"><img src="https://travis-ci.org/eisop/checker-framework.demos.svg?branch=master" alt="Travis eisop/checker-framework.demos status"/></a></li>
     <li>Daikon: <a href="https://dev.azure.com/eisop-codespecs/daikon/_build/latest?definitionId=1&branchName=master"><img src="https://dev.azure.com/codespecs/daikon/_apis/build/status/codespecs.daikon?branchName=master" alt="codespecs/daikon Azure Pipelines status"></a></li>
@@ -419,7 +405,7 @@ SONATYPE_NEXUS_PASSWORD=your_tokenkey</pre>
     </tr>
     <tr>
       <td>5.</td>
-      <td><strong>Get edit privileges for Checker Framework, Annotation Tools</strong><br/>
+      <td><strong>Get edit privileges for the Checker Framework</strong><br/>
         Once a release has been completed, you will be prompted to update issues in the
         issue tracker for each project that has been released.
         You will need to be a "developer" for each project so that you have update privileges for
@@ -496,7 +482,7 @@ docs/developer/release/release_build.py</pre>
         <td></td>
         <td colspan="2">build</td>
         <td>Contains repositories for:
-          annotation-tools, checker-framework, git-scripts, plume-bib, plume-scripts<br/>
+          checker-framework, git-scripts, plume-bib, plume-scripts<br/>
           These repositories are used to build the Checker Framework and its dependencies.
         </td>
       </tr>
@@ -504,7 +490,7 @@ docs/developer/release/release_build.py</pre>
         <td></td>
         <td colspan="2">interm</td>
         <td>Contains repositories for:
-          annotation-tools, checker-framework, git-scripts, plume-bib, plume-scripts<br/>
+          checker-framework, git-scripts, plume-bib, plume-scripts<br/>
           The repositories in build are clones of repositories in interm.  The repositories
           in interm are clones of the GitHub repositories.  This is so that
           we can test and push the release to the interm repositories then check the
@@ -671,21 +657,20 @@ docs/developer/release/release_build.py</pre>
 
       <li>Annotation File Utilities:
         <ul>
-          <li>List all issues (in issue trackers) resolved since the previous release:
-            <a href="https://eisop.github.io/afu/changelog.html">previous release</a>,
-            <a href="https://github.com/eisop/annotation-tools/issues?q=is%3Aissue+is%3Aclosed+sort%3Aupdated-desc">issues query</a>,
-            <a href="https://github.com/eisop/annotation-tools/blob/master/annotation-file-utilities/changelog.html">current changelog</a>
+          <li>The changes of the Annotation File Utilities are listed in the Checker Framework
+            changelog.  The release also has an Annotation File Utilities zip,
+            <code>annotation-tools-<em>VERSION</em>.zip</code>, and a Maven artifact,
+            <code>io.github.eisop:annotation-file-utilities</code>.
           </li>
           <li>
-            Ensure the changelogs reflect version control commits since the last release, via the
+            Ensure the changelog reflects version control commits since the last release, via the
             command line:<br/>
-            <code>cd $CHECKERFRAMEWORK/../annotation-tools && git log --name-status `git describe --abbrev=0 --tags`..</code><br/>
-            or via <a href="https://github.com/eisop/annotation-tools/commits/master">GitHub Annotation File Utilities commit logs</a>.
+            <code>cd $CHECKERFRAMEWORK && git log --name-status `git describe --abbrev=0 --tags`.. -- annotation-file-utilities</code>
           </li>
           <li>
-            Ensure the changelogs reflect changes to the manual since the last release, via the
+            Ensure the changelog reflects changes to the manual since the last release, via the
             command line:<br/>
-            <code>cd $CHECKERFRAMEWORK/../annotation-tools && git diff -w `git describe --abbrev=0 --tags` annotation-file-utilities/annotation-file-utilities.html</code>
+            <code>cd $CHECKERFRAMEWORK && git diff -w `git describe --abbrev=0 --tags` docs/annotation-file-utilities/annotation-file-utilities.html</code>
           </li>
         </ul>
       </li>
