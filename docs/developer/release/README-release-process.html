@@ -107,7 +107,7 @@ Answering 'no' to a prompt does not exit the script unless otherwise indicated.
   </li>
   <li>
     Browse
-    to <a href="https://github.com/typetools/checker-framework/security/dependabot">https://github.com/typetools/checker-framework/security/dependabot</a>
+    to <a href="https://github.com/eisop/checker-framework/security/dependabot">https://github.com/eisop/checker-framework/security/dependabot</a>
     and if there are any reports, try to update the responsible packages.
   </li>
   <li>
@@ -454,9 +454,9 @@ git config --global user.email you@example.com</pre>
       <td>9.</td>
       <td><strong>Clone the Checker Framework</strong><br/>
         <pre>
-mkdir /scratch/$USER/cf-release
-cd /scratch/$USER/cf-release
-git clone git@github.com:typetools/checker-framework.git checker-framework</pre>
+mkdir /tmp/$USER/cf-release
+cd /tmp/$USER/cf-release
+git clone git@github.com:eisop/checker-framework.git checker-framework</pre>
         If the directory already exists, the <code>git clone</code> command will
         fail.  That is OK.
       </td>
@@ -471,7 +471,7 @@ git clone git@github.com:typetools/checker-framework.git checker-framework</pre>
         were pushed to any repositories since the last run of <code>release_build.py</code>) in
         order for the release date to be correct in all documents.
         <pre>
-cd /scratch/$USER/cf-release/checker-framework
+cd /tmp/$USER/cf-release/checker-framework
 docs/developer/release/release_build.py</pre>
       </td>
     </tr>
