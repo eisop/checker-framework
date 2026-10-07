@@ -299,3 +299,6 @@ annotation-file-utilities/*.png
 
 # Obtained via Git
 .plume-scripts
+
+# Copied by the copyJavacJar task
+annotation-file-utilities/lib/*.jar

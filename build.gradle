@@ -594,6 +594,33 @@ allprojects { currentProj ->
                     // "-XepPatchLocation:IN_PLACE",
                 ]
 
+                if (project.name.equals("annotation-file-utilities")) {
+                    // The AFU sources are kept close to typetools' copy, so these checks are
+                    // disabled here instead of changing the code.
+                    options.errorprone.errorproneArgs.addAll([
+                        // Disabled by typetools' build for all of its code.
+                        "-Xep:AnnotateFormatMethod:OFF",
+                        "-Xep:ASTHelpersSuggestions:OFF",
+                        "-Xep:CanIgnoreReturnValueSuggester:OFF",
+                        "-Xep:DoNotCallSuggester:OFF",
+                        "-Xep:EffectivelyPrivate:OFF",
+                        "-Xep:ExtendsObject:OFF",
+                        "-Xep:InlineMeSuggester:OFF",
+                        "-Xep:InvalidBlockTag:OFF",
+                        "-Xep:MixedMutabilityReturnType:OFF",
+                        "-Xep:NonOverridingEquals:OFF",
+                        "-Xep:NullableWildcard:OFF",
+                        "-Xep:StringSplitter:OFF",
+                        "-Xep:VoidUsed:OFF",
+                        "-Xep:NotJavadoc:OFF",
+                        "-Xep:CheckedExceptionNotThrown:OFF",
+                        "-Xep:ConstantPatternCompile:OFF",
+                        "-Xep:SystemExitOutsideMain:OFF",
+                        "-Xep:TypeEquals:OFF",
+                        "-Xep:UnnecessaryDefaultInEnumSwitch:OFF",
+                    ])
+                }
+
                 if (compilationTask.name.equals("compileTestJava")) {
                     options.errorprone.errorproneArgs.addAll([
                         // Some Value Checker tests use int literals intentionally.
@@ -1308,11 +1335,11 @@ subprojects {
         def isChecker = project.name.is("checker")
 
         // The checkNullness task runs on all code, but it only *checks* the following code:
-        //  * All files outside the "framework" and "checker" subprojects.
-        //  * In the "framework" and "checker" subprojects, files with `@AnnotatedFor("nullness")`.
+        //  * All files outside the "framework", "checker", and "annotation-file-utilities" subprojects.
+        //  * In those subprojects, files with `@AnnotatedFor("nullness")`.
         // To check all code in all subprojects, pass `-PnullnessAll`.
         boolean nullnessAll = project.hasProperty("nullnessAll")
-        if (!nullnessAll && (isFramework || isChecker)) {
+        if (!nullnessAll && (isFramework || isChecker || project.name.is("annotation-file-utilities"))) {
             rootProject.createCheckTypeTask(project.name,"Nullness",
                     "org.checkerframework.checker.nullness.NullnessChecker",
                     [

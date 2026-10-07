@@ -5,6 +5,7 @@ buildscript {
 }
 
 rootProject.name = "checker-framework"
+include("annotation-file-utilities")
 include("checker")
 include("checker-qual")
 include("checker-qual-android")
@@ -33,15 +34,3 @@ def buildJdkMajor = useJdkVersionProp != null
 if (buildJdkMajor >= 21) {
     include("framework-errorprone")
 }
-
-/* NO-AFU
- includeBuild ("../annotation-tools/annotation-file-utilities") {
- if (!file("../annotation-tools/annotation-file-utilities").exists()) {
- def executed = providers.exec {
- commandLine("checker/bin-devel/clone-related.sh")
- }
- println executed.standardOutput.asText.get()
- println executed.standardError.asText.get()
- }
- }
- */
