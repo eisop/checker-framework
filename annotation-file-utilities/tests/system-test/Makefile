@@ -49,7 +49,7 @@ out2.diff: out2.jaif
 	# diff -u expected-annos.jaif out2.jaif > out2.diff
 	grep -v typecast expected-annos.jaif | grep -v instanceof | grep -v local > expected-annos.jaif.no-cast-no-instanceof
 	grep -v typecast out2.jaif | grep -v instanceof | grep -v local > out2.jaif.no-cast-no-instanceof
-	diff -u expected-annos.jaif.no-cast-no-instanceof out2.jaif.no-cast-no-instanceof > out2.diff
+	-diff -u --strip-trailing-cr expected-annos.jaif.no-cast-no-instanceof out2.jaif.no-cast-no-instanceof > out2.diff
 	rm -f expected-annos.jaif.no-cast-no-instanceof out2.jaif.no-cast-no-instanceof
 
 .PHONY: check-out2
@@ -76,7 +76,7 @@ out5.jaif: out4.class
 	CLASSPATH=`pwd`/out1 ${ANNCAT} --class out4.class --out --index out5.jaif
 
 out5.diff: out5.jaif
-	diff -u expected-annos.jaif out5.jaif > out5.diff
+	-diff -u --strip-trailing-cr expected-annos.jaif out5.jaif > out5.diff
 
 .PHONY: check-out5
 # Fail if out5.diff is non-empty
