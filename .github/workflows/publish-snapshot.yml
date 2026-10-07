@@ -52,7 +52,7 @@ jobs:
           distribution: 'zulu'
           java-version: '21'
 
-      - uses: gradle/actions/setup-gradle@v6.3.0
+      - uses: gradle/actions/setup-gradle@v6.4.0
 
       # Publishing a non-snapshot version from here would go to the release
       # repository and could not be undone, so refuse unless the version says
