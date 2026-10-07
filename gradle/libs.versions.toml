@@ -6,7 +6,7 @@
 
 error-prone = "2.50.0"
 junit-junit = "4.13.2"
-jgit-version = "7.6.0.202603022253-r"
+jgit-version = "7.8.0.202609011348-r"
 
 [plugins]
 
@@ -54,7 +54,7 @@ require-javadoc = "org.plumelib:require-javadoc:2.0.0"
 guava = "org.checkerframework.annotatedlib:guava:33.1.0.2-jre"
 
 # The unannotated Guava, which the Checker Framework depends on.
-google-guava = "com.google.guava:guava:33.7.1-jre"
+google-guava = "com.google.guava:guava:33.7.2-jre"
 
 options = "org.plumelib:options:2.0.3"
 
