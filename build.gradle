@@ -1306,7 +1306,12 @@ subprojects {
         // Adds manifest to all Jar files
         tasks.withType(Jar).configureEach {
             includeEmptyDirs = false
-            if (archiveFileName.get().startsWith("checker-qual") || archiveFileName.get().startsWith("checker-util")) {
+            // These artifacts are under the MIT License, in the LICENSE.txt of their project;
+            // everything else is under the GPL with the Classpath Exception.
+            boolean isMitLicensed = ["checker-qual", "checker-util", "annotation-file-utilities"].any {
+                archiveFileName.get().startsWith(it)
+            }
+            if (isMitLicensed) {
                 metaInf {
                     from("./LICENSE.txt")
                 }
@@ -1321,7 +1326,7 @@ subprojects {
                 if (! archiveFileName.get().endsWith("source.jar") && ! archiveFileName.get().startsWith("checker-qual")) {
                     attributes("Automatic-Module-Name": "org.checkerframework." + project.name.replaceAll("-", "."))
                 }
-                if (archiveFileName.get().startsWith("checker-qual") || archiveFileName.get().startsWith("checker-util")) {
+                if (isMitLicensed) {
                     attributes("Bundle-License": "MIT")
                 } else {
                     attributes("Bundle-License": "(GPL-2.0-only WITH Classpath-exception-2.0)")
