@@ -3457,11 +3457,22 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         Set<String> prefixes = new HashSet<>(getSuppressWarningsPrefixes());
         Set<String> errorKeys = new HashSet<>(messagesProperties.stringPropertyNames());
+        // Normally, the visitors of this checker and of its subcheckers collect the same trees.
+        // But this checker's visitor may skip the compilation unit, as the Initialization
+        // Checker's visitor does under -AassumeInitialized, so also use the subcheckers' trees.
+        List<Tree> treesWithSuppressWarnings = getVisitor().treesWithSuppressWarnings;
+        Set<Tree> knownTrees = Collections.newSetFromMap(new IdentityHashMap<>());
+        knownTrees.addAll(treesWithSuppressWarnings);
         for (SourceChecker subChecker : subcheckers) {
             allElementsWithSuppressedWarnings.addAll(subChecker.elementsWithSuppressedWarnings);
             subChecker.elementsWithSuppressedWarnings.clear();
             prefixes.addAll(subChecker.getSuppressWarningsPrefixes());
             errorKeys.addAll(subChecker.messagesProperties.stringPropertyNames());
+            for (Tree tree : subChecker.getVisitor().treesWithSuppressWarnings) {
+                if (knownTrees.add(tree)) {
+                    treesWithSuppressWarnings.add(tree);
+                }
+            }
             subChecker.getVisitor().treesWithSuppressWarnings.clear();
         }
         warnUnneededSuppressions(allElementsWithSuppressedWarnings, prefixes, errorKeys);

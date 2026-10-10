@@ -271,6 +271,7 @@ Other improvements and bug fixes:
   `resolveAnnotationFileLocation` plus `allAnnotationFiles(File, ...)`.
 - Custom annotated JDKs no longer load `checker.jar`'s binary JDK on top.
 - Fixed `-AwarnUnneededSuppressions` for values matching a checker prefix.
+- `-AwarnUnneededSuppressions` now also works with `-AassumeInitialized`.
 - Fixed missing `EnsuresNonNullIf` import in
   `permit-nullness-assertion-exception.astub`.
 - Fixed capture conversion dropping qualifiers from type-variable bounds.
@@ -336,6 +337,7 @@ eisop#1991,
 eisop#2009,
 eisop#2020,
 eisop#2021,
+eisop#2029,
 eisop#2032,
 eisop#2034,
 eisop#2037,
