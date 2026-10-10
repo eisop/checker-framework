@@ -1196,6 +1196,58 @@ materialization per comparison), `CFAbstractValue.canBeMissingAnnotations` (~2%,
 constructor per created annotation; they get the `checkSubtype` fast path for free, and could
 adopt the `TypeElement`-caching pattern if an Index profile shows the constructor lookup —
 unprofiled, so not changed.
+- **Range widening in loops (eisop#2224, October 2026) — measured, no code change.** The
+  3.55.0 merge replaced the type-by-type jump in `ValueQualifierHierarchy.widenedRange` with a
+  snap to the next value of a fixed set (min/max of each integral type and 0, each ±2) and added
+  a loop-condition special case in `ValueTransfer` (compare against an integer literal). Baseline
+  = master with the old `widenedRange` body restored and/or `isLoopCondition` forced to false,
+  so only these two changes differ. Method: `java -jar checker/dist/checker.jar -proc:only
+  -processor org.checkerframework.common.value.ValueChecker -Awarns` (JDK 21, `nice -n 19`),
+  one warm-up per variant, then 5–7 interleaved rounds; wall median [min–max], max RSS median.
+  Workloads: plume-util `src/main/java` (45 files); `framework/src/main/java` (minus the NO-AFU
+  excludes, `checker.jar` on the classpath); a generated file of 40 methods, each with three
+  nested `for` loops, a `while` growing `x = x * 2 + 3`, and a `do`-`while` decrementing a
+  `byte`, with literal bounds (`synth`) or parameter bounds (`synthvar`).
+
+  | Workload | pre-3.55 widening | master | master − baseline |
+  | --- | --- | --- | --- |
+  | plume-util | 8.81 s [8.57–11.12], 450 MB | 10.33 s [10.01–13.28], 514 MB | **+17%** time, +14% RSS |
+  | framework | 25.85 s [25.28–26.05], 920 MB | 30.19 s [29.58–30.64], 974 MB | **+17%** time, +6% RSS |
+  | synthvar | 2.64 s [2.57–2.79], 388 MB | 3.37 s [3.32–3.95], 413 MB | +28% time |
+  | synth (literal bounds) | 3.06 s [2.76–3.20], 405 MB | 2.75 s [2.63–2.84], 329 MB | −10% time |
+
+  Attribution: old `widenedRange` + new loop-condition case (plume) 8.70 s vs. 8.67 s for the
+  full baseline — the special case costs nothing (and *saves* time on literal bounds); the
+  whole regression is the new `widenedRange`. Debug counters in `ForwardAnalysisImpl.addStoreBefore`
+  (not committed): plume 111k → 230k store merges (6.5k → 15.3k widening merges), framework
+  476k → 790k, synthvar 38k → 91k. JFR (plume, both sides) puts the extra on-CPU samples in
+  `addStoreBefore`/`mergeStores` (32 → 85 inclusive) and transfer functions (65 → 85), not in
+  `widenedRange` itself. Cause, from a `widenedUpperBound` trace: an unbounded `int` counter
+  now climbs four rungs (125, 32765, 65533, 2147483645) instead of three, each rung costs a
+  full `numberOfIterationsBeforeWidening` (12) round of merges, and — unlike the old code, which
+  always moved *past* the lub to the next type limit — a value that an inner loop already
+  widened onto a rung is not pushed further by the outer loop, so nested loops climb rung by
+  rung at every level. That last property is exactly what makes the new widening precise.
+
+  Options tried (plume wall, median of 5, same session; precision = how many of 16 `@IntRange`
+  assertions fail in a probe of 9 loops whose non-literal bounds are `Byte`/`Short`/`Character`/
+  `Integer` limits, such as `while (s < Short.MAX_VALUE)` or `i <= Character.MAX_VALUE`, inside
+  and after the loop; master 0, pre-3.55 widening 2):
+  - *No ±2 margins:* 10.00 s vs. 10.22 s master (−2%), 10 probe failures.
+  - *No `Character.MAX_VALUE` cluster:* 9.79 s (−4%), 7 failures.
+  - *Neither:* 9.77 s vs. 10.29 s (−5%), 13 failures.
+  - *Drop the `Short` and `Character` clusters* (straight from the `byte` limit to the `int`
+    limit): 9.52 s vs. 10.29 s (−7.5%), framework 27.20 s vs. 30.20 s (−10%), 12 failures —
+    worse precision than the pre-3.55 widening.
+  - *Keep widening on every merge after a block's first widening* (instead of resetting the
+    count, in `ForwardAnalysisImpl.addStoreBefore`): 0 failures and −17% merges, but 10.07 s vs.
+    9.99 s — widening merges cost more than plain lubs, so no gain.
+
+  Decision: keep master. The cost is real on real code (~+17% Value Checker time), but it
+  buys the precision the change was made for, and every cheaper variant either gives back most
+  of that precision or saves under 5%. A future attempt should reduce the per-rung cost (the
+  12-merge round) for nested loops rather than remove rungs, and must be checked against such a
+  precision probe, not only timed.
 
 ### Visitor and checker reviews
 
