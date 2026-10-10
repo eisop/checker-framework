@@ -720,7 +720,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                         namedElement == null ? null : namedElement.getEnclosingElement();
                 enclosingElement != null;
                 enclosingElement = enclosingElement.getEnclosingElement()) {
-            if (enclosingElement == typeElement) {
+            if (enclosingElement.equals(typeElement)) {
                 return;
             }
         }
