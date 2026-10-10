@@ -706,8 +706,27 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 break;
             }
         }
+        // A lambda parameter without a declared type has no type tree.
+        if (nameTree == null) {
+            return;
+        }
         if (nameTree instanceof ParameterizedTypeTree) {
             nameTree = ((ParameterizedTypeTree) nameTree).getType();
+        }
+
+        // The scan of a declared type also visits its enclosing type, passing the same tree. Then
+        // `type` is an enclosing type of the type that the tree names, and the levels of `type`'s
+        // enclosing-type chain do not correspond to the levels of the tree's qualifier chain. The
+        // visit of the type that the tree names validates the whole chain, so do nothing here.
+        Element typeElement = type.getUnderlyingType().asElement();
+        Element namedElement = TreeUtils.elementFromTree(nameTree);
+        for (Element enclosingElement =
+                        namedElement == null ? null : namedElement.getEnclosingElement();
+                enclosingElement != null;
+                enclosingElement = enclosingElement.getEnclosingElement()) {
+            if (enclosingElement.equals(typeElement)) {
+                return;
+            }
         }
 
         // Walk outward through the qualifier chain, validating each enclosing type that is written
