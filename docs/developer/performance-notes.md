@@ -948,7 +948,9 @@ so small per-call wins paid back substantially.
 - **PR #1763** — *`TreePathCacher` control-flow exception optimization.* The
   `Result` exception used for non-local exit is constructed with
   `super(null, null, false, false)` to suppress stack-trace generation; the
-  exception is caught two frames up and never logged or rethrown.
+  exception is caught two frames up and never logged or rethrown. The other
+  exceptions proposed in eisop#228, and a throw-free `TreePathCacher`, were
+  measured and rejected; see "Tried and rejected".
 - **PR #1765** — *`entrySet()` iteration over `keySet() + get()`.* Applied the
   pattern across `UBQualifier`, `LockAnnotatedTypeFactory`, `MustCallInference`,
   and `AnnotationConverter`: iterate `map.entrySet()` instead of `map.keySet()`
@@ -2536,6 +2538,51 @@ the prior finding. A fresh hypothesis is not new evidence.
   cross-context — keep such caches instance-scoped), unused cached-`Name` fields hidden behind a
   class-wide `@SuppressWarnings("UnusedVariable")`, and `Name`-identity assumptions spread across the
   public `javacutil` surface for no measured gain.
+- **More stackless control-flow exceptions, and a throw-free `TreePathCacher` (eisop#228) —
+  measured-and-rejected (October 2026).** The issue proposed suppressing the stack trace of four
+  internal exceptions and possibly rewriting `TreePathCacher`. Its `TreePathCacher.Result` part
+  was already applied (PR #1763, above). Counting every throwable constructed (JFR
+  `jdk.JavaExceptionThrow`/`jdk.JavaErrorThrow` enabled, Nullness Checker, JDK 25) shows that the
+  other three are not thrown in practice:
+
+  | throwable | plume-util (45 files) | `framework/src/main/java` (276 files) |
+  |---|---|---|
+  | `TreePathCacher.Result` (already stackless) | 43,308 | 225,900 |
+  | `AnnotationFileParserException` | 0 | 0 |
+  | `JavaExpressionParseException` | 0 | 5 |
+  | `UnexpectedAnnotationLocationException`, `ErrorTypeKindException` | 0 | 0 |
+  | `BugInCF`, caught and retried in `DefaultTypeHierarchy` | 0 | 2,340 |
+
+  Those three only fire on malformed stub files, unparsable expressions, or bad annotation
+  locations, all of which are reported as errors, so their stack traces cost nothing on correct
+  input. The one non-trivial source of full stack traces is `BugInCF` used as control flow: the
+  `catch (Exception)` workarounds in `DefaultTypeHierarchy` (`visitTypeArgs`'s "some types need to
+  be captured first" retry, `isContainedBy`, and `isContainedWithinBounds`'s `AsSuperVisitor` case)
+  absorb 1,560 throws from `StructuralEqualityComparer.defaultAction` (wildcard vs. type variable)
+  and 780 from `AsSuperVisitor.errorTypeNotErasedSubtypeOfSuperType`, all under
+  `BaseTypeVisitor.checkMethodInvocability`. Each pays for two stack traces (the
+  `BugInCF` and its `new Throwable()` cause) and a `String.format` of two `AnnotatedTypeMirror`s.
+  (The 1,037 `NoSuchFileException`s are thrown inside javac's file manager when
+  `BinaryStubReader.applyClassRecord` calls `getTypeElement`, so they are not ours to remove.)
+
+  JFR execution samples put none of this on the profile (0 of 5,221 samples in `fillInStackTrace`;
+  `TreePathCacher` is 2.1% inclusive), but stack-trace filling runs in the VM, where the Java
+  sampler is not a reliable witness, so two upper-bound A/Bs were timed directly (5 interleaved
+  runs each, `checker/bin/javac -processor nullness`, wall-clock median and range):
+
+  | variant | workload | master | variant |
+  |---|---|---|---|
+  | `BugInCF(fmt, args)` with no format and no stack traces (upper bound, not shippable) | `framework/src/main/java` | 49.43 s (47.37–54.62) | 49.94 s (49.44–50.83) |
+  | `TreePathCacher` stops on a `found` field instead of throwing `Result` | `framework/src/main/java` | 49.89 s (48.92–53.54) | 50.10 s (49.52–50.82) |
+  | same | plume-util | 13.77 s (12.40–14.09) | 13.61 s (13.58–14.09) |
+  | same | `gen-sized-program.py --shape deep-nesting 600` | 199.04 s (195.39–202.59) | 197.81 s (196.99–199.76) |
+
+  All are within run-to-run noise (user CPU likewise: 130.6 vs. 131.6 s for the `BugInCF` bound).
+  Even removing *all* of `BugInCF`'s construction cost does not move the wall clock, so a dedicated
+  cheap exception for the capture-retry paths is not worth its API change; and unwinding the
+  stackless `Result` through the scanner frames costs no more than letting every pending `scan`
+  call return through a flag check. Fix the retry paths for correctness
+  (stop throwing in the first place) if ever, not for speed.
 
 ---
 
