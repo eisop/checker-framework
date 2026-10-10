@@ -884,7 +884,8 @@ tasks.register("annotationFileUtilitiesZip", Zip) {
         include("annotation-file-utilities.html",
                 "annotation-file-format.html",
                 "annotation-file-format.pdf",
-                "*.png")
+                // The figures that annotation-file-utilities.html shows.
+                "figures/*.svg")
         into("annotation-file-utilities")
     }
 
