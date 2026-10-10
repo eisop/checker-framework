@@ -134,15 +134,15 @@ file.
 
 <ol>
 <li>
-  Follow
-  the <a href="https://checkerframework.org/manual/#installation">Checker
-  Framework installation instructions</a>.
+  Download the <a href="https://eisop.github.io/cf/">latest
+  <code>annotation-file-utilities</code> release</a>
+  and unzip it.
 
   <p>
     For example, on Unix run:
   </p>
-  <pre><code>wget https://checkerframework.org/checker-framework-3.49.5.zip
-unzip checker-framework-3.49.5.zip</code></pre>
+  <pre><code>wget https://eisop.github.io/cf/annotation-file-utilities-3.49.5-eisop1.zip
+unzip annotation-file-utilities-3.49.5-eisop1.zip</code></pre>
 </li>
 
 <li>
@@ -153,7 +153,7 @@ Add the <code>annotation-file-utilities/bin</code> directory to your path.
 For <b>Unix</b> (including Linux and MacOS), add the directory to your PATH
 environment variable.  If your shell is sh or bash, add to your
 <code>~/.bashrc</code> or <code>~/.bash_profile</code> file:
-<pre><code>export PATH=${PATH}:<em>/path/to</em>/checker-framework/annotation-file-utilities/bin</code></pre>
+<pre><code>export PATH=${PATH}:<em>/path/to</em>/annotation-file-utilities-3.49.5-eisop1/annotation-file-utilities/bin</code></pre>
 <!-- Omitted to save space and simplify instructions
 For csh/tcsh, add to ~/.tcshrc or ~/.cshrc or ~/.login:
 <pre><code>setenv PATH=${PATH}:/path/to/annotation-file-utilities/</code></pre>
@@ -177,7 +177,7 @@ and append to it the directory <code><em>path\to</em>\annotatation-tools\annotat
 <!-- I think this is obvious, so I have commented it out -MDE. -->
 <!--
 <p>
-To update the annotation file utilities, simply download the most recent <code>annotation-tools.zip</code> file from this website and replace the existing <code>annotation-tools.zip</code>, then extract the file just as when you first installed it.  As long as you followed the above instructions, no further work needs to be done.
+To update the annotation file utilities, simply download the most recent <code>annotation-file-utilities.zip</code> file from this website and replace the existing <code>annotation-file-utilities.zip</code>, then extract the file just as when you first installed it.  As long as you followed the above instructions, no further work needs to be done.
 </p>
 -->
 
@@ -189,11 +189,11 @@ the distribution), so most users do not need to compile it themselves.
 </p>
 
 <p>
-There are two ways to obtain the source code.
-Source code is provided in the
-<a href="https://github.com/typetools/checker-framework/releases">distribution</a>.
-Alternately, see the source code repository at
-<a href="https://github.com/typetools/checker-framework">https://github.com/typetools/checker-framework</a>.
+The source code is in the <code>annotation-file-utilities</code> directory of the
+EISOP Checker Framework repository
+<a href="https://github.com/eisop/checker-framework">https://github.com/eisop/checker-framework</a>.
+The Annotation File Utilities are also available from Maven Central, as
+<code>io.github.eisop:annotation-file-utilities</code>.
 </p>
 
 <p>
@@ -611,19 +611,12 @@ displayed.</p>
 
 <p>
 To submit a bug report or request a new feature, use the
-<a href="https://github.com/typetools/checker-framework/issues">issue
+<a href="https://github.com/eisop/checker-framework/issues">issue
   tracker</a>.  When reporting a bug, please include exact instructions in
 how to reproduce it, and please also attach relevant input files.  This
 will let us resolve the issue quickly.
 </p>
 
-<p>
-You can also reach the developers at
-<a href="mailto:checker-framework-dev@googlegroups.com">checker-framework-dev@googlegroups.com</a>.
-But please use the
-  <a href="https://github.com/typetools/checker-framework/issues">issue
-  tracker</a> for bug reports and feature requests.
-</p>
 
 
 <hr/>

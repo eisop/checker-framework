@@ -17,8 +17,21 @@
 export JAVA?=java -ea
 export JAVAC?=javac
 
+# Java uses ';' as the classpath separator on Windows.
+ifeq ($(OS),Windows_NT)
+PATHSEP := ;
+else
+PATHSEP := :
+endif
+
+# In Java 8, include Java 9 javac.  Without this, tests fail with:
+#   Exception in thread "main" java.lang.NoSuchFieldError: ANNOTATION_PROCESSOR_MODULE_PATH
+ifeq ($(shell java -version 2>&1 | grep version | grep 1.8 > /dev/null; printf $$?), 0)
+export JAVA:=$(JAVA) -Xbootclasspath/p:../../lib/javac-9+181-r4173-1.jar
+else
 # Need --add-opens to access CommandLine.parse dynamically to check its type.
 export JAVA:=$(JAVA) --add-opens jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED  --add-opens jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED
+endif
 
 export SHELL=/bin/bash -o pipefail
 
@@ -61,7 +74,7 @@ bin/annotator/tests/%.class: %.java
 	mkdir -p bin
 # Added "-Xlint:-options" to see if it permits Jenkins job to succeed, due to
 # problem "target value 1.8 is obsolete and will be removed in a future release"
-	$(JAVAC) -Xlint:-options -g -cp bin:../dist/annotation-file-utilities.jar -d bin -sourcepath . $*.java
+	$(JAVAC) -Xlint:-options -g -cp "bin$(PATHSEP)../dist/annotation-file-utilities.jar" -d bin -sourcepath . $*.java
 
 # Create a symbolic link for a .java file.
 .PRECIOUS: %.java
@@ -82,7 +95,7 @@ bin/annotator/tests/%.class: %.java
 # be better to fail earlier.
 %.output: %.jaif %.java bin/annotator/tests/%.class ../../build/classes/java/main ../../dist/annotation-file-utilities-all.jar
 	-$(JAVA) \
-	    -cp ../../dist/annotation-file-utilities-all.jar:bin \
+	    -cp "../../dist/annotation-file-utilities-all.jar$(PATHSEP)bin" \
 	    org.checkerframework.afu.annotator.Main \
 	    ${DEBUG} \
 	    --abbreviate=false \
@@ -95,7 +108,7 @@ bin/annotator/tests/%.class: %.java
 
 # Compare the output of the annotator and the goal file.
 %.diff: %.goal %.output
-	-diff -u $*.goal $*.output 2>&1 | tee $*.diff
+	-diff -u --strip-trailing-cr $*.goal $*.output 2>&1 | tee $*.diff
 
 # Remove all .diff, .log files from the tests directory.
 .PHONY: clean

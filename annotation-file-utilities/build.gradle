@@ -16,6 +16,14 @@ java {
     }
 }
 
+// The Annotation File Utilities are kept close to typetools' copy, which does not use Modernizer.
+afterEvaluate {
+    // After the root build.gradle configures Modernizer.
+    modernizer {
+        failOnViolations = false
+    }
+}
+
 dependencies {
     // Annotations in checker-qual.jar are used, but no checkers are (currently) run on the code.
     compileOnly(project(":checker-qual"))
@@ -32,6 +40,13 @@ dependencies {
     testImplementation(project(":checker-qual"))
 }
 
+
+// The scripts in bin/ put javac on the bootclasspath on JDK 8, from lib/.
+tasks.register("copyJavacJar", Copy) {
+    description = "Copies the javac jar that the scripts in bin/ use on JDK 8 into lib/."
+    from(configurations.javacJar)
+    into("${projectDir}/lib")
+}
 
 shadowJar {
     destinationDirectory = file("${projectDir}/dist")
@@ -79,7 +94,7 @@ tasks.register("testExample", JavaExec) {
     ]
 
     doFirst {
-        file(outputDir).mkdir()
+        new File(outputDir).mkdirs()
         new File("${outputDir}/example-stdout.jaif").createNewFile()
 
         standardOutput = new FileOutputStream("${outputDir}/example-stdout.jaif")
@@ -117,7 +132,7 @@ tasks.register("cleanTestAnnotator", Exec) {
 
 clean {
     dependsOn(cleanTestAnnotator)
-    delete("dist/annotation-file-utilities.jar", "dist/annotation-file-utilities-all.jar", "annotation-tools.zip")
+    delete("dist/annotation-file-utilities.jar", "dist/annotation-file-utilities-all.jar", "annotation-file-utilities.zip")
 }
 
 test.dependsOn(testExample)
@@ -171,4 +186,37 @@ tasks.register("updateUserOptionsHtml", Javadoc) {
 tasks.named("assemble") {
     dependsOn(shadowJar)
     dependsOn(skinnyJar)
+    dependsOn(copyJavacJar)
+}
+
+apply from: rootProject.file("gradle-mvn-push.gradle")
+
+/** Adds information to the publication for uploading to Maven repositories. */
+final annotationFileUtilitiesPom(publication) {
+    rootProject.sharedPublicationConfiguration(publication)
+    publication.from(components.java)
+    publication.pom {
+        name = "Annotation File Utilities"
+        description = "The Annotation File Utilities read, write, and insert annotations in Java " +
+                "source and class files, and manipulate annotation files (\".jaif\" files)."
+        licenses {
+            license {
+                name = "The MIT License"
+                url = "https://opensource.org/licenses/MIT"
+                distribution = "repo"
+            }
+        }
+    }
+}
+
+publishing {
+    publications {
+        annotationFileUtilities(MavenPublication) {
+            annotationFileUtilitiesPom(it)
+        }
+    }
+}
+
+signing {
+    sign(publishing.publications.annotationFileUtilities)
 }

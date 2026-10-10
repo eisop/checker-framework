@@ -84,6 +84,12 @@ manual004.gif
 manual004.png
 *.fls
 docs/annotation-file-utilities/annotation-file-format.html
+docs/annotation-file-utilities/annotation-file-format.aux
+docs/annotation-file-utilities/annotation-file-format.bbl
+docs/annotation-file-utilities/annotation-file-format.blg
+docs/annotation-file-utilities/annotation-file-format.fdb_latexmk
+docs/annotation-file-utilities/annotation-file-format.fls
+docs/annotation-file-utilities/annotation-file-format.haux
 docs/annotation-file-utilities/annotation-file-format.htoc
 docs/annotation-file-utilities/annotation-file-format.log
 docs/annotation-file-utilities/annotation-file-format.pdf
@@ -240,7 +246,7 @@ annotation-file-utilities/annotation-file-format.toc
 annotation-file-utilities/dist/annotation-file-utilities.jar
 annotation-file-utilities/dist/annotation-file-utilities-all.jar
 annotation-file-utilities/annotation-file-utilities-all-but-javac.jar
-annotation-file-utilities/annotation-tools.zip
+annotation-file-utilities/annotation-file-utilities-*.zip
 annotation-file-utilities/plume-bib
 annotation-file-utilities/design.aux
 annotation-file-utilities/design.log
@@ -299,3 +305,6 @@ annotation-file-utilities/*.png
 
 # Obtained via Git
 .plume-scripts
+
+# Copied by the copyJavacJar task
+annotation-file-utilities/lib/*.jar
