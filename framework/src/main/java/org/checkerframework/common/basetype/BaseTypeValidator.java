@@ -710,6 +710,21 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             nameTree = ((ParameterizedTypeTree) nameTree).getType();
         }
 
+        // The scan of a declared type also visits its enclosing type, passing the same tree. Then
+        // `type` is an enclosing type of the type that the tree names, and the levels of `type`'s
+        // enclosing-type chain do not correspond to the levels of the tree's qualifier chain. The
+        // visit of the type that the tree names validates the whole chain, so do nothing here.
+        Element typeElement = type.getUnderlyingType().asElement();
+        Element namedElement = TreeUtils.elementFromTree(nameTree);
+        for (Element enclosingElement =
+                        namedElement == null ? null : namedElement.getEnclosingElement();
+                enclosingElement != null;
+                enclosingElement = enclosingElement.getEnclosingElement()) {
+            if (enclosingElement == typeElement) {
+                return;
+            }
+        }
+
         // Walk outward through the qualifier chain, validating each enclosing type that is written
         // with explicit type arguments.
         AnnotatedDeclaredType enclosing = unqualifiedNewClass ? null : type.getEnclosingType();

@@ -212,7 +212,8 @@ Other improvements and bug fixes:
   `override.typaram.invalid`, closing a soundness hole (eisop#1965).
 - Enclosing type argument fixes (eisop#737): `TypeFromTypeTreeVisitor` restores
   declared bounds; `BaseTypeValidator` checks enclosing type arguments against
-  declared bounds.
+  declared bounds, and reports an out-of-bound enclosing type argument once in
+  a chain of three or more levels (eisop#1926).
 - `AnnotatedIntersectionType.summarizeBounds` computes bound summaries.
   `clearAnnotations()` on intersection, wildcard, and type-variable types now
   also clears bounds. `AnnotatedTypes.glbSubtype` uses `shallowCopy(false)`.
@@ -327,6 +328,7 @@ eisop#1862,
 eisop#1863,
 eisop#1865,
 eisop#1887,
+eisop#1926,
 eisop#1958,
 eisop#1965,
 eisop#1986,
