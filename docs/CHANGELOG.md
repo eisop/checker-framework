@@ -240,6 +240,8 @@ Other improvements and bug fixes:
 - Type argument inference crash fixes: `? super`/`? extends` interactions,
   lambda-returned generic calls, implicitly typed lambdas, inexact method
   references, F-bounded wildcards.
+- Type argument inference treats an `Error` thrown in a lambda body as an
+  unchecked exception, instead of crashing.
 - Type argument inference resolves polymorphic qualifiers in nested generic
   invocations and method references.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
@@ -358,6 +360,7 @@ eisop#2089,
 eisop#2091,
 eisop#2094,
 eisop#2105,
+eisop#2115,
 eisop#2135,
 eisop#2140,
 eisop#2155,
