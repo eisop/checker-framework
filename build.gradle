@@ -943,8 +943,9 @@ tasks.register("zip", Zip) {
                 "docs/tutorial/**")
     }
 
-    // Archive tasks do not keep file-system permissions, but the javac wrapper must be executable.
-    filesMatching("checker/bin/javac") {
+    // Archive tasks do not keep file-system permissions, but the javac wrapper and the shell
+    // scripts, such as wpi.sh, must be executable.
+    filesMatching(["checker/bin/javac", "checker/bin/*.sh"]) {
         permissions {
             unix("rwxr-xr-x")
         }
