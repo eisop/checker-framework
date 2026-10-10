@@ -71,6 +71,8 @@ tasks.register("skinnyJar", ShadowJar) {
     includeEmptyDirs = false
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = "annotation-file-utilities.jar"
+    // A ShadowJar task other than the plugin's own shadowJar has no input by default.
+    from(sourceSets.main.output)
     include("org/checkerframework/afu/scenelib/**/*.class")
     include("org/checkerframework/afu/annotator/**/*.class")
 }
