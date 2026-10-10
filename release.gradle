@@ -216,10 +216,8 @@ tasks.register("copyToWebsite", Copy) {
         into("annotation-file-utilities")
     }
 
-    // Resolve the directory at configuration time; the action below runs at execution time.
-    def projectDirPath = layout.projectDirectory.asFile.toPath()
     doLast {
-        def destDir = projectDirPath.resolve(website.get())
+        def destDir = website.get().asFile.toPath()
         def symlink = { String link, String target ->
             def linkPath = destDir.resolve(link)
             Files.deleteIfExists(linkPath)
