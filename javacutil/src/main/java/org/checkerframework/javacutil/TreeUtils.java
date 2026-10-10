@@ -3200,7 +3200,14 @@ public final class TreeUtils {
 
                     @Override
                     public Void visitLambdaExpression(LambdaExpressionTree node, Void unused) {
-                        // Don't visit inside anther lambda.
+                        // Don't visit inside another lambda.
+                        return null;
+                    }
+
+                    @Override
+                    public Void visitClass(ClassTree node, Void unused) {
+                        // Don't visit inside a local or anonymous class: a return statement in
+                        // one of its methods returns from that method, not from the lambda.
                         return null;
                     }
                 };
