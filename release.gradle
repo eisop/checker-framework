@@ -148,6 +148,12 @@ tasks.register("copyToWebsite", Copy) {
     def website = webSiteDir
     into(website) // affects all `into` clauses
 
+    // docs/manual/Makefile makes the copies of the figures read-only, and a Copy task keeps the
+    // permissions of its sources; a read-only file in the web site cannot be overwritten later.
+    filePermissions {
+        unix("rw-r--r--")
+    }
+
     from(tasks.named("zip"))
     from(tasks.named("annotationFileUtilitiesZip"))
     from("docs") {
