@@ -706,6 +706,10 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 break;
             }
         }
+        // A lambda parameter without a declared type has no type tree.
+        if (nameTree == null) {
+            return;
+        }
         if (nameTree instanceof ParameterizedTypeTree) {
             nameTree = ((ParameterizedTypeTree) nameTree).getType();
         }
