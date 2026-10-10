@@ -54,6 +54,8 @@ annotation names that ShadowJar had rewritten (breaking
 Lombok/codehaus `@NotNull`/`@Nullable` and `@org.plumelib.options.Option`)
 are fixed; and shaded jars are ~2 MB smaller, no longer bundling a stray
 `module-info.class` or jsr305 classes.
+The shell scripts in `checker/bin`, such as `wpi.sh`, are executable in
+`checker-framework-VERSION.zip`.
 
 Type-checking and subtyping improvements:
 
