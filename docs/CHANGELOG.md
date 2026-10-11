@@ -251,6 +251,10 @@ Other improvements and bug fixes:
   references, F-bounded wildcards.
 - Type argument inference resolves polymorphic qualifiers in nested generic
   invocations and method references.
+- Type argument inference no longer crashes on an explicitly typed lambda
+  passed to a parameter of a wildcard-parameterized functional interface type,
+  such as `m("x", (Object o) -> "y")` for a parameter
+  `Function<? super T, String>`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -367,6 +371,7 @@ eisop#2089,
 eisop#2091,
 eisop#2094,
 eisop#2105,
+eisop#2114,
 eisop#2135,
 eisop#2140,
 eisop#2155,
