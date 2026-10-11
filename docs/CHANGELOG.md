@@ -166,6 +166,12 @@ A stub file that declares a record where the running JDK has a class (for exampl
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
 members that follow the record.
 
+Type argument inference no longer fails on a nested `? extends` wildcard that mentions
+the inferred type variable, as in a lambda passed as
+`Supplier<? extends List<? extends T>>` or a call returning
+`Box<? extends Box<? extends T>>`.  It reported `type.argument.inference.crashed` on
+code that javac accepts.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -371,6 +377,7 @@ eisop#2135,
 eisop#2140,
 eisop#2155,
 eisop#2156,
+eisop#2159,
 eisop#2187,
 typetools#399,
 typetools#2816,
