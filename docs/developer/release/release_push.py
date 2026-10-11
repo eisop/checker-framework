@@ -25,8 +25,6 @@ from release_utils import (
     version_number_to_array,
 )
 from release_vars import (
-    AFU_LIVE_RELEASES_DIR,
-    ANNO_FILE_UTILITIES,
     CF_VERSION,
     CHECKER_FRAMEWORK,
     CHECKER_LIVE_API_DIR,
@@ -34,7 +32,6 @@ from release_vars import (
     CHECKLINK,
     DEV_SITE_DIR,
     DEV_SITE_URL,
-    INTERM_ANNO_REPO,
     INTERM_CHECKER_REPO,
     LIVE_SITE_DIR,
     LIVE_SITE_URL,
@@ -126,24 +123,21 @@ def copy_htaccess() -> None:
 
 
 def copy_releases_to_live_site(cf_version: str) -> None:
-    """Copy the new releases of the AFU and the Checker Framework from the dev to the live site."""
+    """Copy the new release of the Checker Framework and the AFU from the dev to the live site.
+
+    The Annotation File Utilities are part of the release of the Checker Framework.
+    """
     checker_interm_releases_dir = Path(DEV_SITE_DIR) / "releases"
     copy_release_dir(checker_interm_releases_dir, CHECKER_LIVE_RELEASES_DIR, cf_version)
     delete_directory_if_exists(CHECKER_LIVE_API_DIR)
     promote_release(CHECKER_LIVE_RELEASES_DIR, cf_version)
-    # NO-AFU: Until the Annotation File Utilities are part of the Checker Framework release, they
-    # have their own releases directory.
-    afu_interm_releases_dir = Path(DEV_SITE_DIR) / "annotation-file-utilities" / "releases"
-    copy_release_dir(afu_interm_releases_dir, AFU_LIVE_RELEASES_DIR, cf_version)
-    promote_release(AFU_LIVE_RELEASES_DIR, cf_version)
 
 
 def ensure_group_access_to_releases() -> None:
     """Give group access to the "releases" directories on the live web site.
 
-    That is, to all files and directories in them, for the AFU and the Checker Framework.
+    That is, to all files and directories in it, for the Checker Framework and the AFU.
     """
-    ensure_writeable(AFU_LIVE_RELEASES_DIR)  # NO-AFU
     ensure_writeable(CHECKER_LIVE_RELEASES_DIR)
 
 
@@ -218,7 +212,7 @@ def check_all_links(
     Raises:
         ReleaseError: If there are link checking errors.
     """
-    afu_check = run_link_checker(afu_website, TMP_DIR / f"afu.{suffix}.check")  # NO-AFU
+    afu_check = run_link_checker(afu_website, TMP_DIR / f"afu.{suffix}.check")
     additional_param = ""
     if cf_version_of_broken_link_to_suppress != "":
         additional_param = (
@@ -256,11 +250,10 @@ def check_all_links(
 
 
 def push_interm_to_release_repos() -> None:
-    """Push the release to the GitHub repositories for the AFU and the Checker Framework.
+    """Push the release to the GitHub repository of the Checker Framework, which includes the AFU.
 
     This is an irreversible step.
     """
-    push_changes_prompt_if_fail(INTERM_ANNO_REPO)  # NO-AFU
     push_changes_prompt_if_fail(INTERM_CHECKER_REPO)
 
 
@@ -343,7 +336,7 @@ def main(argv: list[str]) -> None:
     if not pathlib.Path(RELEASE_BUILD_COMPLETED_FLAG_FILE).exists():
         continue_or_exit(
             "It appears that release_build.py has not been run since the last push to "
-            "the AFU or Checker Framework repositories.  Please ensure it has "
+            "the Checker Framework repository.  Please ensure it has "
             "been run."
         )
 
@@ -351,8 +344,9 @@ def main(argv: list[str]) -> None:
     # version.
 
     print_step("Push Step 1: Checking release versions")  # SEMIAUTO
-    dev_afu_website = f"{DEV_SITE_URL}/annotation-file-utilities"  # NO-AFU
-    live_afu_website = f"{LIVE_SITE_URL}/annotation-file-utilities"  # NO-AFU
+    # The Annotation File Utilities web pages are in the directory of the Checker Framework release.
+    dev_afu_website = f"{DEV_SITE_URL}/annotation-file-utilities"
+    live_afu_website = f"{LIVE_SITE_URL}/annotation-file-utilities"
 
     check_release_version(current_cf_version, new_cf_version)
 
@@ -395,8 +389,8 @@ def main(argv: list[str]) -> None:
         gradle_cmd = "./gradlew allTests"
         execute(gradle_cmd, CHECKER_FRAMEWORK)
 
-        gradle_cmd = "./gradlew test"
-        execute(gradle_cmd, ANNO_FILE_UTILITIES)
+        gradle_cmd = "./gradlew :annotation-file-utilities:allTests"
+        execute(gradle_cmd, CHECKER_FRAMEWORK)
 
     # This step copies the development release directories to the live release directories.
     # It then adds the appropriate permissions to the release. Symlinks need to be updated to point
@@ -470,8 +464,8 @@ def main(argv: list[str]) -> None:
         # Please fill out the email and announce the release.
 
         print_step(
-            "Push Step 9. Post the Checker Framework and Annotation File Utilities releases on"
-            " GitHub."
+            "Push Step 9. Post the Checker Framework release, with the Annotation File Utilities,"
+            " on GitHub."
         )  # MANUAL
 
         msg = (
@@ -479,8 +473,7 @@ def main(argv: list[str]) -> None:
             "Download the following files to your local machine."
             "\n"
             f"  {LIVE_SITE_URL}/checker-framework-{new_cf_version}.zip\n"
-            # NO-AFU
-            f"  https://eisop.github.io/afu/annotation-tools-{new_cf_version}.zip\n"
+            f"  {LIVE_SITE_URL}/annotation-file-utilities-{new_cf_version}.zip\n"
             "\n"
             "To post the Checker Framework release on GitHub:\n"
             "\n"
@@ -496,26 +489,11 @@ def main(argv: list[str]) -> None:
             + '* Find the link below "Attach binaries by dropping them here or selecting them." '
             + 'Click on "selecting them" and upload checker-framework-'
             + new_cf_version
-            + ".zip from your machine.\n"
-            + '* Click on the green "Publish release" button.\n'
-            # NO-AFU: Until the Annotation File Utilities are part of the Checker Framework release.
-            + "\n"
-            + "To post the Annotation File Utilities release on GitHub:\n"
-            + "\n"
-            + "* Browse to https://github.com/eisop/annotation-tools/releases/new?tag="
-            + new_cf_version
-            + "\n"
-            + "* For the release title, enter: Annotation File Utilities "
-            + new_cf_version
-            + "\n"
-            + "* For the description, insert the latest Annotation File Utilities changelog entry "
-            + "(available at https://eisop.github.io/afu/changelog.html). Please include the first "
-            + "line with the release version and date. For bullet points, use the * Markdown "
-            + "character.\n"
-            + '* Find the link below "Attach binaries by dropping them here or selecting them." '
-            + 'Click on "selecting them" and upload annotation-tools-'
+            + ".zip and annotation-file-utilities-"
             + new_cf_version
             + ".zip from your machine.\n"
+            + "  The Annotation File Utilities zip must be attached to this release: the web site"
+            + " takes it from here.\n"
             + '* Click on the green "Publish release" button.\n'
         )
 

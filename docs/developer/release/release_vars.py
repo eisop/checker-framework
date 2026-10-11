@@ -109,12 +109,8 @@ RELEASE_BUILD_COMPLETED_FLAG_FILE = TMP_DIR / "release-build-completed"
 # Every time a release is built the changes/tags are pushed here.
 INTERM_REPO_ROOT = TMP_DIR / "interm"
 INTERM_CHECKER_REPO = INTERM_REPO_ROOT / "checker-framework"
-# NO-AFU: Until the Annotation File Utilities are built from this repository, they are released
-# from eisop/annotation-tools.  Remove INTERM_ANNO_REPO, LIVE_ANNO_REPO, and ANNO_TOOLS then.
-INTERM_ANNO_REPO = INTERM_REPO_ROOT / "annotation-tools"
 
 # The central repositories for Checker Framework related projects.
-LIVE_ANNO_REPO = "git@github.com:eisop/annotation-tools.git"
 LIVE_CHECKER_REPO = "git@github.com:eisop/checker-framework.git"
 GIT_SCRIPTS_REPO = "https://github.com/eisop-plume-lib/git-scripts"
 PLUME_SCRIPTS_REPO = "https://github.com/eisop-plume-lib/plume-scripts"
@@ -135,25 +131,14 @@ CF_VERSION = execute_output(
     "./gradlew version -q -Prelease=true", TMP_DIR / "checker-framework"
 ).strip()
 
-# NO-AFU: Once the Annotation File Utilities are built from this repository, use:
-# ANNO_FILE_UTILITIES = CHECKER_FRAMEWORK / "annotation-file-utilities"
-ANNO_TOOLS = BUILD_DIR / "annotation-tools"
-ANNO_FILE_UTILITIES = ANNO_TOOLS / "annotation-file-utilities"
-
 GIT_SCRIPTS = BUILD_DIR / "git-scripts"
 PLUME_SCRIPTS = BUILD_DIR / "plume-scripts"
 CHECKLINK = BUILD_DIR / "checklink"
 PLUME_BIB = BUILD_DIR / "plume-bib"
 
-INTERM_TO_BUILD_REPOS = (
-    (INTERM_CHECKER_REPO, CHECKER_FRAMEWORK),
-    (INTERM_ANNO_REPO, ANNO_TOOLS),  # NO-AFU
-)
+INTERM_TO_BUILD_REPOS = ((INTERM_CHECKER_REPO, CHECKER_FRAMEWORK),)
 
-LIVE_TO_INTERM_REPOS = (
-    (LIVE_CHECKER_REPO, INTERM_CHECKER_REPO),
-    (LIVE_ANNO_REPO, INTERM_ANNO_REPO),  # NO-AFU
-)
+LIVE_TO_INTERM_REPOS = ((LIVE_CHECKER_REPO, INTERM_CHECKER_REPO),)
 
 # TODO: publish to GitHub
 
@@ -164,10 +149,6 @@ DEV_SITE_DIR = TMP_DIR / "web-cf-dev"
 # The location the test site is pushed to when it is ready.
 LIVE_SITE_URL = "https://eisop.github.io/cf"
 LIVE_SITE_DIR = TMP_DIR / "web-cf"
-
-# NO-AFU
-AFU_LIVE_SITE = LIVE_SITE_DIR / "annotation-file-utilities"
-AFU_LIVE_RELEASES_DIR = AFU_LIVE_SITE / "releases"
 
 CHECKER_LIVE_RELEASES_DIR = LIVE_SITE_DIR / "releases"
 CHECKER_LIVE_API_DIR = LIVE_SITE_DIR / "api"
