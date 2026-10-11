@@ -314,10 +314,10 @@ public class BoundSet implements ReductionResult {
                 }
             } else {
                 for (Variable beta : alphaDependencies) {
-                    if (!beta.isCaptureVariable()) {
-                        // Otherwise, alpha depends on the resolution of beta.
-                        dependencies.putOrAdd(alpha, beta);
-                    }
+                    // Otherwise, alpha depends on the resolution of beta.  This holds even if beta
+                    // is a capture variable: for the bound Class<beta> <: alpha, alpha must not be
+                    // resolved before beta.
+                    dependencies.putOrAdd(alpha, beta);
                 }
             }
             // An inference variable alpha depends on the resolution of itself.
