@@ -254,6 +254,10 @@ Other improvements and bug fixes:
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
+- Viewpoint adaptation no longer overflows the stack when computing the
+  supertypes of a type whose type argument is a type variable of another class,
+  such as `Seq<E>` in `interface Coll<E> { void m(Seq<E> s); }`, or any member
+  access on a three-deep generic interface such as `java.util.List`.
 - `-AcheckCastElementType` fixes: no longer crashes on downcasts, incomparable
   types, null literal casts, or differing type-argument counts.
 - `BinaryStubFileGenerator` accepts a file, directory (`--bundle`), or jar.
@@ -347,6 +351,7 @@ eisop#2020,
 eisop#2021,
 eisop#2032,
 eisop#2034,
+eisop#2036,
 eisop#2037,
 eisop#2047,
 eisop#2048,

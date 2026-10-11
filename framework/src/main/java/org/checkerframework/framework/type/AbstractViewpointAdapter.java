@@ -246,7 +246,15 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     @Override
     public AnnotatedTypeMirror viewpointAdaptType(
             AnnotatedTypeMirror receiverType, AnnotatedTypeMirror declaredType) {
-        return combineTypeWithType(receiverType, declaredType);
+        // Every caller passes a type whose type arguments are already actual type arguments as
+        // seen from the receiver: a direct supertype of the receiver that SupertypeFinder has
+        // substituted, a copy of the receiver itself, or the interface that an anonymous class
+        // implements.  A type variable in it that the receiver's class does not declare is such
+        // an actual type argument, not a formal type parameter of one of the receiver's
+        // supertypes, so it must not be looked up in the receiver's supertypes.  That lookup
+        // would also compute the receiver's direct supertypes, whose post-processing calls this
+        // method again with the same receiver, recursing until the stack overflows (eisop#2036).
+        return combineTypeWithType(receiverType, declaredType, false);
     }
 
     /**
@@ -258,6 +266,21 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      */
     protected AnnotatedTypeMirror combineTypeWithType(
             AnnotatedTypeMirror receiver, AnnotatedTypeMirror declared) {
+        return combineTypeWithType(receiver, declared, true);
+    }
+
+    /**
+     * Viewpoint adapt declared type to receiver type, and return the result atm
+     *
+     * @param receiver receiver type
+     * @param declared declared type
+     * @param searchSupertypes whether a type variable that the receiver's class does not declare is
+     *     looked up among the type parameters of the receiver's supertypes; see {@link
+     *     #substituteTVars}
+     * @return {@link AnnotatedTypeMirror} after viewpoint adaptation
+     */
+    private AnnotatedTypeMirror combineTypeWithType(
+            AnnotatedTypeMirror receiver, AnnotatedTypeMirror declared, boolean searchSupertypes) {
         assert receiver != null && declared != null;
 
         AnnotatedTypeMirror result = declared;
@@ -268,7 +291,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         AnnotationMirror receiverAnnotation = extractAnnotationMirror(receiver);
         if (receiverAnnotation != null) {
             result = combineAnnotationWithType(receiverAnnotation, declared);
-            result = substituteTVars(receiver, result);
+            result = substituteTVars(receiver, result, searchSupertypes);
         }
 
         return result;
@@ -396,13 +419,18 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      * @param lhs type from which type arguments are extracted to replace formal type parameters of
      *     rhs
      * @param rhs {@link AnnotatedTypeMirror} that might be, or contain, a formal type parameter
+     * @param searchSupertypes whether to also substitute for a type variable that lhs's class does
+     *     not declare but one of its supertypes does, with the type argument that lhs supplies for
+     *     it through that supertype
      * @return a copy of rhs with its type parameters substituted
      */
-    private AnnotatedTypeMirror substituteTVars(AnnotatedTypeMirror lhs, AnnotatedTypeMirror rhs) {
+    private AnnotatedTypeMirror substituteTVars(
+            AnnotatedTypeMirror lhs, AnnotatedTypeMirror rhs, boolean searchSupertypes) {
         if (lhs.getKind() != TypeKind.DECLARED) {
             return rhs;
         }
-        return new TypeVariableSubstitutionCopier((AnnotatedDeclaredType) lhs).visit(rhs);
+        return new TypeVariableSubstitutionCopier((AnnotatedDeclaredType) lhs, searchSupertypes)
+                .visit(rhs);
     }
 
     /** Performs the substitution described by {@link #substituteTVars}, as a copy. */
@@ -411,13 +439,20 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         /** The receiver from which actual type arguments are taken. */
         private final AnnotatedDeclaredType receiver;
 
+        /** Whether to look up type variables among the type parameters of supertypes, too. */
+        private final boolean searchSupertypes;
+
         /**
          * Creates a copier that substitutes type variables of {@code receiver}'s class.
          *
          * @param receiver the receiver
+         * @param searchSupertypes whether to look up type variables among the type parameters of
+         *     {@code receiver}'s supertypes, too
          */
-        private TypeVariableSubstitutionCopier(AnnotatedDeclaredType receiver) {
+        private TypeVariableSubstitutionCopier(
+                AnnotatedDeclaredType receiver, boolean searchSupertypes) {
             this.receiver = receiver;
+            this.searchSupertypes = searchSupertypes;
         }
 
         @Override
@@ -428,7 +463,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             // it is replaced by the receiver's actual type argument, or left alone if the receiver
             // supplies none.  Its bounds are not descended into, so it cannot start a cycle and
             // needs no originalToCopy entry.
-            return getTypeVariableSubstitution(receiver, original);
+            return getTypeVariableSubstitution(receiver, original, searchSupertypes);
         }
     }
 
@@ -437,11 +472,13 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      *
      * @param type type from which type arguments are extracted to replace "var"
      * @param var formal type parameter that needs real type arguments
+     * @param searchSupertypes whether to look up {@code var} among the type parameters of {@code
+     *     type}'s supertypes, too
      * @return Real type argument
      */
     private AnnotatedTypeMirror getTypeVariableSubstitution(
-            AnnotatedDeclaredType type, AnnotatedTypeVariable var) {
-        Pair<AnnotatedDeclaredType, Integer> res = findDeclType(type, var);
+            AnnotatedDeclaredType type, AnnotatedTypeVariable var, boolean searchSupertypes) {
+        Pair<AnnotatedDeclaredType, Integer> res = findDeclType(type, var, searchSupertypes);
 
         if (res == null) {
             return var;
@@ -473,10 +510,12 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      *
      * @param type type from which we infer actual type arguments
      * @param var formal type parameter
+     * @param searchSupertypes whether to look up {@code var} among the type parameters of {@code
+     *     type}'s supertypes, too
      * @return index(position) of this type variable from type
      */
     private Pair<AnnotatedDeclaredType, Integer> findDeclType(
-            AnnotatedDeclaredType type, AnnotatedTypeVariable var) {
+            AnnotatedDeclaredType type, AnnotatedTypeVariable var, boolean searchSupertypes) {
         Element varelem = var.getUnderlyingType().asElement();
 
         DeclaredType dtype = type.getUnderlyingType();
@@ -493,9 +532,12 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         }
 
         if (foundindex >= tparams.size()) {
+            if (!searchSupertypes) {
+                return null;
+            }
             // Didn't find the desired type => Head for super type of "type"!
             for (AnnotatedDeclaredType sup : type.directSupertypes()) {
-                Pair<AnnotatedDeclaredType, Integer> res = findDeclType(sup, var);
+                Pair<AnnotatedDeclaredType, Integer> res = findDeclType(sup, var, true);
                 if (res != null) {
                     return res;
                 }
