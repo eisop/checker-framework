@@ -2092,6 +2092,40 @@ the prior finding. A fresh hypothesis is not new evidence.
   identity only as deliberate defensive hardening (allocation cost accepted), and the allocation only
   via a non-allocating subnode test, never by dropping the guard.
 
+- **CFG `Node#equals` by tree instead of by structure (eisop#470, October 2026) — measured and
+  rejected.** Issue #470 suggested making the structural CFG `Node#equals` cheaper by comparing
+  the nodes' trees. **Ceiling on real code is ~0:** on a full `./gradlew --no-daemon checknullness`
+  trace (17,949 `ExecutionSample`s over all worker files) the stack-walk found **1** sample in a
+  CFG `Node.equals` (`LocalVariableNode.equals` under the `getValue` subnode gate above) — the other
+  8 samples matching `Node.equals` were JavaParser's `com.github.javaparser.ast.Node.equals` in stub
+  comment attribution. CFG `Node.hashCode`: **0** samples. Nullness on plume-util and on
+  `framework/src/main/java` (direct `checker.jar` runs): **0** CFG `Node.equals` samples. As noted
+  under `MethodInvocationNode.hashCode` below, production `Node`-keyed maps are identity maps; the
+  only structural consumer on the checking path is the `getValue` subnode gate. **Only a synthetic
+  shape reaches it:** a ternary nested 80 deep with *identical* condition/operands at every level
+  (`gen-shapes.py 80 --shape cond --reps 60`) spends **27%** of samples in recursive
+  `TernaryExpressionNode.equals`, because structurally self-similar subtrees only differ at the
+  bottom. An experiment comparing `TernaryExpressionNode` by tree identity (toggled by a `-D` flag
+  in one build; 1 warm-up + 5 interleaved runs per side, wall seconds, median [min–max]):
+
+  | workload (Nullness) | structural | tree identity |
+  | --- | --- | --- |
+  | `cond` D=80, identical levels | 11.78 [11.50–12.21] | 9.78 [9.58–10.17] (−17%) |
+  | nested ternary D=80, *distinct* `b_i ? x_i` per level | 15.24 [14.75–16.04] | 15.51 [15.06–18.54] |
+  | plume-util | 13.89 [13.79–14.52] | 14.13 [13.70–14.45] |
+  | `framework/src/main/java` | 52.70 [52.24–56.77] | 52.14 [51.79–53.00] |
+
+  Diagnostics were byte-identical on plume-util and framework. The win exists only when every level
+  is structurally identical; with distinct conditions (the realistic deep-ternary shape) the
+  structural compare fails on the first operand and costs nothing. Not shipped, because beyond the
+  missing realistic gain, tree comparison is a semantic change: `Node`'s documented contract is
+  structural (`Node` javadoc: two `.equals` nodes can be different CFG nodes), and the structural
+  consumer `ConstantPropagationStore` keys a `LinkedHashMap<Node, Constant>` by `LocalVariableNode`s
+  from *different* occurrences of a variable, which tree equality would break. Doing it for
+  ternaries alone would make `equals` inconsistent across node kinds for one synthetic shape. If
+  deep self-similar nesting ever matters, fix it in the gate (an ancestry test, see above), not in
+  `Node#equals`.
+
 - **`AnnotatedTypeCopier.visit` pooled-map clear ratchet (June 2026).** `IdentityHashMap.clear`
   is ~2.6% of `checknullness` self-time, ~74% of it from `AnnotatedTypeCopier.visit`'s
   `finally { map.clear() }`. The pooled map never shrinks, so one large copy (observed max 879
