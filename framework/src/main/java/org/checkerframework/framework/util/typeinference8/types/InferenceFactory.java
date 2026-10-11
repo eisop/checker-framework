@@ -96,9 +96,31 @@ public class InferenceFactory {
     /**
      * Gets the target type for the expression for which type arguments are being inferred.
      *
-     * @return target type for the expression for which type arguments are being inferred
+     * @return target type for the expression for which type arguments are being inferred, or null
+     *     if there is none
      */
     public @Nullable ProperType getTargetType() {
+        ProperType target = getTargetTypeOfContext();
+        if (target != null
+                && target.getAnnotatedType().getKind() == TypeKind.WILDCARD
+                && ((AnnotatedWildcardType) target.getAnnotatedType()).isTypeArgOfRawType()) {
+            // The expression is assigned to a type argument of a raw type, such as the return type
+            // of the function type of a raw Supplier.  Its Java target type is the erasure, so it
+            // constrains nothing, and the Checker Framework ignores type arguments of raw types
+            // in subtyping checks.  A wildcard is not a type that an expression can have, so
+            // using it as the target type makes inference fail.
+            return null;
+        }
+        return target;
+    }
+
+    /**
+     * Gets the type of the assignment context of the expression for which type arguments are being
+     * inferred.
+     *
+     * @return the type of the assignment context of the expression, or null if there is none
+     */
+    private @Nullable ProperType getTargetTypeOfContext() {
         GenericAnnotatedTypeFactory<?, ?, ?, ?> factory =
                 (GenericAnnotatedTypeFactory<?, ?, ?, ?>) context.typeFactory;
         TreePath path = context.pathToExpression;

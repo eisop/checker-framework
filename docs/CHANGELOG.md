@@ -251,6 +251,9 @@ Other improvements and bug fixes:
   references, F-bounded wildcards.
 - Type argument inference resolves polymorphic qualifiers in nested generic
   invocations and method references.
+- Type argument inference no longer crashes on a generic method call returned
+  by a lambda whose target is a raw functional interface type, such as
+  `Supplier s = () -> never();` or `(Supplier) () -> never()`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -371,6 +374,7 @@ eisop#2135,
 eisop#2140,
 eisop#2155,
 eisop#2156,
+eisop#2158,
 eisop#2187,
 typetools#399,
 typetools#2816,
