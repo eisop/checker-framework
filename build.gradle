@@ -741,6 +741,7 @@ tasks.register("htmlValidate", Exec) {
 }
 
 def javadocDirs = [
+    project(":annotation-file-utilities").sourceSets.main.allJava,
     project(":checker").sourceSets.main.allJava,
     project(":checker").sourceSets.test.allJava,
     project(":checker-qual").sourceSets.main.allJava,
