@@ -157,6 +157,17 @@ A stub file that declares a record where the running JDK has a class (for exampl
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
 members that follow the record.
 
+The Value Checker no longer slows down on loops whose bound is not an integer
+literal (such as `i < n` or `i <= Character.MAX_VALUE`). The loop
+variable now takes the whole range the bound permits right away instead of
+climbing through the widening values, which was about 17% slower than the
+widening it replaced. The Value Checker on plume-util takes 8.3s instead of 10.1s,
+and on the framework sources 25.8s instead of 30.0s, both at or below the
+time before that change. Loop variables get ranges at least as precise as
+before. A variable that the loop condition compares but the loop never
+updates now gets the whole range the bound permits, as it already did for
+integer-literal bounds.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -362,6 +373,7 @@ eisop#2135,
 eisop#2140,
 eisop#2155,
 eisop#2156,
+eisop#2224,
 typetools#399,
 typetools#2816,
 typetools#3203,
