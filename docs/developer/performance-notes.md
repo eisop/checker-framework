@@ -2006,6 +2006,63 @@ jtreg stress tests `Issue1438d`/`Issue1438e` (added earlier in the same PR, in t
 `Issue1438`/`Issue1438b`/`Issue1438c`) not being tight enough at their N=1000 scale to themselves
 catch a regression back to quadratic behavior (eisop#2144).
 
+### Store merges at exceptional successors: keep shared representations shared (October 2026, eisop#719)
+
+eisop#719 asked why the `checker/jtreg/nullness/Issue1438*` stress tests (1000 fields, one
+method with 1000 `map.put("kN", vN)` calls) differ so much in cost. On current master the
+original 19/55/12 s gap is gone (all five files take 3-6.5 s, against a ~1.2 s floor for a trivial
+file), but a size sweep of the same three shapes (generator: N fields, one method with N
+`map.put` calls) still showed super-linear growth for the static-method (`Issue1438`) and
+instance-method (`Issue1438c`) shapes: 33.9 s and 24.2 s at N=4000, against 14.9 s for the
+constructor shape (`Issue1438b`).
+
+JFR on the static shape at N=4000 (2819 samples): `ForwardAnalysisImpl.addStoreBefore` 62%
+inclusive, `mergeStores` 40%, `CopyOnWriteMap.equals` 28%, `InitializationStore.leastUpperBound`
+26%; the leaves were `HashMap.getNode`/`HashIterator.nextNode`/`putVal`/`resize` and
+`AnnotationUtils.areSame` under `NullnessNoInitValue.equals`. Counters showed why: every call has
+several exceptional successors (7 lubs per call for the static shape, 3 for the instance-method
+shape), each merging a store whose ~N field values and ~N initialized fields are *equal in
+content* to the exceptional exit's store but held in *different* objects, so every merge and every
+`addStoreBefore` "did the store change?" check compared all N entries, and every
+`InitializationStore` lub rebuilt the initialized-field set with `addAll`+`retainAll`. Two causes:
+
+1. `CFAbstractStore.updateFieldValuesForMethodCall` always built a new field-value map, even when
+   no value changed (the Nullness store's `initializedFieldValueCache` returns an equal but
+   distinct value on the first call), which broke the delegate sharing `CopyOnWriteMap` relies on.
+   It now collects only the fields whose value changes (by `equals`) and leaves `fieldValues` in
+   place when there are none. After the fix all 7000 Nullness lubs at N=1000 hit the
+   delegate-identity fast path (was 7).
+2. `InitializationStore.leastUpperBound` now shares the smaller of the two initialized-field sets
+   when the larger contains it (in particular when both are the same set), instead of copying the
+   other store's set and intersecting it; otherwise it builds the intersection by scanning the
+   smaller set.
+
+Interleaved wall clock (`checker/bin/javac -processor nullness`, JDK 25, warm-up round then 5
+rounds; median [min-max] seconds; "fields" = change 1 only, "init" = change 2 only):
+
+| workload | master | both | init only | fields only |
+| --- | --- | --- | --- | --- |
+| `Issue1438`  (static, N=1000) | 6.39 [6.27-6.49] | 5.22 [5.06-5.28] | 5.83 | 5.78 |
+| `Issue1438b` (constructor)    | 5.19 [5.10-5.31] | 5.20 [5.08-5.29] | 5.05 | 5.10 |
+| `Issue1438c` (instance method) | 5.77 [5.66-5.96] | 5.16 [5.04-5.48] | 5.32 | 5.53 |
+| `Issue1438d` / `Issue1438e`   | 3.04 / 3.58 | 3.07 / 3.58 | 3.07 / 3.64 | 3.05 / 3.56 |
+| static shape, N=4000          | 33.95 [33.47-35.10] | 15.48 [14.77-15.78] | 23.85 | 25.70 |
+| instance-method shape, N=4000 | 24.23 [23.72-25.32] | 16.06 [15.76-20.40] | 19.82 | 20.76 |
+| constructor shape, N=4000     | 14.88 [14.52-15.38] | 14.84 [14.69-16.93] | 15.05 | 14.63 |
+
+Each change helps independently and they compose. JFR samples on the static shape at N=4000 drop
+2819 → 1273; `addStoreBefore`/`mergeStores`/`CopyOnWriteMap.equals` fall out of the inclusive
+list. Real code is unaffected (Nullness Checker, `-proc:only`, JDK 21, 5 interleaved rounds after a
+warm-up): plume-util 14.06 [13.24-14.16] → 13.81 [13.61-17.07] s; `framework/src/main/java`
+52.27 [51.87-55.08] → 51.94 [50.86-52.23] s — within noise. Diagnostics are byte-identical on all
+workloads above.
+
+Remaining at N=4000 on the static shape, as follow-ups (not addressed here):
+`TreePathCacher.getPath` from `QualifierDefaults.nearestEnclosingExceptLocal` is 20% inclusive
+(mostly `TreeScanner.scan` self-time, plausibly a per-call scan of the 4000-statement method body),
+and parsing the `Map.put` postcondition (`JavaExpressionParseUtil.parse` →
+`JavacParse.parseExpression`) on every call is 19%.
+
 ---
 
 ## Tried and rejected
