@@ -4,13 +4,17 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.MethodInvocationTree;
+import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.TypeTag;
 
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
 import org.checkerframework.framework.util.typeinference8.util.Theta;
 import org.checkerframework.javacutil.AnnotationMirrorMap;
@@ -139,6 +143,24 @@ public class InvocationType {
             Element e = ElementUtils.enclosingTypeElement(TreeUtils.elementFromUse(invocation));
             returnTypeJava = e.asType();
             returnType = typeFactory.getAnnotatedType(e);
+            // The type arguments of the class are inferred, but those of an enclosing type are
+            // the type arguments of the type of the enclosing instance.
+            AnnotatedDeclaredType declaredEnclosing =
+                    ((AnnotatedDeclaredType) returnType).getEnclosingType();
+            Type javaEnclosing = ((Type) TreeUtils.typeOf(invocation)).getEnclosingType();
+            AnnotatedTypeMirror receiver = typeFactory.getReceiverType(invocation);
+            if (declaredEnclosing != null
+                    && receiver != null
+                    && javaEnclosing.hasTag(TypeTag.CLASS)) {
+                Type classType = (Type) returnTypeJava;
+                returnTypeJava =
+                        new Type.ClassType(
+                                javaEnclosing, classType.getTypeArguments(), classType.tsym);
+                returnType = returnType.deepCopy();
+                ((AnnotatedDeclaredType) returnType)
+                        .setEnclosingType(
+                                AnnotatedTypes.asSuper(typeFactory, receiver, declaredEnclosing));
+            }
         } else if (invocation instanceof MethodInvocationTree
                 || invocation instanceof MemberReferenceTree) {
             if (invocation instanceof MemberReferenceTree
