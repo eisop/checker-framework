@@ -1196,6 +1196,65 @@ materialization per comparison), `CFAbstractValue.canBeMissingAnnotations` (~2%,
 constructor per created annotation; they get the `checkSubtype` fast path for free, and could
 adopt the `TypeElement`-caching pattern if an Index profile shows the constructor lookup —
 unprofiled, so not changed.
+- **Range widening in loops (eisop#2224, October 2026).** The 3.55.0 merge ("Improve Value
+  Checker widening") replaced the type-by-type jump in `ValueQualifierHierarchy.widenedRange`
+  with a snap to the next value of a fixed set (min/max of each integral type and 0, each ±2),
+  and added a `ValueTransfer` loop-condition special case. The special case jumps a loop
+  variable compared against an *integer literal* straight to the range the literal permits. The
+  upstream commit cites no issue. Its tests (`CharacterRadix`, `LessThanRange`) need exact
+  ranges for literal-bound loops such as `i <= 15`.
+  *Method:* `java -jar checker/dist/checker.jar -proc:only -processor <checker> -Awarns`
+  (JDK 21, `nice -n 19`), one warm-up per variant, then 5 interleaved rounds; wall median
+  [min–max]. "pre-3.55" = master with the old `widenedRange` body restored and `isLoopCondition`
+  forced false, so only these changes differ. Workloads: plume-util `src/main/java`;
+  `framework/src/main/java` (minus the NO-AFU excludes); a generated file of 40 methods, each with
+  three nested `for` loops, a `while` and a `do`-`while`, with parameter bounds (`synthvar`) or
+  literal bounds (`synth`).
+  *Cause of the slowdown:* all of it is the new `widenedRange` (old `widenedRange` + new special
+  case: 8.70 s vs. 8.67 s pre-3.55 on plume-util). Temporary merge counters in
+  `ForwardAnalysisImpl.addStoreBefore` showed about twice the store merges (plume-util 111k →
+  230k, framework 476k → 790k). The cause is the climb itself. An unbounded `int` counter passes
+  four widening values instead of three, and each value costs a full
+  `numberOfIterationsBeforeWidening` round. Unlike the old code, which always moved past the lub
+  to the next type limit, a value that an inner loop has already widened onto a widening value
+  is not pushed further at the outer loop head. So nested loops climb one value at a time at
+  every level. JFR put the extra samples in `addStoreBefore`/`mergeStores`, not in
+  `widenedRange`.
+  *Fix:* apply the loop-condition special case to any bound, not only integer literals: in
+  `i < bound`, `i` becomes `[i.from, bound.to - 1]` (likewise `<=`, `>`, `>=`). This is sound,
+  because `i`'s other bound is kept and the comparison limits it from this side. The variable
+  reaches its fixed point in the first iteration instead of climbing. Merges drop below
+  pre-3.55 (plume-util 99.6k, framework 449k, synthvar 19.5k vs. 38k pre-3.55 / 91k master).
+
+  | Workload | pre-3.55 | master | fix |
+  | --- | --- | --- | --- |
+  | Value, plume-util | 8.76 s [8.50–8.88] | 10.10 s [9.89–10.43] | **8.30 s** [8.23–8.44] |
+  | Value, framework | 25.87 s [25.29–26.12] | 29.98 s [29.49–35.08] | **25.83 s** [25.24–25.96] |
+  | Value, synthvar | 2.71 s [2.64–2.91] | 3.53 s [3.50–4.11] | **2.42 s** [2.41–2.54] |
+  | Value, synth (literal bounds) | 2.75 s [2.69–3.11] | 2.55 s [2.29–2.65] | **2.39 s** [2.21–2.56] |
+  | Index, plume-util | 26.33 s [25.97–26.90] | 27.88 s [27.56–28.36] | **26.40 s** [26.26–26.63] |
+
+  Max RSS follows the time (e.g. synthvar 423 → 281 MB). The fix column was timed with the
+  semantically identical pre-formatting version of the change. *Precision:*
+  `framework/tests/value/loops/LoopBoundRefinement.java` has 21 assertions: 16 on loops bounded
+  by non-literal type limits (`while (s < Short.MAX_VALUE)`, `i <= Character.MAX_VALUE`, ...)
+  and 5 on loops bounded by parameters. It fails 7 assertions with pre-3.55 widening (2 of the
+  16), 4 with master (0 of the 16), and 0 with the fix. On real code the widening change made almost no observable
+  difference. Value on the framework sources gives the same 16 warnings for all three variants.
+  Index on plume-util gives the same 135 diagnostics with `-AwarnUnneededSuppressions`; the
+  suppressions are all still needed. Index on the framework sources gives the same 145 warnings,
+  except that one changes from `array.access.unsafe.high` to `.high.range` (master knows the
+  index is `[0, 2^31-2]`).
+  *Tried and rejected (no-precision-loss requirement):* fewer widening values. Dropping the ±2
+  margins saves 2% on plume-util with 10 probe failures. Dropping the `Character.MAX_VALUE`
+  values saves 4% with 7 failures. Dropping both saves 5% with 13 failures. Dropping the
+  `Short`/`Character` values saves 7.5% on plume-util and 10% on framework, with 12 failures.
+  Keeping widening on every merge after a block's first widening (instead of resetting the
+  count) removes 17% of the merges with 0 failures, but saves no time, because widening merges
+  cost more than plain lubs. *Known trade-off of the fix:* a variable that the loop compares but
+  never moves toward the bound (e.g. `int x = 3; while (x < n) {...}` without updating `x`) gets
+  `[3, n.to - 1]` in the body instead of `3`. Integer-literal bounds already had this behavior
+  since 3.55.0. None of the real-code runs above showed such a case.
 
 ### Visitor and checker reviews
 
