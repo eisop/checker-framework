@@ -604,7 +604,8 @@ public abstract class AbstractType {
     /**
      * Returns the enclosing type of this type if this type is an inner class type of a
      * parameterized type, directly or indirectly; otherwise, returns null. The type arguments of
-     * the enclosing type are type arguments of this type, too (JLS 4.5).
+     * the enclosing type are type arguments of this type, too (JLS 4.5). The returned type ignores
+     * annotations, so constraints on it only constrain the Java types.
      *
      * @return the parameterized enclosing type of this type, or null if there is none
      */
@@ -620,7 +621,9 @@ public abstract class AbstractType {
                 || !((Type) javaEnclosing).isParameterized()) {
             return null;
         }
-        return create(enclosing, javaEnclosing, ignoreAnnotations);
+        // Ignore the annotations of the enclosing type: the type hierarchy does not compare the
+        // enclosing types of two declared types, so neither does inference.
+        return create(enclosing, javaEnclosing, true);
     }
 
     /**
