@@ -104,6 +104,10 @@ public class AnnotatedContainsInferenceVariable {
                     found = true;
                 }
             }
+            // The type arguments of an inner class type include those of its enclosing types.
+            if (visit(t.getEnclosingType())) {
+                found = true;
+            }
             return found;
         }
 

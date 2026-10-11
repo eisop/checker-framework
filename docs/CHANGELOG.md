@@ -251,6 +251,9 @@ Other improvements and bug fixes:
   references, F-bounded wildcards.
 - Type argument inference resolves polymorphic qualifiers in nested generic
   invocations and method references.
+- Type argument inference accounts for the type arguments of the enclosing
+  type of an inner class type, such as `T` in `Outer<T>.Inner`; it used to
+  crash on `consume(make(x))` where `make` returns `Outer<T>.Inner`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -367,6 +370,7 @@ eisop#2089,
 eisop#2091,
 eisop#2094,
 eisop#2105,
+eisop#2106,
 eisop#2135,
 eisop#2140,
 eisop#2155,

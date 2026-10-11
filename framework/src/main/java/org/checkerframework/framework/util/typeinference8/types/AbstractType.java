@@ -602,6 +602,28 @@ public abstract class AbstractType {
     }
 
     /**
+     * Returns the enclosing type of this type if this type is an inner class type of a
+     * parameterized type, directly or indirectly; otherwise, returns null. The type arguments of
+     * the enclosing type are type arguments of this type, too (JLS 4.5).
+     *
+     * @return the parameterized enclosing type of this type, or null if there is none
+     */
+    public @Nullable AbstractType getParameterizedEnclosingType() {
+        if (getJavaType().getKind() != TypeKind.DECLARED) {
+            return null;
+        }
+        TypeMirror javaEnclosing = ((DeclaredType) getJavaType()).getEnclosingType();
+        AnnotatedDeclaredType enclosing =
+                ((AnnotatedDeclaredType) getAnnotatedType()).getEnclosingType();
+        if (enclosing == null
+                || javaEnclosing.getKind() != TypeKind.DECLARED
+                || !((Type) javaEnclosing).isParameterized()) {
+            return null;
+        }
+        return create(enclosing, javaEnclosing, ignoreAnnotations);
+    }
+
+    /**
      * Returns true if the type is an unbound wildcard.
      *
      * @return true if the type is an unbound wildcard
