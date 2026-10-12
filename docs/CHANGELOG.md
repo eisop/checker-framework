@@ -251,11 +251,11 @@ Other improvements and bug fixes:
 - Type argument inference crash fixes: `? super`/`? extends` interactions,
   lambda-returned generic calls, implicitly typed lambdas, inexact method
   references, F-bounded wildcards.
-- Type argument inference resolves polymorphic qualifiers in nested generic
-  invocations and method references.
 - Type argument inference no longer treats a `return` in a method of a local or
   anonymous class declared in a lambda body as a result of the lambda, which
   crashed inference.
+- Type argument inference resolves polymorphic qualifiers in nested generic
+  invocations and method references.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
