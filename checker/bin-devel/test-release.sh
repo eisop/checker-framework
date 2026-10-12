@@ -139,7 +139,10 @@ printf 'class Insert {\n  Object f;\n}\n' > "$SMOKE_DIR/Insert.java"
 printf 'package org.checkerframework.checker.nullness.qual:\nannotation @Nullable:\n\npackage :\nclass Insert:\n    field f: @org.checkerframework.checker.nullness.qual.Nullable\n' > "$SMOKE_DIR/Insert.jaif"
 (cd "$SMOKE_DIR" && "$AFU_HOME/bin/insert-annotations-to-source" -i Insert.jaif Insert.java)
 grep -q '@Nullable' "$SMOKE_DIR/Insert.java" \
-  || { cat "$SMOKE_DIR/Insert.java"; fail "insert-annotations-to-source did not insert the annotation."; }
+  || {
+    cat "$SMOKE_DIR/Insert.java"
+    fail "insert-annotations-to-source did not insert the annotation."
+  }
 
 ## Publish to a local Maven repository, signing with a throw-away key.
 export GNUPGHOME="$TMP_DIR/gnupg"
