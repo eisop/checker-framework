@@ -29,7 +29,8 @@ status=0
 # The second processor name tests the shorthand for built-in checkers.
 # https://eisop.github.io/cf/manual/#shorthand-for-checkers
 for processor in org.checkerframework.checker.nullness.NullnessChecker NullnessChecker; do
-  output="$("$JAVAC" -processor "$processor" "$EXAMPLE" -Anomsgtext 2>&1)"
+  # javac exits with an error status, because of the expected errors.  The caller may have set -e.
+  output="$("$JAVAC" -processor "$processor" "$EXAMPLE" -Anomsgtext 2>&1)" || true
   for expected in "${EXPECTED_ERRORS[@]}"; do
     if ! grep -qF "$expected" <<< "$output"; then
       echo "Javac sanity check did not work! With -processor $processor the output should contain:" >&2
