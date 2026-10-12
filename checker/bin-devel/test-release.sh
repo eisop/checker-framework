@@ -133,12 +133,8 @@ check_afu_jar "$AFU_HOME/dist/annotation-file-utilities-all.jar"
 ## Run the tools from the unpacked zip files.
 SMOKE_DIR="$TMP_DIR/smoke"
 mkdir -p "$SMOKE_DIR"
-cp docs/examples/NullnessExampleWithWarnings.java "$SMOKE_DIR"
-if (cd "$SMOKE_DIR" && "$CF_HOME/checker/bin/javac" -processor nullness NullnessExampleWithWarnings.java 2> javac.out); then
-  fail "The Nullness Checker found no error in NullnessExampleWithWarnings.java."
-fi
-grep -q 'NullnessExampleWithWarnings.java.*error' "$SMOKE_DIR/javac.out" \
-  || { cat "$SMOKE_DIR/javac.out"; fail "The Nullness Checker did not report the expected errors."; }
+# The same check that release_push.py runs on the downloaded release.
+docs/developer/release/javac-sanity-check.sh "$CF_HOME" docs/examples/NullnessExampleWithWarnings.java
 printf 'class Insert {\n  Object f;\n}\n' > "$SMOKE_DIR/Insert.java"
 printf 'package org.checkerframework.checker.nullness.qual:\nannotation @Nullable:\n\npackage :\nclass Insert:\n    field f: @org.checkerframework.checker.nullness.qual.Nullable\n' > "$SMOKE_DIR/Insert.jaif"
 (cd "$SMOKE_DIR" && "$AFU_HOME/bin/insert-annotations-to-source" -i Insert.jaif Insert.java)
