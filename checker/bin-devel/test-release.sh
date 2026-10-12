@@ -97,6 +97,60 @@ if grep -q 'checker/dist/checker.jar' "$TMP_DIR/afu-zip.txt"; then
   fail "The Annotation File Utilities zip file contains the Checker Framework."
 fi
 
+# The scripts that the manual tells users to run, such as wpi.sh, must be executable.
+for f in checker/bin/javac checker/bin/wpi.sh checker/bin/wpi-many.sh checker/bin/infer-and-annotate.sh; do
+  unzip -Z "$CF_ZIP" "checker-framework-${VERSION}/$f" | grep -q '^-rwx' \
+    || fail "$f is not executable in the Checker Framework zip file."
+done
+unzip -Z "$AFU_ZIP" "annotation-file-utilities-${VERSION}/annotation-file-utilities/bin/insert-annotations-to-source" \
+  | grep -q '^-rwx' || fail "insert-annotations-to-source is not executable in the Annotation File Utilities zip file."
+# The manual shows the figures.
+grep -q "^annotation-file-utilities-${VERSION}/annotation-file-utilities/figures/.*\.svg$" "$TMP_DIR/afu-zip.txt" \
+  || fail "The Annotation File Utilities zip file does not contain the figures of its manual."
+
+## Check the Annotation File Utilities jars: they have content, and they are under the MIT License.
+UNPACKED_DIR="$TMP_DIR/unpacked"
+mkdir -p "$UNPACKED_DIR"
+unzip -q "$AFU_ZIP" -d "$UNPACKED_DIR"
+unzip -q "$CF_ZIP" -d "$UNPACKED_DIR"
+AFU_HOME="$UNPACKED_DIR/annotation-file-utilities-${VERSION}/annotation-file-utilities"
+CF_HOME="$UNPACKED_DIR/checker-framework-${VERSION}"
+check_afu_jar() {
+  jar="$1"
+  [ -f "$jar" ] || fail "$jar does not exist."
+  unzip -Z1 "$jar" | grep -qx 'org/checkerframework/afu/annotator/Main.class' \
+    || fail "$jar does not contain the class of the annotator."
+  unzip -Z1 "$jar" | grep -qx 'org/checkerframework/afu/scenelib/io/IndexFileParser.class' \
+    || fail "$jar does not contain the classes of the scene library."
+  unzip -p "$jar" META-INF/LICENSE.txt | cmp -s - annotation-file-utilities/LICENSE.txt \
+    || fail "$jar does not contain the license of the Annotation File Utilities."
+  unzip -p "$jar" META-INF/MANIFEST.MF | grep -q '^Bundle-License: MIT' \
+    || fail "$jar is not marked as under the MIT License."
+}
+check_afu_jar "$AFU_HOME/dist/annotation-file-utilities.jar"
+check_afu_jar "$AFU_HOME/dist/annotation-file-utilities-all.jar"
+
+## Run the tools from the unpacked zip files.
+SMOKE_DIR="$TMP_DIR/smoke"
+mkdir -p "$SMOKE_DIR"
+cp docs/examples/NullnessExampleWithWarnings.java "$SMOKE_DIR"
+if (cd "$SMOKE_DIR" && "$CF_HOME/checker/bin/javac" -processor nullness NullnessExampleWithWarnings.java 2> javac.out); then
+  fail "The Nullness Checker found no error in NullnessExampleWithWarnings.java."
+fi
+grep -q 'NullnessExampleWithWarnings.java.*error' "$SMOKE_DIR/javac.out" \
+  || {
+    cat "$SMOKE_DIR/javac.out"
+    fail "The Nullness Checker did not report the expected errors."
+  }
+printf 'class Insert {\n  Object f;\n}\n' > "$SMOKE_DIR/Insert.java"
+printf 'package org.checkerframework.checker.nullness.qual:\nannotation @Nullable:\n\npackage :\nclass Insert:\n    field f: @org.checkerframework.checker.nullness.qual.Nullable\n' > "$SMOKE_DIR/Insert.jaif"
+(cd "$SMOKE_DIR" && "$AFU_HOME/bin/insert-annotations-to-source" -i Insert.jaif Insert.java)
+grep -q '@Nullable' "$SMOKE_DIR/Insert.java" \
+  || {
+    cat "$SMOKE_DIR/Insert.java"
+    fail "insert-annotations-to-source did not insert the annotation."
+  }
+
 ## Publish to a local Maven repository, signing with a throw-away key.
 export GNUPGHOME="$TMP_DIR/gnupg"
 mkdir -m 700 "$GNUPGHOME"
