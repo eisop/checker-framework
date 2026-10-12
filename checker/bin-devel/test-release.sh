@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# Runs the steps of the release build that need no credentials, so that a problem in them is found
+# by a pull request rather than during a release.  See docs/developer/release/release_build.py.
+#
+# The release scripts themselves are not run: they clone the repositories, ask questions, and push.
+# This script runs the Gradle tasks that they run, with a throw-away signing key and into
+# temporary directories, and checks the results.
+
+set -e
+# set -o verbose
+set -o xtrace
+export SHELLOPTS
+echo "SHELLOPTS=${SHELLOPTS}"
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+ROOT_DIR="$(cd -- "$SCRIPT_DIR/../.." &> /dev/null && pwd)"
+cd "$ROOT_DIR"
+
+fail() {
+  set +x
+  echo "test-release.sh: $*" >&2
+  exit 1
+}
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+# The version of a release build, which is the one in release.gradle.
+VERSION="$(./gradlew -q :checker:properties -Prelease=true | sed -n 's/^version: //p')"
+if [ -z "${VERSION}" ] || [[ "${VERSION}" == *SNAPSHOT* ]]; then
+  fail "Could not determine the release version; got '${VERSION}'."
+fi
+
+## Update the version numbers in the documentation.
+./gradlew updateVersionNumbers --console=plain --warning-mode=all
+if git status --porcelain | grep -v ' docs/'; then
+  fail "updateVersionNumbers changed files outside docs/."
+fi
+grep -q "annotation-file-utilities-${VERSION}" docs/annotation-file-utilities/annotation-file-utilities.html \
+  || fail "updateVersionNumbers did not update the version in the Annotation File Utilities manual."
+grep -q "checker-framework-${VERSION}" docs/checker-framework-webpage.html \
+  || fail "updateVersionNumbers did not update the version in the web page."
+
+## Build the release files.
+./gradlew buildAll -Prelease=true --console=plain --warning-mode=all
+
+## Copy the files to the web site directory.  Do it twice, as a release may be rerun.
+WEBSITE_DIR="$TMP_DIR/website"
+mkdir -p "$WEBSITE_DIR"
+./gradlew copyToWebsite -Prelease=true -PcfWebsite="$WEBSITE_DIR" --console=plain --warning-mode=all
+./gradlew copyToWebsite -Prelease=true -PcfWebsite="$WEBSITE_DIR" --rerun --console=plain --warning-mode=all
+
+for f in \
+  "checker-framework-${VERSION}.zip" \
+  "annotation-file-utilities-${VERSION}.zip" \
+  CHANGELOG.md \
+  checker-framework-webpage.html \
+  api/index.html \
+  manual/manual.html \
+  manual/developer-manual.html \
+  annotation-file-utilities/annotation-file-utilities.html \
+  annotation-file-utilities/annotation-file-format.html; do
+  [ -f "$WEBSITE_DIR/$f" ] || fail "copyToWebsite did not create $f."
+done
+for link in index.html manual/index.html annotation-file-utilities/index.html; do
+  [ -L "$WEBSITE_DIR/$link" ] || fail "copyToWebsite did not create the symbolic link $link."
+  [ -f "$WEBSITE_DIR/$link" ] || fail "The symbolic link $link points to a missing file."
+done
+# A file in the web site must stay writable, so that the next release can replace it.
+if find "$WEBSITE_DIR" -type f ! -perm -u+w | grep .; then
+  fail "copyToWebsite created read-only files."
+fi
+
+## Check the contents of the zip files.
+CF_ZIP="$WEBSITE_DIR/checker-framework-${VERSION}.zip"
+AFU_ZIP="$WEBSITE_DIR/annotation-file-utilities-${VERSION}.zip"
+unzip -Z1 "$CF_ZIP" > "$TMP_DIR/cf-zip.txt"
+unzip -Z1 "$AFU_ZIP" > "$TMP_DIR/afu-zip.txt"
+for f in checker/dist/checker.jar checker/dist/checker-qual.jar checker/bin/javac README.md; do
+  grep -qx "checker-framework-${VERSION}/$f" "$TMP_DIR/cf-zip.txt" \
+    || fail "The Checker Framework zip file does not contain $f."
+done
+for f in \
+  annotation-file-utilities/dist/annotation-file-utilities.jar \
+  annotation-file-utilities/dist/annotation-file-utilities-all.jar \
+  annotation-file-utilities/bin/insert-annotations-to-source \
+  annotation-file-utilities/annotation-file-utilities.html; do
+  grep -qx "annotation-file-utilities-${VERSION}/$f" "$TMP_DIR/afu-zip.txt" \
+    || fail "The Annotation File Utilities zip file does not contain $f."
+done
+# The two distributions are independent: neither contains the other's classes.
+if grep -q 'annotation-file-utilities' "$TMP_DIR/cf-zip.txt"; then
+  fail "The Checker Framework zip file contains the Annotation File Utilities."
+fi
+if grep -q 'checker/dist/checker.jar' "$TMP_DIR/afu-zip.txt"; then
+  fail "The Annotation File Utilities zip file contains the Checker Framework."
+fi
+
+## Publish to a local Maven repository, signing with a throw-away key.
+export GNUPGHOME="$TMP_DIR/gnupg"
+mkdir -m 700 "$GNUPGHOME"
+SIGNING_KEY="release-test@example.invalid"
+gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key "$SIGNING_KEY" default default never
+# Use a repository of its own, so that a release version is not left in the developer's ~/.m2.
+MAVEN_REPO="$TMP_DIR/m2"
+./gradlew publishToMavenLocal -Prelease=true -Dmaven.repo.local="$MAVEN_REPO" \
+  -Psigning.gnupg.keyName="$SIGNING_KEY" -Psigning.gnupg.passphrase= --console=plain --warning-mode=all
+
+MAVEN_LOCAL="$MAVEN_REPO/io/github/eisop"
+for artifact in annotation-file-utilities checker checker-qual checker-util framework dataflow javacutil; do
+  dir="$MAVEN_LOCAL/$artifact/${VERSION}"
+  for suffix in .pom .jar .jar.asc .pom.asc; do
+    [ -f "$dir/$artifact-${VERSION}$suffix" ] || fail "Maven publication is missing $dir/$artifact-${VERSION}$suffix."
+  done
+done
+# The Annotation File Utilities do not depend on the checkers.
+if grep -E '<artifactId>(checker|framework)</artifactId>' \
+  "$MAVEN_LOCAL/annotation-file-utilities/${VERSION}/annotation-file-utilities-${VERSION}.pom"; then
+  fail "The Annotation File Utilities POM depends on the Checker Framework."
+fi
