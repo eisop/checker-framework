@@ -51,6 +51,8 @@ jobs:
           - {script: 'jspecify-reference-checker', java: {version: '21', experimental: false}}
           - {script: 'templatefora-checker', java: {version: '21', experimental: false}}
           - {script: 'misc', java: {version: '21', experimental: false}}
+          # The release build, without credentials and without publishing.
+          - {script: 'release', java: {version: '21', experimental: false}}
           # --- JDK 8 ---
           - {script: 'cftests-junit-part1', java: {version: '8', experimental: false}}
           - {script: 'cftests-junit-part2', java: {version: '8', experimental: false}}
