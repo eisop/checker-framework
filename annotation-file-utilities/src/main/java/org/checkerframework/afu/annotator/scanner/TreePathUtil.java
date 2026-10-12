@@ -17,7 +17,6 @@ import com.sun.tools.javac.tree.JCTree;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.lang.invoke.VarHandle;
 
 /** Utility methods relating to TreePaths. */
 public class TreePathUtil {
@@ -308,11 +307,11 @@ public class TreePathUtil {
                                         int.class,
                                         Class.forName("com.sun.tools.javac.tree.EndPosTable"))),
                         1,
-                        lookup.findVarHandle(
-                                        JCTree.JCCompilationUnit.class,
-                                        "endPositions",
-                                        Class.forName("com.sun.tools.javac.tree.EndPosTable"))
-                                .toMethodHandle(VarHandle.AccessMode.GET));
+                        // findGetter rather than findVarHandle, which requires Java 9.
+                        lookup.findGetter(
+                                JCTree.JCCompilationUnit.class,
+                                "endPositions",
+                                Class.forName("com.sun.tools.javac.tree.EndPosTable")));
             } catch (ReflectiveOperationException e2) {
                 e2.addSuppressed(e1);
                 throw new LinkageError(e2.getMessage(), e2);

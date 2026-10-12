@@ -755,9 +755,15 @@ branch is deleted.
 </p>
 <ul>
   <li>
-    If you are building an old <em>released</em> version of the Checker Framework,
-    then <code>annotation-tools</code> should have a corresponding tag for the
-    release.
+    If you are building an old <em>released</em> version of the Checker Framework
+    that needs the <code>annotation-tools</code> repository, then
+    <code>annotation-tools</code> should have a corresponding tag for the
+    release.  The EISOP Checker Framework needed it only before
+    version 3.18.0-eisop1: since then, building the Checker Framework does not
+    use <code>annotation-tools</code> (Whole Program Inference through the
+    Annotation File Utilities is disabled).  The Annotation File Utilities are now
+    built in the <code>annotation-file-utilities</code> directory of this
+    repository, and <code>annotation-tools</code> is not used any more.
   </li>
   <li>
     Recently, any Stubparser change that breaks building the Checker

@@ -158,7 +158,7 @@ public class ClassFileWriter {
                 e.printStackTrace();
                 System.out.flush();
                 System.out.println("Please submit a bug report at");
-                System.out.println("  https://github.com/typetools/checker-framework/issues");
+                System.out.println("  https://github.com/eisop/checker-framework/issues");
                 System.out.println(
                         "Be sure to include a copy of the following output trace, instructions on how");
                 System.out.println("to reproduce this error, and all input files.  Thanks!");
