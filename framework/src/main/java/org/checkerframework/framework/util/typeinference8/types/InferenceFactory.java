@@ -1206,12 +1206,10 @@ public class InferenceFactory {
             thrownTypes =
                     CheckedExceptionsUtil.thrownCheckedExceptionsATM(
                             (LambdaExpressionTree) expression, context);
-            // Use the underlying types of thrownTypes, rather than
-            // CheckedExceptionsUtil.thrownCheckedExceptions, so that the two lists correspond.
-            // The latter uses the declared thrown types of a method invocation in the body,
-            // whereas thrownTypes uses the thrown types after type argument inference. For
-            // example, a thrown type variable may be checked as declared, but inferred to be
-            // RuntimeException.
+            // Use the underlying types of thrownTypes, so that the two lists correspond. These are
+            // the thrown types after type argument inference, not the declared thrown types of a
+            // method invocation in the body: a thrown type variable may be checked as declared,
+            // but inferred to be RuntimeException.
             List<TypeMirror> underlyingTypes = new ArrayList<>(thrownTypes.size());
             for (AnnotatedTypeMirror thrownType : thrownTypes) {
                 underlyingTypes.add(thrownType.getUnderlyingType());
