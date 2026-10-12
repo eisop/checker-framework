@@ -251,13 +251,13 @@ Other improvements and bug fixes:
 - Type argument inference crash fixes: `? super`/`? extends` interactions,
   lambda-returned generic calls, implicitly typed lambdas, inexact method
   references, F-bounded wildcards.
+- Type argument inference treats an `Error` thrown in a lambda body as an
+  unchecked exception, instead of crashing.
 - Type argument inference resolves polymorphic qualifiers in nested generic
   invocations and method references.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
-- Type argument inference treats an `Error` thrown in a lambda body as an
-  unchecked exception, instead of crashing.
 - `-AcheckCastElementType` fixes: no longer crashes on downcasts, incomparable
   types, null literal casts, or differing type-argument counts.
 - `BinaryStubFileGenerator` accepts a file, directory (`--bundle`), or jar.
