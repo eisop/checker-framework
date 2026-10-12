@@ -256,6 +256,8 @@ Other improvements and bug fixes:
 - Type argument inference no longer treats a `return` in a method of a local or
   anonymous class declared in a lambda body as a result of the lambda, which
   crashed inference.
+- Type argument inference no longer crashes on nested lambdas whose functional
+  interface throws a type variable.
 - Type argument inference resolves polymorphic qualifiers in nested generic
   invocations and method references.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
@@ -373,6 +375,7 @@ eisop#2086,
 eisop#2089,
 eisop#2091,
 eisop#2094,
+eisop#2104,
 eisop#2105,
 eisop#2115,
 eisop#2135,
