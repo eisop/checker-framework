@@ -96,8 +96,12 @@ public abstract class InitializationParentAnnotatedTypeFactory
     /** {@link NotOnlyInitialized} or null. */
     protected final AnnotationMirror NOT_ONLY_INITIALIZED;
 
-    /** {@link PolyInitialized}. */
-    protected final AnnotationMirror POLY_INITIALIZED;
+    /**
+     * {@link PolyInitialized}, or null if it is not on the compilation classpath. It is missing
+     * when the classpath has a checker-qual artifact other than EISOP's; then the checker runs
+     * without a polymorphic initialization qualifier.
+     */
+    protected final @Nullable AnnotationMirror POLY_INITIALIZED;
 
     /** {@link FBCBottom}. */
     protected final AnnotationMirror FBCBOTTOM;
@@ -165,7 +169,8 @@ public abstract class InitializationParentAnnotatedTypeFactory
         INITIALIZED = AnnotationBuilder.fromClass(elements, Initialized.class);
         UNDER_INITALIZATION = AnnotationBuilder.fromClass(elements, UnderInitialization.class);
         NOT_ONLY_INITIALIZED = AnnotationBuilder.fromClass(elements, NotOnlyInitialized.class);
-        POLY_INITIALIZED = AnnotationBuilder.fromClass(elements, PolyInitialized.class);
+        POLY_INITIALIZED =
+                AnnotationBuilder.fromName(elements, PolyInitialized.class.getCanonicalName());
         FBCBOTTOM = AnnotationBuilder.fromClass(elements, FBCBottom.class);
 
         objectTypeMirror =
@@ -316,7 +321,9 @@ public abstract class InitializationParentAnnotatedTypeFactory
         result.add(UnderInitialization.class);
         result.add(Initialized.class);
         result.add(FBCBottom.class);
-        result.add(PolyInitialized.class);
+        if (POLY_INITIALIZED != null) {
+            result.add(PolyInitialized.class);
+        }
         return result;
     }
 

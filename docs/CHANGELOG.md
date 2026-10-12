@@ -166,6 +166,12 @@ A stub file that declares a record where the running JDK has a class (for exampl
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
 members that follow the record.
 
+The Nullness Checker and the other checkers built on the Initialization Checker
+no longer fail with "fromClass can't load class ... PolyInitialized" when the
+compilation classpath has a checker-qual artifact without `@PolyInitialized`,
+such as one brought in transitively by a dependency.  They issue a note and run
+without `@PolyInitialized`.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -369,6 +375,7 @@ eisop#2094,
 eisop#2105,
 eisop#2135,
 eisop#2140,
+eisop#2146,
 eisop#2155,
 eisop#2156,
 eisop#2187,
