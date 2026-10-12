@@ -203,6 +203,8 @@ Performance optimizations:
   final locals indexed by declaring element; `ValueQualifierHierarchy` caches
   `value()` elements (~18% faster on constant-heavy classes).
 - `TreeUtils.sameTree()` uses a visitor instead of `toString()`.
+- New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
+  replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
 
 Other improvements and bug fixes:
@@ -325,6 +327,7 @@ eisop#1481,
 eisop#1542,
 eisop#1564,
 eisop#1592,
+eisop#1637,
 eisop#1642,
 eisop#1653,
 eisop#1735,

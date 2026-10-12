@@ -16,6 +16,7 @@ import com.sun.tools.javac.tree.JCTree;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.javacutil.TreeUtils;
 
 import javax.tools.Diagnostic;
 
@@ -98,10 +99,8 @@ public class LspTypeInformationPresenter extends AbstractTypeInformationPresente
          * @return a message range corresponds to the tree
          */
         protected @Nullable TypeOccurrenceRange computeTypeOccurrenceRange(Tree tree) {
-            @SuppressWarnings("removal") // TODO: encapsulate methods
-            long startPos = sourcePositions.getStartPosition(currentRoot, tree);
-            @SuppressWarnings("removal")
-            long endPos = sourcePositions.getEndPosition(currentRoot, tree);
+            long startPos = TreeUtils.getStartPosition(tree);
+            long endPos = TreeUtils.getEndPosition(currentRoot, tree);
             if (startPos == Diagnostic.NOPOS || endPos == Diagnostic.NOPOS) {
                 // The tree doesn't exist in the source file.
                 // For example, a class tree may contain a child that represents

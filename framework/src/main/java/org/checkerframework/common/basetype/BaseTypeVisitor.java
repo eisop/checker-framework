@@ -533,8 +533,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             expectedTreesVisitor.visitCompilationUnit(root, null);
             for (Tree expected : expectedTreesVisitor.getTrees()) {
                 if (!treePairs.containsKey(expected)) {
-                    @SuppressWarnings("removal") // TODO: encapsulate methods
-                    long startpos = positions.getStartPosition(root, expected);
+                    long startpos = TreeUtils.getStartPosition(expected);
                     throw new BugInCF(
                             "Javac tree not matched to JavaParser node: %s [%s @ %d], in file: %s",
                             expected,
@@ -689,10 +688,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 // No warning for extremely long source code.
                 // Use end-position - start-position as a cheap proxy for tree size, instead
                 // of materializing tree.toString().
-                @SuppressWarnings("removal") // TODO: encapsulate methods
-                long startPos = positions.getStartPosition(root, tree);
-                @SuppressWarnings("removal") // TODO: encapsulate methods
-                long endPos = positions.getEndPosition(root, tree);
+                long startPos = TreeUtils.getStartPosition(tree);
+                long endPos = TreeUtils.getEndPosition(root, tree);
                 if (startPos != javax.tools.Diagnostic.NOPOS
                         && endPos != javax.tools.Diagnostic.NOPOS
                         && (endPos - startPos) < 200000) {
@@ -4152,8 +4149,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     private String fileAndLineNumber(Tree tree) {
         StringBuilder result = new StringBuilder();
         result.append(Paths.get(root.getSourceFile().getName()).getFileName().toString());
-        @SuppressWarnings("removal")
-        long valuePos = positions.getStartPosition(root, tree);
+        long valuePos = TreeUtils.getStartPosition(tree);
         LineMap lineMap = root.getLineMap();
         if (valuePos != -1 && lineMap != null) {
             result.append(":");

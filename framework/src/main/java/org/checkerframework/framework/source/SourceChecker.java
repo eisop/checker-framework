@@ -8,7 +8,6 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
-import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Source;
@@ -2404,11 +2403,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return "";
         }
 
-        SourcePositions sourcePositions = trees.getSourcePositions();
-        @SuppressWarnings("removal") // TODO: encapsulate methods
-        long start = sourcePositions.getStartPosition(currentRoot, tree);
-        @SuppressWarnings("removal")
-        long end = sourcePositions.getEndPosition(currentRoot, tree);
+        long start = TreeUtils.getStartPosition(tree);
+        long end = TreeUtils.getEndPosition(currentRoot, tree);
 
         return "( " + start + ", " + end + " )";
     }
