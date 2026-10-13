@@ -169,6 +169,12 @@ A stub file that declares a record where the running JDK has a class (for exampl
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
 members that follow the record.
 
+The Nullness Checker and the other checkers built on the Initialization Checker
+no longer fail with "fromClass can't load class ... PolyInitialized" when the
+compilation classpath has a checker-qual artifact without `@PolyInitialized`,
+such as one brought in transitively by a dependency.  They issue a note and run
+without `@PolyInitialized`.
+
 The Value Checker no longer slows down on loops whose bound is not an integer
 literal (such as `i < n`): the loop variable takes the range that the bound
 permits right away. On plume-util, it takes 8.3s instead of 10.1s. Precision is
@@ -420,6 +426,7 @@ eisop#2114,
 eisop#2115,
 eisop#2135,
 eisop#2140,
+eisop#2146,
 eisop#2155,
 eisop#2156,
 eisop#2158,
