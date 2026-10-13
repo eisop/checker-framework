@@ -2126,6 +2126,18 @@ the prior finding. A fresh hypothesis is not new evidence.
   deep self-similar nesting ever matters, fix it in the gate (an ancestry test, see above), not in
   `Node#equals`.
 
+- **Extended check of captured-wildcard bounds (eisop#1077, October 2026) — measured, no option
+  added.** Issue #1077 asked that the Nullness Checker keep reporting
+  `type.argument.type.incompatible` for a wildcard whose bound is incompatible with the type
+  parameter's bound (`Code<? extends List<Number>>` against `T extends List<@Nullable Number>`;
+  covered by `checker/tests/nullness/WildcardGLB.java`) unless the check proves slow, and only then
+  to put it behind an option. **It is not slow:** a JFR trace of a full
+  `./gradlew --no-daemon checknullness` (9,921 on-CPU `ExecutionSample`s) has
+  `BaseTypeValidator.checkCapturedWildcardBounds` in 10 samples, **0.10%**. This is a single trace,
+  not an A/B run, so the figure is an order of magnitude; a pathological input with very many
+  wildcard arguments was not tried. Nothing was changed, and the check stays on by default. Revisit
+  only if a profile of real code shows this method.
+
 - **`AnnotatedTypeCopier.visit` pooled-map clear ratchet (June 2026).** `IdentityHashMap.clear`
   is ~2.6% of `checknullness` self-time, ~74% of it from `AnnotatedTypeCopier.visit`'s
   `finally { map.clear() }`. The pooled map never shrinks, so one large copy (observed max 879
