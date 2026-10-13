@@ -267,6 +267,10 @@ Other improvements and bug fixes:
   interface throws a type variable.
 - Type argument inference resolves polymorphic qualifiers in nested generic
   invocations and method references.
+- Type argument inference resolves an inference variable after the capture
+  variables mentioned in its bounds (JLS 18.4); this fixes a crash on chained
+  calls such as `s.map(P::type).map(Class::getName)` where `type()` returns
+  `Class<? extends T>`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -389,6 +393,7 @@ eisop#2086,
 eisop#2089,
 eisop#2091,
 eisop#2094,
+eisop#2098,
 eisop#2104,
 eisop#2105,
 eisop#2115,
