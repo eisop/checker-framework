@@ -257,7 +257,8 @@ Other improvements and bug fixes:
   variables directly.
 - Type argument inference crash fixes: `? super`/`? extends` interactions,
   lambda-returned generic calls, implicitly typed lambdas, inexact method
-  references, F-bounded wildcards.
+  references, F-bounded wildcards, diamonds in anonymous subclasses of inner
+  classes with an explicit enclosing instance (`outer.new Inner<>() {}`).
 - Type argument inference treats an `Error` thrown in a lambda body as an
   unchecked exception, instead of crashing.
 - Type argument inference no longer treats a `return` in a method of a local or
@@ -278,6 +279,9 @@ Other improvements and bug fixes:
 - Type argument inference no longer crashes on a generic method call returned
   by a lambda whose target is a raw functional interface type, such as
   `Supplier s = () -> never();` or `(Supplier) () -> never()`.
+- Type argument inference accounts for the type arguments of the enclosing
+  type of an inner class type, such as `T` in `Outer<T>.Inner`; it used to
+  crash on `consume(make(x))` where `make` returns `Outer<T>.Inner`.
 - Type argument inference no longer crashes on a nested `? extends` wildcard
   that mentions the inferred type variable, such as a lambda passed as
   `Supplier<? extends List<? extends T>>`.
@@ -406,6 +410,7 @@ eisop#2094,
 eisop#2098,
 eisop#2104,
 eisop#2105,
+eisop#2106,
 eisop#2114,
 eisop#2115,
 eisop#2135,
