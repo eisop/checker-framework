@@ -271,6 +271,10 @@ Other improvements and bug fixes:
   variables mentioned in its bounds (JLS 18.4); this fixes a crash on chained
   calls such as `s.map(P::type).map(Class::getName)` where `type()` returns
   `Class<? extends T>`.
+- Type argument inference no longer crashes on an explicitly typed lambda
+  passed to a parameter of a wildcard-parameterized functional interface type,
+  such as `m("x", (Object o) -> "y")` for a parameter
+  `Function<? super T, String>`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -396,6 +400,7 @@ eisop#2094,
 eisop#2098,
 eisop#2104,
 eisop#2105,
+eisop#2114,
 eisop#2115,
 eisop#2135,
 eisop#2140,
