@@ -1,8 +1,0 @@
--classpath
-/home/wdietl/workspaces-server/claude/eisop/checker-framework/.claude/worktrees/agent-a5989956518cb6771/checker/dist/checker-util.jar:/home/wdietl/workspaces-server/claude/eisop/checker-framework/.claude/worktrees/agent-a5989956518cb6771/checker/dist/checker-qual.jar:checker/dist/checker-qual.jar
--processorpath
-/home/wdietl/workspaces-server/claude/eisop/checker-framework/.claude/worktrees/agent-a5989956518cb6771/checker/dist/checker-util.jar:/home/wdietl/workspaces-server/claude/eisop/checker-framework/.claude/worktrees/agent-a5989956518cb6771/checker/dist/checker.jar:/home/wdietl/workspaces-server/claude/eisop/checker-framework/.claude/worktrees/agent-a5989956518cb6771/checker/dist/checker-util.jar:/home/wdietl/workspaces-server/claude/eisop/checker-framework/.claude/worktrees/agent-a5989956518cb6771/checker/dist/checker-qual.jar:checker/dist/checker-qual.jar
--processor
-org.checkerframework.checker.nullness.NullnessChecker
--AajavaChecks
-checker/tests/nullness/EisopIssue2106.java
