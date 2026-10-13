@@ -275,6 +275,9 @@ Other improvements and bug fixes:
   passed to a parameter of a wildcard-parameterized functional interface type,
   such as `m("x", (Object o) -> "y")` for a parameter
   `Function<? super T, String>`.
+- Type argument inference no longer crashes on a generic method call returned
+  by a lambda whose target is a raw functional interface type, such as
+  `Supplier s = () -> never();` or `(Supplier) () -> never()`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -406,6 +409,7 @@ eisop#2135,
 eisop#2140,
 eisop#2155,
 eisop#2156,
+eisop#2158,
 eisop#2160,
 eisop#2187,
 eisop#2224,
