@@ -126,6 +126,10 @@ tasks.register("installGitHooks", Copy) {
     into(gitHooksDir)
 }
 
+// The version catalog of the root project.  Inside allprojects, `libs` would be looked up in the
+// parent project of each subproject, which Gradle deprecates.
+def rootLibs = libs
+
 allprojects { currentProj ->
     // Explicitly propagate root-level ext properties so subproject build scripts
     // can access them directly without triggering the deprecated implicit-parent-lookup.
@@ -203,11 +207,11 @@ allprojects { currentProj ->
     dependencies {
         if (useJdkVersionInt >= 21) {
             // Only include Error Prone when its minimum version is met. It will not always be enabled.
-            errorprone(libs.error.prone.core)
+            errorprone(rootLibs.error.prone.core)
         }
 
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
-        javacJar(libs.javac)
+        javacJar(rootLibs.javac)
 
         subprojects.each { sp -> allProjects project(sp.path) }
     }
