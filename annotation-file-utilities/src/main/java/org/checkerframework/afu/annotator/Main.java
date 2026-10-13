@@ -1061,6 +1061,10 @@ public class Main {
                     }
                 }
             }
+            if (verbose && !debug && (num_insertions % 50) != 0) {
+                // after all insertions, if necessary, terminate the line that contains dots
+                System.out.println();
+            }
 
             if (convert_jaifs) {
                 for (Map.Entry<String, AScene> entry : scenes.entrySet()) {

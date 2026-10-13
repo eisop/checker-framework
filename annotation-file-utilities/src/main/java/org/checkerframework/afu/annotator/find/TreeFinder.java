@@ -1582,7 +1582,8 @@ public class TreeFinder extends TreeScanner<Void, List<Insertion>> {
             if (!m.find() || m.start() != 0) {
                 return null;
             }
-            pos = offset + m.end() - 1;
+            // cd.toString() starts with a line separator that is not in the source file.
+            pos = offset + m.end() - System.lineSeparator().length();
         } else { // generic class
             JCTypeParameter param = cd.typarams.get(cd.typarams.length() - 1);
             int start = TreePathUtil.getEndPosition(param, tree);
