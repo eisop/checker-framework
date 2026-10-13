@@ -64,6 +64,17 @@ public class EisopIssue2106 {
         getMid(makeDeep(n, "hello")).length();
     }
 
+    static class SubInner extends Outer<@Nullable String>.Inner {
+        SubInner(Outer<@Nullable String> o) {
+            o.super();
+        }
+    }
+
+    void subclass(SubInner si) {
+        // :: error: (dereference.of.nullable)
+        get(si).length();
+    }
+
     // A raw type such as Outer.Inner requires an unchecked conversion.
     @SuppressWarnings({"rawtypes", "unchecked"})
     void raw(Outer.Inner r) {
