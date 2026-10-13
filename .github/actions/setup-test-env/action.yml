@@ -119,7 +119,7 @@ runs:
         repository-cache: true
 
     - name: Set up misc test dependencies
-      if: ${{ inputs.script == 'misc' }}
+      if: ${{ inputs.script == 'misc' || inputs.script == 'release' }}
       uses: ./.github/actions/setup-misc
 
     - name: Output version information to debug CI

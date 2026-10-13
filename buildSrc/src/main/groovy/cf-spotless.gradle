@@ -10,6 +10,9 @@ plugins {
 
 // patterns of files to skip for individual sub-projects
 def perProjectDoNotFormat = [
+    // The inputs of the annotator tests are kept in the formatting of typetools, which is not
+    // AOSP: the expected outputs (".goal" files) depend on the exact formatting of the inputs.
+    "annotation-file-utilities": ["tests/**"],
     "checker": [
         "bin/.do-like-javac/**",
         "bin-devel/.git-scripts/**",
@@ -75,11 +78,8 @@ spotless {
             // not the root project; format all .java and .ajava files in the sub-project
             target("**/*.java", "**/*.ajava")
         } else {
-            // The Annotation File Utilities and buildSrc are not Gradle subprojects here, so the
-            // root project formats their sources.  Their tests/ directory is not formatted: it
-            // holds test inputs whose expected outputs (the .goal files) depend on the exact
-            // formatting of the input.
-            target("annotation-file-utilities/src/**/*.java", "buildSrc/src/**/*.java")
+            // buildSrc is not a Gradle subproject here, so the root project formats its sources.
+            target("buildSrc/src/**/*.java")
         }
         targetExclude(doNotFormat)
 

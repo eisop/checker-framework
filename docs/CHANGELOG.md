@@ -38,6 +38,15 @@ New Maven Central artifacts `io.github.eisop:framework` and
 custom checker without depending on `checker`. See the manual's "Declaring
 dependencies for a custom checker" section.
 
+The Annotation File Utilities, which typetools moved into this repository, are now
+built, tested, and type-checked as the `annotation-file-utilities` subproject.
+They are independent of the other subprojects. They are released separately from the
+Checker Framework: as the Maven artifact `io.github.eisop:annotation-file-utilities`
+and as `annotation-file-utilities-VERSION.zip`. The changes of `eisop/annotation-tools` have
+been merged into them.
+The annotator and its tests now also work on Windows: an implicit class bound is no longer
+inserted one character too far to the right there.
+
 Packaging fixes: published artifacts no longer transitively pull in
 `org.checkerframework:checker-qual`; Gradle consumers of
 `io.github.eisop:checker` now get the same jar Maven consumers get;
@@ -45,6 +54,8 @@ annotation names that ShadowJar had rewritten (breaking
 Lombok/codehaus `@NotNull`/`@Nullable` and `@org.plumelib.options.Option`)
 are fixed; and shaded jars are ~2 MB smaller, no longer bundling a stray
 `module-info.class` or jsr305 classes.
+The shell scripts in `checker/bin`, such as `wpi.sh`, are executable in
+`checker-framework-VERSION.zip`.
 
 Type-checking and subtyping improvements:
 
@@ -158,15 +169,9 @@ the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
 members that follow the record.
 
 The Value Checker no longer slows down on loops whose bound is not an integer
-literal (such as `i < n` or `i <= Character.MAX_VALUE`). The loop
-variable now takes the whole range the bound permits right away instead of
-climbing through the widening values, which was about 17% slower than the
-widening it replaced. The Value Checker on plume-util takes 8.3s instead of 10.1s,
-and on the framework sources 25.8s instead of 30.0s, both at or below the
-time before that change. Loop variables get ranges at least as precise as
-before. A variable that the loop condition compares but the loop never
-updates now gets the whole range the bound permits, as it already did for
-integer-literal bounds.
+literal (such as `i < n`): the loop variable takes the range that the bound
+permits right away. On plume-util, it takes 8.3s instead of 10.1s. Precision is
+unchanged or better.
 
 ### Implementation details
 
@@ -223,7 +228,8 @@ Other improvements and bug fixes:
   `override.typaram.invalid`, closing a soundness hole (eisop#1965).
 - Enclosing type argument fixes (eisop#737): `TypeFromTypeTreeVisitor` restores
   declared bounds; `BaseTypeValidator` checks enclosing type arguments against
-  declared bounds.
+  declared bounds, and reports an out-of-bound enclosing type argument once in
+  a chain of three or more levels (eisop#1926).
 - `AnnotatedIntersectionType.summarizeBounds` computes bound summaries.
   `clearAnnotations()` on intersection, wildcard, and type-variable types now
   also clears bounds. `AnnotatedTypes.glbSubtype` uses `shallowCopy(false)`.
@@ -251,6 +257,13 @@ Other improvements and bug fixes:
 - Type argument inference crash fixes: `? super`/`? extends` interactions,
   lambda-returned generic calls, implicitly typed lambdas, inexact method
   references, F-bounded wildcards.
+- Type argument inference treats an `Error` thrown in a lambda body as an
+  unchecked exception, instead of crashing.
+- Type argument inference no longer treats a `return` in a method of a local or
+  anonymous class declared in a lambda body as a result of the lambda, which
+  crashed inference.
+- Type argument inference no longer crashes on nested lambdas whose functional
+  interface throws a type variable.
 - Type argument inference resolves polymorphic qualifiers in nested generic
   invocations and method references.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
@@ -282,6 +295,7 @@ Other improvements and bug fixes:
   `resolveAnnotationFileLocation` plus `allAnnotationFiles(File, ...)`.
 - Custom annotated JDKs no longer load `checker.jar`'s binary JDK on top.
 - Fixed `-AwarnUnneededSuppressions` for values matching a checker prefix.
+- `-AwarnUnneededSuppressions` now also works with `-AassumeInitialized`.
 - Fixed missing `EnsuresNonNullIf` import in
   `permit-nullness-assertion-exception.astub`.
 - Fixed capture conversion dropping qualifiers from type-variable bounds.
@@ -338,6 +352,7 @@ eisop#1862,
 eisop#1863,
 eisop#1865,
 eisop#1887,
+eisop#1926,
 eisop#1958,
 eisop#1965,
 eisop#1986,
@@ -347,6 +362,7 @@ eisop#1991,
 eisop#2009,
 eisop#2020,
 eisop#2021,
+eisop#2029,
 eisop#2032,
 eisop#2034,
 eisop#2037,
@@ -368,11 +384,15 @@ eisop#2086,
 eisop#2089,
 eisop#2091,
 eisop#2094,
+eisop#2104,
 eisop#2105,
+eisop#2115,
 eisop#2135,
 eisop#2140,
 eisop#2155,
 eisop#2156,
+eisop#2160,
+eisop#2187,
 eisop#2224,
 typetools#399,
 typetools#2816,

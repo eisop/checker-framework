@@ -13,9 +13,7 @@ import pathlib
 import zipfile
 from pathlib import Path
 
-from release_errors import ReleaseError
 from release_utils import (
-    are_in_file,
     delete,
     delete_directory,
     download_binary,
@@ -72,36 +70,8 @@ def javac_sanity_check(checker_framework_website: str, release_version: str) -> 
 
     ensure_writeable(deploy_dir)
 
-    sanity_javac = Path(deploy_dir) / "checker" / "bin" / "javac"
-    nullness_output = Path(deploy_dir) / "output.log"
-
-    cmd = (
-        f"{sanity_javac} -processor org.checkerframework.checker.nullness.NullnessChecker "
-        f"{nullness_example} -Anomsgtext"
-    )
-    execute_write_to_file(cmd, nullness_output, False)
-    check_results(
-        "Javac sanity check",
-        nullness_output,
-        [
-            "NullnessExampleWithWarnings.java:23: error: (assignment.type.incompatible)",
-            "NullnessExampleWithWarnings.java:33: error: (argument.type.incompatible)",
-        ],
-    )
-
-    # this is a smoke test for the built-in checker shorthand feature
-    # https://eisop.github.io/cf/manual/#shorthand-for-checkers
-    nullness_shorthand_output = Path(deploy_dir) / "output_shorthand.log"
-    cmd = f"{sanity_javac} -processor NullnessChecker {nullness_example} -Anomsgtext"
-    execute_write_to_file(cmd, nullness_shorthand_output, False)
-    check_results(
-        "Javac Shorthand Sanity Check",
-        nullness_shorthand_output,
-        [
-            "NullnessExampleWithWarnings.java:23: error: (assignment.type.incompatible)",
-            "NullnessExampleWithWarnings.java:33: error: (argument.type.incompatible)",
-        ],
-    )
+    sanity_script = Path(__file__).resolve().parent / "javac-sanity-check.sh"
+    execute(f"{sanity_script} {deploy_dir} {nullness_example}")
 
 
 def maven_sanity_check(sub_sanity_dir_name: str) -> None:
@@ -127,25 +97,3 @@ def maven_sanity_check(sub_sanity_dir_name: str) -> None:
 
     os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
     execute_write_to_file("mvn compile", output_log, False, maven_example_dir)
-
-
-def check_results(title: str, output_log: Path, expected_errors: list[str]) -> None:
-    """Verify the given actual output of a sanity check against the given expected output.
-
-    If the sanity check passed, print the given title of the
-    sanity check and a success message. If the sanity check failed, raise an
-    exception whose text contains the given title of the sanity check and the
-    actual and expected output.
-
-    Raises:
-        ReleaseError: If the sanity check failed.
-    """
-    found_errors = are_in_file(output_log, expected_errors)
-
-    if not found_errors:
-        msg = (
-            f"{title} did not work! File: {output_log} "
-            f"should contain the following errors: [ {', '.join(expected_errors)}"
-        )
-        raise ReleaseError(msg)
-    print(f"{title} check: passed!\n")

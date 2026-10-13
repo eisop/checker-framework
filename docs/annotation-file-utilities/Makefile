@@ -13,9 +13,11 @@ annotation-file-format.pdf: plume-bib figures
 annotation-file-format.html: annotation-file-format.pdf
 	hevea -fix -exec xxdate.exe urlhref.hva annotation-file-format.tex
 
+# The bibliography is shared with the Checker Framework manual.
 plume-bib:
-	cd ../.. && ./gradlew getPlumeBib
+	${MAKE} -C ../manual plume-bib
 
+# Ignore failure of latexmk, so that "gradlew clean" works where LaTeX is not installed.
 clean:
-	latexmk -C annotation-file-format.tex
+	-latexmk -C annotation-file-format.tex
 	make -C figures clean
