@@ -268,6 +268,17 @@ Other improvements and bug fixes:
   interface throws a type variable.
 - Type argument inference resolves polymorphic qualifiers in nested generic
   invocations and method references.
+- Type argument inference resolves an inference variable after the capture
+  variables mentioned in its bounds (JLS 18.4); this fixes a crash on chained
+  calls such as `s.map(P::type).map(Class::getName)` where `type()` returns
+  `Class<? extends T>`.
+- Type argument inference no longer crashes on an explicitly typed lambda
+  passed to a parameter of a wildcard-parameterized functional interface type,
+  such as `m("x", (Object o) -> "y")` for a parameter
+  `Function<? super T, String>`.
+- Type argument inference no longer crashes on a generic method call returned
+  by a lambda whose target is a raw functional interface type, such as
+  `Supplier s = () -> never();` or `(Supplier) () -> never()`.
 - Type argument inference accounts for the type arguments of the enclosing
   type of an inner class type, such as `T` in `Outer<T>.Inner`; it used to
   crash on `consume(make(x))` where `make` returns `Outer<T>.Inner`.
@@ -393,14 +404,17 @@ eisop#2086,
 eisop#2089,
 eisop#2091,
 eisop#2094,
+eisop#2098,
 eisop#2104,
 eisop#2105,
 eisop#2106,
+eisop#2114,
 eisop#2115,
 eisop#2135,
 eisop#2140,
 eisop#2155,
 eisop#2156,
+eisop#2158,
 eisop#2160,
 eisop#2187,
 eisop#2224,
