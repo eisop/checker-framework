@@ -19,9 +19,7 @@ large (e.g. auto-generated) files. Type-checking a class with many fields
 under the Initialization Checker (and any checker built on it, such as the
 Nullness Checker) is no longer quadratic in the number of fields: a class
 with 4000 fields now type-checks in ~11 seconds instead of ~26. Merging
-dataflow stores after a long run of method calls in such a class is also
-cheaper: a method that passes each of 4000 fields to a method call now
-type-checks in ~15 seconds instead of ~34 (eisop#719).
+dataflow stores after many method calls in such a class is also faster.
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale

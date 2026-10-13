@@ -2058,9 +2058,9 @@ warm-up): plume-util 14.06 [13.24-14.16] → 13.81 [13.61-17.07] s; `framework/s
 workloads above.
 
 Remaining at N=4000 on the static shape, as follow-ups (not addressed here):
-`TreePathCacher.getPath` from `QualifierDefaults.nearestEnclosingExceptLocal` (eisop#2260) is 20% inclusive
-(mostly `TreeScanner.scan` self-time, plausibly a per-call scan of the 4000-statement method body),
-and parsing the `Map.put` postcondition (`JavaExpressionParseUtil.parse` →
+`TreePathCacher.getPath` from `QualifierDefaults.nearestEnclosingExceptLocal` (eisop#2260) is 20%
+inclusive (mostly `TreeScanner.scan` self-time, plausibly a per-call scan of the 4000-statement
+method body), and parsing the `Map.put` postcondition (`JavaExpressionParseUtil.parse` →
 `JavacParse.parseExpression`) on every call (eisop#2261) is 19%.
 
 ---
