@@ -63,6 +63,24 @@ public class EisopIssue2106 {
         getOuter(makeDeep(n, "hello")).length();
         getMid(makeDeep(n, "hello")).length();
     }
+
+    static class SubInner extends Outer<@Nullable String>.Inner {
+        SubInner(Outer<@Nullable String> o) {
+            o.super();
+        }
+    }
+
+    void subclass(SubInner si) {
+        // :: error: (dereference.of.nullable)
+        get(si).length();
+    }
+
+    // A raw type such as Outer.Inner requires an unchecked conversion.
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void raw(Outer.Inner r) {
+        get(r);
+        consume(r);
+    }
 }
 
 // The return type of a diamond instance creation of an inner class has the type arguments of the
@@ -106,5 +124,11 @@ class EisopIssue2106Diamond<Y> {
         nn.new Inner<>("a").outer().length();
         // :: error: (dereference.of.nullable)
         s.new Inner<>("a").outer().length();
+    }
+
+    static void anonymousReceiver() {
+        new EisopIssue2106Diamond<String>("") {}.new Inner<>("a").outer().length();
+        // :: error: (dereference.of.nullable)
+        new EisopIssue2106Diamond<@Nullable String>(null) {}.new Inner<>("a").outer().length();
     }
 }

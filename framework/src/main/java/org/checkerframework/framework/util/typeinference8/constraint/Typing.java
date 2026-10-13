@@ -260,6 +260,7 @@ public class Typing extends TypeConstraint {
             if (tEnclosing != null) {
                 AbstractType sEnclosing = sAsSuper.getParameterizedEnclosingType();
                 if (sEnclosing == null) {
+                    // sAsSuper is a raw type such as Outer.Inner, whose enclosing type is raw.
                     return ReductionResult.UNCHECKED_CONVERSION;
                 }
                 set.add(new Typing(this, sEnclosing, tEnclosing, Kind.SUBTYPE));
