@@ -6168,7 +6168,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 TypeCastTree cast = (TypeCastTree) parentTree;
                 assertIsFunctionalInterface(
                         trees.getTypeMirror(getPath(cast.getType())), parentTree, tree);
-                AnnotatedTypeMirror castATM = getAnnotatedType(cast.getType());
+                AnnotatedTypeMirror castATM = getAnnotatedTypeFromTypeTree(cast.getType());
                 if (castATM.getKind() == TypeKind.INTERSECTION) {
                     AnnotatedIntersectionType itype = (AnnotatedIntersectionType) castATM;
                     for (AnnotatedTypeMirror t : itype.directSupertypes()) {

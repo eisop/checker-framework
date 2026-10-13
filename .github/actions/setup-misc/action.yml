@@ -27,6 +27,7 @@ runs:
           autoconf \
           devscripts \
           dia \
+          graphviz \
           hevea \
           latexmk \
           libasound2-dev \
