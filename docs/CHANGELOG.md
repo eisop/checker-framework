@@ -282,6 +282,9 @@ Other improvements and bug fixes:
 - Type argument inference accounts for the type arguments of the enclosing
   type of an inner class type, such as `T` in `Outer<T>.Inner`; it used to
   crash on `consume(make(x))` where `make` returns `Outer<T>.Inner`.
+- Type argument inference no longer crashes on a nested `? extends` wildcard
+  that mentions the inferred type variable, such as a lambda passed as
+  `Supplier<? extends List<? extends T>>`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -415,6 +418,7 @@ eisop#2140,
 eisop#2155,
 eisop#2156,
 eisop#2158,
+eisop#2159,
 eisop#2160,
 eisop#2187,
 eisop#2224,

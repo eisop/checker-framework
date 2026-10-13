@@ -267,6 +267,12 @@ public class Typing extends TypeConstraint {
             }
 
             return set;
+        } else if (S.getTypeKind() == TypeKind.TYPEVAR
+                && TypesUtils.isCapturedTypeVariable(S.getJavaType())) {
+            // The supertypes of a captured type variable are those of its upper bound, which here
+            // mentions an inference variable, so whether T is among them is not yet known.  See
+            // the comment in reduceSubtypeTypeVariable.
+            return new Typing(this, S.getTypeVarUpperBound(), T, Kind.SUBTYPE);
         } else {
             // The constraint reduces to true if T is among the supertypes of S, and false
             // otherwise.
