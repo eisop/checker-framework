@@ -16,8 +16,21 @@
 JAVA?=java
 JAVAC?=javac
 
+# Java uses ';' as the classpath separator on Windows.
+ifeq ($(OS),Windows_NT)
+PATHSEP := ;
+else
+PATHSEP := :
+endif
+
+# In Java 8, include Java 9 javac.  Without this, tests fail with:
+#   Exception in thread "main" java.lang.NoSuchFieldError: ANNOTATION_PROCESSOR_MODULE_PATH
+ifeq ($(shell java -version 2>&1 | grep version | grep 1.8 > /dev/null; printf $$?), 0)
+export JAVA:=$(JAVA) -Xbootclasspath/p:../../lib/javac-9+181-r4173-1.jar
+else
 # Need --add-opens to access CommandLine.parse dynamically to check its type.
 export JAVA:=$(JAVA) --add-opens jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED  --add-opens jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED
+endif
 
 export SHELL=/bin/bash -o pipefail
 
@@ -47,7 +60,7 @@ results: ../bin/VerifyDiffs.class
 	@echo ""
 	@echo "=== RESULTS ==="
 	@echo ""
-	@$(JAVA) -cp bin:../bin VerifyDiffs --show_all
+	@$(JAVA) -cp "bin$(PATHSEP)../bin" VerifyDiffs --show_all
 
 # Remakes the little java program that checks and compares diffs
 ../bin/VerifyDiffs.class : ../VerifyDiffs.java
@@ -57,12 +70,12 @@ results: ../bin/VerifyDiffs.class
 .PHONY: compile
 compile : $(SRC)
 	mkdir -p bin
-	$(JAVAC) -g -cp bin:../../build/classes/java/main -d bin -sourcepath . $(SRC)
+	$(JAVAC) -g -cp "bin$(PATHSEP)../../build/classes/java/main" -d bin -sourcepath . $(SRC)
 
 # Actually runs the annotator to create the annotated java file.
 output: compile $(JAIF) ../../build/classes/java/main $(AFU_JARS)
 	$(JAVA) \
-	-cp ../../dist/annotation-file-utilities-all.jar:bin \
+	-cp "../../dist/annotation-file-utilities-all.jar$(PATHSEP)bin" \
 	org.checkerframework.afu.annotator.Main \
 	${DEBUG} \
 	--abbreviate=true \
@@ -77,7 +90,7 @@ output: compile $(JAIF) ../../build/classes/java/main $(AFU_JARS)
 
 # Compare the output of the annotator and the goal file.
 %.diff: %.goal %.output
-	-diff -u $*.goal $*.output 2>&1 | tee $*.diff
+	-diff -u --strip-trailing-cr $*.goal $*.output 2>&1 | tee $*.diff
 
 # Remove all .diff, .log files from the tests directory.
 .PHONY: clean
