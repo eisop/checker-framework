@@ -506,13 +506,17 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     }
 
     /**
-     * Find the index (position) of this type variable from type
+     * Find the type that declares the type parameter {@code var}, and the index (position) of
+     * {@code var} among that type's type parameters.
      *
      * @param type type from which we infer actual type arguments
      * @param var formal type parameter
      * @param searchSupertypes whether to look up {@code var} among the type parameters of {@code
      *     type}'s supertypes, too
-     * @return index(position) of this type variable from type
+     * @return the type, which is {@code type} or one of its supertypes, whose declaration has
+     *     {@code var} as a type parameter, paired with the index of {@code var} among its type
+     *     parameters; null if {@code var} is not a type parameter of {@code type}, or, when {@code
+     *     searchSupertypes} is true, of any of its supertypes
      */
     private Pair<AnnotatedDeclaredType, Integer> findDeclType(
             AnnotatedDeclaredType type, AnnotatedTypeVariable var, boolean searchSupertypes) {
