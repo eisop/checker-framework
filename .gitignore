@@ -61,6 +61,7 @@ checker/tests/calledmethods-delomboked
 plume-bib
 *.synctex.gz
 manual.aux
+manual.bbl
 manual.blg
 manual.dvi
 manual.fdb_latexmk

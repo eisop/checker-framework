@@ -9,6 +9,7 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.util.typeinference8.bound.BoundSet;
 import org.checkerframework.framework.util.typeinference8.types.AbstractType;
 import org.checkerframework.framework.util.typeinference8.types.InferenceType;
@@ -23,6 +24,7 @@ import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -315,9 +317,11 @@ public class Expression extends TypeConstraint {
         ConstraintSet constraintSet = new ConstraintSet();
 
         if (!TreeUtils.isImplicitlyTypedLambda(lambda)) {
-            // Explicitly typed lambda
+            // Explicitly typed lambda: G1, ..., Gn are the parameter types of the function type of
+            // the ground target type T', not of T.  T' and T are related by the constraint
+            // T' <: T below.
             List<? extends VariableTree> parameters = lambda.getParameters();
-            List<AbstractType> gs = T.getFunctionTypeParameterTypes();
+            List<AbstractType> gs = tPrime.getFunctionTypeParameterTypes();
             assert parameters.size() == gs.size();
 
             for (int i = 0; i < gs.size(); i++) {
@@ -438,10 +442,14 @@ public class Expression extends TypeConstraint {
 
         // Let Q1, ..., Qk be the parameter types of the function type of the type F<alpha1, ...,
         // alpham>, where alpha1, ..., alpham are fresh inference variables.
+        // The map's keys are the type parameters of F, so F<alpha1, ..., alpham> is created from
+        // the declared type of F, not from t, which does not mention them.
         Theta map = context.inferenceTypeFactory.createThetaForLambda(lambda, t);
         List<Variable> alphas = new ArrayList<>(map.values());
+        AnnotatedDeclaredType declaredF =
+                context.typeFactory.getAnnotatedType(TypesUtils.getTypeElement(t.getJavaType()));
         AbstractType tprime =
-                InferenceType.create(t.getAnnotatedType(), t.getJavaType(), map, context);
+                InferenceType.create(declaredF, declaredF.getUnderlyingType(), map, context);
 
         List<AbstractType> qs = tprime.getFunctionTypeParameterTypes();
         assert qs.size() == ps.size();
