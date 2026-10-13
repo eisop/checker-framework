@@ -29,7 +29,6 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.MapsP;
 import org.plumelib.util.ToStringComparator;
 import org.plumelib.util.UniqueId;
 
@@ -391,18 +390,39 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      */
     private void updateFieldValuesForMethodCall(
             GenericAnnotatedTypeFactory<V, S, ?, ?> atypeFactory) {
-        Map<FieldAccess, V> newFieldValues = new HashMap<>(MapsP.mapCapacity(fieldValues));
+        // Only the fields whose value changes are collected; a new value equal to the previous one
+        // is not a change. If nothing changes, `fieldValues` is left in place, so it keeps sharing
+        // its delegate with the stores it was copied from or to. That lets the store equality
+        // checks done when merging stores take the delegate-identity fast path instead of comparing
+        // every entry, which matters for a long run of calls (each with exceptional successors)
+        // in a class with many fields. `changes` maps each changed field to its new value, or to
+        // null if the field is to be removed.
+        Map<FieldAccess, @Nullable V> changes = null;
         for (Map.Entry<FieldAccess, V> e : fieldValues.entrySet()) {
             FieldAccess fieldAccess = e.getKey();
             V previousValue = e.getValue();
 
             V newValue = newFieldValueAfterMethodCall(fieldAccess, atypeFactory, previousValue);
-            if (newValue != null) {
-                // Keep information for all hierarchies where we had a monotonic annotation.
-                newFieldValues.put(fieldAccess, newValue);
+            if (!previousValue.equals(newValue)) {
+                if (changes == null) {
+                    changes = new HashMap<>();
+                }
+                changes.put(fieldAccess, newValue);
             }
         }
-        fieldValues = new CopyOnWriteMap<>(newFieldValues, false);
+        if (changes != null) {
+            Map<FieldAccess, V> newFieldValues = new HashMap<>(fieldValues);
+            for (Map.Entry<FieldAccess, @Nullable V> change : changes.entrySet()) {
+                V newValue = change.getValue();
+                if (newValue == null) {
+                    newFieldValues.remove(change.getKey());
+                } else {
+                    // Keep information for all hierarchies where we had a monotonic annotation.
+                    newFieldValues.put(change.getKey(), newValue);
+                }
+            }
+            fieldValues = new CopyOnWriteMap<>(newFieldValues, false);
+        }
     }
 
     /**
