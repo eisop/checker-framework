@@ -10,7 +10,6 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
-import com.sun.source.util.SourcePositions;
 import com.sun.tools.javac.tree.JCTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -44,9 +43,6 @@ public class LspTypeInformationPresenter extends AbstractTypeInformationPresente
 
     /** Type information reporter that uses a format suitable for the LSP server. */
     protected class LspTypeInformationReporter extends TypeInformationReporter {
-        /** Computes positions of a sub-tree. */
-        protected final SourcePositions sourcePositions;
-
         /**
          * Constructor.
          *
@@ -54,7 +50,6 @@ public class LspTypeInformationPresenter extends AbstractTypeInformationPresente
          */
         LspTypeInformationReporter(ClassTree classTree) {
             super(classTree);
-            this.sourcePositions = atypeFactory.getTreeUtils().getSourcePositions();
         }
 
         /**

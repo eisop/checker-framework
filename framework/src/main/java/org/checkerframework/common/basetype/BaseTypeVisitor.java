@@ -38,7 +38,6 @@ import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
-import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
@@ -214,9 +213,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** The Annotated Type Hierarchy. */
     protected final TypeHierarchy typeHierarchy;
 
-    /** For obtaining line numbers in {@code -Ashowchecks} debugging output. */
-    protected final SourcePositions positions;
-
     /** The element for java.util.Vector#copyInto. */
     private final ExecutableElement vectorCopyInto;
 
@@ -342,7 +338,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         this.atypeFactory = typeFactory == null ? createTypeFactory() : typeFactory;
         this.qualHierarchy = atypeFactory.getQualifierHierarchy();
         this.typeHierarchy = atypeFactory.getTypeHierarchy();
-        this.positions = trees.getSourcePositions();
         this.typeValidator = createTypeValidator();
         ProcessingEnvironment env = checker.getProcessingEnvironment();
         this.vectorCopyInto = TreeUtils.getMethod("java.util.Vector", "copyInto", 1, env);
