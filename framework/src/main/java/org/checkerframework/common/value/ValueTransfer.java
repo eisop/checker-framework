@@ -27,7 +27,6 @@ import org.checkerframework.dataflow.cfg.node.FloatingRemainderNode;
 import org.checkerframework.dataflow.cfg.node.GreaterThanNode;
 import org.checkerframework.dataflow.cfg.node.GreaterThanOrEqualNode;
 import org.checkerframework.dataflow.cfg.node.IntegerDivisionNode;
-import org.checkerframework.dataflow.cfg.node.IntegerLiteralNode;
 import org.checkerframework.dataflow.cfg.node.IntegerRemainderNode;
 import org.checkerframework.dataflow.cfg.node.LeftShiftNode;
 import org.checkerframework.dataflow.cfg.node.LessThanNode;
@@ -1320,18 +1319,18 @@ public class ValueTransfer extends CFTransfer {
         Range leftRange = getIntRangeFromAnnotation(leftNode, leftAnno);
         Range rightRange = getIntRangeFromAnnotation(rightNode, rightAnno);
 
-        // Special case for loop conditions:  If inequality against a constant, then widen to the
-        // entire range permitted by the constant.  The fixed-point loop is likely to get to that
-        // value eventually, and this is both more efficient and more precise than leaving it to the
-        // usual widening operation.
+        // Special case for loop conditions:  If the loop variable is compared against a bound, then
+        // widen it to the entire range permitted by the bound's current range.  The fixed-point
+        // loop is likely to get to that value eventually, and this is both more efficient and more
+        // precise than leaving it to the usual widening operation, which climbs through the
+        // widening values one at a time and, in nested loops, once per nesting level.  The result
+        // is sound because the variable's lower (upper) bound is kept and the bound limits it from
+        // the other side.
 
         // TODO: This does not handle comparisons when the lhs is the integer literal, as in "0 < i"
         // or "10 > i".  I think that those are quite rare, but if they are important, support them.
         JavaExpression leftJe = JavaExpression.fromNode(leftNode);
-        boolean rightIsLoopBoundLiteral =
-                isLoopCondition
-                        && rightNode instanceof IntegerLiteralNode
-                        && CFAbstractStore.canInsertJavaExpression(leftJe);
+        boolean isLoopBound = isLoopCondition && CFAbstractStore.canInsertJavaExpression(leftJe);
 
         final Range thenLeftRange;
         final Range thenRightRange;
@@ -1346,46 +1345,38 @@ public class ValueTransfer extends CFTransfer {
                 elseRightRange = rightRange.refineNotEqualTo(leftRange);
                 break;
             case GREATER_THAN:
-                if (rightIsLoopBoundLiteral) {
-                    thenLeftRange = Range.createOrNothing(rightRange.from + 1, leftRange.to);
-                    thenRightRange = rightRange;
-                } else {
-                    thenLeftRange = leftRange.refineGreaterThan(rightRange);
-                    thenRightRange = rightRange.refineLessThan(leftRange);
-                }
+                thenLeftRange =
+                        isLoopBound
+                                ? Range.createOrNothing(rightRange.from + 1, leftRange.to)
+                                : leftRange.refineGreaterThan(rightRange);
+                thenRightRange = rightRange.refineLessThan(leftRange);
                 elseLeftRange = leftRange.refineLessThanEq(rightRange);
                 elseRightRange = rightRange.refineGreaterThanEq(leftRange);
                 break;
             case GREATER_THAN_EQ:
-                if (rightIsLoopBoundLiteral) {
-                    thenLeftRange = Range.createOrNothing(rightRange.from, leftRange.to);
-                    thenRightRange = rightRange;
-                } else {
-                    thenLeftRange = leftRange.refineGreaterThanEq(rightRange);
-                    thenRightRange = rightRange.refineLessThanEq(leftRange);
-                }
+                thenLeftRange =
+                        isLoopBound
+                                ? Range.createOrNothing(rightRange.from, leftRange.to)
+                                : leftRange.refineGreaterThanEq(rightRange);
+                thenRightRange = rightRange.refineLessThanEq(leftRange);
                 elseLeftRange = leftRange.refineLessThan(rightRange);
                 elseRightRange = rightRange.refineGreaterThan(leftRange);
                 break;
             case LESS_THAN:
-                if (rightIsLoopBoundLiteral) {
-                    thenLeftRange = Range.createOrNothing(leftRange.from, rightRange.to - 1);
-                    thenRightRange = rightRange;
-                } else {
-                    thenLeftRange = leftRange.refineLessThan(rightRange);
-                    thenRightRange = rightRange.refineGreaterThan(leftRange);
-                }
+                thenLeftRange =
+                        isLoopBound
+                                ? Range.createOrNothing(leftRange.from, rightRange.to - 1)
+                                : leftRange.refineLessThan(rightRange);
+                thenRightRange = rightRange.refineGreaterThan(leftRange);
                 elseLeftRange = leftRange.refineGreaterThanEq(rightRange);
                 elseRightRange = rightRange.refineLessThanEq(leftRange);
                 break;
             case LESS_THAN_EQ:
-                if (rightIsLoopBoundLiteral) {
-                    thenLeftRange = Range.createOrNothing(leftRange.from, rightRange.to);
-                    thenRightRange = rightRange;
-                } else {
-                    thenLeftRange = leftRange.refineLessThanEq(rightRange);
-                    thenRightRange = rightRange.refineGreaterThanEq(leftRange);
-                }
+                thenLeftRange =
+                        isLoopBound
+                                ? Range.createOrNothing(leftRange.from, rightRange.to)
+                                : leftRange.refineLessThanEq(rightRange);
+                thenRightRange = rightRange.refineGreaterThanEq(leftRange);
                 elseLeftRange = leftRange.refineGreaterThan(rightRange);
                 elseRightRange = rightRange.refineLessThan(leftRange);
                 break;
@@ -1399,7 +1390,7 @@ public class ValueTransfer extends CFTransfer {
                 throw new TypeSystemError("ValueTransfer: unsupported operation: " + op);
         }
 
-        if (rightIsLoopBoundLiteral) {
+        if (isLoopBound) {
             // Replace current annotation in store, don't LUB.
             AnnotationMirror thenLeftAnno = atypeFactory.createIntRangeAnnotation(thenLeftRange);
             thenStore.replaceValue(leftJe, thenLeftAnno);
