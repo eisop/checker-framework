@@ -1239,6 +1239,17 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
                 visitLists(javacTree.getTypeArguments(), node.getTypeArguments().get());
             }
 
+            // In a qualified superclass constructor invocation such as "o.super()", javac stores
+            // the enclosing instance in a member select, but JavaParser stores it as the
+            // expression of the statement.
+            ExpressionTree methodSelect = javacTree.getMethodSelect();
+            if (methodSelect instanceof MemberSelectTree) {
+                assert node.getExpression().isPresent();
+                ((MemberSelectTree) methodSelect)
+                        .getExpression()
+                        .accept(this, node.getExpression().get());
+            }
+
             visitLists(javacTree.getArguments(), node.getArguments());
         } else {
             throwUnexpectedNodeType(javacTree, javaParserNode);

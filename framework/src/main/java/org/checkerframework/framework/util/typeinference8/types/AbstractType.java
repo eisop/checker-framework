@@ -602,6 +602,38 @@ public abstract class AbstractType {
     }
 
     /**
+     * Returns the enclosing type of this type if this type is an inner class type of a
+     * parameterized type, directly or indirectly; otherwise, returns null. The type arguments of
+     * the enclosing type are type arguments of this type, too (JLS 4.5).
+     *
+     * <p>The returned type ignores annotations: constraints on it constrain the Java types and add
+     * no qualifier bounds. This matches the type hierarchy, which does not compare the enclosing
+     * types of two declared types (see {@link
+     * org.checkerframework.framework.type.DefaultTypeHierarchy#visitDeclared_Declared}). For
+     * example, it accepts an {@code Outer<@Nullable String>.Inner} where an {@code Outer<@NonNull
+     * String>.Inner} is expected. If inference compared the qualifiers, it would reject some
+     * invocations that the type checker accepts. The qualifiers are not lost, though: an inference
+     * variable that is equal to a type argument of an enclosing type is instantiated to that
+     * annotated type argument.
+     *
+     * @return the parameterized enclosing type of this type, or null if there is none
+     */
+    public @Nullable AbstractType getParameterizedEnclosingType() {
+        if (getJavaType().getKind() != TypeKind.DECLARED) {
+            return null;
+        }
+        TypeMirror javaEnclosing = ((DeclaredType) getJavaType()).getEnclosingType();
+        AnnotatedDeclaredType enclosing =
+                ((AnnotatedDeclaredType) getAnnotatedType()).getEnclosingType();
+        if (enclosing == null
+                || javaEnclosing.getKind() != TypeKind.DECLARED
+                || !((Type) javaEnclosing).isParameterized()) {
+            return null;
+        }
+        return create(enclosing, javaEnclosing, true);
+    }
+
+    /**
      * Returns true if the type is an unbound wildcard.
      *
      * @return true if the type is an unbound wildcard

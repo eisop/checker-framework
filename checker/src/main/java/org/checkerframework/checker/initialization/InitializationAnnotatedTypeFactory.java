@@ -40,6 +40,7 @@ import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.VariableElement;
+import javax.tools.Diagnostic;
 
 /**
  * The annotated type factory for the freedom-before-commitment type system. When using the
@@ -56,6 +57,14 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
     @SuppressWarnings("this-escape")
     public InitializationAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
+        if (POLY_INITIALIZED == null) {
+            // Reported here rather than in the superclass, which the
+            // InitializationFieldAccessSubchecker's factory shares, so that it appears once.
+            checker.message(
+                    Diagnostic.Kind.NOTE,
+                    "@PolyInitialized is not on the classpath, so the Initialization Checker runs"
+                            + " without it. Use the EISOP checker-qual artifact to enable it.");
+        }
         postInit();
     }
 
