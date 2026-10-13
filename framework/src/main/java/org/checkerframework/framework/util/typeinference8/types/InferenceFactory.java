@@ -96,9 +96,31 @@ public class InferenceFactory {
     /**
      * Gets the target type for the expression for which type arguments are being inferred.
      *
-     * @return target type for the expression for which type arguments are being inferred
+     * @return target type for the expression for which type arguments are being inferred, or null
+     *     if there is none
      */
     public @Nullable ProperType getTargetType() {
+        ProperType target = getTargetTypeOfContext();
+        if (target != null
+                && target.getAnnotatedType().getKind() == TypeKind.WILDCARD
+                && ((AnnotatedWildcardType) target.getAnnotatedType()).isTypeArgOfRawType()) {
+            // The expression is assigned to a type argument of a raw type, such as the return type
+            // of the function type of a raw Supplier.  Its Java target type is the erasure, so it
+            // constrains nothing, and the Checker Framework ignores type arguments of raw types
+            // in subtyping checks.  A wildcard is not a type that an expression can have, so
+            // using it as the target type makes inference fail.
+            return null;
+        }
+        return target;
+    }
+
+    /**
+     * Gets the type of the assignment context of the expression for which type arguments are being
+     * inferred.
+     *
+     * @return the type of the assignment context of the expression, or null if there is none
+     */
+    private @Nullable ProperType getTargetTypeOfContext() {
         GenericAnnotatedTypeFactory<?, ?, ?, ?> factory =
                 (GenericAnnotatedTypeFactory<?, ?, ?, ?>) context.typeFactory;
         TreePath path = context.pathToExpression;
@@ -1203,12 +1225,18 @@ public class InferenceFactory {
         List<? extends AnnotatedTypeMirror> thrownTypes;
         List<? extends TypeMirror> thrownTypeMirrors;
         if (expression instanceof LambdaExpressionTree) {
-            thrownTypeMirrors =
-                    CheckedExceptionsUtil.thrownCheckedExceptions(
-                            (LambdaExpressionTree) expression, context);
             thrownTypes =
                     CheckedExceptionsUtil.thrownCheckedExceptionsATM(
                             (LambdaExpressionTree) expression, context);
+            // Use the underlying types of thrownTypes, so that the two lists correspond. These are
+            // the thrown types after type argument inference, not the declared thrown types of a
+            // method invocation in the body: a thrown type variable may be checked as declared,
+            // but inferred to be RuntimeException.
+            List<TypeMirror> underlyingTypes = new ArrayList<>(thrownTypes.size());
+            for (AnnotatedTypeMirror thrownType : thrownTypes) {
+                underlyingTypes.add(thrownType.getUnderlyingType());
+            }
+            thrownTypeMirrors = underlyingTypes;
         } else {
             thrownTypeMirrors =
                     TypesUtils.findFunctionType(TreeUtils.typeOf(expression), context.env)
@@ -1237,6 +1265,7 @@ public class InferenceFactory {
 
         Iterator<? extends AnnotatedTypeMirror> iter2 = thrownTypes.iterator();
         for (TypeMirror xi : thrownTypeMirrors) {
+            AnnotatedTypeMirror xiAtm = iter2.next();
             boolean isSubtypeOfProper = false;
             for (ProperType properType : properTypes) {
                 if (context.env.getTypeUtils().isSubtype(xi, properType.getJavaType())) {
@@ -1248,7 +1277,7 @@ public class InferenceFactory {
                     constraintSet.add(
                             new Typing(
                                     "Exception constraint for %s" + expression,
-                                    new ProperType(iter2.next(), xi, context),
+                                    new ProperType(xiAtm, xi, context),
                                     ei,
                                     TypeConstraint.Kind.SUBTYPE));
                     ei.setHasThrowsBound(true);
