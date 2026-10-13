@@ -303,6 +303,7 @@ Other improvements and bug fixes:
 ### Closed issues
 
 eisop#104,
+eisop#228,
 eisop#386,
 eisop#412,
 eisop#433,
