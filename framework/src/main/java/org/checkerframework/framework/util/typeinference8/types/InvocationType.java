@@ -4,6 +4,7 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.MethodInvocationTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.TypeTag;
 
@@ -195,8 +196,12 @@ public class InvocationType {
      *     has been modified to match the arguments in {@code expression}
      */
     public List<AbstractType> getParameterTypes(Theta map, int size) {
+        int skip = numSyntheticParameters();
         List<AnnotatedTypeMirror> params =
-                new ArrayList<>(annotatedExecutableType.getParameterTypes());
+                new ArrayList<>(
+                        annotatedExecutableType
+                                .getParameterTypes()
+                                .subList(skip, annotatedExecutableType.getParameterTypes().size()));
 
         if (TreeUtils.isVarargsCall(invocation)) {
             AnnotatedArrayType vararg = (AnnotatedArrayType) params.remove(params.size() - 1);
@@ -205,7 +210,11 @@ public class InvocationType {
             }
         }
 
-        List<TypeMirror> paramsJava = new ArrayList<>(methodType.getParameterTypes());
+        List<TypeMirror> paramsJava =
+                new ArrayList<>(
+                        methodType
+                                .getParameterTypes()
+                                .subList(skip, methodType.getParameterTypes().size()));
 
         if (TreeUtils.isVarargsCall(invocation)) {
             ArrayType vararg = (ArrayType) paramsJava.remove(paramsJava.size() - 1);
@@ -229,7 +238,28 @@ public class InvocationType {
      * @return the parameter types
      */
     public List<AbstractType> getParameterTypes(Theta map) {
-        return getParameterTypes(map, annotatedExecutableType.getParameterTypes().size());
+        return getParameterTypes(
+                map, annotatedExecutableType.getParameterTypes().size() - numSyntheticParameters());
+    }
+
+    /**
+     * Returns the number of leading parameters of the invoked constructor that do not correspond to
+     * an argument of the invocation. The constructor of an anonymous class whose superclass is an
+     * inner class takes the enclosing instance as its first parameter if the class instance
+     * creation expression is qualified, as in {@code outer.new Inner<>() {}} (JLS 15.9.5.1).
+     *
+     * @return 1 if the first parameter of the invoked constructor is the enclosing instance of an
+     *     anonymous class's superclass; otherwise, 0
+     */
+    private int numSyntheticParameters() {
+        if (invocation instanceof NewClassTree) {
+            NewClassTree newClassTree = (NewClassTree) invocation;
+            if (newClassTree.getEnclosingExpression() != null
+                    && newClassTree.getClassBody() != null) {
+                return 1;
+            }
+        }
+        return 0;
     }
 
     /**

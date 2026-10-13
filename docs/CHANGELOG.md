@@ -257,7 +257,8 @@ Other improvements and bug fixes:
   variables directly.
 - Type argument inference crash fixes: `? super`/`? extends` interactions,
   lambda-returned generic calls, implicitly typed lambdas, inexact method
-  references, F-bounded wildcards.
+  references, F-bounded wildcards, diamonds in anonymous subclasses of inner
+  classes with an explicit enclosing instance (`outer.new Inner<>() {}`).
 - Type argument inference treats an `Error` thrown in a lambda body as an
   unchecked exception, instead of crashing.
 - Type argument inference no longer treats a `return` in a method of a local or
