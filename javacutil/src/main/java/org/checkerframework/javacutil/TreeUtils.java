@@ -8,6 +8,7 @@ import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.ErroneousTree;
@@ -54,6 +55,7 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCAnnotatedType;
 import com.sun.tools.javac.tree.JCTree.JCAnnotation;
 import com.sun.tools.javac.tree.JCTree.JCBinary;
+import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCExpressionStatement;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
@@ -85,6 +87,9 @@ import org.checkerframework.javacutil.TreeUtilsAfterJava11.YieldUtils;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.UniqueIdMap;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -3350,5 +3355,84 @@ public final class TreeUtils {
      */
     public static boolean isErroneousTree(Tree tree) {
         return tree instanceof ErroneousTree;
+    }
+
+    /**
+     * Returns the start position of {@code tree} in its source file, or {@link
+     * javax.tools.Diagnostic#NOPOS} if it has none. This is what {@code
+     * SourcePositions.getStartPosition(CompilationUnitTree, Tree)} returns for a javac tree; JDK 27
+     * deprecates that method for removal.
+     *
+     * @param tree a tree
+     * @return the start position of {@code tree}, or {@code Diagnostic.NOPOS}
+     */
+    public static long getStartPosition(Tree tree) {
+        return ((JCTree) tree).getStartPosition();
+    }
+
+    /**
+     * Returns the end position of {@code tree} in its source file, or {@link
+     * javax.tools.Diagnostic#NOPOS} if it has none. This is what {@code
+     * SourcePositions.getEndPosition(CompilationUnitTree, Tree)} returns for a javac tree; JDK 27
+     * deprecates that method for removal.
+     *
+     * @param root the compilation unit that contains {@code tree}
+     * @param tree a tree
+     * @return the end position of {@code tree}, or {@code Diagnostic.NOPOS}
+     */
+    public static long getEndPosition(CompilationUnitTree root, Tree tree) {
+        try {
+            @SuppressWarnings("nullness:cast.unsafe") // GET_END_POSITION returns int
+            int result =
+                    (int) GET_END_POSITION.invokeExact((JCTree) tree, (JCCompilationUnit) root);
+            return result;
+        } catch (Throwable e) {
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            }
+            if (e instanceof Error) {
+                throw (Error) e;
+            }
+            throw new BugInCF(e);
+        }
+    }
+
+    /**
+     * A method handle of type {@code (JCTree, JCCompilationUnit) -> int} that returns the end
+     * position of the tree.
+     */
+    private static final MethodHandle GET_END_POSITION = getEndPositionHandle();
+
+    /**
+     * Returns the method handle for {@link #GET_END_POSITION}.
+     *
+     * @return the method handle for {@link #GET_END_POSITION}
+     */
+    private static MethodHandle getEndPositionHandle() {
+        MethodHandles.Lookup lookup = MethodHandles.lookup();
+        try {
+            // JDKs with JDK-8372948, in which every tree records its end position:
+            // (tree, root) -> tree.getEndPosition()
+            return MethodHandles.dropArguments(
+                    lookup.findVirtual(
+                            JCTree.class, "getEndPosition", MethodType.methodType(int.class)),
+                    1,
+                    JCCompilationUnit.class);
+        } catch (ReflectiveOperationException e1) {
+            // Earlier JDKs: (tree, root) -> tree.getEndPosition(root.endPositions)
+            try {
+                Class<?> endPosTable = Class.forName("com.sun.tools.javac.tree.EndPosTable");
+                return MethodHandles.filterArguments(
+                        lookup.findVirtual(
+                                JCTree.class,
+                                "getEndPosition",
+                                MethodType.methodType(int.class, endPosTable)),
+                        1,
+                        lookup.findGetter(JCCompilationUnit.class, "endPositions", endPosTable));
+            } catch (ReflectiveOperationException e2) {
+                e2.addSuppressed(e1);
+                throw new BugInCF(e2);
+            }
+        }
     }
 }

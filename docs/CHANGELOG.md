@@ -169,6 +169,12 @@ A stub file that declares a record where the running JDK has a class (for exampl
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
 members that follow the record.
 
+The Nullness Checker and the other checkers built on the Initialization Checker
+no longer fail with "fromClass can't load class ... PolyInitialized" when the
+compilation classpath has a checker-qual artifact without `@PolyInitialized`,
+such as one brought in transitively by a dependency.  They issue a note and run
+without `@PolyInitialized`.
+
 The Value Checker no longer slows down on loops whose bound is not an integer
 literal (such as `i < n`): the loop variable takes the range that the bound
 permits right away. On plume-util, it takes 8.3s instead of 10.1s. Precision is
@@ -211,6 +217,8 @@ Performance optimizations:
   final locals indexed by declaring element; `ValueQualifierHierarchy` caches
   `value()` elements (~18% faster on constant-heavy classes).
 - `TreeUtils.sameTree()` uses a visitor instead of `toString()`.
+- New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
+  replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
 
 Other improvements and bug fixes:
@@ -282,9 +290,16 @@ Other improvements and bug fixes:
 - Type argument inference accounts for the type arguments of the enclosing
   type of an inner class type, such as `T` in `Outer<T>.Inner`; it used to
   crash on `consume(make(x))` where `make` returns `Outer<T>.Inner`.
+- Type argument inference no longer crashes on a nested `? extends` wildcard
+  that mentions the inferred type variable, such as a lambda passed as
+  `Supplier<? extends List<? extends T>>`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
+- Viewpoint adaptation no longer overflows the stack when computing the
+  supertypes of a type whose type argument is a type variable of another class,
+  such as `Seq<E>` in `interface Coll<E> { void m(Seq<E> s); }`, or any member
+  access on a three-deep generic interface such as `java.util.List`.
 - `-AcheckCastElementType` fixes: no longer crashes on downcasts, incomparable
   types, null literal casts, or differing type-argument counts.
 - `BinaryStubFileGenerator` accepts a file, directory (`--bundle`), or jar.
@@ -361,6 +376,7 @@ eisop#1481,
 eisop#1542,
 eisop#1564,
 eisop#1592,
+eisop#1637,
 eisop#1642,
 eisop#1653,
 eisop#1735,
@@ -385,6 +401,7 @@ eisop#2021,
 eisop#2029,
 eisop#2032,
 eisop#2034,
+eisop#2036,
 eisop#2037,
 eisop#2047,
 eisop#2048,
@@ -412,9 +429,11 @@ eisop#2114,
 eisop#2115,
 eisop#2135,
 eisop#2140,
+eisop#2146,
 eisop#2155,
 eisop#2156,
 eisop#2158,
+eisop#2159,
 eisop#2160,
 eisop#2187,
 eisop#2224,

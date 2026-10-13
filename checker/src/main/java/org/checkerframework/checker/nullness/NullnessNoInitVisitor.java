@@ -1406,8 +1406,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * {@code @Nullable int x} becomes {@code int x}).
      *
      * <p>The fixes are expressed in the framework-agnostic {@link SuggestedFixData} representation
-     * (source-offset edits computed with javac's {@link com.sun.source.util.SourcePositions}), so a
-     * host such as the Error Prone plugin can offer them; standalone javac ignores them.
+     * (source-offset edits), so a host such as the Error Prone plugin can offer them; standalone
+     * javac ignores them.
      *
      * <p>The returned fixes are alternatives, so in the rare case that a primitive type carries
      * more than one nullness annotation, applying a single fix does not by itself resolve the
@@ -1428,7 +1428,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             // which decides when the nullness.on.primitive error fires: offer a removal fix for
             // exactly the annotations that triggered the error.
             if (atypeFactory.isNullnessAnnotation(am) && AnnotationUtils.isTypeUseAnnotation(am)) {
-                SuggestedFixData fix = SuggestedFixData.deleteTree(positions, root, annoTree);
+                SuggestedFixData fix = SuggestedFixData.deleteTree(root, annoTree);
                 if (fix != null) {
                     fixes.add(fix);
                 }

@@ -38,7 +38,6 @@ import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
-import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
@@ -214,9 +213,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** The Annotated Type Hierarchy. */
     protected final TypeHierarchy typeHierarchy;
 
-    /** For obtaining line numbers in {@code -Ashowchecks} debugging output. */
-    protected final SourcePositions positions;
-
     /** The element for java.util.Vector#copyInto. */
     private final ExecutableElement vectorCopyInto;
 
@@ -342,7 +338,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         this.atypeFactory = typeFactory == null ? createTypeFactory() : typeFactory;
         this.qualHierarchy = atypeFactory.getQualifierHierarchy();
         this.typeHierarchy = atypeFactory.getTypeHierarchy();
-        this.positions = trees.getSourcePositions();
         this.typeValidator = createTypeValidator();
         ProcessingEnvironment env = checker.getProcessingEnvironment();
         this.vectorCopyInto = TreeUtils.getMethod("java.util.Vector", "copyInto", 1, env);
@@ -533,8 +528,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             expectedTreesVisitor.visitCompilationUnit(root, null);
             for (Tree expected : expectedTreesVisitor.getTrees()) {
                 if (!treePairs.containsKey(expected)) {
-                    @SuppressWarnings("removal") // TODO: encapsulate methods
-                    long startpos = positions.getStartPosition(root, expected);
+                    long startpos = TreeUtils.getStartPosition(expected);
                     throw new BugInCF(
                             "Javac tree not matched to JavaParser node: %s [%s @ %d], in file: %s",
                             expected,
@@ -689,10 +683,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 // No warning for extremely long source code.
                 // Use end-position - start-position as a cheap proxy for tree size, instead
                 // of materializing tree.toString().
-                @SuppressWarnings("removal") // TODO: encapsulate methods
-                long startPos = positions.getStartPosition(root, tree);
-                @SuppressWarnings("removal") // TODO: encapsulate methods
-                long endPos = positions.getEndPosition(root, tree);
+                long startPos = TreeUtils.getStartPosition(tree);
+                long endPos = TreeUtils.getEndPosition(root, tree);
                 if (startPos != javax.tools.Diagnostic.NOPOS
                         && endPos != javax.tools.Diagnostic.NOPOS
                         && (endPos - startPos) < 200000) {
@@ -4152,8 +4144,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     private String fileAndLineNumber(Tree tree) {
         StringBuilder result = new StringBuilder();
         result.append(Paths.get(root.getSourceFile().getName()).getFileName().toString());
-        @SuppressWarnings("removal")
-        long valuePos = positions.getStartPosition(root, tree);
+        long valuePos = TreeUtils.getStartPosition(tree);
         LineMap lineMap = root.getLineMap();
         if (valuePos != -1 && lineMap != null) {
             result.append(":");
