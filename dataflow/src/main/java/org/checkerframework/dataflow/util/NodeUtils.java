@@ -24,6 +24,11 @@ import javax.lang.model.type.TypeKind;
 /** A utility class to operate on a given {@link Node}. */
 public class NodeUtils {
 
+    /** Do not instantiate. */
+    private NodeUtils() {
+        throw new Error("Do not instantiate");
+    }
+
     /**
      * Returns true iff {@code node} corresponds to a boolean typed expression (either the primitive
      * type {@code boolean}, or class type {@link java.lang.Boolean}).

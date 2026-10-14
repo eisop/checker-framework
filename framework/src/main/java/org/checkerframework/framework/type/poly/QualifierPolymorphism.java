@@ -19,7 +19,7 @@ import javax.lang.model.element.VariableElement;
 public interface QualifierPolymorphism {
 
     /**
-     * Returns true if {@code type} has any polymorphic qualifiers
+     * Returns true if {@code type} has any polymorphic qualifiers.
      *
      * @param type a type that might have polymorphic qualifiers
      * @return true if {@code type} has any polymorphic qualifiers

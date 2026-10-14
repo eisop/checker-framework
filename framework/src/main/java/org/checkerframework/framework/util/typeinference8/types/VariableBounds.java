@@ -7,8 +7,8 @@ import org.checkerframework.framework.util.typeinference8.constraint.QualifierTy
 import org.checkerframework.framework.util.typeinference8.constraint.TypeConstraint;
 import org.checkerframework.framework.util.typeinference8.constraint.Typing;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -95,7 +95,7 @@ public class VariableBounds {
     /** Constraints implied by complementary pairs of bounds found during incorporation. */
     public final ConstraintSet constraints = new ConstraintSet();
 
-    /** Whether this variable has a throws bounds. */
+    /** True if this variable has a throws bounds. */
     public boolean hasThrowsBound = false;
 
     /** Saved bounds used in the event the first attempt at resolution fails. */
@@ -169,7 +169,7 @@ public class VariableBounds {
     }
 
     /**
-     * Return true if this has a throws bound.
+     * Returns true if this has a throws bound.
      *
      * @return true if this has a throws bound
      */
@@ -178,7 +178,7 @@ public class VariableBounds {
     }
 
     /**
-     * Set has throws bound
+     * Set has throws bound.
      *
      * @param b has thrown bound
      */
@@ -447,7 +447,7 @@ public class VariableBounds {
     private List<Typing> getConstraintsFromParameterized(AbstractType s, AbstractType t) {
         String source = "Constraint from parameterized bound.";
 
-        IPair<AbstractType, AbstractType> pair =
+        Pair<AbstractType, AbstractType> pair =
                 context.inferenceTypeFactory.getParameterizedSupers(s, t);
 
         if (pair == null) {
@@ -470,9 +470,9 @@ public class VariableBounds {
     }
 
     /**
-     * Returns whether this variable only has bounds against proper types.
+     * Returns true if this variable only has bounds against proper types.
      *
-     * @return whether this variable only has bounds against proper types
+     * @return true if this variable only has bounds against proper types
      */
     public boolean onlyProperBounds() {
         for (BoundKind k : BoundKind.values()) {
@@ -486,7 +486,7 @@ public class VariableBounds {
     }
 
     /**
-     * Return all lower bounds that are proper types.
+     * Returns all lower bounds that are proper types.
      *
      * @return all lower bounds that are proper types
      */
@@ -533,7 +533,7 @@ public class VariableBounds {
     /**
      * Apply instantiations to all bounds and constraints of this variable.
      *
-     * @return whether any of the bounds changed
+     * @return true if any of the bounds changed
      */
     public boolean applyInstantiationsToBounds() {
         // Incorporation worklist: a clean variable's bounds and constraints cannot have changed
@@ -689,7 +689,7 @@ public class VariableBounds {
     }
 
     /**
-     * Return true if this has an instantiation.
+     * Returns true if this has an instantiation.
      *
      * @return true if this has an instantiation
      */
@@ -739,7 +739,7 @@ public class VariableBounds {
      * where S1 and S2 have supertypes that are two different parameterizations of the same generic
      * class or interface?
      *
-     * @return whether this bound set contain two bounds of the forms {@code S1 <: var} and {@code
+     * @return true if this bound set contain two bounds of the forms {@code S1 <: var} and {@code
      *     S2 <: var}, where S1 and S2 have supertypes that are two different parameterizations of
      *     the same generic class or interface
      */
@@ -754,7 +754,7 @@ public class VariableBounds {
             AbstractType s1 = parameteredTypes.get(i);
             for (int j = i + 1; j < parameteredTypes.size(); j++) {
                 AbstractType s2 = parameteredTypes.get(j);
-                IPair<AbstractType, AbstractType> supers =
+                Pair<AbstractType, AbstractType> supers =
                         context.inferenceTypeFactory.getParameterizedSupers(s1, s2);
                 if (supers == null) {
                     continue;
@@ -780,7 +780,7 @@ public class VariableBounds {
      * @return true if there exists an equal or lower bound against a type, S, such that S is not a
      *     subtype of {@code G<...>}, but S is a subtype of the raw type {@code |G<...>|}, where
      *     {@code G} a generic class or interface for which the parameter of this method, {@code t},
-     *     is a parameterization.
+     *     is a parameterization
      */
     public boolean hasRawTypeLowerOrEqualBound(AbstractType t) {
         for (AbstractType type : bounds.get(BoundKind.LOWER)) {

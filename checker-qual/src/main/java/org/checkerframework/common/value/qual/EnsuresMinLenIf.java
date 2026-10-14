@@ -66,7 +66,7 @@ public @interface EnsuresMinLenIf {
     @InheritedAnnotation
     public static @interface List {
         /**
-         * Return the repeatable annotations.
+         * Returns the repeatable annotations.
          *
          * @return the repeatable annotations
          */

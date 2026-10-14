@@ -7,7 +7,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.CanonicalNameOrEmpty;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.FromStubFile;
-import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.stub.AnnotationFileParser.AnnotationFileAnnotations;
 import org.checkerframework.framework.stub.AnnotationFileParser.RecordComponentStub;
@@ -20,11 +19,11 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 import org.plumelib.util.SystemPlume;
 
 import java.io.BufferedInputStream;
@@ -32,7 +31,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -51,7 +49,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -813,7 +810,7 @@ public class AnnotationFileElementTypes {
         if (!bundleFile.isFile() || !looksLikeBundle(bundleFile)) {
             return null;
         }
-        try (InputStream in = new FileInputStream(bundleFile)) {
+        try (InputStream in = Files.newInputStream(bundleFile.toPath())) {
             return new BinaryStubBundle(in);
         } catch (IOException e) {
             noteCouldNotRead(bundleFile.toString(), "per-file binary stubs or text parsing", e);
@@ -868,7 +865,7 @@ public class AnnotationFileElementTypes {
      * @return true if {@code file} looks like a binary stub bundle
      */
     private static boolean looksLikeBundle(File file) {
-        try (DataInputStream in = new DataInputStream(new FileInputStream(file))) {
+        try (DataInputStream in = new DataInputStream(Files.newInputStream(file.toPath()))) {
             return in.readInt() == BinaryStubBundle.MAGIC;
         } catch (IOException e) {
             return false;
@@ -1343,7 +1340,7 @@ public class AnnotationFileElementTypes {
         if (sibling == null) {
             return null;
         }
-        try (InputStream in = new FileInputStream(sibling)) {
+        try (InputStream in = Files.newInputStream(sibling.toPath())) {
             return freshBinaryStub(
                     BinaryStubData.read(in), sourceBytes, sibling.getPath(), astubFile.getPath());
         } catch (IOException e) {
@@ -1556,16 +1553,9 @@ public class AnnotationFileElementTypes {
                 }
             }
 
-            // 3. Stub files listed in @StubFiles annotation on the checker
-            StubFiles stubFilesAnnotation = checker.getClass().getAnnotation(StubFiles.class);
-            if (stubFilesAnnotation != null) {
-                parseAnnotationFiles(
-                        Arrays.asList(stubFilesAnnotation.value()),
-                        AnnotationFileType.BUILTIN_STUB);
-            }
-
-            // 4. Stub files returned by the `getExtraStubFiles()` method
-            parseAnnotationFiles(checker.getExtraStubFiles(), AnnotationFileType.BUILTIN_STUB);
+            // 3. Stub files declared on the checker, its superclasses, its parent/subcheckers,
+            // or returned by getExtraStubFiles()
+            parseAnnotationFiles(checker.getStubFiles(), AnnotationFileType.BUILTIN_STUB);
 
             // 5. Stub files provided via -Astubs command-line option
             String stubsOption = checker.getOption("stubs");
@@ -1665,7 +1655,7 @@ public class AnnotationFileElementTypes {
         SourceChecker checker = atypeFactory.getChecker();
         ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         ++parsingCount;
-        try (InputStream in = new FileInputStream(ajavaPath)) {
+        try (InputStream in = Files.newInputStream(Paths.get(ajavaPath))) {
             if (stubDebug) {
                 AnnotationFileParser.stubDebugStatic(
                         processingEnv,
@@ -1764,12 +1754,13 @@ public class AnnotationFileElementTypes {
                     path = path.substring("checker.jar".length());
                 }
                 boolean issueWarning;
+                Class<?> resourceClass = findResourceClass(checker, path);
                 URL builtinBinURL =
                         fileType == AnnotationFileType.BUILTIN_STUB
-                                ? checker.getClass().getResource(path + BinaryStubData.BIN_SUFFIX)
+                                ? resourceClass.getResource(path + BinaryStubData.BIN_SUFFIX)
                                 : null;
-                URL textResourceURL = checker.getClass().getResource(path);
-                if (textResourceURL == null) {
+                URL textResourceURL = resourceClass.getResource(path);
+                if (textResourceURL == null && builtinBinURL == null) {
                     issueWarning = true;
                 } else if (builtinBinURL != null
                         && loadBuiltinBinaryStub(builtinBinURL, textResourceURL, path)) {
@@ -1778,7 +1769,7 @@ public class AnnotationFileElementTypes {
                     issueWarning = false;
                 } else {
                     // Fall back to text parsing: only now does the text stream need to be opened.
-                    try (InputStream in = checker.getClass().getResourceAsStream(path)) {
+                    try (InputStream in = resourceClass.getResourceAsStream(path)) {
                         if (in != null) {
                             if (fileType == AnnotationFileType.BUILTIN_STUB) {
                                 // A stub file the checker itself ships is expected to have been
@@ -1807,22 +1798,9 @@ public class AnnotationFileElementTypes {
 
                 if (issueWarning) {
                     // Didn't find the file.  Possibly issue a warning.
-
-                    // When using a compound checker, the target file may be found by the
-                    // current checker's parent checkers. Also check this to avoid a false
-                    // warning. Currently, only the original checker will try to parse the
-                    // target file, the parent checkers are only used to reduce false
-                    // warnings.
                     SourceChecker currentChecker = checker;
                     boolean findByParentCheckers = false;
                     while (currentChecker != null) {
-                        URL normalResource = currentChecker.getClass().getResource(path);
-                        if (normalResource != null) {
-                            // If the parent checker supports the stub file, there is no need
-                            // for a warning.
-                            findByParentCheckers = true;
-                            break;
-                        }
                         // See whether the stub file is mis-placed and issue a helpful warning.
                         URL topLevelResource = currentChecker.getClass().getResource("/" + path);
                         if (topLevelResource != null) {
@@ -1867,6 +1845,42 @@ public class AnnotationFileElementTypes {
                 }
             }
         }
+    }
+
+    /**
+     * Finds a class in the checker hierarchy (current checker, parent checkers, or subcheckers)
+     * that can locate the given stub file resource.
+     *
+     * @param checker the source checker
+     * @param path the resource path
+     * @return the class that can locate the resource, or {@code checker.getClass()} if not found
+     */
+    private Class<?> findResourceClass(SourceChecker checker, String path) {
+        for (Class<?> clazz : checker.getClassHierarchy()) {
+            if (clazz.getResource(path) != null
+                    || clazz.getResource(path + BinaryStubData.BIN_SUFFIX) != null) {
+                return clazz;
+            }
+        }
+        for (SourceChecker parent = checker.getParentChecker();
+                parent != null;
+                parent = parent.getParentChecker()) {
+            for (Class<?> clazz : parent.getClassHierarchy()) {
+                if (clazz.getResource(path) != null
+                        || clazz.getResource(path + BinaryStubData.BIN_SUFFIX) != null) {
+                    return clazz;
+                }
+            }
+        }
+        for (SourceChecker sub : checker.getSubcheckers()) {
+            for (Class<?> clazz : sub.getClassHierarchy()) {
+                if (clazz.getResource(path) != null
+                        || clazz.getResource(path + BinaryStubData.BIN_SUFFIX) != null) {
+                    return clazz;
+                }
+            }
+        }
+        return checker.getClass();
     }
 
     /**
@@ -2046,7 +2060,7 @@ public class AnnotationFileElementTypes {
 
         // This is a list of pairs of (where defined, method type) for fake overrides.  The second
         // element of each pair is currently always an AnnotatedExecutableType.
-        List<IPair<TypeMirror, AnnotatedTypeMirror>> candidates =
+        List<Pair<TypeMirror, AnnotatedTypeMirror>> candidates =
                 annotationFileAnnos.fakeOverrides.get(method);
 
         if (candidates == null || candidates.isEmpty()) {
@@ -2058,7 +2072,7 @@ public class AnnotationFileElementTypes {
         // A list of fake receiver types.
         List<TypeMirror> applicableClasses = new ArrayList<>();
         List<TypeMirror> applicableInterfaces = new ArrayList<>();
-        for (IPair<TypeMirror, AnnotatedTypeMirror> candidatePair : candidates) {
+        for (Pair<TypeMirror, AnnotatedTypeMirror> candidatePair : candidates) {
             TypeMirror fakeLocation = candidatePair.first;
             AnnotatedExecutableType candidate = (AnnotatedExecutableType) candidatePair.second;
             if (atypeFactory.types.isSameType(receiverTypeMirror, fakeLocation)) {
@@ -2105,7 +2119,7 @@ public class AnnotationFileElementTypes {
             throw new BugInCF(message.toString());
         }
 
-        for (IPair<TypeMirror, AnnotatedTypeMirror> candidatePair : candidates) {
+        for (Pair<TypeMirror, AnnotatedTypeMirror> candidatePair : candidates) {
             TypeMirror candidateReceiverType = candidatePair.first;
             if (atypeFactory.types.isSameType(fakeReceiverType, candidateReceiverType)) {
                 return refreshFakeOverride(method, (AnnotatedExecutableType) candidatePair.second);
@@ -2454,7 +2468,7 @@ public class AnnotationFileElementTypes {
      */
     private void parseJdkStubFile(Path path) {
         ++parsingCount;
-        try (FileInputStream jdkStub = new FileInputStream(path.toFile())) {
+        try (InputStream jdkStub = Files.newInputStream(path)) {
             AnnotationFileParser.parseJdkFileAsStub(
                     path.toFile().getName(),
                     jdkStub,
@@ -2602,7 +2616,7 @@ public class AnnotationFileElementTypes {
     /**
      * Returns a JarURLConnection to "/jdk*".
      *
-     * @return a JarURLConnection to "/jdk*"
+     * @return a JarURLConnection to "/annotated-jdk"
      */
     private JarURLConnection getJarURLConnectionToJdk() {
         URL resourceURL = atypeFactory.getClass().getResource("/" + ANNOTATED_JDK_PATH);
@@ -2624,7 +2638,7 @@ public class AnnotationFileElementTypes {
 
     /**
      * Walk through the JDK directory and create a mapping, {@link #remainingJdkStubFiles}, from
-     * file name to the class contained with in it. Also, parses all package-info.java files.
+     * file name to the class contained within it. Also, parses all {@code package-info.java} files.
      */
     private void prepJdkStubs() {
         if (!shouldParseJdk) {
@@ -2752,7 +2766,7 @@ public class AnnotationFileElementTypes {
 
     /**
      * Walk through the JDK directory and create a mapping, {@link #remainingJdkStubFiles}, from
-     * file name to the class contained with in it. Also, parses all package-info.java files.
+     * file name to the class contained within it. Also, parses all {@code package-info.java} files.
      *
      * @param jdkDirectory the URL pointing to the JDK directory
      * @param binaryLoaded {@code true} if package and module annotations were successfully loaded
@@ -2863,7 +2877,7 @@ public class AnnotationFileElementTypes {
             AnnotationFileAnnotations target) {
         Path path = pathsByItem.get(name);
         if (path != null) {
-            try (InputStream in = new FileInputStream(path.toFile())) {
+            try (InputStream in = Files.newInputStream(path)) {
                 parseJdkStreamInto(path.toFile().getName(), in, target);
             } catch (IOException e) {
                 throw new BugInCF("cannot open the jdk stub file " + path, e);
@@ -3015,7 +3029,7 @@ public class AnnotationFileElementTypes {
 
     /**
      * Walk through the JDK directory and create a mapping, {@link #remainingJdkStubFilesJar}, from
-     * file name to the class contained with in it. Also, parses all package-info.java files.
+     * file name to the class contained within it. Also, parses all {@code package-info.java} files.
      *
      * @param binaryLoaded {@code true} if package and module annotations were successfully loaded
      *     from the binary stub file

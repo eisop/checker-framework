@@ -21,6 +21,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -172,7 +173,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
             @SuppressWarnings("UnusedVariable") Void voidParam) {
         this.nameToQualifierKind = createQualifierKinds(qualifierClasses);
         this.qualifierKinds = new ArrayList<>(nameToQualifierKind.values());
-        Collections.sort(qualifierKinds);
+        qualifierKinds.sort(Comparator.naturalOrder());
 
         Map<DefaultQualifierKind, Set<DefaultQualifierKind>> directSuperMap =
                 createDirectSuperMap();

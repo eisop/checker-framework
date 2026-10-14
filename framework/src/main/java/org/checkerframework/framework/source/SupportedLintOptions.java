@@ -7,7 +7,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-// TODO: Are superclasses considered? Should we?
 /**
  * An annotation used to indicate what lint options a checker supports. For example, if a checker
  * class (one that extends BaseTypeChecker) is annotated with
@@ -17,8 +16,9 @@ import java.lang.annotation.Target;
  * <p>This annotation is optional and many checkers do not contain an {@code @SupportedLintOptions}
  * annotation.
  *
- * <p>The {@link SourceChecker#getSupportedLintOptions} method can construct its result from the
- * value of this annotation.
+ * <p>{@link SourceChecker#getSupportedLintOptions} collects these annotations from the checker's
+ * class hierarchy and from its subcheckers and parent checkers; write this annotation on the class
+ * that handles the lint option.
  *
  * @see org.checkerframework.framework.source.SupportedOptions
  * @checker_framework.manual #creating-compiler-interface The checker class: Compiler interface

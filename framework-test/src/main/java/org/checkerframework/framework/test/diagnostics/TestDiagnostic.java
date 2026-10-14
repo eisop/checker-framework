@@ -33,13 +33,18 @@ public class TestDiagnostic {
     protected final String message;
 
     /**
-     * The message key that usually appears between parentheses in diagnostic messages. Parentheses
-     * are removed and field messageKeyParens indicates whether they were present.
+     * The message key that usually appears between parentheses or square brackets in diagnostic
+     * messages. The delimiters are removed and field messageKeyDelimiters records which were
+     * present.
      */
     protected final String messageKey;
 
-    /** Whether the message key had parentheses around it. */
-    protected final boolean messageKeyParens;
+    /**
+     * The delimiters that were around the message key: {@code "()"}, {@code "[]"}, or the empty
+     * string if there were none. Both forms are accepted, in expected diagnostics and in the
+     * compiler output, and they are equal.
+     */
+    protected final String messageKeyDelimiters;
 
     /** Whether this diagnostic should no longer be reported after whole program inference. */
     protected final boolean isFixable;
@@ -69,16 +74,9 @@ public class TestDiagnostic {
         this.message = message;
         this.isFixable = isFixable;
 
-        // Keep in sync with code below.
-        int open = messageKey.indexOf("(");
-        int close = messageKey.indexOf(")");
-        if (open == 0 && close > open) {
-            this.messageKey = messageKey.substring(open + 1, close).trim();
-            this.messageKeyParens = true;
-        } else {
-            this.messageKey = messageKey;
-            this.messageKeyParens = false;
-        }
+        String[] unwrapped = unwrapKey(messageKey);
+        this.messageKey = unwrapped[0];
+        this.messageKeyDelimiters = unwrapped[1];
     }
 
     /**
@@ -102,7 +100,7 @@ public class TestDiagnostic {
 
         if (keepFullMessage(message)) {
             this.messageKey = message;
-            this.messageKeyParens = false;
+            this.messageKeyDelimiters = "";
         } else {
             String firstline;
             // There might be a mismatch between the System.lineSeparator() and the diagnostic
@@ -117,17 +115,36 @@ public class TestDiagnostic {
                 firstline = this.message;
             }
 
-            // Keep in sync with code above.
-            int open = firstline.indexOf("(");
-            int close = firstline.indexOf(")");
-            if (open == 0 && close > open) {
-                this.messageKey = firstline.substring(open + 1, close).trim();
-                this.messageKeyParens = true;
-            } else {
-                this.messageKey = firstline;
-                this.messageKeyParens = false;
-            }
+            String[] unwrapped = unwrapKey(firstline);
+            this.messageKey = unwrapped[0];
+            this.messageKeyDelimiters = unwrapped[1];
         }
+    }
+
+    /**
+     * Removes the delimiters around a message key. A key in parentheses, as in {@code (key)}, and a
+     * key in square brackets that is the whole text, as in {@code [key]}, are recognized; the
+     * square brackets of other text such as {@code [unchecked] unchecked cast} are not.
+     *
+     * @param text a message key, possibly in parentheses or in square brackets, or the first line
+     *     of a diagnostic
+     * @return a 2-element array: the key without delimiters, and the delimiters that were removed
+     *     ({@code "()"}, {@code "[]"}, or {@code ""})
+     */
+    private static String[] unwrapKey(String text) {
+        // Keep the parentheses rule as it was: the text starts with "(" and it contains ")".
+        int open = text.indexOf("(");
+        int close = text.indexOf(")");
+        if (open == 0 && close > open) {
+            return new String[] {text.substring(open + 1, close).trim(), "()"};
+        }
+        String trimmed = text.trim();
+        if (trimmed.length() > 2
+                && trimmed.charAt(0) == '['
+                && trimmed.indexOf(']') == trimmed.length() - 1) {
+            return new String[] {trimmed.substring(1, trimmed.length() - 1).trim(), "[]"};
+        }
+        return new String[] {text, ""};
     }
 
     /**
@@ -180,7 +197,7 @@ public class TestDiagnostic {
     }
 
     /**
-     * The message key, without surrounding parentheses.
+     * The message key, without surrounding parentheses or square brackets.
      *
      * @return the message key
      */
@@ -208,8 +225,8 @@ public class TestDiagnostic {
 
     /**
      * Equality is compared based on the file name, not the full path, on the messageKey, not the
-     * full message, and without considering isFixable and messageKeyParens. The runtime class of
-     * the argument must match {@code this.getClass()} exactly.
+     * full message, and without considering isFixable and messageKeyDelimiters. The runtime class
+     * of the argument must match {@code this.getClass()} exactly.
      *
      * @return true if this and otherObj are equal according to file, lineNumber, kind, and
      *     messageKey
@@ -230,25 +247,31 @@ public class TestDiagnostic {
     @Override
     public int hashCode() {
         // Only filename, not file, and only messageKey, not message, not isFixable, not
-        // messageKeyParens.
+        // messageKeyDelimiters.
         return Objects.hash(filename, lineNumber, kind, messageKey);
     }
 
     /**
      * Returns a representation of this diagnostic as if it appeared in a diagnostics file. This
      * uses only the base file name, not the full path, and only the message key, not the full
-     * message. Field {@link #messageKeyParens} influences whether the message key is output in
-     * parentheses.
+     * message. Field {@link #messageKeyDelimiters} determines whether the message key is output in
+     * parentheses, in square brackets, or without delimiters.
      *
      * @return a representation of this diagnostic as if it appeared in a diagnostics file
      */
     @Override
     public String toString() {
-        if (messageKeyParens) {
-            return filename + ":" + lineNumber + ": " + kind.parseString + ": (" + messageKey + ")";
-        } else {
-            return filename + ":" + lineNumber + ": " + kind.parseString + ": " + messageKey;
-        }
+        String open = messageKeyDelimiters.isEmpty() ? "" : messageKeyDelimiters.substring(0, 1);
+        String close = messageKeyDelimiters.isEmpty() ? "" : messageKeyDelimiters.substring(1);
+        return filename
+                + ":"
+                + lineNumber
+                + ": "
+                + kind.parseString
+                + ": "
+                + open
+                + messageKey
+                + close;
     }
 
     /**

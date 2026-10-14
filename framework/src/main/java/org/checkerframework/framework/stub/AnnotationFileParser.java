@@ -83,11 +83,11 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArrayMap;
-import org.plumelib.util.IPair;
 import org.plumelib.util.SystemPlume;
 
 import java.io.File;
@@ -171,32 +171,32 @@ public class AnnotationFileParser {
     private CompilationUnitTree root;
 
     /**
-     * Whether to print warnings about types/members that were not found. The warning states that a
+     * If true, print warnings about types/members that were not found. The warning states that a
      * class/field in the file is not found on the user's real classpath. Since the file may contain
      * packages that are not on the classpath, this can be OK, so default to false.
      */
     private final boolean warnIfNotFound;
 
     /**
-     * Whether to ignore missing classes even when warnIfNotFound is set to true. This allows the
+     * If true, ignore missing classes even when warnIfNotFound is set to true. This allows the
      * files to contain classes not in the classpath (even if another class in the classpath has the
      * same package), but still warn if members of the class (methods, fields) are missing. This
      * option does nothing unless warnIfNotFound is also set.
      */
     private final boolean warnIfNotFoundIgnoresClasses;
 
-    /** Whether to print warnings about stub files that overwrite annotations from bytecode. */
+    /** If true, print warnings about stub files that overwrite annotations from bytecode. */
     private final boolean warnIfStubOverwritesBytecode;
 
     /**
-     * Whether to print warnings about stub files that are redundant with annotations from bytecode.
+     * If true, print warnings about stub files that are redundant with annotations from bytecode.
      */
     private final boolean warnIfStubRedundantWithBytecode;
 
     /** The diagnostic kind for stub file warnings: NOTE or WARNING. */
     private final Diagnostic.Kind stubWarnDiagnosticKind;
 
-    /** Whether to print verbose debugging messages. */
+    /** If true, print verbose debugging messages. */
     private final boolean debugAnnotationFileParser;
 
     /** The name of the file being processed; used only for diagnostic messages. */
@@ -204,7 +204,9 @@ public class AnnotationFileParser {
 
     /**
      * The AST of the parsed file that this class is processing. May be null if there was a problem
-     * parsing the file. (TODO: Should the Checker Framework just halt in that case?)
+     * parsing the file.
+     *
+     * <p>TODO: Should the Checker Framework just halt in that case?
      */
     // Not final in order to accommodate a default value.
     private @Nullable StubUnit stubUnit;
@@ -293,7 +295,7 @@ public class AnnotationFileParser {
     /** The line separator. */
     private static final String LINE_SEPARATOR = System.lineSeparator().intern();
 
-    /** Whether or not the {@code -AmergeStubsWithSource} command-line argument was passed. */
+    /** True if the {@code -AmergeStubsWithSource} command-line argument was passed. */
     private final boolean mergeStubsWithSource;
 
     /**
@@ -325,11 +327,23 @@ public class AnnotationFileParser {
          * fake overrides are always in subtypes of {@code ee.getEnclosingElement()}, which is the
          * same as {@code ee.getReceiverType()}.
          */
-        public final Map<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>>
+        public final Map<ExecutableElement, List<Pair<TypeMirror, AnnotatedTypeMirror>>>
                 fakeOverrides = new HashMap<>(4);
 
         /** Maps fully-qualified record name to information in the stub file. */
         public final Map<String, RecordStub> records = new HashMap<>();
+
+        @Override
+        public String toString() {
+            return String.join(
+                    System.lineSeparator() + "  ",
+                    "AnnotationFileAnnotations{",
+                    "atypes=" + atypes.toString(),
+                    "declAnnos=" + declAnnos.toString(),
+                    "fakeOverrides=" + fakeOverrides.toString(),
+                    "records=" + records.toString(),
+                    "}");
+        }
     }
 
     /** Information about a record from a stub file. */
@@ -399,7 +413,7 @@ public class AnnotationFileParser {
         /** The variable element of the record component. */
         public final VariableElement elt;
 
-        /** Whether this component has an accessor of exactly the same name in the stubs file. */
+        /** True if this component has an accessor of exactly the same name in the stubs file. */
         private boolean hasAccessorInStubs = false;
 
         /**
@@ -412,7 +426,7 @@ public class AnnotationFileParser {
         }
 
         /**
-         * Get the record component annotations that are applicable to the given element kind.
+         * Returns the record component annotations that are applicable to the given element kind.
          *
          * @param elementKind the element kind to apply to (e.g., FIELD, METHOD)
          * @param declAnnos the global map of declaration annotations
@@ -438,7 +452,7 @@ public class AnnotationFileParser {
         }
 
         /**
-         * Returns whether there is an accessor in a stub file.
+         * Returns true if there is an accessor in a stub file.
          *
          * @return true if some stub file contains an accessor for this record component
          */
@@ -560,7 +574,7 @@ public class AnnotationFileParser {
     }
 
     /**
-     * Get all members of a Type that are importable in an annotation file. Currently these are
+     * Returns all members of a Type that are importable in an annotation file. Currently these are
      * values of enums, or compile time constants.
      *
      * @param typeElement the type whose members to return
@@ -648,7 +662,7 @@ public class AnnotationFileParser {
                         stubWarnNotFound(importDecl, "imported type not found: " + imported);
                     } else if (importType == null) {
                         // Static import of field or method.
-                        IPair<@FullyQualifiedName String, String> typeParts =
+                        Pair<@FullyQualifiedName String, String> typeParts =
                                 AnnotationFileUtil.partitionQualifiedName(imported);
                         String type = typeParts.first;
                         String fieldName = typeParts.second;
@@ -711,7 +725,7 @@ public class AnnotationFileParser {
     }
 
     /**
-     * The main entry point. Parse a stub file and side-effects the {@code annotationFileAnnos}
+     * The main entry point. Parses a stub file and side-effects the {@code annotationFileAnnos}
      * argument.
      *
      * @param filename name of stub file, used only for diagnostic messages
@@ -787,7 +801,7 @@ public class AnnotationFileParser {
     }
 
     /**
-     * Parse a stub file that is a part of the annotated JDK and side-effects the {@code stubAnnos}
+     * Parses a stub file that is a part of the annotated JDK and side-effects the {@code stubAnnos}
      * argument.
      *
      * @param filename name of stub file, used only for diagnostic messages
@@ -825,8 +839,8 @@ public class AnnotationFileParser {
     }
 
     /**
-     * Delegate to the Stub Parser to parse the annotation file to an AST, and save it in {@link
-     * #stubUnit}. Also sets {@link #allAnnotations}. Does not copy annotations out of {@link
+     * Delegate to the Stub Parser to parse the annotation file to an AST, and save it in field
+     * {@link #stubUnit}. Also sets {@link #allAnnotations}. Does not copy annotations out of {@link
      * #stubUnit}; that is done by the {@code process*} methods.
      *
      * <p>Subsequently, all work uses the AST.
@@ -1180,17 +1194,24 @@ public class AnnotationFileParser {
             Map<String, RecordComponentStub> byName =
                     ArrayMap.newArrayMapOrLinkedHashMap(recordMembers.size());
             for (Parameter recordMember : recordMembers) {
-                RecordComponentStub stub =
-                        processRecordField(
-                                recordMember,
-                                findFieldElement(
-                                        typeElt, recordMember.getNameAsString(), recordMember));
-                byName.put(recordMember.getNameAsString(), stub);
+                VariableElement componentElt =
+                        findFieldElement(typeElt, recordMember.getNameAsString(), recordMember);
+                // Null if the type is a class without a field for the component; see
+                // findFieldElement, which already reported it.
+                if (componentElt != null) {
+                    byName.put(
+                            recordMember.getNameAsString(),
+                            processRecordField(recordMember, componentElt));
+                }
             }
-            putMergeRecords(recordDecl.getFullyQualifiedName().get(), new RecordStub(byName));
+            // A record in the stub file can be a class in the running JDK; only a record element
+            // has components, and the binary stub files likewise store no record for a class.
+            if (ElementUtils.isRecordElement(typeElt)) {
+                putMergeRecords(recordDecl.getFullyQualifiedName().get(), new RecordStub(byName));
+            }
         }
 
-        IPair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>> members =
+        Pair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>> members =
                 getMembers(typeDecl, typeElt, typeDecl);
         for (Map.Entry<Element, BodyDeclaration<?>> entry : members.first.entrySet()) {
             Element elt = entry.getKey();
@@ -1222,8 +1243,11 @@ public class AnnotationFileParser {
                     break;
                 case CLASS:
                 case INTERFACE:
+                    // The declaration is a record when the stub file was written for a newer JDK
+                    // than the one that is running: a class that became a record keeps its name,
+                    // and its element is still a class here.
                     // Not processing an ajava file, so ignore the return value.
-                    processTypeDecl((ClassOrInterfaceDeclaration) decl, innerName, null);
+                    processTypeDecl((TypeDeclaration<?>) decl, innerName, null);
                     break;
                 case ENUM:
                     // Not processing an ajava file, so ignore the return value.
@@ -2175,7 +2199,7 @@ public class AnnotationFileParser {
      *     elements to fake overrides of them
      * @param astNode where to report errors
      */
-    private IPair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>>
+    private Pair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>>
             getMembers(TypeDeclaration<?> typeDecl, TypeElement typeElt, NodeWithRange<?> astNode) {
         assert (typeElt.getSimpleName().contentEquals(typeDecl.getNameAsString())
                         || typeDecl.getNameAsString().endsWith("$" + typeElt.getSimpleName()))
@@ -2208,7 +2232,7 @@ public class AnnotationFileParser {
             }
         }
 
-        return IPair.of(elementsToDecl, fakeOverrideDecls);
+        return Pair.of(elementsToDecl, fakeOverrideDecls);
     }
 
     // Used only by getMembers().
@@ -2518,14 +2542,14 @@ public class AnnotationFileParser {
                 annotations,
                 decl);
 
-        List<IPair<TypeMirror, AnnotatedTypeMirror>> l =
+        List<Pair<TypeMirror, AnnotatedTypeMirror>> l =
                 annotationFileAnnos.fakeOverrides.computeIfAbsent(
                         element, __ -> new ArrayList<>(1));
-        l.add(IPair.of(fakeLocation.asType(), methodType));
+        l.add(Pair.of(fakeLocation.asType(), methodType));
     }
 
     /**
-     * Return the annotated type corresponding to {@code type}, or null if none exists. More
+     * Returns the annotated type corresponding to {@code type}, or null if none exists. More
      * specifically, returns the element of {@code types} whose name matches {@code type}.
      *
      * @param type the type to search for
@@ -2821,7 +2845,7 @@ public class AnnotationFileParser {
     }
 
     /**
-     * Get the type element for the given fully-qualified type name. If none is found, issue a
+     * Returns the type element for the given fully-qualified type name. If none is found, issue a
      * warning and return null.
      *
      * @param typeName a type name
@@ -3108,7 +3132,7 @@ public class AnnotationFileParser {
      *
      * @param number a Number value to be converted
      * @param expectedKind one of type {byte, short, int, long, char, float, double}
-     * @param negate whether to negate the value of the Number Object while converting
+     * @param negate if true, negate the value of the Number Object while converting
      * @return the converted Object
      */
     private Object convert(Number number, TypeKind expectedKind, boolean negate) {
@@ -3245,7 +3269,7 @@ public class AnnotationFileParser {
         VariableElement res = null;
         boolean importFound = false;
         for (String imp : importedConstants) {
-            IPair<@FullyQualifiedName String, String> partitionedName =
+            Pair<@FullyQualifiedName String, String> partitionedName =
                     AnnotationFileUtil.partitionQualifiedName(imp);
             String typeName = partitionedName.first;
             String fieldName = partitionedName.second;
@@ -3517,7 +3541,7 @@ public class AnnotationFileParser {
      *
      * @param astNode where to report errors
      * @param warning warning to print
-     * @param warnIfNotFound whether to print warnings about types/members that were not found
+     * @param warnIfNotFound if true, print warnings about types/members that were not found
      */
     private void stubWarnNotFound(
             NodeWithRange<?> astNode, String warning, boolean warnIfNotFound) {
@@ -3721,7 +3745,7 @@ public class AnnotationFileParser {
     }
 
     /**
-     * Return the prefix for a warning line: A file name, line number, and column number.
+     * Returns the prefix for a warning line: A file name, line number, and column number.
      *
      * @param astNode where to report errors
      * @return file name, line number, and column number

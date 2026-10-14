@@ -7,7 +7,13 @@ import org.checkerframework.dataflow.constantpropagation.Constant;
 import org.checkerframework.dataflow.constantpropagation.ConstantPropagationStore;
 import org.checkerframework.dataflow.constantpropagation.ConstantPropagationTransfer;
 
+/** Runs the constant propagation analysis on a test file and prints the result. */
 public class ConstantPropagation {
+
+    /** Do not instantiate. */
+    private ConstantPropagation() {
+        throw new Error("Do not instantiate");
+    }
 
     /**
      * The main method expects to be run in dataflow/tests/constant-propagation directory.

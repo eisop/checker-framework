@@ -7,27 +7,20 @@
  * @run main Driver Methods
  */
 
-import static com.sun.tools.classfile.TypeAnnotation.TargetType.METHOD_FORMAL_PARAMETER;
-import static com.sun.tools.classfile.TypeAnnotation.TargetType.METHOD_RECEIVER;
-import static com.sun.tools.classfile.TypeAnnotation.TargetType.METHOD_RETURN;
-import static com.sun.tools.classfile.TypeAnnotation.TargetType.METHOD_TYPE_PARAMETER;
-import static com.sun.tools.classfile.TypeAnnotation.TargetType.METHOD_TYPE_PARAMETER_BOUND;
-import static com.sun.tools.classfile.TypeAnnotation.TargetType.THROWS;
-
 public class Methods {
 
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = METHOD_FORMAL_PARAMETER,
+                type = "METHOD_FORMAL_PARAMETER",
                 paramIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = METHOD_FORMAL_PARAMETER,
+                type = "METHOD_FORMAL_PARAMETER",
                 paramIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = METHOD_FORMAL_PARAMETER,
+                type = "METHOD_FORMAL_PARAMETER",
                 paramIndex = 0),
     })
     public String paramDefault1() {
@@ -37,13 +30,13 @@ public class Methods {
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = METHOD_RETURN),
+                type = "METHOD_RETURN"),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = METHOD_RETURN),
+                type = "METHOD_RETURN"),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = METHOD_RETURN),
+                type = "METHOD_RETURN"),
     })
     public String retDefault1() {
         return "Object rm1() { return new Object(); }";
@@ -52,15 +45,15 @@ public class Methods {
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = THROWS,
+                type = "THROWS",
                 typeIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = THROWS,
+                type = "THROWS",
                 typeIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = THROWS,
+                type = "THROWS",
                 typeIndex = 0),
     })
     public String throwsDefault1() {
@@ -70,27 +63,27 @@ public class Methods {
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = THROWS,
+                type = "THROWS",
                 typeIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = THROWS,
+                type = "THROWS",
                 typeIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = THROWS,
+                type = "THROWS",
                 typeIndex = 0), // from KeyFor
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = THROWS,
+                type = "THROWS",
                 typeIndex = 1),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = THROWS,
+                type = "THROWS",
                 typeIndex = 1),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = THROWS,
+                type = "THROWS",
                 typeIndex = 1),
     })
     public String throwsDefault2() {
@@ -100,13 +93,13 @@ public class Methods {
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = METHOD_RECEIVER),
+                type = "METHOD_RECEIVER"),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = METHOD_RECEIVER),
+                type = "METHOD_RECEIVER"),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = METHOD_RECEIVER),
+                type = "METHOD_RECEIVER"),
     })
     public String recvDefault1() {
         return "void rd1(Test this) {}";
@@ -115,29 +108,29 @@ public class Methods {
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = METHOD_TYPE_PARAMETER,
+                type = "METHOD_TYPE_PARAMETER",
                 paramIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = METHOD_TYPE_PARAMETER,
+                type = "METHOD_TYPE_PARAMETER",
                 paramIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = METHOD_TYPE_PARAMETER,
+                type = "METHOD_TYPE_PARAMETER",
                 paramIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/Nullable",
-                type = METHOD_TYPE_PARAMETER_BOUND,
+                type = "METHOD_TYPE_PARAMETER_BOUND",
                 paramIndex = 0,
                 boundIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = METHOD_TYPE_PARAMETER_BOUND,
+                type = "METHOD_TYPE_PARAMETER_BOUND",
                 paramIndex = 0,
                 boundIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = METHOD_TYPE_PARAMETER_BOUND,
+                type = "METHOD_TYPE_PARAMETER_BOUND",
                 paramIndex = 0,
                 boundIndex = 0),
     })
@@ -148,29 +141,29 @@ public class Methods {
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = METHOD_TYPE_PARAMETER,
+                type = "METHOD_TYPE_PARAMETER",
                 paramIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = METHOD_TYPE_PARAMETER,
+                type = "METHOD_TYPE_PARAMETER",
                 paramIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = METHOD_TYPE_PARAMETER,
+                type = "METHOD_TYPE_PARAMETER",
                 paramIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = METHOD_TYPE_PARAMETER_BOUND,
+                type = "METHOD_TYPE_PARAMETER_BOUND",
                 paramIndex = 0,
                 boundIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = METHOD_TYPE_PARAMETER_BOUND,
+                type = "METHOD_TYPE_PARAMETER_BOUND",
                 paramIndex = 0,
                 boundIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = METHOD_TYPE_PARAMETER_BOUND,
+                type = "METHOD_TYPE_PARAMETER_BOUND",
                 paramIndex = 0,
                 boundIndex = 0),
     })
@@ -181,29 +174,29 @@ public class Methods {
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = METHOD_TYPE_PARAMETER,
+                type = "METHOD_TYPE_PARAMETER",
                 paramIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = METHOD_TYPE_PARAMETER,
+                type = "METHOD_TYPE_PARAMETER",
                 paramIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = METHOD_TYPE_PARAMETER,
+                type = "METHOD_TYPE_PARAMETER",
                 paramIndex = 0),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = METHOD_TYPE_PARAMETER_BOUND,
+                type = "METHOD_TYPE_PARAMETER_BOUND",
                 paramIndex = 0,
                 boundIndex = 1),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = METHOD_TYPE_PARAMETER_BOUND,
+                type = "METHOD_TYPE_PARAMETER_BOUND",
                 paramIndex = 0,
                 boundIndex = 1),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = METHOD_TYPE_PARAMETER_BOUND,
+                type = "METHOD_TYPE_PARAMETER_BOUND",
                 paramIndex = 0,
                 boundIndex = 1),
     })

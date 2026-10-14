@@ -113,6 +113,9 @@ public class NullnessNoInitAnnotatedTypeFactory
     /** The Arrays.copyOf() methods that operate on arrays of references. */
     private final List<ExecutableElement> copyOfMethods;
 
+    /** The Arrays.copyOfRange() methods that operate on arrays of references. */
+    private final List<ExecutableElement> copyOfRangeMethods;
+
     /** Cache for the nullness annotations. */
     protected final Set<Class<? extends Annotation>> nullnessAnnos;
 
@@ -238,7 +241,7 @@ public class NullnessNoInitAnnotatedTypeFactory
                     // https://github.com/JetBrains/intellij-community/blob/master/platform/annotations/java8/src/org/jetbrains/annotations/NotNull.java
                     // https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html
                     "org.jetbrains.annotations.NotNull",
-                    // http://svn.code.sf.net/p/jmlspecs/code/JMLAnnotations/trunk/src/org/jmlspecs/annotation/NonNull.java
+                    // https://svn.code.sf.net/p/jmlspecs/code/JMLAnnotations/trunk/src/org/jmlspecs/annotation/NonNull.java
                     "org.jmlspecs.annotation.NonNull",
                     // https://github.com/jspecify/jspecify/blob/main/src/main/java/org/jspecify/annotations/NonNull.java
                     "org.jspecify.annotations.NonNull",
@@ -350,7 +353,7 @@ public class NullnessNoInitAnnotatedTypeFactory
                     // https://github.com/gatein/gatein-shindig/blob/master/java/common/src/main/java/org/apache/shindig/common/Nullable.java
                     // "org.apache.shindig.common.Nullable",
                     "org.apa".toString() + "che.shindig.common.Nullable",
-                    // https://search.maven.org/search?q=a:checker-compat-qual
+                    // https://central.sonatype.com/search?q=checker-compat-qual
                     "org.checkerframework.checker.nullness.compatqual.NullableDecl",
                     "org.checkerframework.checker.nullness.compatqual.NullableType",
                     // https://source.chromium.org/chromium/chromium/src/+/main:build/android/java/src/org/chromium/build/annotations/Nullable.java
@@ -368,15 +371,15 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "org.jetbrains.annotations.Nullable",
                     // https://github.com/JetBrains/java-annotations/blob/master/java8/src/main/java/org/jetbrains/annotations/UnknownNullability.java
                     "org.jetbrains.annotations.UnknownNullability",
-                    // http://svn.code.sf.net/p/jmlspecs/code/JMLAnnotations/trunk/src/org/jmlspecs/annotation/Nullable.java
+                    // https://svn.code.sf.net/p/jmlspecs/code/JMLAnnotations/trunk/src/org/jmlspecs/annotation/Nullable.java
                     "org.jmlspecs.annotation.Nullable",
                     // https://github.com/jspecify/jspecify/blob/main/src/main/java/org/jspecify/annotations/Nullable.java
                     "org.jspecify.annotations.Nullable",
                     // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/CheckForNull.html
                     "org.netbeans.api.annotations.common.CheckForNull",
-                    // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/NullAllowed.html
+                    // https://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/NullAllowed.html
                     "org.netbeans.api.annotations.common.NullAllowed",
-                    // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/NullUnknown.html
+                    // https://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/NullUnknown.html
                     "org.netbeans.api.annotations.common.NullUnknown",
                     // https://github.com/spring-projects/spring-framework/blob/master/spring-core/src/main/java/org/springframework/lang/Nullable.java
                     "org.springframework.lang.Nullable",
@@ -428,22 +431,25 @@ public class NullnessNoInitAnnotatedTypeFactory
                 "org.checkerframework.checker.nullness.compatqual.MonotonicNonNullType",
                 MONOTONIC_NONNULL);
 
-        if (checker.getUltimateParentChecker().getBooleanOption("jspecifyNullMarkedAlias", true)) {
-            AnnotationBuilder nullMarkedDefaultQualBuilder =
-                    new AnnotationBuilder(processingEnv, DefaultQualifier.class)
-                            .setValue("value", NonNull.class)
-                            .setValue(
-                                    "locations",
-                                    new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND});
+        if (checker.getBooleanOption("jspecifyNullMarkedAlias", true)) {
             // The applyToSubpackages element is an EISOP-specific addition to @DefaultQualifier;
             // it is absent if the classpath resolves @DefaultQualifier from upstream typetools
             // checker-qual instead of EISOP's fork. QualifierDefaults's constructor already warns
             // about that mismatch once per checker run, so this site degrades silently: the built
             // annotation simply carries no applyToSubpackages value, matching how any other
             // @DefaultQualifier built or written without that element behaves.
-            if (TreeUtils.getMethodOrNull(
-                            DefaultQualifier.class, "applyToSubpackages", 0, processingEnv)
-                    != null) {
+            boolean defaultQualifierHasApplyToSubpackages =
+                    TreeUtils.getMethodOrNull(
+                                    DefaultQualifier.class, "applyToSubpackages", 0, processingEnv)
+                            != null;
+
+            AnnotationBuilder nullMarkedDefaultQualBuilder =
+                    new AnnotationBuilder(processingEnv, DefaultQualifier.class)
+                            .setValue("value", NonNull.class)
+                            .setValue(
+                                    "locations",
+                                    new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND});
+            if (defaultQualifierHasApplyToSubpackages) {
                 nullMarkedDefaultQualBuilder.setValue("applyToSubpackages", false);
             }
             AnnotationMirror nullMarkedDefaultQual = nullMarkedDefaultQualBuilder.build();
@@ -483,6 +489,42 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "org.jspecify.annotations.NullMarked",
                     AnnotatedFor.class.getCanonicalName(),
                     nullMarkedAnnotatedFor);
+
+            // @NullUnmarked is the inverse of @NullMarked, so it aliases to the inverse of both
+            // halves above, with the same checker name and the same subpackage opt-out.
+            //
+            // The @DefaultQualifier half restores the unmarked upper-bound default: without it an
+            // enclosing @NullMarked's @DefaultQualifier keeps applying, so a type variable of a
+            // @NullUnmarked method would still be bounded by @NonNull.
+            AnnotationBuilder nullUnmarkedDefaultQualBuilder =
+                    new AnnotationBuilder(processingEnv, DefaultQualifier.class)
+                            .setValue("value", Nullable.class)
+                            .setValue(
+                                    "locations",
+                                    new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND});
+            if (defaultQualifierHasApplyToSubpackages) {
+                nullUnmarkedDefaultQualBuilder.setValue("applyToSubpackages", false);
+            }
+            addAliasedDeclAnnotation(
+                    "org.jspecify.annotations.NullUnmarked",
+                    DefaultQualifier.class.getCanonicalName(),
+                    nullUnmarkedDefaultQualBuilder.build());
+
+            // The @UnannotatedFor half subtracts from an enclosing @NullMarked scope.  Skipped
+            // when @UnannotatedFor is not on the classpath (an upstream typetools checker-qual);
+            // a null unannotatedForValueElement is how AnnotatedTypeFactory records that.
+            if (unannotatedForValueElement != null) {
+                AnnotationBuilder nullUnmarkedUnannotatedForBuilder =
+                        new AnnotationBuilder(processingEnv, UNANNOTATED_FOR_NAME)
+                                .setValue("value", new String[] {"nullnessnoinit"});
+                if (unannotatedForApplyToSubpackagesElement != null) {
+                    nullUnmarkedUnannotatedForBuilder.setValue("applyToSubpackages", false);
+                }
+                addAliasedDeclAnnotation(
+                        "org.jspecify.annotations.NullUnmarked",
+                        UNANNOTATED_FOR_NAME,
+                        nullUnmarkedUnannotatedForBuilder.build());
+            }
         }
 
         boolean permitClearProperty =
@@ -499,6 +541,16 @@ public class NullnessNoInitAnnotatedTypeFactory
                         TreeUtils.getMethod(
                                 "java.util.Arrays", "copyOf", processingEnv, "T[]", "int"),
                         TreeUtils.getMethod("java.util.Arrays", "copyOf", 3, processingEnv));
+        copyOfRangeMethods =
+                Arrays.asList(
+                        TreeUtils.getMethod(
+                                "java.util.Arrays",
+                                "copyOfRange",
+                                processingEnv,
+                                "T[]",
+                                "int",
+                                "int"),
+                        TreeUtils.getMethod("java.util.Arrays", "copyOfRange", 4, processingEnv));
 
         postInit();
 
@@ -817,18 +869,35 @@ public class NullnessNoInitAnnotatedTypeFactory
 
         @Override
         public Void visitMethodInvocation(MethodInvocationTree tree, AnnotatedTypeMirror type) {
+            List<? extends ExpressionTree> args = tree.getArguments();
+            ExpressionTree lengthArg = null; // non-null iff `tree` is an invocation of `copyOf*`
             if (TreeUtils.isMethodInvocation(tree, copyOfMethods, processingEnv)) {
-                List<? extends ExpressionTree> args = tree.getArguments();
-                ExpressionTree lengthArg = args.get(1);
-                if (TreeUtils.isArrayLengthAccess(lengthArg)) {
-                    ExpressionTree arrayArg = args.get(0);
-                    if (TreeUtils.sameTree(arrayArg, ((MemberSelectTree) lengthArg).getExpression())
-                            && Boolean.TRUE.equals(pureExpressionVisitor.visit(arrayArg, null))) {
-                        AnnotatedArrayType arrayArgType =
-                                (AnnotatedArrayType) getAnnotatedType(arrayArg);
-                        AnnotatedTypeMirror arrayArgComponentType = arrayArgType.getComponentType();
-                        ((AnnotatedArrayType) type)
-                                .setComponentType(arrayArgComponentType.deepCopy());
+                lengthArg = args.get(1);
+            } else if (TreeUtils.isMethodInvocation(tree, copyOfRangeMethods, processingEnv)) {
+                lengthArg = args.get(2);
+            }
+            if (lengthArg != null && TreeUtils.isArrayLengthAccess(lengthArg)) {
+                // TODO: This syntactic test may not be not correct if the array expression has
+                // a side effect that affects the array length.  This test could require that
+                // the expression has no method calls, assignments, etc.
+                ExpressionTree arrayArg = args.get(0);
+                if (TreeUtils.sameTree(arrayArg, ((MemberSelectTree) lengthArg).getExpression())
+                        && Boolean.TRUE.equals(pureExpressionVisitor.visit(arrayArg, null))) {
+                    AnnotatedArrayType arrayArgType =
+                            (AnnotatedArrayType) getAnnotatedType(arrayArg);
+                    AnnotatedTypeMirror arrayArgComponentType = arrayArgType.getComponentType();
+                    AnnotatedArrayType resultType = (AnnotatedArrayType) type;
+                    AnnotatedTypeMirror resultComponentType = resultType.getComponentType();
+                    if (types.isSameType(
+                            arrayArgComponentType.getUnderlyingType(),
+                            resultComponentType.getUnderlyingType())) {
+                        resultType.setComponentType(arrayArgComponentType.deepCopy());
+                    } else {
+                        // The result's component type differs from the copied array's, as
+                        // for a three-argument copyOf whose Class argument names another
+                        // type, so only the nullness of the copied elements carries over.
+                        resultComponentType.replaceAnnotation(
+                                arrayArgComponentType.getEffectiveAnnotationInHierarchy(NULLABLE));
                     }
                 }
             }
@@ -987,6 +1056,9 @@ public class NullnessNoInitAnnotatedTypeFactory
      * <p>This method ignores aliases of nullness annotations that are declaration annotations,
      * because they may apply to inner types.
      *
+     * <p>This method is used only for issuing an error when a nullness annotation is written in a
+     * place it should not be.
+     *
      * @param annoTrees a list of annotations that the Java parser attached to the variable/method
      *     declaration; null if this type is not from such a location. This is a list of extra
      *     annotations to check, in addition to those on the type.
@@ -1007,8 +1079,9 @@ public class NullnessNoInitAnnotatedTypeFactory
      * <p>This method ignores aliases of nullness annotations that are declaration annotations,
      * because they may apply to inner types.
      *
-     * <p>Clients that are processing a field or variable definition, or a method return type,
-     * should call {@link #containsNullnessAnnotation(List, Tree)} instead.
+     * <p>This method is used only for issuing an error when a nullness annotation is written in a
+     * place it should not be. Clients that are processing a field or variable definition, or a
+     * method return type, should call {@link #containsNullnessAnnotation(List, Tree)} instead.
      *
      * @param annoTrees a list of annotations to check
      * @return true if some annotation is a nullness annotation
@@ -1037,7 +1110,7 @@ public class NullnessNoInitAnnotatedTypeFactory
     protected boolean isNullnessAnnotation(AnnotationMirror am) {
         // Resolve the alias once, then test the four canonical names, instead of calling
         // isXOrAlias, which each resolves aliasing.
-        AnnotationMirror toCheck = canonicalAnnotationOrWritten(am);
+        AnnotationMirror toCheck = canonicalAnnotation(am);
         return AnnotationUtils.areSameByName(toCheck, NONNULL)
                 || AnnotationUtils.areSameByName(toCheck, NULLABLE)
                 || AnnotationUtils.areSameByName(toCheck, MONOTONIC_NONNULL)
@@ -1051,7 +1124,7 @@ public class NullnessNoInitAnnotatedTypeFactory
      * @return true if the given annotation is {@code @NonNull} or an alias for it
      */
     protected boolean isNonNullOrAlias(AnnotationMirror am) {
-        return AnnotationUtils.areSameByName(canonicalAnnotationOrWritten(am), NONNULL);
+        return AnnotationUtils.areSameByName(canonicalAnnotation(am), NONNULL);
     }
 
     /**
@@ -1061,7 +1134,7 @@ public class NullnessNoInitAnnotatedTypeFactory
      * @return true if the given annotation is {@code @Nullable} or an alias for it
      */
     protected boolean isNullableOrAlias(AnnotationMirror am) {
-        return AnnotationUtils.areSameByName(canonicalAnnotationOrWritten(am), NULLABLE);
+        return AnnotationUtils.areSameByName(canonicalAnnotation(am), NULLABLE);
     }
 
     /**
@@ -1071,7 +1144,7 @@ public class NullnessNoInitAnnotatedTypeFactory
      * @return true if the given annotation is {@code @PolyNull} or an alias for it
      */
     protected boolean isPolyNullOrAlias(AnnotationMirror am) {
-        return AnnotationUtils.areSameByName(canonicalAnnotationOrWritten(am), POLYNULL);
+        return AnnotationUtils.areSameByName(canonicalAnnotation(am), POLYNULL);
     }
 
     // If a reference field has no initializer, then its default value is null.  Treat that as

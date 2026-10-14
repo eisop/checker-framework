@@ -83,7 +83,7 @@ public class DetailedTestDiagnostic extends TestDiagnostic {
     }
 
     /**
-     * Equality is compared without isFixable and messageKeyParens.
+     * Equality is compared without isFixable and messageKeyDelimiters.
      *
      * @return true if this and otherObj are equal according to additionalTokens, startPosition,
      *     endPosition, and equality of the superclass.

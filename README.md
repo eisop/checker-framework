@@ -12,24 +12,30 @@ See below for EISOP Checker Framework development notes.
 ## Quick Start Guide
 
 1. Clone this repository in some empty directory:
-   ```
+
+   ```bash
    git clone git@github.com:eisop/checker-framework.git
    cd checker-framework
    ```
 
 2. Build the EISOP Checker Framework (requires JDK 8+):
-   ```
+
+   ```bash
    ./gradlew assemble
    ```
-   This will clone the required [eisop/jdk](https://github.com/eisop/jdk) project to a sibling directory called `jdk` and build everything without running the test suite.
+
+   This will clone the required [eisop/jdk](https://github.com/eisop/jdk) project to a sibling directory called `jdk` (from the same GitHub organization and branch as your checkout of the Checker Framework if they exist there, otherwise `eisop/jdk` `master`) and build everything without running the test suite.
    There will be warnings about missing javadoc, but overall the build should be successful.
 
 3. Run a simple test:
-   ```
+
+   ```bash
    ./checker/bin/javac -processor nullness docs/examples/NullnessExampleWithWarnings.java
    ```
+
    This will result in two errors:
-   ```
+
+   ```text
    docs/examples/NullnessExampleWithWarnings.java:24: error: [assignment.type.incompatible] incompatible types in assignment.
         foo = bar;
               ^
@@ -42,6 +48,24 @@ See below for EISOP Checker Framework development notes.
      required: @NonNull String
    2 errors
    ```
+
+### Development jars without building
+
+If you only want to run the latest development version rather than modify it,
+every [CI run](https://github.com/eisop/checker-framework/actions/workflows/ci.yml)
+attaches the jars it built to the run, under "Artifacts" on the run's summary
+page.  The archive holds `checker.jar`, `checker-qual.jar`, `checker-util.jar`
+and `javac.jar` -- the contents of `checker/dist` after a build.  Runs happen on
+every pull request as well as on master, so there is an artifact for a proposed
+fix too.  With the [GitHub CLI](https://cli.github.com/):
+
+```text
+gh run download --repo eisop/checker-framework --branch master \
+  --name checker-framework-jars
+```
+
+GitHub serves these only to signed-in users and deletes them 30 days after the
+run, so they are for trying a build out, not for depending on.
 
 There is a lot more to explore!
 
@@ -59,7 +83,8 @@ Import the EISOP Checker Framework source folder into your IDE of choice.
 See the [IDE configuration](https://htmlpreview.github.io/?https://github.com/eisop/checker-framework/blob/master/docs/developer/developer-manual.html#IDE_configuration) section for notes.
 
 To run all test cases, run:
-```
+
+```bash
 ./gradlew alltests
 ```
 

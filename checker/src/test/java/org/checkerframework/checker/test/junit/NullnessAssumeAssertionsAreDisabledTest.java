@@ -19,7 +19,7 @@ public class NullnessAssumeAssertionsAreDisabledTest extends CheckerFrameworkPer
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
                 "nullness",
-                "-AassumeAssertionsAreDisabled",
+                "-AassumeAssertions=disabled",
                 "-Xlint:deprecation");
     }
 

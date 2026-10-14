@@ -25,6 +25,10 @@ import java.lang.annotation.RetentionPolicy;
  * to which the comment applies (e.g., local variable rather than method, and method rather than
  * class).
  *
+ * <p>This annotation has source retention: its comments are for people who read and maintain the
+ * source code, and the Checker Framework does not interpret them, so they are not stored in class
+ * files.
+ *
  * @checker_framework.manual #library-tips-dont-change-the-code Don't change the code
  */
 @Documented

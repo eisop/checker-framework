@@ -22,7 +22,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({}) // empty target prevents programmers from writing this in a program
 @InvisibleQualifier
-@SubtypeOf(org.checkerframework.checker.regex.qual.UnknownRegex.class)
+@SubtypeOf(UnknownRegex.class)
 public @interface PartialRegex {
 
     /**

@@ -50,10 +50,10 @@ public class InferenceResult {
      */
     private final boolean annoInferenceFailed;
 
-    /** Whether unchecked conversion was necessary to infer the type arguments. */
+    /** True if unchecked conversion was necessary to infer the type arguments. */
     private final boolean uncheckedConversion;
 
-    /** Whether inference crashed. */
+    /** True if inference crashed. */
     private final boolean inferenceCrashed;
 
     /**
@@ -73,7 +73,7 @@ public class InferenceResult {
      * @param variables instantiated variables
      * @param uncheckedConversion where unchecked conversion was required to infer the type
      *     arguments
-     * @param annoInferenceFailed whether inference failed because of annotations
+     * @param annoInferenceFailed true if inference failed because of annotations
      * @param errorMsg message to report to users if inference failed
      */
     public InferenceResult(
@@ -90,7 +90,7 @@ public class InferenceResult {
      * @param variables instantiated variables
      * @param uncheckedConversion where unchecked conversion was required to infer the type
      *     arguments
-     * @param annoInferenceFailed whether inference failed because of annotations
+     * @param annoInferenceFailed true if inference failed because of annotations
      * @param inferenceCrashed the type argument inference code crashed
      * @param errorMsg message to report to users if inference failed
      */
@@ -151,18 +151,18 @@ public class InferenceResult {
     }
 
     /**
-     * Whether unchecked conversion was necessary to infer the type arguments.
+     * True if unchecked conversion was necessary to infer the type arguments.
      *
-     * @return whether unchecked conversion was necessary to infer the type arguments
+     * @return true if unchecked conversion was necessary to infer the type arguments
      */
     public boolean isUncheckedConversion() {
         return uncheckedConversion;
     }
 
     /**
-     * Whether type argument inference failed because an annotated type could not be inferred.
+     * True if type argument inference failed because an annotated type could not be inferred.
      *
-     * @return Whether type argument inference failed because an annotated type could not be
+     * @return true if type argument inference failed because an annotated type could not be
      *     inferred
      */
     public boolean inferenceFailed() {
@@ -170,9 +170,9 @@ public class InferenceResult {
     }
 
     /**
-     * Whether inference crashed.
+     * True if inference crashed.
      *
-     * @return whether inference crashed
+     * @return true if inference crashed
      */
     public boolean inferenceCrashed() {
         return inferenceCrashed;

@@ -6,7 +6,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 // defaulted to the top qualifier, @Nullable, so reading it into a @NonNull local correctly
 // errors) but unsound for field writes (the same read-oriented default is reused as the
 // required type of the assignment, so writing null into the field is currently, incorrectly,
-// accepted). See QualifierDefaults.STANDARD_UNCHECKED_DEFAULTS_TOP for the root cause.
+// accepted). See QualifierDefaults.CONSERVATIVE_UNCHECKED_DEFAULTS_TOP for the root cause.
 public class FieldWriteUnsound {
     class Unannotated {
         // No explicit nullness qualifier: conservative defaults apply to this field.

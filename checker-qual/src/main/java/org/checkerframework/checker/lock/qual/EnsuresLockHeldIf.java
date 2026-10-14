@@ -36,8 +36,8 @@ public @interface EnsuresLockHeldIf {
      * Returns Java expressions whose values are locks that are held after the method returns the
      * given result.
      *
-     * @return Java expressions whose values are locks that are held after the method returns the
-     *     given result
+     * @return the Java expressions whose values are locks that are held after the method returns
+     *     the given result
      * @see <a href="https://eisop.github.io/cf/manual/#java-expressions-as-arguments">Syntax of
      *     Java expressions</a>
      */
@@ -59,7 +59,7 @@ public @interface EnsuresLockHeldIf {
     @InheritedAnnotation
     public static @interface List {
         /**
-         * Return the repeatable annotations.
+         * Returns the repeatable annotations.
          *
          * @return the repeatable annotations
          */

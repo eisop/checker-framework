@@ -102,7 +102,7 @@ public class ControlFlowGraph implements UniqueId {
 
     /**
      * All return nodes (if any) encountered. Only includes return statements that actually return
-     * something
+     * something.
      */
     protected final List<ReturnNode> returnNodes;
 
@@ -243,22 +243,17 @@ public class ControlFlowGraph implements UniqueId {
         Set<Block> visited = new LinkedHashSet<>();
         // worklist is always a subset of visited; any block in worklist is also in visited.
         Queue<Block> worklist = new ArrayDeque<>();
-        Block cur = entryBlock;
+        worklist.add(entryBlock);
         visited.add(entryBlock);
 
         // traverse the whole control flow graph
-        while (true) {
-            if (cur == null) {
-                break;
-            }
-
+        while (!worklist.isEmpty()) {
+            Block cur = worklist.remove();
             for (Block b : cur.getSuccessors()) {
                 if (visited.add(b)) {
                     worklist.add(b);
                 }
             }
-
-            cur = worklist.poll();
         }
 
         return visited;
@@ -295,11 +290,12 @@ public class ControlFlowGraph implements UniqueId {
         Set<Block> visited = new LinkedHashSet<>();
         // `worklist` is always a subset of `visited`; any block in `worklist` is also in `visited`.
         Queue<Block> worklist = new ArrayDeque<>();
-        Block cur = entryBlock;
+        worklist.add(entryBlock);
         visited.add(entryBlock);
 
         // Traverse the whole control flow graph.
-        while (cur != null) {
+        while (!worklist.isEmpty()) {
+            Block cur = worklist.remove();
             if (cur instanceof ExceptionBlock) {
                 for (Map.Entry<TypeMirror, Set<Block>> entry :
                         ((ExceptionBlock) cur).getExceptionalSuccessors().entrySet()) {
@@ -323,7 +319,6 @@ public class ControlFlowGraph implements UniqueId {
                     }
                 }
             }
-            cur = worklist.poll();
         }
 
         return visited;
@@ -402,8 +397,8 @@ public class ControlFlowGraph implements UniqueId {
     }
 
     /**
-     * Get the {@link MethodTree} of the CFG if the argument {@link Tree} maps to a {@link Node} in
-     * the CFG, or null otherwise.
+     * Returns the {@link MethodTree} of the CFG if the argument {@link Tree} maps to a {@link Node}
+     * in the CFG, or null otherwise.
      *
      * @param t a tree that might correspond to a node in the CFG
      * @return the method that contains {@code t}'s Node, or null
@@ -417,8 +412,8 @@ public class ControlFlowGraph implements UniqueId {
     }
 
     /**
-     * Get the {@link ClassTree} of the CFG if the argument {@link Tree} maps to a {@link Node} in
-     * the CFG, or null otherwise.
+     * Returns the {@link ClassTree} of the CFG if the argument {@link Tree} maps to a {@link Node}
+     * in the CFG, or null otherwise.
      *
      * @param t a tree that might be within a class
      * @return the class that contains the given tree, or null
@@ -474,7 +469,7 @@ public class ControlFlowGraph implements UniqueId {
         if (astString.length() > 65) {
             astString = "\"" + astString.substring(0, 60) + "\"";
         }
-        result.add("underlyingAST=" + underlyingAST);
+        result.add("underlyingAST=" + astString);
         result.add("treeLookup=" + AnalysisResult.treeLookupToString(treeLookup));
         result.add("convertedTreeLookup=" + AnalysisResult.treeLookupToString(convertedTreeLookup));
         result.add("postfixLookup=" + postfixNodeLookup);

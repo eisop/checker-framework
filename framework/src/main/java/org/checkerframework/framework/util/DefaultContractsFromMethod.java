@@ -11,10 +11,11 @@ import org.checkerframework.framework.qual.RequiresQualifier;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
-import org.plumelib.util.IPair;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -152,10 +153,10 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
         // Check for type-system specific annotations.  These are the annotations that are
         // meta-annotated by `kind.metaAnnotation`, which is PreconditionAnnotation,
         // PostconditionAnnotation, or ConditionalPostconditionAnnotation.
-        List<IPair<AnnotationMirror, AnnotationMirror>> declAnnotations =
+        List<Pair<AnnotationMirror, AnnotationMirror>> declAnnotations =
                 atypeFactory.getDeclAnnotationWithMetaAnnotation(
                         executableElement, kind.metaAnnotation);
-        for (IPair<AnnotationMirror, AnnotationMirror> r : declAnnotations) {
+        for (Pair<AnnotationMirror, AnnotationMirror> r : declAnnotations) {
             AnnotationMirror anno = r.first;
             // contractAnno is the meta-annotation on anno, such as PreconditionAnnotation,
             // PostconditionAnnotation, or ConditionalPostconditionAnnotation.
@@ -166,7 +167,7 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
                 continue;
             }
             List<String> expressions = atypeFactory.getContractExpressions(kind, anno);
-            Collections.sort(expressions);
+            expressions.sort(Comparator.naturalOrder());
             Boolean ensuresQualifierIfResult = atypeFactory.getEnsuresQualifierIfResult(kind, anno);
 
             for (String expr : expressions) {
@@ -208,7 +209,7 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
         }
 
         List<String> expressions = atypeFactory.getContractExpressions(contractAnnotation);
-        Collections.sort(expressions);
+        expressions.sort(Comparator.naturalOrder());
 
         Boolean ensuresQualifierIfResult =
                 atypeFactory.getEnsuresQualifierIfResult(kind, contractAnnotation);

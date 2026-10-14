@@ -18,6 +18,11 @@ import java.util.regex.Pattern;
 @AnnotatedFor("nullness")
 public class FormatUtil {
 
+    /** Do not instantiate. */
+    private FormatUtil() {
+        throw new Error("Do not instantiate");
+    }
+
     /**
      * A representation of a format specifier, which is represented by "%..." in the format string.
      * Indicates how to convert a value into a string.
@@ -162,7 +167,7 @@ public class FormatUtil {
 
     /**
      * A regex that matches a format specifier. Its syntax is specified in the See <a
-     * href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Formatter.html#syntax">{@code
+     * href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Formatter.html#syntax">{@code
      * Formatter} documentation</a>.
      *
      * <pre>
@@ -193,7 +198,7 @@ public class FormatUtil {
     private static @Regex(6) Pattern fsPattern = Pattern.compile(formatSpecifier);
 
     /**
-     * Return the index, in the argument list, of the value that will be formatted by the matched
+     * Returns the index, in the argument list, of the value that will be formatted by the matched
      * format specifier.
      *
      * @param m a matcher that matches a format specifier
@@ -202,15 +207,13 @@ public class FormatUtil {
     private static int indexFromFormat(Matcher m) {
         int index;
         String s = m.group(1);
-        if (s != null) { // explicit index
+        String group2 = m.group(2); // not @Deterministic, so extract into local var
+        if (group2 != null && group2.indexOf('<') != -1) {
+            index = -1; // relative index
+        } else if (s != null) { // explicit index
             index = Integer.parseInt(s.substring(0, s.length() - 1));
         } else {
-            String group2 = m.group(2); // not @Deterministic, so extract into local var
-            if (group2 != null && group2.contains(String.valueOf('<'))) {
-                index = -1; // relative index
-            } else {
-                index = 0; // ordinary index
-            }
+            index = 0; // ordinary index
         }
         return index;
     }
@@ -233,16 +236,16 @@ public class FormatUtil {
     }
 
     /**
-     * Return the conversion character that is in the given format specifier.
+     * Returns the conversion character that is in the given format specifier.
      *
      * @param formatSpecifier a <a
-     *     href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Formatter.html#syntax">format
+     *     href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Formatter.html#syntax">format
      *     specifier</a>
      * @return the conversion character that is in the given format specifier
      * @deprecated This method is public only for testing. Use private method {@code
      *     #conversionCharFromFormat(Matcher)}.
      */
-    @Deprecated // used only for testing.  Use conversionCharFromFormat(Matcher).
+    @Deprecated // Not for removal. Used only for testing
     public static char conversionCharFromFormat(String formatSpecifier) {
         Matcher m = fsPattern.matcher(formatSpecifier);
         assert m.find();
@@ -257,7 +260,7 @@ public class FormatUtil {
      */
     private static Conversion[] parse(String format) {
         ArrayList<Conversion> cs = new ArrayList<>();
-        @Regex(7) Matcher m = fsPattern.matcher(format);
+        @Regex(6) Matcher m = fsPattern.matcher(format);
         while (m.find()) {
             char c = conversionCharFromFormat(m);
             switch (c) {

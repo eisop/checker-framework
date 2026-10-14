@@ -1,4 +1,5 @@
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.UnannotatedFor;
 
 public class ElementSuppressionTestCase {
 
@@ -19,4 +20,17 @@ public class ElementSuppressionTestCase {
     @SuppressWarnings("elementsuppression")
     @AnnotatedFor("elementsuppression")
     class ReportOnMe3 {}
+
+    // Test 4: @UnannotatedFor subtracts a class from an enclosing @AnnotatedFor scope. The
+    // diagnostic is reported on the class's element, so its suppression must ask about that
+    // element itself: asking about every enclosing element would find Outer's @AnnotatedFor.
+    @AnnotatedFor("elementsuppression")
+    class Outer {
+        @UnannotatedFor("elementsuppression")
+        class ReportOnMe4 {}
+
+        // The enclosing scope is in effect for a sibling that is not excluded.
+        // :: error: (type.invalid)
+        class ReportOnMe5 {}
+    }
 }

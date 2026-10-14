@@ -2,8 +2,8 @@ package org.checkerframework.framework.test.diagnostics;
 
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.javacutil.Pair;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,6 +20,11 @@ import javax.tools.JavaFileObject;
 
 /** A set of utilities and factory methods useful for working with TestDiagnostics. */
 public class TestDiagnosticUtils {
+
+    /** Do not instantiate. */
+    private TestDiagnosticUtils() {
+        throw new Error("Do not instantiate");
+    }
 
     /** How the diagnostics appear in Java source files. */
     public static final String DIAGNOSTIC_IN_JAVA_REGEX =
@@ -117,7 +122,7 @@ public class TestDiagnosticUtils {
         // Since we want to match the error messages reported by javac exactly, we must parse.
         // diagnostic.getCode() returns "compiler.warn.prob.found.req" for "[unchecked]" messages,
         // but not clear how to map from one to the other.
-        IPair<String, Path> trimmed = formatJavaxToolString(diagnosticString);
+        Pair<String, Path> trimmed = messageAndFilename(diagnosticString);
         return fromPatternMatching(
                 DIAGNOSTIC_PATTERN,
                 DIAGNOSTIC_WARNING_PATTERN,
@@ -154,8 +159,8 @@ public class TestDiagnosticUtils {
 
         Matcher diagnosticMatcher = diagnosticPattern.matcher(diagnosticString);
         if (diagnosticMatcher.matches()) {
-            IPair<DiagnosticKind, Boolean> categoryToFixable =
-                    parseCategoryString(diagnosticMatcher.group("kind"));
+            Pair<DiagnosticKind, Boolean> categoryToFixable =
+                    categoryAndFixable(diagnosticMatcher.group("kind"));
             kind = categoryToFixable.first;
             isFixable = categoryToFixable.second;
             message = diagnosticMatcher.group("message").trim();
@@ -261,14 +266,14 @@ public class TestDiagnosticUtils {
     /**
      * Given a javax diagnostic, return a pair of (trimmed, file), where "trimmed" is the message
      * without the leading filename and the file path. As an example: "foo/bar/Baz.java:49: My error
-     * message" is turned into {@code IPair.of(":49: My error message", Path("foo/bar/Baz.java"))}.
+     * message" is turned into {@code Pair.of(":49: My error message", Path("foo/bar/Baz.java"))}.
      * If the file path cannot be determined, it uses {@code ""}. This is necessary to make writing
      * the expected warnings easy.
      *
      * @param original a javax diagnostic
      * @return the diagnostic, split into message and file
      */
-    public static IPair<String, Path> formatJavaxToolString(String original) {
+    public static Pair<String, Path> messageAndFilename(String original) {
         String firstline;
         // In TestDiagnostic we manually check for "\r\n" and "\n". Here, we only use
         // `firstline` to find the file name. Using the system line separator is not
@@ -294,7 +299,7 @@ public class TestDiagnosticUtils {
             trimmed = original;
         }
 
-        return IPair.of(trimmed, file);
+        return Pair.of(trimmed, file);
     }
 
     /**
@@ -304,7 +309,7 @@ public class TestDiagnosticUtils {
      * @param category a category string
      * @return the corresponding diagnostic kind and whether it is fixable
      */
-    private static IPair<DiagnosticKind, Boolean> parseCategoryString(String category) {
+    private static Pair<DiagnosticKind, Boolean> categoryAndFixable(String category) {
         String fixable = "fixable-";
         boolean isFixable = category.startsWith(fixable);
         if (isFixable) {
@@ -315,11 +320,11 @@ public class TestDiagnosticUtils {
             throw new Error("Unparsable category: " + category);
         }
 
-        return IPair.of(categoryEnum, isFixable);
+        return Pair.of(categoryEnum, isFixable);
     }
 
     /**
-     * Return true if this line in a Java file indicates an expected diagnostic that might be
+     * Returns true if this line in a Java file indicates an expected diagnostic that might be
      * continued on the next line.
      *
      * @param originalLine the input line
@@ -367,7 +372,7 @@ public class TestDiagnosticUtils {
     }
 
     /**
-     * Return the continuation part. The argument is such that {@link
+     * Returns the continuation part. The argument is such that {@link
      * #isJavaDiagnosticLineContinuation} returns true.
      */
     public static String continuationPart(String originalLine) {

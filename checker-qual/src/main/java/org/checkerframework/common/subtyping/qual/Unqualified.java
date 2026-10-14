@@ -4,6 +4,7 @@ import org.checkerframework.framework.qual.InvisibleQualifier;
 import org.checkerframework.framework.qual.SubtypeOf;
 
 import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -22,7 +23,7 @@ import java.lang.annotation.Target;
  */
 @Documented
 @Retention(RetentionPolicy.SOURCE) // don't store in class file
-@Target({}) // empty target prevents programmers from writing this in a program.
+@Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @InvisibleQualifier
 @SubtypeOf({})
 public @interface Unqualified {}

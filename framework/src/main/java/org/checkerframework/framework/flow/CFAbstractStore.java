@@ -27,8 +27,8 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 import org.plumelib.util.ToStringComparator;
 import org.plumelib.util.UniqueId;
 
@@ -283,16 +283,21 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
                 updateFieldValuesForMethodCall(atypeFactory);
             }
 
-            // update array values
+            // Update array values.
             arrayValues.clear();
 
-            // update method values
-            removeModifiableByOtherCode(methodCallExpressions);
+            // Update information about method calls.
+            updateMethodCallValues();
         }
 
-        // store information about method call if possible
+        // Store information about method calls if possible.
         JavaExpression methodCall = JavaExpression.fromNode(methodInvocationNode);
         replaceValue(methodCall, val);
+    }
+
+    /** Update information about method calls. */
+    private void updateMethodCallValues() {
+        removeModifiableByOtherCode(methodCallExpressions);
     }
 
     /**
@@ -345,7 +350,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             return null;
         }
 
-        List<IPair<AnnotationMirror, AnnotationMirror>> fieldAnnotationPairs =
+        List<Pair<AnnotationMirror, AnnotationMirror>> fieldAnnotationPairs =
                 atypeFactory.getAnnotationWithMetaAnnotation(
                         fieldAccess.getField(), MonotonicQualifier.class);
         List<AnnotationMirror> metaAnnotations =
@@ -385,19 +390,39 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      */
     private void updateFieldValuesForMethodCall(
             GenericAnnotatedTypeFactory<V, S, ?, ?> atypeFactory) {
-        Map<FieldAccess, V> newFieldValues =
-                new HashMap<>(CollectionsPlume.mapCapacity(fieldValues));
+        // Only the fields whose value changes are collected; a new value equal to the previous one
+        // is not a change. If nothing changes, `fieldValues` is left in place, so it keeps sharing
+        // its delegate with the stores it was copied from or to. That lets the store equality
+        // checks done when merging stores take the delegate-identity fast path instead of comparing
+        // every entry, which matters for a long run of calls (each with exceptional successors)
+        // in a class with many fields. `changes` maps each changed field to its new value, or to
+        // null if the field is to be removed.
+        Map<FieldAccess, @Nullable V> changes = null;
         for (Map.Entry<FieldAccess, V> e : fieldValues.entrySet()) {
             FieldAccess fieldAccess = e.getKey();
-            V value = e.getValue();
+            V previousValue = e.getValue();
 
-            V newValue = newFieldValueAfterMethodCall(fieldAccess, atypeFactory, value);
-            if (newValue != null) {
-                // Keep information for all hierarchies where we had a monotonic annotation.
-                newFieldValues.put(fieldAccess, newValue);
+            V newValue = newFieldValueAfterMethodCall(fieldAccess, atypeFactory, previousValue);
+            if (!previousValue.equals(newValue)) {
+                if (changes == null) {
+                    changes = new HashMap<>();
+                }
+                changes.put(fieldAccess, newValue);
             }
         }
-        fieldValues = new CopyOnWriteMap<>(newFieldValues, false);
+        if (changes != null) {
+            Map<FieldAccess, V> newFieldValues = new HashMap<>(fieldValues);
+            for (Map.Entry<FieldAccess, @Nullable V> change : changes.entrySet()) {
+                V newValue = change.getValue();
+                if (newValue == null) {
+                    newFieldValues.remove(change.getKey());
+                } else {
+                    // Keep information for all hierarchies where we had a monotonic annotation.
+                    newFieldValues.put(change.getKey(), newValue);
+                }
+            }
+            fieldValues = new CopyOnWriteMap<>(newFieldValues, false);
+        }
     }
 
     /**
@@ -481,7 +506,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *
      * @param expr an expression
      * @param newAnno the expression's annotation
-     * @param permitNondeterministic whether nondeterministic expressions may be inserted into the
+     * @param permitNondeterministic true if nondeterministic expressions may be inserted into the
      *     store
      */
     protected void insertOrRefine(
@@ -704,7 +729,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     }
 
     /**
-     * Return true if fieldAcc is an update of a monotonic qualifier to its target qualifier.
+     * Returns true if fieldAcc is an update of a monotonic qualifier to its target qualifier.
      * (e.g. @MonotonicNonNull to @NonNull). Always returns false if {@code sequentialSemantics} is
      * true.
      *
@@ -722,10 +747,10 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         // TODO: Update the javadoc of this method when the above to-do item is addressed.
         if (!sequentialSemantics) { // only compute if necessary
             AnnotatedTypeFactory atypeFactory = this.analysis.atypeFactory;
-            List<IPair<AnnotationMirror, AnnotationMirror>> fieldAnnotations =
+            List<Pair<AnnotationMirror, AnnotationMirror>> fieldAnnotations =
                     atypeFactory.getAnnotationWithMetaAnnotation(
                             fieldAcc.getField(), MonotonicQualifier.class);
-            for (IPair<AnnotationMirror, AnnotationMirror> fieldAnnotation : fieldAnnotations) {
+            for (Pair<AnnotationMirror, AnnotationMirror> fieldAnnotation : fieldAnnotations) {
                 AnnotationMirror metaAnnotation = fieldAnnotation.second;
                 @SuppressWarnings("deprecation") // permitted for use in the framework
                 Name annoName =
@@ -757,12 +782,30 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     }
 
     /**
-     * Completely replaces the abstract value {@code value} for the expression {@code expr}
-     * (correctly deciding where to store the information depending on the type of the expression
-     * {@code expr}). Any previous information is discarded.
+     * Completely replaces the abstract value for the expression {@code expr} (correctly deciding
+     * where to store the information depending on the type of the expression {@code expr}). Any
+     * previous information is discarded.
      *
      * <p>This method does not take care of removing other information that might be influenced by
      * changes to certain parts of the state.
+     *
+     * @param expr the expression whose value to replace
+     * @param a the new annotation
+     */
+    public void replaceValue(JavaExpression expr, AnnotationMirror a) {
+        replaceValue(expr, analysis.createSingleAnnotationValue(a, expr.getType()));
+    }
+
+    /**
+     * Completely replaces the abstract value for the expression {@code expr} (correctly deciding
+     * where to store the information depending on the type of the expression {@code expr}). Any
+     * previous information is discarded.
+     *
+     * <p>This method does not take care of removing other information that might be influenced by
+     * changes to certain parts of the state.
+     *
+     * @param expr the expression whose value to replace
+     * @param value the new value
      */
     public void replaceValue(JavaExpression expr, @Nullable V value) {
         clearValue(expr);
@@ -916,11 +959,12 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     }
 
     /**
-     * Update the information in the store by considering a field assignment with target {@code n},
-     * where the right hand side has the abstract value {@code val}.
+     * Update the information in the store by considering a field assignment with target {@code
+     * fieldAccess}, where the right hand side has the abstract value {@code val}.
      *
-     * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-     *     abstract value is not known).
+     * @param fieldAccess the target of the assignment
+     * @param val the abstract value of the value assigned to {@code fieldAccess} (or {@code null}
+     *     if the abstract value is not known)
      */
     protected void updateForFieldAccessAssignment(FieldAccess fieldAccess, @Nullable V val) {
         removeConflicting(fieldAccess, val);
@@ -957,8 +1001,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * Set the abstract value of a local variable in the store. Overwrites any value that might have
      * been available previously.
      *
-     * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-     *     abstract value is not known).
+     * @param receiver the local variable that is assigned
+     * @param val the abstract value of the value assigned to {@code receiver} (or {@code null} if
+     *     the abstract value is not known)
      */
     protected void updateForLocalVariableAssignment(LocalVariable receiver, @Nullable V val) {
         removeConflicting(receiver);
@@ -975,20 +1020,22 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *
      * <ol>
      *   <li value="1">Update the abstract value of other field accesses <em>b.g</em> where the
-     *       field is equal (that is, <em>f=g</em>), and the receiver <em>b</em> might alias the
-     *       receiver of {@code fieldAccess}, <em>a</em>. This update will raise the abstract value
-     *       for such field accesses to at least {@code val} (or the old value, if that was less
-     *       precise). However, this is only necessary if the field <em>g</em> is not final.
+     *                 field is equal (that is, <em>f=g</em>), and the receiver <em>b</em> might
+     *                 alias the receiver of {@code fieldAccess}, <em>a</em>. This update will raise
+     *                 the abstract value for such field accesses to at least {@code val} (or the
+     *                 old value, if that was less precise). However, this is only necessary if the
+     *                 field <em>g</em> is not final.
      *   <li value="2">Remove any abstract values for field accesses <em>b.g</em> where {@code
-     *       fieldAccess} might alias any expression in the receiver <em>b</em>.
+     *                 fieldAccess} might alias any expression in the receiver <em>b</em>.
      *   <li value="3">Remove any information about method calls.
      *   <li value="4">Remove any abstract values an array access <em>b[i]</em> where {@code
-     *       fieldAccess} might alias any expression in the receiver <em>a</em> or index <em>i</em>.
+     *                 fieldAccess} might alias any expression in the receiver <em>a</em> or index
+     *                 <em>i</em>.
      * </ol>
      *
      * @param fieldAccess the field access that was modified
      * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-     *     abstract value is not known).
+     *     abstract value is not known)
      */
     protected void removeConflicting(FieldAccess fieldAccess, @Nullable V val) {
         List<FieldAccess> fieldsToRemove = new ArrayList<>();
@@ -1040,17 +1087,17 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *
      * <ol>
      *   <li value="1">Remove any abstract value for other array access <em>b[j]</em> where
-     *       <em>a</em> and <em>b</em> can be aliases, or where either <em>b</em> or <em>j</em>
-     *       contains a modifiable alias of <em>a[i]</em>.
+     *                 <em>a</em> and <em>b</em> can be aliases, or where either <em>b</em> or
+     *                 <em>j</em> contains a modifiable alias of <em>a[i]</em>.
      *   <li value="2">Remove any abstract values for field accesses <em>b.g</em> where
-     *       <em>a[i]</em> might alias any expression in the receiver <em>b</em> and there is an
-     *       array expression somewhere in the receiver.
+     *                 <em>a[i]</em> might alias any expression in the receiver <em>b</em> and there
+     *                 is an array expression somewhere in the receiver.
      *   <li value="3">Remove any information about method calls.
      * </ol>
      *
      * @param arrayAccess the array access that was modified
      * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-     *     abstract value is not known).
+     *     abstract value is not known)
      */
     protected void removeConflicting(ArrayAccess arrayAccess, @Nullable V val) {
         List<ArrayAccess> arraysToRemove = new ArrayList<>();
@@ -1090,11 +1137,11 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *
      * <ol>
      *   <li value="1">Remove any abstract values for field accesses <em>b.g</em> where {@code
-     *       localVar} might alias any expression in the receiver <em>b</em>.
+     *                 localVar} might alias any expression in the receiver <em>b</em>.
      *   <li value="2">Remove any abstract values for array accesses <em>a[i]</em> where {@code
-     *       localVar} might alias the receiver <em>a</em>.
+     *                 localVar} might alias the receiver <em>a</em>.
      *   <li value="3">Remove any information about method calls where the receiver or any of the
-     *       parameters contains {@code localVar}.
+     *                 parameters contains {@code localVar}.
      * </ol>
      *
      * @param var the local variable that was modified

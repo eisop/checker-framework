@@ -20,9 +20,9 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
-import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -44,6 +44,11 @@ import javax.lang.model.element.VariableElement;
  * @see Pure
  */
 public class PurityChecker {
+
+    /** Do not instantiate. */
+    private PurityChecker() {
+        throw new Error("Do not instantiate");
+    }
 
     /**
      * Compute whether the given statement is side-effect-free, deterministic, or both. Returns a
@@ -77,13 +82,13 @@ public class PurityChecker {
     public static class PurityResult {
 
         /** Reasons that the referenced method is not side-effect-free. */
-        protected final List<IPair<Tree, String>> notSEFreeReasons = new ArrayList<>(1);
+        protected final List<Pair<Tree, String>> notSEFreeReasons = new ArrayList<>(1);
 
         /** Reasons that the referenced method is not deterministic. */
-        protected final List<IPair<Tree, String>> notDetReasons = new ArrayList<>(1);
+        protected final List<Pair<Tree, String>> notDetReasons = new ArrayList<>(1);
 
         /** Reasons that the referenced method is not side-effect-free and deterministic. */
-        protected final List<IPair<Tree, String>> notBothReasons = new ArrayList<>(1);
+        protected final List<Pair<Tree, String>> notBothReasons = new ArrayList<>(1);
 
         /**
          * Contains all the varieties of purity that the expression has. Starts out with all
@@ -92,7 +97,7 @@ public class PurityChecker {
         protected EnumSet<Pure.Kind> kinds = EnumSet.allOf(Pure.Kind.class);
 
         /**
-         * Return the kinds of purity that the method has.
+         * Returns the kinds of purity that the method has.
          *
          * @return the kinds of purity that the method has
          */
@@ -111,11 +116,11 @@ public class PurityChecker {
         }
 
         /**
-         * Get the reasons why the method is not side-effect-free.
+         * Returns the reasons why the method is not side-effect-free.
          *
          * @return the reasons why the method is not side-effect-free
          */
-        public List<IPair<Tree, String>> getNotSEFreeReasons() {
+        public List<Pair<Tree, String>> getNotSEFreeReasons() {
             return notSEFreeReasons;
         }
 
@@ -126,16 +131,16 @@ public class PurityChecker {
          * @param msgId why the tree is not side-effect-free
          */
         public void addNotSEFreeReason(Tree t, String msgId) {
-            notSEFreeReasons.add(IPair.of(t, msgId));
+            notSEFreeReasons.add(Pair.of(t, msgId));
             kinds.remove(Pure.Kind.SIDE_EFFECT_FREE);
         }
 
         /**
-         * Get the reasons why the method is not deterministic.
+         * Returns the reasons why the method is not deterministic.
          *
          * @return the reasons why the method is not deterministic
          */
-        public List<IPair<Tree, String>> getNotDetReasons() {
+        public List<Pair<Tree, String>> getNotDetReasons() {
             return notDetReasons;
         }
 
@@ -146,16 +151,16 @@ public class PurityChecker {
          * @param msgId why the tree is not deterministic
          */
         public void addNotDetReason(Tree t, String msgId) {
-            notDetReasons.add(IPair.of(t, msgId));
+            notDetReasons.add(Pair.of(t, msgId));
             kinds.remove(Pure.Kind.DETERMINISTIC);
         }
 
         /**
-         * Get the reasons why the method is not both side-effect-free and deterministic.
+         * Returns the reasons why the method is not both side-effect-free and deterministic.
          *
          * @return the reasons why the method is not both side-effect-free and deterministic
          */
-        public List<IPair<Tree, String>> getNotBothReasons() {
+        public List<Pair<Tree, String>> getNotBothReasons() {
             return notBothReasons;
         }
 
@@ -166,7 +171,7 @@ public class PurityChecker {
          * @param msgId why the tree is not deterministic and side-effect-free
          */
         public void addNotBothReason(Tree t, String msgId) {
-            notBothReasons.add(IPair.of(t, msgId));
+            notBothReasons.add(Pair.of(t, msgId));
             kinds.remove(Pure.Kind.DETERMINISTIC);
             kinds.remove(Pure.Kind.SIDE_EFFECT_FREE);
         }
@@ -358,7 +363,7 @@ public class PurityChecker {
         }
 
         /**
-         * Check whether {@code variable} is permitted on the left-hand-side of an assignment.
+         * Returns true if {@code variable} is permitted on the left-hand-side of an assignment.
          *
          * @param variable the lhs to check
          */

@@ -10,7 +10,8 @@ import java.lang.annotation.Target;
 
 /**
  * The Lost qualifier indicates that a relationship cannot be expressed. It is the result of
- * viewpoint adaptation that combines {@link Top} and {@link ReceiverDependentQual}.
+ * viewpoint adaptation that combines {@link Top} or {@link PolyVP} and {@link
+ * ReceiverDependentQual}.
  *
  * <p>It is not reflexive in the subtyping relationship and the only subtype for Lost is {@link
  * Bottom}.
