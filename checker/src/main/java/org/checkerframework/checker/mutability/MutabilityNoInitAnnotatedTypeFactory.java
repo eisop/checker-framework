@@ -154,34 +154,6 @@ public class MutabilityNoInitAnnotatedTypeFactory
                 new MutabilityEnumDefaultAnnotator(this));
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>After <a href="https://github.com/eisop/checker-framework/pull/1810">pull request
-     * #1810</a>, simplify or remove this override and its manually copied superclass tail.
-     */
-    @Override
-    protected void postDirectSuperTypes(
-            AnnotatedTypeMirror type, List<? extends AnnotatedTypeMirror> supertypes) {
-        AnnotationMirrorSet annotations = type.getEffectiveAnnotations();
-        for (AnnotatedTypeMirror supertype : supertypes) {
-            if (!annotations.equals(supertype.getEffectiveAnnotations())) {
-                supertype.clearAnnotations();
-                supertype.addAnnotations(annotations);
-            }
-        }
-        // Do not call super.postDirectSuperTypes. Its viewpoint adaptation asks Mutability's
-        // viewpoint adapter for direct supertypes while direct supertypes are already being
-        // computed, which causes infinite recursion for raw recursive types. Apply only the
-        // GenericAnnotatedTypeFactory tail that adds computed annotations.
-        if (type.getKind() == TypeKind.DECLARED) {
-            for (AnnotatedTypeMirror supertype : supertypes) {
-                Element elt = ((DeclaredType) supertype.getUnderlyingType()).asElement();
-                addComputedTypeAnnotations(elt, supertype);
-            }
-        }
-    }
-
     @Override
     protected ParameterizedExecutableType constructorFromUse(
             NewClassTree tree, boolean inferTypeArgs) {
