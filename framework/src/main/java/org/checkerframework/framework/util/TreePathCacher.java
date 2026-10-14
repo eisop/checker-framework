@@ -51,6 +51,34 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
     /** The stack of nodes currently being traversed. */
     private final List<Tree> currentStack = new ArrayList<>();
 
+    /**
+     * The number of consecutive {@link #getPath(TreePath, Tree)} cache misses with the same leaf
+     * after which that leaf's subtree is indexed. A search that starts at a large leaf, such as a
+     * long method body, rescans the leaf's earlier children each time, so the cost of N lookups
+     * grows quadratically with the size of the leaf; the index makes each lookup cost the depth of
+     * the target. The threshold keeps small leaves, which are cheap to rescan, from being indexed.
+     */
+    private static final int INDEX_AFTER_MISSES = 32;
+
+    /**
+     * The leaf of the {@code rootPath} of the previous cache miss in {@link #getPath(TreePath,
+     * Tree)}.
+     */
+    private @Nullable Tree lastMissLeaf;
+
+    /** The number of consecutive cache misses with {@link #lastMissLeaf} as the leaf. */
+    private int lastMissCount;
+
+    /** The leaf whose subtree {@link #parentInIndex} describes, or null if there is no index. */
+    private @Nullable Tree indexedLeaf;
+
+    /**
+     * Maps each tree in the subtree of {@link #indexedLeaf}, except the leaf itself, to its parent
+     * tree. A tree that occurs more than once in the subtree maps to the parent of its first
+     * occurrence in scan order, which is the occurrence a search finds.
+     */
+    private final IdentityHashMap<Tree, Tree> parentInIndex = new IdentityHashMap<>();
+
     /** Construct a TreePathCacher. */
     public TreePathCacher() {}
 
@@ -162,8 +190,27 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
             return null;
         }
 
-        if (rootPath.getLeaf() == target) {
+        Tree leaf = rootPath.getLeaf();
+        if (leaf == target) {
             return rootPath;
+        }
+
+        if (leaf == indexedLeaf) {
+            TreePath indexed = pathFromIndex(rootPath, target);
+            if (indexed != null) {
+                return indexed;
+            }
+        } else if (leaf == lastMissLeaf) {
+            if (++lastMissCount >= INDEX_AFTER_MISSES) {
+                buildIndex(leaf);
+                TreePath indexed = pathFromIndex(rootPath, target);
+                if (indexed != null) {
+                    return indexed;
+                }
+            }
+        } else {
+            lastMissLeaf = leaf;
+            lastMissCount = 1;
         }
 
         CompilationUnitTree prevRoot = this.currentRoot;
@@ -210,6 +257,65 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
         return null;
     }
 
+    /**
+     * Makes {@link #parentInIndex} describe the subtree of {@code leaf}, replacing any earlier
+     * index.
+     *
+     * @param leaf the tree whose subtree to index
+     */
+    private void buildIndex(Tree leaf) {
+        parentInIndex.clear();
+        indexedLeaf = leaf;
+        new TreeScanner<@Nullable Void, @Nullable Tree>() {
+            @Override
+            public @Nullable Void scan(@Nullable Tree tree, @Nullable Tree parent) {
+                if (tree == null) {
+                    return null;
+                }
+                if (parent != null) {
+                    parentInIndex.putIfAbsent(tree, parent);
+                }
+                // The children of tree are scanned with tree as their parent.
+                return super.scan(tree, tree);
+            }
+        }.scan(leaf, null);
+    }
+
+    /**
+     * Returns the path of {@code target} using the index, or null if {@code target} is not in the
+     * indexed subtree. The index must be for the leaf of {@code rootPath}.
+     *
+     * @param rootPath the path of the indexed leaf
+     * @param target the tree to look for
+     * @return the path of {@code target}, or null if {@code target} is not in the indexed subtree
+     */
+    @SuppressWarnings("interning:not.interned") // identity comparison with the indexed leaf
+    private @Nullable TreePath pathFromIndex(TreePath rootPath, @FindDistinct Tree target) {
+        Tree leaf = rootPath.getLeaf();
+        // The trees from target up to, but excluding, the leaf.
+        List<Tree> chain = new ArrayList<>();
+        Tree tree = target;
+        while (tree != leaf) {
+            Tree parent = parentInIndex.get(tree);
+            if (parent == null) {
+                return null;
+            }
+            chain.add(tree);
+            tree = parent;
+        }
+        TreePath lastPath = rootPath;
+        for (int i = chain.size() - 1; i >= 0; --i) {
+            Tree node = chain.get(i);
+            TreePath nodePath = foundPaths.get(node);
+            if (nodePath == null) {
+                nodePath = new TreePath(lastPath, node);
+                foundPaths.put(node, nodePath);
+            }
+            lastPath = nodePath;
+        }
+        return lastPath;
+    }
+
     /** The result of {@link #getPath}. This exception is used for control flow. */
     private static class Result extends Error {
         /** Unique identifier for serialization. */
@@ -233,9 +339,16 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
         }
     }
 
-    /** Clear the {@code foundPaths} and re-initialize with a new {@code IdentityHashMap}. */
+    /**
+     * Clear the {@code foundPaths} and re-initialize with a new {@code IdentityHashMap}, and drop
+     * the subtree index.
+     */
     public void clear() {
         foundPaths = new IdentityHashMap<>(32);
+        lastMissLeaf = null;
+        lastMissCount = 0;
+        indexedLeaf = null;
+        parentInIndex.clear();
     }
 
     /**
