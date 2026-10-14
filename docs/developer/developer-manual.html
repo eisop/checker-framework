@@ -289,6 +289,9 @@ the IDE for the first time.
 This ensures generated files are not put in the standard <code>../bin/</code> directories.
 If you switch branches or update Gradle dependencies, run
 <code>./gradlew cleanEclipse eclipse</code> to reset and regenerate the IDE configuration.
+Gradle deprecates these tasks and will remove them in Gradle 10, because IDEs can import Gradle
+projects directly; the customizations in <code>build.gradle</code> (<code>eclipse.classpath</code>)
+still apply to that import.
 </p>
 
 <p>
