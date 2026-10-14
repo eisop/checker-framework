@@ -2118,11 +2118,33 @@ warm-up): plume-util 14.06 [13.24-14.16] → 13.81 [13.61-17.07] s; `framework/s
 52.27 [51.87-55.08] → 51.94 [50.86-52.23] s — within noise. Diagnostics are byte-identical on all
 workloads above.
 
-Remaining at N=4000 on the static shape, as follow-ups (not addressed here):
-`TreePathCacher.getPath` from `QualifierDefaults.nearestEnclosingExceptLocal` (eisop#2260) is 20%
-inclusive (mostly `TreeScanner.scan` self-time, plausibly a per-call scan of the 4000-statement
-method body), and parsing the `Map.put` postcondition (`JavaExpressionParseUtil.parse` →
-`JavacParse.parseExpression`) on every call (eisop#2261) is 19%.
+Remaining at N=4000 on the static shape, as follow-ups: parsing the `Map.put` postcondition
+(`JavaExpressionParseUtil.parse` → `JavacParse.parseExpression`) on every call (eisop#2261) is 19%
+inclusive. The other remaining item, `TreePathCacher.getPath` from
+`QualifierDefaults.nearestEnclosingExceptLocal` (eisop#2260), was 28% inclusive and is fixed
+below.
+
+**`TreePathCacher` indexes a leaf that keeps missing (eisop#2260).** Dataflow points
+`visitorTreePath` at the method body, so each `getPath` for a literal or identifier in the body
+is a miss that `getPath(TreePath, Tree)` answers by scanning the body from its first statement
+(the lazy search caches only the path to the target, not the statements it passes). N lookups
+cost O(N^2): a JFR of the N=4000 static shape put 169 of 590 samples under
+`nearestEnclosingExceptLocal`. After 32 consecutive misses with the same leaf the cacher now
+records a child-to-parent map of that leaf's subtree (one map, replaced when another leaf
+qualifies, dropped in `clear`), and later lookups under that leaf walk the parent chain. The
+result is the same path the scan finds, also for trees that occur twice (the shared type tree of
+`Integer a, b;`): the map keeps the first occurrence in scan order. Static shape, `-proc:only`,
+JDK 21, median of 3 interleaved runs: N=2000 8.08 → 7.57 s, N=4000 15.14 → 12.37 s,
+N=8000 33.99 → 25.87 s; `nearestEnclosingExceptLocal` falls to 3 of 448 samples. javacutil +
+dataflow sources (209 files), 5 interleaved runs: 21.9 → 22.2 s, within noise.
+
+*Tried and rejected for this:* recording the paths of the CFG builder's tree scan in the cacher.
+`CFGTranslationPhaseOne` skips tree levels (it scans the receiver identifier of `a.b()` from the
+invocation, not from the `MemberSelectTree`) and creates artificial trees, so its paths differ
+from the real ones for thousands of trees in the nullness tests. Short-circuiting
+`nearestEnclosingExceptLocal` for declaration trees (whose result needs no path) moves the cost
+to `InitializationAnnotatedTypeFactory.isInitializedInTargetStore`, which does the same per-field
+scan, and was slower overall.
 
 ---
 
