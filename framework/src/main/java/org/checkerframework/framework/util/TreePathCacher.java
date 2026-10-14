@@ -180,6 +180,7 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
      * @return the TreePath corresponding to target, or null if target is not in the compilation
      *     unit
      */
+    @SuppressWarnings("interning:not.interned") // identity comparison of trees
     public @Nullable TreePath getPath(TreePath rootPath, @FindDistinct Tree target) {
         TreePath cached = foundPaths.get(target);
         if (cached != null) {
