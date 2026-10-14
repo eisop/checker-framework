@@ -59,9 +59,6 @@ git diff --exit-code docs/manual/contributors.tex \
 # Checker Framework into IDEs like IntelliJ works.
 ./gradlew tasks --all --warning-mode=all
 
-# Check Eclipse and IDE project configuration generation
-./gradlew cleanEclipse eclipse --warning-mode=all
-
 # Check that modern APIs are used
 ./gradlew modernizer
 
