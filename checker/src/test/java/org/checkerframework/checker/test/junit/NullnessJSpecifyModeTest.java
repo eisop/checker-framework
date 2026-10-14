@@ -1,0 +1,47 @@
+package org.checkerframework.checker.test.junit;
+
+import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
+import org.checkerframework.framework.test.TestUtilities;
+import org.junit.Test;
+import org.junit.runners.Parameterized.Parameters;
+
+import java.io.File;
+import java.util.List;
+
+/** JUnit tests for the Nullness checker with {@code -Amode=jspecify}. */
+public class NullnessJSpecifyModeTest extends CheckerFrameworkPerDirectoryTest {
+
+    /**
+     * Create a NullnessJSpecifyModeTest.
+     *
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public NullnessJSpecifyModeTest(List<File> testFiles) {
+        super(
+                testFiles,
+                org.checkerframework.checker.nullness.NullnessChecker.class,
+                "nullness",
+                "-Amode=jspecify");
+    }
+
+    /**
+     * This method returns the directories containing test code.
+     *
+     * @return the directories containing test code
+     */
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"nullness-jspecify-mode"};
+    }
+
+    @Override
+    @Test
+    @SuppressWarnings("JUnitMethodInvoked")
+    public void run() {
+        // Skip under JDK 8: JSpecify's @NullMarked targets ElementType.MODULE, which does not
+        // exist before Java 9.
+        if (TestUtilities.IS_AT_LEAST_9_JVM) {
+            super.run();
+        }
+    }
+}
