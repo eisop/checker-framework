@@ -7,8 +7,10 @@
  *
  * @compile/fail/ref=ReadWriteDynamicField.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -AuseConservativeDefaultsForUncheckedCode=source ReadWriteDynamicField.java
  */
+import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 public class ReadWriteDynamicField {
@@ -49,6 +51,23 @@ public class ReadWriteDynamicField {
             // The initialization hierarchy has no read-write dynamic qualifier, so the field keeps
             // the conservative top default there: @UnknownInitialization.
             u.f.toString();
+        }
+
+        // A read is @Nullable wherever its value is used, not only on an assignment's right-hand
+        // side; it must not be treated as a write because it reaches the left of a check.
+
+        @UnknownInitialization @PolyNull Object id(@UnknownInitialization @PolyNull Object x) {
+            return x;
+        }
+
+        void readIntoPoly(Unannotated u) {
+            // OK: the argument is @Nullable, so the result is @Nullable.
+            @Nullable Object o = id(u.f);
+        }
+
+        void readIntoConditional(Unannotated u, boolean b) {
+            // OK: the conditional expression is @Nullable.
+            @Nullable Object o = b ? u.f : "x";
         }
     }
 }

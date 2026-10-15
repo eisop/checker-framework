@@ -1,17 +1,17 @@
-ReadWriteDynamicField.java:25:34: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+ReadWriteDynamicField.java:27:34: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable Object
 required: @NonNull Object
-ReadWriteDynamicField.java:30:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+ReadWriteDynamicField.java:32:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable NullType
 required: @NonNull Object
-ReadWriteDynamicField.java:34:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+ReadWriteDynamicField.java:36:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable Object
 required: @NonNull Object
-ReadWriteDynamicField.java:45:20: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+ReadWriteDynamicField.java:47:20: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable Object
 required: @NonNull Object
-ReadWriteDynamicField.java:51:16: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference u.f
-ReadWriteDynamicField.java:51:25: compiler.err.proc.messager: [method.invocation.invalid] call to toString() not allowed on the given receiver.
+ReadWriteDynamicField.java:53:16: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference u.f
+ReadWriteDynamicField.java:53:25: compiler.err.proc.messager: [method.invocation.invalid] call to toString() not allowed on the given receiver.
 found   : @UnknownInitialization Object
 required: @Initialized Object
 6 errors
