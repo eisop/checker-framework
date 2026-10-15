@@ -45,11 +45,13 @@ class LinkParser(HTMLParser):
     """Collects the link targets and the anchors of a page."""
 
     def __init__(self) -> None:
+        """Create an empty parser."""
         super().__init__()
         self.links: list[str] = []
         self.anchors: set[str] = set()
 
     def handle_starttag(self, tag, attrs):
+        """Record the links and anchors of a start tag."""
         for name, value in attrs:
             if value is None:
                 continue
@@ -60,12 +62,18 @@ class LinkParser(HTMLParser):
 
 
 def parse(path: Path) -> LinkParser:
+    """Parse the HTML file at the given path.
+
+    Returns:
+        the links and anchors of the file
+    """
     parser = LinkParser()
     parser.feed(path.read_text(encoding="utf-8", errors="replace"))
     return parser
 
 
 def check_external(url: str, online: bool, errors: list[str], where: str) -> None:
+    """Check the syntax of an external link and, if online, fetch it."""
     parts = urlparse(url)
     if not parts.netloc or " " in url:
         errors.append(f"{where}: malformed URL {url}")
@@ -89,6 +97,11 @@ def check_external(url: str, online: bool, errors: list[str], where: str) -> Non
 
 
 def main() -> int:
+    """Check the links of the pages that the release zip ships.
+
+    Returns:
+        the exit code: 0 if all links are valid
+    """
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--online", action="store_true", help="also fetch the external links")
     ap.add_argument("root", type=Path, help="the unpacked checker-framework-VERSION directory")
@@ -120,7 +133,7 @@ def main() -> int:
             if re.match(r"https?://", link):
                 check_external(link, args.online, errors, page)
                 continue
-            if re.match(r"[a-z][a-z0-9+.-]*:", link, re.I) or link.startswith("//"):
+            if re.match(r"[a-z][a-z0-9+.-]*:", link, re.IGNORECASE) or link.startswith("//"):
                 errors.append(f"{where}: unexpected URL scheme")
                 continue
             target, fragment = urldefrag(link)
