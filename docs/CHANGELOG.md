@@ -267,6 +267,8 @@ Other improvements and bug fixes:
   lambda-returned generic calls, implicitly typed lambdas, inexact method
   references, F-bounded wildcards, diamonds in anonymous subclasses of inner
   classes with an explicit enclosing instance (`outer.new Inner<>() {}`).
+- No longer crashes on a qualified anonymous subclass of an inner class with a
+  varargs constructor (`outer.new Inner("a", "b") {}`).
 - Type argument inference treats an `Error` thrown in a lambda body as an
   unchecked exception, instead of crashing.
 - Type argument inference no longer treats a `return` in a method of a local or
@@ -437,6 +439,7 @@ eisop#2159,
 eisop#2160,
 eisop#2187,
 eisop#2224,
+eisop#2267,
 typetools#399,
 typetools#2816,
 typetools#3203,
