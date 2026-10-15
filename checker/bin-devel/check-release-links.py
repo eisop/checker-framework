@@ -149,7 +149,9 @@ def main() -> int:
                 continue
             if fragment and resolved.suffix == ".html":
                 if fragment not in anchors_of(resolved):
-                    errors.append(f"{where}: no anchor '{fragment}' in {resolved.relative_to(root)}")
+                    errors.append(
+                        f"{where}: no anchor '{fragment}' in {resolved.relative_to(root)}"
+                    )
 
     for e in errors:
         print(f"check-release-links: {e}", file=sys.stderr)
