@@ -130,6 +130,10 @@ check_afu_jar() {
 check_afu_jar "$AFU_HOME/dist/annotation-file-utilities.jar"
 check_afu_jar "$AFU_HOME/dist/annotation-file-utilities-all.jar"
 
+## Check the links of the pages that the zip ships.  The check of external links is online, so it
+## is left to the release build (release_build.py); here they are only checked for syntax.
+checker/bin-devel/check-release-links.py "$CF_HOME"
+
 ## Run the tools from the unpacked zip files.
 SMOKE_DIR="$TMP_DIR/smoke"
 mkdir -p "$SMOKE_DIR"
