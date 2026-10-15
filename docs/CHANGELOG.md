@@ -66,6 +66,9 @@ Type-checking and subtyping improvements:
 - Subtyping, type equality, and type argument inference now compare the type
   arguments of enclosing types: `Outer<@Nullable String>.Inner` is no longer a
   subtype of `Outer<@NonNull String>.Inner`.
+- Annotations on the type arguments of every enclosing type of a local variable's
+  type, e.g., `A<@Nullable String>.B<String>.C`, are now kept and checked
+  against their bounds.
 - `-AcheckCastElementType` now requires array components to be invariant in
   array casts and `instanceof` binding patterns, closing an unsoundness:
   array components are mutable and qualifiers are not reified.
@@ -440,6 +443,7 @@ eisop#2159,
 eisop#2160,
 eisop#2187,
 eisop#2224,
+eisop#2258,
 eisop#2266,
 typetools#399,
 typetools#2816,
