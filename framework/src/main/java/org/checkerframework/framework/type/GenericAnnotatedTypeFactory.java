@@ -123,6 +123,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
@@ -2897,6 +2898,13 @@ public abstract class GenericAnnotatedTypeFactory<
     private final Map<TypeMirror, Boolean> isRelevantCache = MapsP.createLruCache(300);
 
     /**
+     * For each class or interface, whether its declared types are relevant. A cache to avoid
+     * repeated re-computation; see {@link #isRelevant(TypeMirror)}.
+     */
+    private final IdentityHashMap<Element, Boolean> isRelevantDeclaredCache =
+            new IdentityHashMap<>();
+
+    /**
      * Returns true if users can write type annotations from this type system directly on the given
      * Java type.
      *
@@ -2913,6 +2921,20 @@ public abstract class GenericAnnotatedTypeFactory<
     public final boolean isRelevant(TypeMirror tm) {
         if (relevantJavaTypes == null) {
             return true;
+        }
+        if (tm.getKind() == TypeKind.DECLARED) {
+            // The erasure of a declared type is determined by its class, but erasure does not
+            // return one canonical instance for it: for example, every string literal has its own
+            // constant type. Keying isRelevantCache by the erased type therefore misses often, so
+            // key declared types by their class instead.
+            Element elt = ((DeclaredType) tm).asElement();
+            Boolean cachedResult = isRelevantDeclaredCache.get(elt);
+            if (cachedResult != null) {
+                return cachedResult;
+            }
+            boolean result = isRelevantImpl(types.erasure(tm));
+            isRelevantDeclaredCache.put(elt, result);
+            return result;
         }
         if (tm.getKind() != TypeKind.PACKAGE && tm.getKind() != TypeKind.MODULE) {
             tm = types.erasure(tm);
