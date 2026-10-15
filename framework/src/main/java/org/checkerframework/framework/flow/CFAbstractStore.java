@@ -243,7 +243,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *       kept.
      * </ol>
      *
-     * Furthermore, if the method is deterministic, we store its result {@code val} in the store.
+     * Furthermore, if the method is deterministic and side-effect-free, we store its result {@code
+     * val} in the store.
      *
      * @param methodInvocationNode method whose information is being updated
      * @param atypeFactory the type factory of the associated checker

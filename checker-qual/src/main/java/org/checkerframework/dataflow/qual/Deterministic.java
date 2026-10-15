@@ -44,13 +44,9 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  *
- * <p>Nevertheless, the Checker Framework currently assumes that repeated invocations of any
- * {@code @Deterministic} method return the same value, even if the method is not
- * {@code @SideEffectFree}. This assumption is justified only when the annotation is checked,
- * because the checking rules below forbid side effects in a {@code @Deterministic} method, and
- * checking is disabled by default. Therefore, do not write {@code @Deterministic} on a method that
- * has side effects, such as the one above. To state that a method is both deterministic and
- * side-effect-free, write {@link Pure}.
+ * <p>Therefore, flow-sensitive type refinement assumes that repeated invocations return the same
+ * value only for a method that is both {@code @Deterministic} and {@code @SideEffectFree}. To state
+ * that a method is both deterministic and side-effect-free, write {@link Pure}.
  *
  * <p>Note that {@code @Deterministic} guarantees that the result is identical according to {@code
  * ==}, <b>not</b> just equal according to {@code equals()}. This means that writing
