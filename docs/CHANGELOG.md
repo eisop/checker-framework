@@ -220,6 +220,9 @@ Performance optimizations:
 - New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
   replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
+- `Resolver.getEnvForPath` caches the attribution environment per location, so that
+  resolving the identifiers of Java expression strings does not re-attribute the enclosing
+  method each time.
 
 Other improvements and bug fixes:
 
