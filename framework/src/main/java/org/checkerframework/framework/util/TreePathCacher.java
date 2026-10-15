@@ -9,8 +9,10 @@ import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 
 /**
  * TreePathCacher is a TreeScanner that creates and caches a TreePath for a target Tree.
@@ -51,6 +53,24 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
     /** The stack of nodes currently being traversed. */
     private final List<Tree> currentStack = new ArrayList<>();
 
+    /**
+     * The artificial trees, which are not part of the compilation unit, whose paths were added via
+     * {@link #addArtificialPath} for the compilation unit {@link #artificialTreesRoot}. Unlike
+     * {@link #foundPaths}, this set is not emptied by {@link #clear}. A search for one of these
+     * trees, after its path has been cleared from {@link #foundPaths}, cannot succeed, so {@link
+     * #getPath} returns null without scanning the compilation unit.
+     *
+     * <p>The checkers of a compound checker share one {@code TreePathCacher}. The checker that
+     * builds a CFG adds the paths of its artificial trees, and the ultimate parent checker clears
+     * the cache when it starts the compilation unit, after its subcheckers. It then reuses the
+     * shared CFG and so looks up the artificial trees without their paths, each of which would
+     * otherwise cost a scan of the whole compilation unit.
+     */
+    private final Set<Tree> artificialTrees = Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /** The compilation unit of the trees in {@link #artificialTrees}. */
+    private @Nullable CompilationUnitTree artificialTreesRoot;
+
     /** Construct a TreePathCacher. */
     public TreePathCacher() {}
 
@@ -82,6 +102,25 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
     }
 
     /**
+     * Adds the path of an artificial tree, one that a CFG builder created and that is not part of
+     * the compilation unit, to the cache.
+     *
+     * @param target the artificial tree
+     * @param path the path to cache for {@code target}
+     */
+    public void addArtificialPath(Tree target, TreePath path) {
+        CompilationUnitTree root = path.getCompilationUnit();
+        @SuppressWarnings("interning:not.interned") // reference equality of compilation units
+        boolean newRoot = root != artificialTreesRoot;
+        if (newRoot) {
+            artificialTrees.clear();
+            artificialTreesRoot = root;
+        }
+        artificialTrees.add(target);
+        addPath(target, path);
+    }
+
+    /**
      * Adds the given key and value to the cache.
      *
      * @param target the tree to add
@@ -109,6 +148,11 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
         }
         if (foundPaths.containsKey(target)) {
             // target was previously searched for and not found in the compilation unit.
+            return null;
+        }
+        if (artificialTrees.contains(target)) {
+            // An artificial tree is not part of the compilation unit; do not search for it.
+            foundPaths.put(target, null);
             return null;
         }
 
@@ -159,6 +203,11 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
         }
         if (foundPaths.containsKey(target)) {
             // target was previously searched for and not found in the compilation unit.
+            return null;
+        }
+        if (artificialTrees.contains(target)) {
+            // An artificial tree is not part of the compilation unit; do not search for it.
+            foundPaths.put(target, null);
             return null;
         }
 
