@@ -45,6 +45,8 @@ They are independent of the other subprojects. They are released separately from
 Checker Framework: as the Maven artifact `io.github.eisop:annotation-file-utilities`
 and as `annotation-file-utilities-VERSION.zip`. The changes of `eisop/annotation-tools` have
 been merged into them.
+The manual of the Annotation File Utilities documents the Maven artifact, and the release test
+runs the annotator from it.
 The annotator and its tests now also work on Windows: an implicit class bound is no longer
 inserted one character too far to the right there.
 
