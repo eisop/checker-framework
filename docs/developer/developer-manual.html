@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <title>Checker Framework developer manual</title>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="../manual/favicon-checkerframework.png" type="image/png"/>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="../manual/favicon-checkerframework.png" type="image/png">
 </head>
 <body>
 <h1 id="Checker_Framework_developer_manual">Checker Framework developer manual</h1>
@@ -23,6 +23,7 @@ including people who wish to edit its source code or make pull requests.
 <p>Contents:</p>
 <!-- start toc.  do not edit; run html-update-toc instead -->
     <ul>
+      <li><a href="#building-from-source">Building the Checker Framework from source</a></li>
       <li><a href="#Directory_structure">Directory structure</a>
         <ul>
           <li><a href="#Related_repositories">Related repositories</a></li>
@@ -62,6 +63,14 @@ including people who wish to edit its source code or make pull requests.
 <!-- end toc -->
 
 
+<h2 id="building-from-source">Building the Checker Framework from source</h2>
+
+<p>
+See section <a href="https://checkerframework.org/manual/#build-source">Building
+from source</a> in the Checker Framework manual.
+</p>
+
+
 <h2 id="Directory_structure">Directory structure</h2>
 
 <p>
@@ -97,8 +106,7 @@ The repository also contains the following directories:
 <p>
   The <a href="https://github.com/eisop/checker-framework"><code>checker-framework</code></a> project
   depends on
-  the <a href="https://github.com/eisop/jdk"><code>eisop/jdk</code></a> project,
-  the <a href="https://github.com/eisop/annotation-tools"><code>annotation-tools</code></a> project,
+  the <a href="https://github.com/eisop/jdk"><code>eisop/jdk</code></a> project
   and the <a href="https://github.com/eisop/stubparser"><code>stubparser</code></a> project.
 When making changes to one of these projects, you may also need to make changes to one or more of the others.
 </p>
@@ -200,7 +208,7 @@ Below are some steps you might try to resolve this issue (in order):
 <h2 id="tests">Testing the Checker Framework</h2>
 
 <p>
-For writing new test cases, see file <a href="https://raw.githubusercontent.com/eisop/checker-framework/master/checker/tests/README"><code>checker/tests/README</code></a>.
+For writing new test cases, see file <a href="https://raw.githubusercontent.com/eisop/checker-framework/master/checker/tests/README.md"><code>checker/tests/README.md</code></a>.
 </p>
 
 
@@ -208,7 +216,7 @@ For writing new test cases, see file <a href="https://raw.githubusercontent.com/
 
 <p>
 To test an optimization that should speed up type-checking, see
-the <code>test-daikon.sh</code> stage of the <code>daikon_jdk*</code> job
+the <code>test-daikon-part<em>N</em>.sh</code> stage of the <code>daikon_part<em>N</em>_jdk*</code> job
 of the Azure Pipelines CI job.  Compare the run time of this stage (or of
 the entire <code>daikon_jdk*</code> job) between the master branch and a
 branch with your improvements.
@@ -276,9 +284,9 @@ If your IDE cannot find <code>com.sun.source.*</code> packages, try changing the
 </p>
 
 <p>
-For VS Code and Eclipse, run <code>./gradlew eclipseClasspath</code> before running
-the IDE for the first time.
-This ensures generated files are not put in the standard <code>../bin/</code> directories.
+For VS Code users, install the recommended "Extension Pack for Java"
+(<code>vscjava.vscode-java-pack</code>). Recommended workspace settings and extension
+recommendations are provided in the <code>.vscode/</code> directory.
 </p>
 
 
@@ -575,7 +583,7 @@ lower-quality than it actually is.
   code appears in a fork in
   the <a href="https://github.com/eisop">GitHub <code>eisop</code>
   organization</a>.  Binaries are hosted
-  at <a href="https://search.maven.org/search?q=annotatedlib">Maven Central
+  at <a href="https://central.sonatype.com/search?q=annotatedlib">Maven Central
   in the <code>org.checkerframework.annotatedlib</code> group</a>.
 </p>
 
@@ -739,9 +747,15 @@ branch is deleted.
 </p>
 <ul>
   <li>
-    If you are building an old <em>released</em> version of the Checker Framework,
-    then <code>annotation-tools</code> should have a corresponding tag for the
-    release.
+    If you are building an old <em>released</em> version of the Checker Framework
+    that needs the <code>annotation-tools</code> repository, then
+    <code>annotation-tools</code> should have a corresponding tag for the
+    release.  The EISOP Checker Framework needed it only before
+    version 3.18.0-eisop1: since then, building the Checker Framework does not
+    use <code>annotation-tools</code> (Whole Program Inference through the
+    Annotation File Utilities is disabled).  The Annotation File Utilities are now
+    built in the <code>annotation-file-utilities</code> directory of this
+    repository, and <code>annotation-tools</code> is not used any more.
   </li>
   <li>
     Recently, any Stubparser change that breaks building the Checker
@@ -761,7 +775,7 @@ branch is deleted.
 </body>
 </html>
 
-<!--  LocalWords:  TODO javacutil gradle javadoc reformats subprojects pre NullAway CircleCI travis ci downarrow dropdown MYUSERID NNN doesn AnnotationStatistics JavaCodeStatistics stubparser wpi Dockerfile ubuntu jdkXX jdk wmtest bcel util bibtex html cd ReportChecker pids mernst gnb
+<!--  LocalWords:  TODO javacutil gradle javadoc reformats subprojects pre NullAway CircleCI travis ci downarrow dropdown MYUSERID NNN doesn AnnotationStatistics JavaCodeStatistics stubparser wpi Dockerfile ubuntu jdkXX jdk wmtest bcel util bibtex html cd ReportChecker pids mernst gnb DevOps
  -->
 <!--  LocalWords:  subproject personalblog changelog config SOMEDOMAIN YAML isn
  -->

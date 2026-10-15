@@ -44,5 +44,11 @@ public class ReadWriteDynamicField {
             // written so it requires @NonNull, and the right-hand side is read so it is @Nullable.
             a.f = b.g;
         }
+
+        void readInitialization(Unannotated u) {
+            // The initialization hierarchy has no read-write dynamic qualifier, so the field keeps
+            // the conservative top default there: @UnknownInitialization.
+            u.f.toString();
+        }
     }
 }

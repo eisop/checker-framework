@@ -9,4 +9,4 @@ echo "SHELLOPTS=${SHELLOPTS}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 source "$SCRIPT_DIR"/clone-related.sh
 
-./gradlew inferenceTests-part2 --console=plain --warning-mode=all
+./gradlew inferenceTests-part2 --warning-mode=all

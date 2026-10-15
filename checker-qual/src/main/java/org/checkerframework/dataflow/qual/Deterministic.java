@@ -18,15 +18,39 @@ import java.lang.annotation.Target;
  *
  * <p>This annotation is important to pluggable type-checking because, after a call to a
  * {@code @Deterministic} method, flow-sensitive type refinement can assume that anything learned
- * about the first invocation is true about subsequent invocations (so long as no
- * non-{@code @}{@link SideEffectFree} method call intervenes). For example, the following code
- * never suffers a null pointer exception, so the Nullness Checker need not issue a warning:
+ * about the first invocation is true about subsequent invocations, so long as the environment does
+ * not change in between. For example, if {@code myDeterministicMethod} is also {@link
+ * SideEffectFree}, the following code never suffers a null pointer exception, so the Nullness
+ * Checker need not issue a warning:
  *
  * <pre>{@code
  * if (x.myDeterministicMethod() != null) {
  *   x.myDeterministicMethod().hashCode();
  * }
  * }</pre>
+ *
+ * <p>The environment can change between the two invocations because of an intervening call to a
+ * non-{@code @}{@link SideEffectFree} method, but also because of the first invocation itself:
+ * determinism does not prevent a method from modifying the heap. For example, the following method
+ * is deterministic according to the definition above, but it is not side-effect-free, and in the
+ * code above its second invocation returns {@code null} (assuming {@code this.f} was initially
+ * non-null):
+ *
+ * <pre>{@code
+ * Object myDeterministicMethod() {
+ *   Object o = this.f;
+ *   this.f = null;
+ *   return o;
+ * }
+ * }</pre>
+ *
+ * <p>Nevertheless, the Checker Framework currently assumes that repeated invocations of any
+ * {@code @Deterministic} method return the same value, even if the method is not
+ * {@code @SideEffectFree}. This assumption is justified only when the annotation is checked,
+ * because the checking rules below forbid side effects in a {@code @Deterministic} method, and
+ * checking is disabled by default. Therefore, do not write {@code @Deterministic} on a method that
+ * has side effects, such as the one above. To state that a method is both deterministic and
+ * side-effect-free, write {@link Pure}.
  *
  * <p>Note that {@code @Deterministic} guarantees that the result is identical according to {@code
  * ==}, <b>not</b> just equal according to {@code equals()}. This means that writing

@@ -20,4 +20,4 @@ source "$SCRIPT_DIR"/clone-related.sh
 ## This is moved to misc, because otherwise it would be the only work done by this script.
 # # Checker Framework demos
 # "$SCRIPT_DIR/.git-scripts/git-clone-related" eisop checker-framework.demos
-# ./gradlew :checker:demosTests --console=plain --warning-mode=all
+# ./gradlew :checker:demosTests --warning-mode=all

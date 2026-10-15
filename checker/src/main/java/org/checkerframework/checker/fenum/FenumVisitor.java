@@ -24,7 +24,7 @@ import javax.lang.model.element.ExecutableElement;
 public class FenumVisitor extends BaseTypeVisitor<FenumAnnotatedTypeFactory> {
 
     /**
-     * Creates a Fenum Visitor
+     * Creates a Fenum Visitor.
      *
      * @param checker the checker
      */

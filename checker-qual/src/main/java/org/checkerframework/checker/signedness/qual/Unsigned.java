@@ -24,8 +24,8 @@ import java.lang.annotation.Target;
 @SubtypeOf({UnknownSignedness.class})
 @DefaultFor(
         typeKinds = {TypeKind.CHAR},
-        types = {java.lang.Character.class})
+        types = {Character.class})
 @UpperBoundFor(
         typeKinds = {TypeKind.CHAR},
-        types = {java.lang.Character.class})
+        types = {Character.class})
 public @interface Unsigned {}

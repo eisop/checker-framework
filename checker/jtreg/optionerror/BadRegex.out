@@ -1,0 +1,4 @@
+- compiler.err.proc.messager: Argument to -AwarnUnneededSuppressionsExceptions is not a regular expression: Unclosed character class near index 0
+[
+^
+1 error

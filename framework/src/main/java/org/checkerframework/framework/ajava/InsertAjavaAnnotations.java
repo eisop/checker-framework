@@ -26,11 +26,10 @@ import org.checkerframework.checker.signature.qual.DotSeparatedIdentifiers;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.framework.stub.AnnotationFileParser;
 import org.checkerframework.framework.util.JavaParserUtil;
-import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.FilesPlume;
+import org.plumelib.util.MapsP;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileVisitResult;
@@ -62,7 +61,9 @@ import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.ToolProvider;
 
-/** This program inserts annotations from an ajava file into a Java file. See {@link #main}. */
+/**
+ * This program reads an ajava file and inserts its annotations in a Java file. See {@link #main}.
+ */
 public class InsertAjavaAnnotations {
     /** Element utilities. */
     private final Elements elements;
@@ -184,7 +185,7 @@ public class InsertAjavaAnnotations {
         /** The lines of the String representation of the second AST. */
         private final List<String> lines;
 
-        /** The line separator used in the text the second AST was parsed from */
+        /** The line separator used in the text the second AST was parsed from. */
         private final String lineSeparator;
 
         /**
@@ -291,8 +292,7 @@ public class InsertAjavaAnnotations {
             List<String> newImports;
             { // set `newImports`
                 NodeList<ImportDeclaration> destImports = dest.getImports();
-                Set<String> existingImports =
-                        new HashSet<>(CollectionsPlume.mapCapacity(destImports.size()));
+                Set<String> existingImports = new HashSet<>(MapsP.mapCapacity(destImports.size()));
                 for (ImportDeclaration importDecl : destImports) {
                     existingImports.add(printer.print(importDecl));
                 }
@@ -551,7 +551,8 @@ public class InsertAjavaAnnotations {
             File javaFile = new File(javaFileName);
             String fileContents = FilesPlume.readString(Paths.get(javaFileName));
             String lineSeparator = FilesPlume.inferLineSeparator(annotationFileName);
-            try (FileInputStream annotationInputStream = new FileInputStream(annotationFileName)) {
+            try (InputStream annotationInputStream =
+                    Files.newInputStream(Paths.get(annotationFileName))) {
                 String result =
                         insertAnnotations(annotationInputStream, fileContents, lineSeparator);
                 FilesPlume.writeString(javaFile, result);
@@ -614,7 +615,7 @@ public class InsertAjavaAnnotations {
                         List<TypeDeclaration<?>> rootTypes = root.getTypes();
                         // Estimate of size.
                         Set<String> annotationFilesForRoot =
-                                new LinkedHashSet<>(CollectionsPlume.mapCapacity(rootTypes.size()));
+                                new LinkedHashSet<>(MapsP.mapCapacity(rootTypes.size()));
                         for (TypeDeclaration<?> type : rootTypes) {
                             String name = JavaParserUtil.getFullyQualifiedName(type, root);
                             annotationFilesForRoot.addAll(

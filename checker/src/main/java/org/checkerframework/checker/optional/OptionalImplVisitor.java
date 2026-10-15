@@ -36,10 +36,11 @@ import org.checkerframework.dataflow.util.PurityUtils;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
+import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.IPair;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -52,6 +53,7 @@ import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
@@ -134,6 +136,13 @@ public class OptionalImplVisitor
     private static final @CompilerMessageKey String PREFER_MAP_AND_ORELSE = "prefer.map.and.orelse";
 
     /**
+     * The message key for suggesting {@code map} in place of {@code isPresent} and {@code get},
+     * when there is no {@code else} value. Its message format takes 2 arguments: the receiver of
+     * {@code isPresent}/{@code get} and the method to pass to {@code map}.
+     */
+    private static final @CompilerMessageKey String PREFER_MAP = "prefer.map";
+
+    /**
      * The message key for suggesting {@code ifPresent} in place of {@code isPresent} and {@code
      * get}. Its message format takes 2 arguments: the receiver of {@code isPresent}/{@code get} and
      * the method to pass to {@code ifPresent}.
@@ -200,7 +209,7 @@ public class OptionalImplVisitor
      *     Optional.isPresent} or to {@code Optional.isEmpty}) and its receiver; or null if not a
      *     call to either of the methods
      */
-    private @Nullable IPair<Boolean, @Nullable ExpressionTree> isCallToIsPresent(
+    private @Nullable Pair<Boolean, @Nullable ExpressionTree> isCallToIsPresent(
             ExpressionTree expression) {
         ProcessingEnvironment env = checker.getProcessingEnvironment();
         boolean negate = false;
@@ -215,10 +224,10 @@ public class OptionalImplVisitor
                     break;
                 case METHOD_INVOCATION:
                     if (TreeUtils.isMethodInvocation(expression, optionalIsPresent, env)) {
-                        return IPair.of(!negate, TreeUtils.getReceiverTree(expression));
+                        return Pair.of(!negate, TreeUtils.getReceiverTree(expression));
                     } else if (optionalIsEmpty != null
                             && TreeUtils.isMethodInvocation(expression, optionalIsEmpty, env)) {
-                        return IPair.of(negate, TreeUtils.getReceiverTree(expression));
+                        return Pair.of(negate, TreeUtils.getReceiverTree(expression));
                     } else {
                         return null;
                     }
@@ -285,7 +294,7 @@ public class OptionalImplVisitor
     public void handleTernaryIsPresentGet(ConditionalExpressionTree tree) {
 
         ExpressionTree condExpr = TreeUtils.withoutParens(tree.getCondition());
-        IPair<Boolean, ExpressionTree> isPresentCall = isCallToIsPresent(condExpr);
+        Pair<Boolean, ExpressionTree> isPresentCall = isCallToIsPresent(condExpr);
         if (isPresentCall == null) {
             return;
         }
@@ -304,23 +313,16 @@ public class OptionalImplVisitor
         if (!isCallToGet(trueReceiver)) {
             return;
         }
+
         ExpressionTree getReceiver = TreeUtils.getReceiverTree(trueReceiver);
-
         ExpressionTree receiver = isPresentCall.second;
-        ExecutableElement ele = TreeUtils.elementFromUse((MethodInvocationTree) trueExpr);
-        boolean isPure =
-                PurityUtils.isDeterministic(atypeFactory, ele)
-                        && PurityUtils.isSideEffectFree(atypeFactory, ele);
-
-        if (sameExpression(receiver, getReceiver) && isPure) {
-
+        if (sameExpression(receiver, getReceiver)) {
+            ExecutableElement ele = TreeUtils.elementFromUse((MethodInvocationTree) trueExpr);
             checker.reportWarning(
                     tree,
                     PREFER_MAP_AND_ORELSE,
                     receiver,
-                    // The literal "ENCLOSINGCLASS::" is gross.
-                    // TODO: add this to the error message.
-                    // ElementUtils.getQualifiedClassName(ele);
+                    ElementUtils.getQualifiedClassName(ele),
                     ele.getSimpleName(),
                     falseExpr);
         }
@@ -393,7 +395,7 @@ public class OptionalImplVisitor
     public void handleConditionalStatementIsPresentGet(IfTree tree) {
 
         ExpressionTree condExpr = TreeUtils.withoutParens(tree.getCondition());
-        IPair<Boolean, ExpressionTree> isPresentCall = isCallToIsPresent(condExpr);
+        Pair<Boolean, ExpressionTree> isPresentCall = isCallToIsPresent(condExpr);
         if (isPresentCall == null) {
             return;
         }
@@ -440,15 +442,12 @@ public class OptionalImplVisitor
             ExpressionTree initializer = ((VariableTree) thenStmt).getInitializer();
             if (initializer instanceof MethodInvocationTree) {
                 checkConditionalStatementIsPresentGetCall(
-                        tree,
-                        (MethodInvocationTree) initializer,
-                        isPresentCall,
-                        PREFER_MAP_AND_ORELSE);
+                        tree, (MethodInvocationTree) initializer, isPresentCall, PREFER_MAP);
                 return;
             }
         }
 
-        if (thenStmt == null || !(thenStmt instanceof ExpressionStatementTree)) {
+        if (!(thenStmt instanceof ExpressionStatementTree)) {
             return;
         }
         ExpressionTree thenExpr = ((ExpressionStatementTree) thenStmt).getExpression();
@@ -498,9 +497,7 @@ public class OptionalImplVisitor
                         tree,
                         PREFER_MAP_AND_ORELSE,
                         trueAssignment.getVariable(),
-                        // The literal "ENCLOSINGCLASS::" is gross.
-                        // TODO: add this to the error message.
-                        // ElementUtils.getQualifiedClassName(ele);
+                        ElementUtils.getQualifiedClassName(ele),
                         ele.getSimpleName(),
                         falseAssignment.getExpression());
             }
@@ -524,13 +521,12 @@ public class OptionalImplVisitor
      * @param invok the entire method invocation statement or the initializer of an assignment
      * @param isPresentCall the pair comprising a boolean (indicating whether the expression is a
      *     call to {@code Optional.isPresent} or to {@code Optional.isEmpty}) and its receiver
-     * @param messageKey the message key, either {@link #PREFER_IFPRESENT} or {@link
-     *     #PREFER_MAP_AND_ORELSE}
+     * @param messageKey the message key, either {@link #PREFER_IFPRESENT} or {@link #PREFER_MAP}
      */
     private void checkConditionalStatementIsPresentGetCall(
             IfTree tree,
             MethodInvocationTree invok,
-            IPair<Boolean, ExpressionTree> isPresentCall,
+            Pair<Boolean, ExpressionTree> isPresentCall,
             @CompilerMessageKey String messageKey) {
         List<? extends ExpressionTree> invokArgs = invok.getArguments();
         if (invokArgs.size() != 1) {
@@ -548,10 +544,13 @@ public class OptionalImplVisitor
         ExpressionTree method = invok.getMethodSelect();
 
         String methodString = method.toString();
-        int dotPos = methodString.lastIndexOf(".");
+        int dotPos = methodString.lastIndexOf('.');
         if (dotPos != -1) {
             methodString =
                     methodString.substring(0, dotPos) + "::" + methodString.substring(dotPos + 1);
+        } else {
+            Element ele = TreeUtils.elementFromUse(method);
+            methodString = ElementUtils.getQualifiedClassName(ele) + "::" + methodString;
         }
 
         if (messageKey.equals(PREFER_MAP_AND_ORELSE)) {
@@ -694,7 +693,7 @@ public class OptionalImplVisitor
      * <p>If an Optional value is compared with the null literal, it indicates that the programmer
      * expects it might have been assigned a null value (or no value at all) somewhere in the code.
      *
-     * @param tree a binary tree representing a binary operation.
+     * @param tree a binary tree representing a binary operation
      */
     private void handleCompareToNull(BinaryTree tree) {
         if (!isEqualityOperation(tree)) {
@@ -939,7 +938,7 @@ public class OptionalImplVisitor
     }
 
     /**
-     * Return true if tm is a subtype of Collection (other than the Null type).
+     * Returns true if tm is a subtype of Collection (other than the Null type).
      *
      * @param tm a type
      * @return true if the given type is a subtype of Collection
@@ -958,7 +957,7 @@ public class OptionalImplVisitor
                             "java.util.OptionalLong"));
 
     /**
-     * Return true if tm is class Optional, OptionalDouble, OptionalInt, or OptionalLong in
+     * Returns true if tm is class Optional, OptionalDouble, OptionalInt, or OptionalLong in
      * java.util.
      *
      * @param tm a type

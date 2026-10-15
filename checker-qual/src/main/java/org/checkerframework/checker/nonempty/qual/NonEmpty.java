@@ -12,9 +12,9 @@ import java.lang.annotation.Target;
  * The {@link java.util.Collection Collection}, {@link java.util.Iterator Iterator}, {@link Iterable
  * Iterable}, or {@link java.util.Map Map}, or {@link java.util.stream.Stream Stream} is definitely
  * non-empty.
- *
- * @checker_framework.manual #non-empty-checker Non-Empty Checker
  */
+// Reinstate when the Non-Empty Checker is publicized.
+//  * @checker_framework.manual #non-empty-checker Non-Empty Checker
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_PARAMETER, ElementType.TYPE_USE})

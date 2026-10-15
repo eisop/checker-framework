@@ -152,7 +152,7 @@ java .claude/skills/cf-performance/jfr-analyze.java phase cf-*.jfr
 java .claude/skills/cf-performance/jfr-analyze.java inclusive org.checkerframework cf-*.jfr
 
 # Where one subsystem spends its self-time:
-java .claude/skills/cf-performance/jfr-analyze.java under performFlowAnalysis cf-*.jfr
+java .claude/skills/cf-performance/jfr-analyze.java under performFlowAnalysisForClass cf-*.jfr
 
 # Attribute a cost to a calling context (e.g. is this mostly under stub parsing?):
 java .claude/skills/cf-performance/jfr-analyze.java cooccur getDeclAnnotation AnnotationFileParser cf-*.jfr

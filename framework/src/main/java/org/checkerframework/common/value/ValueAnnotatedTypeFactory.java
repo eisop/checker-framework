@@ -35,6 +35,7 @@ import org.checkerframework.common.value.util.Range;
 import org.checkerframework.dataflow.expression.ArrayAccess;
 import org.checkerframework.dataflow.expression.ArrayCreation;
 import org.checkerframework.dataflow.expression.JavaExpression;
+import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.ValueLiteral;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFStore;
@@ -53,7 +54,6 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.ListTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.FieldInvariants;
-import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -65,11 +65,13 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -478,7 +480,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         Set<Class<? extends Annotation>> superResult =
                 super.getFieldInvariantDeclarationAnnotations();
         Set<Class<? extends Annotation>> set =
-                new HashSet<>(CollectionsPlume.mapCapacity(superResult.size() + 1));
+                new HashSet<>(MapsP.mapCapacity(superResult.size() + 1));
         set.addAll(superResult);
         set.add(MinLenFieldInvariant.class);
         return set;
@@ -886,7 +888,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * reflects the {@code resultType} given.
      *
      * @param resultType used to select which kind of value annotation is returned
-     * @param values must be a homogeneous list: every element of it has the same class
+     * @param values a homogeneous list: every element of it has the same class
      * @return a constant value annotation with the {@code values}
      */
     /*package-private*/ AnnotationMirror createResultingAnnotation(
@@ -1530,7 +1532,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 AnnotationUtils.getElementValueArray(intAnno, intValValueElement, Long.class);
         List<Character> charValues =
                 CollectionsPlume.mapList((Long i) -> (char) i.intValue(), intValues);
-        Collections.sort(charValues);
+        charValues.sort(Comparator.naturalOrder());
         // TODO: Should this be an unmodifiable list?
         return new ArrayList<>(charValues);
     }
@@ -1817,8 +1819,8 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             // This is only expected to support array creations in varargs methods
             return arrayCreation.getInitializers().size();
         } else if (expressionObj instanceof ArrayAccess) {
-            List<? extends AnnotationMirror> annoList =
-                    expressionObj.getType().getAnnotationMirrors();
+            TypeMirror expressionType = expressionObj.getType();
+            List<? extends AnnotationMirror> annoList = expressionType.getAnnotationMirrors();
             for (AnnotationMirror anno : annoList) {
                 String name = AnnotationUtils.annotationName(anno);
                 if (name == MINLEN_NAME) {

@@ -8,11 +8,11 @@ import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.NumericalSubtractionNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
+import org.checkerframework.dataflow.expression.JavaExpressionParseUtil;
 import org.checkerframework.dataflow.expression.ValueLiteral;
 import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFValue;
-import org.checkerframework.framework.util.JavaExpressionParseUtil;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.plumelib.util.CollectionsPlume;
 
@@ -135,7 +135,7 @@ public class LessThanTransfer extends IndexAbstractTransfer {
     }
 
     /**
-     * Return the expressions that {@code node} is less than.
+     * Returns the expressions that {@code node} is less than.
      *
      * @param node a CFG node
      * @return the expressions that {@code node} is less than
@@ -154,7 +154,7 @@ public class LessThanTransfer extends IndexAbstractTransfer {
     }
 
     /**
-     * Return true if {@code expr} is a double or float literal, which can't be parsed by {@link
+     * Returns true if {@code expr} is a double or float literal, which can't be parsed by {@link
      * JavaExpressionParseUtil}.
      */
     private boolean isDoubleOrFloatLiteral(JavaExpression expr) {
@@ -167,7 +167,7 @@ public class LessThanTransfer extends IndexAbstractTransfer {
     }
 
     /**
-     * Return the string representation of {@code expr + 1}.
+     * Returns the string representation of {@code expr + 1}.
      *
      * @param expr a JavaExpression
      * @return the string representation of {@code expr + 1}

@@ -38,7 +38,7 @@ public class PurityUtils {
      *
      * @param provider how to get annotations
      * @param methodTree a method to test
-     * @return whether the method has any purity annotations
+     * @return true if the method has any purity annotations
      */
     public static boolean hasPurityAnnotation(AnnotationProvider provider, MethodTree methodTree) {
         return !getPurityKinds(provider, methodTree).isEmpty();
@@ -49,7 +49,7 @@ public class PurityUtils {
      *
      * @param provider how to get annotations
      * @param methodElement a method to test
-     * @return whether the method has any purity annotations
+     * @return true if the method has any purity annotations
      */
     public static boolean hasPurityAnnotation(
             AnnotationProvider provider, ExecutableElement methodElement) {
@@ -61,7 +61,7 @@ public class PurityUtils {
      *
      * @param provider how to get annotations
      * @param methodTree a method to test
-     * @return whether the method is deterministic
+     * @return true if the method is deterministic
      */
     public static boolean isDeterministic(AnnotationProvider provider, MethodTree methodTree) {
         ExecutableElement methodElement = TreeUtils.elementFromDeclaration(methodTree);
@@ -73,7 +73,7 @@ public class PurityUtils {
      *
      * @param provider how to get annotations
      * @param methodElement a method to test
-     * @return whether the method is deterministic
+     * @return true if the method is deterministic
      */
     public static boolean isDeterministic(
             AnnotationProvider provider, ExecutableElement methodElement) {
@@ -94,7 +94,7 @@ public class PurityUtils {
      *
      * @param provider how to get annotations
      * @param methodElement a method to test
-     * @return whether the method is side-effect-free
+     * @return true if the method is side-effect-free
      */
     public static boolean isSideEffectFree(
             AnnotationProvider provider, ExecutableElement methodElement) {

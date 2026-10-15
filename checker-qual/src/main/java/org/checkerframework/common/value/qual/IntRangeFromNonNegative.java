@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
  *
  * <p>IntRangeFromNonNegative annotations derived from NonNegative annotations are used to create
  * IntRange annotations, but IntRangeFromNonNegative annotations are not checked when they appear on
- * the left hand side of expressions. Therefore, the Index Checker MUST be run on any code
+ * the left-hand side of expressions. Therefore, the Index Checker MUST be run on any code
  * with @NonNegative annotations on the left-hand side of expressions, since the Value Checker will
  * derive information from them but not check them.
  *
@@ -28,6 +28,8 @@ import java.lang.annotation.Target;
  * @checker_framework.manual #constant-value-checker Constant Value Checker
  */
 @Documented
+// Do not store in class file: this is only an internal alias of an Index Checker qualifier, such as
+// @NonNegative, which is stored instead.
 @Retention(RetentionPolicy.SOURCE)
 @Target({})
 @SubtypeOf(UnknownVal.class)

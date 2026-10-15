@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
  *
  * <p>IntRangeFromGTENegativeOne annotations derived from GTENegativeOne annotations are used to
  * create IntRange annotations, but IntRangeFromGTENegativeOne annotations are not checked when they
- * appear on the left hand side of expressions. Therefore, the Index Checker MUST be run on any code
+ * appear on the left-hand side of expressions. Therefore, the Index Checker MUST be run on any code
  * with @GTENegativeOne annotations on the left-hand side of expressions, since the Value Checker
  * will derive information from them but not check them.
  *
@@ -28,6 +28,8 @@ import java.lang.annotation.Target;
  * @checker_framework.manual #constant-value-checker Constant Value Checker
  */
 @Documented
+// Do not store in class file: this is only an internal alias of an Index Checker qualifier, such as
+// @GTENegativeOne, which is stored instead.
 @Retention(RetentionPolicy.SOURCE)
 @Target({})
 @SubtypeOf(UnknownVal.class)

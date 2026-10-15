@@ -36,11 +36,11 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.ArrayMap;
-import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -203,8 +203,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      *
      * @param type the AnnotatedTypeMirror being validated
      * @param tree a Tree whose type is {@code type}
-     * @return whether or not the top-level type should be checked, if {@code type} is a declared or
-     *     primitive type.
+     * @return true if the top-level type should be checked, if {@code type} is a declared or
+     *     primitive type
      */
     protected boolean shouldCheckTopLevelDeclaredOrPrimitiveType(
             AnnotatedTypeMirror type, Tree tree) {
@@ -427,7 +427,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
          * Try to reconstruct the ParameterizedTypeTree from the given tree.
          * TODO: there has to be a nicer way to do this...
          */
-        IPair<ParameterizedTypeTree, AnnotatedDeclaredType> p =
+        Pair<ParameterizedTypeTree, AnnotatedDeclaredType> p =
                 extractParameterizedTypeTree(tree, type);
         ParameterizedTypeTree typeArgTree = p.first;
         type = p.second;
@@ -512,7 +512,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         List<? extends Tree> boundTrees = typeParameterTree.getBounds();
         if (boundTrees.size() == 1) {
             scan(typeParameter.getUpperBound(), boundTrees.get(0));
-        } else if (boundTrees.size() == 0) {
+        } else if (boundTrees.isEmpty()) {
             // The upper bound is implicitly Object
             scan(typeParameter.getUpperBound(), typeParameterTree);
         } else {
@@ -533,7 +533,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @return if {@code tree} has a {@code ParameterizedTypeTree}, then returns the tree and its
      *     type. Otherwise, returns null and {@code type}.
      */
-    private IPair<@Nullable ParameterizedTypeTree, AnnotatedDeclaredType>
+    private Pair<@Nullable ParameterizedTypeTree, AnnotatedDeclaredType>
             extractParameterizedTypeTree(Tree tree, AnnotatedDeclaredType type) {
         ParameterizedTypeTree typeargtree = null;
 
@@ -573,7 +573,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                     // TODO: add more test cases to ensure that nested types are
                     // handled correctly,
                     // e.g. @Nullable() List<@Nullable Object>[][]
-                    IPair<ParameterizedTypeTree, AnnotatedDeclaredType> p =
+                    Pair<ParameterizedTypeTree, AnnotatedDeclaredType> p =
                             extractParameterizedTypeTree(undtr, type);
                     typeargtree = p.first;
                     type = p.second;
@@ -603,7 +603,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 break;
         }
 
-        return IPair.of(typeargtree, type);
+        return Pair.of(typeargtree, type);
     }
 
     @Override
@@ -706,8 +706,27 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 break;
             }
         }
+        // A lambda parameter without a declared type has no type tree.
+        if (nameTree == null) {
+            return;
+        }
         if (nameTree instanceof ParameterizedTypeTree) {
             nameTree = ((ParameterizedTypeTree) nameTree).getType();
+        }
+
+        // The scan of a declared type also visits its enclosing type, passing the same tree. Then
+        // `type` is an enclosing type of the type that the tree names, and the levels of `type`'s
+        // enclosing-type chain do not correspond to the levels of the tree's qualifier chain. The
+        // visit of the type that the tree names validates the whole chain, so do nothing here.
+        Element typeElement = type.getUnderlyingType().asElement();
+        Element namedElement = TreeUtils.elementFromTree(nameTree);
+        for (Element enclosingElement =
+                        namedElement == null ? null : namedElement.getEnclosingElement();
+                enclosingElement != null;
+                enclosingElement = enclosingElement.getEnclosingElement()) {
+            if (enclosingElement.equals(typeElement)) {
+                return;
+            }
         }
 
         // Walk outward through the qualifier chain, validating each enclosing type that is written

@@ -162,7 +162,7 @@ public class ArrayCreation extends JavaExpression {
                 sb.append("]");
             }
         }
-        if (!initializers.isEmpty()) {
+        if (!initializers.isEmpty() || dimensions.isEmpty()) {
             sb.append(" {");
             sb.append(StringsPlume.join(", ", initializers));
             sb.append("}");

@@ -1,0 +1,30 @@
+import org.checkerframework.checker.index.qual.GrowOnly;
+import org.checkerframework.checker.index.qual.UncheckedCanShrink;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class GrowOnlyJdkTest {
+
+    void testAllowedCalls(@GrowOnly List<String> list) {
+        list.add("new element");
+    }
+
+    void testForbiddenCalls(@GrowOnly List<String> list) {
+        // :: error: (method.invocation.invalid)
+        list.remove(0);
+    }
+
+    void testLocalVariable() {
+        @GrowOnly List<String> localList = new @GrowOnly ArrayList<>();
+        localList.add("hello");
+        // :: error: (method.invocation.invalid)
+        localList.clear();
+    }
+
+    void testUncheckedCanShrink() {
+        @UncheckedCanShrink List<String> list = new @UncheckedCanShrink ArrayList<>();
+        list.add("hello");
+        list.remove(0);
+    }
+}

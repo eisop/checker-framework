@@ -18,9 +18,9 @@ import org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
+import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
-import org.checkerframework.framework.util.JavaExpressionParseUtil;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -136,7 +136,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
     }
 
     /**
-     * Check that an overriding method does not reduce the number of created must-call obligations
+     * Check that an overriding method does not reduce the number of created must-call obligations.
      *
      * @param tree overriding method
      * @param elt element for overriding method
@@ -389,7 +389,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
     }
 
     /**
-     * Get all {@link EnsuresCalledMethods} annotations on an element.
+     * Returns all {@link EnsuresCalledMethods} annotations on an element.
      *
      * @param elt an executable element that might have {@link EnsuresCalledMethods} annotations
      * @param atypeFactory a {@link RLCCalledMethodsAnnotatedTypeFactory}
@@ -455,8 +455,12 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             DestructorObligation that = (DestructorObligation) o;
             return mustCallMethod.equals(that.mustCallMethod) && exitKind == that.exitKind;
         }
@@ -515,16 +519,16 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
 
         if (enclosingMustCallValues == null) {
             error =
-                    " The enclosing element "
+                    "the enclosing element "
                             + ElementUtils.getQualifiedName(enclosingElement)
-                            + " doesn't have a @MustCall annotation";
+                            + " does not have a @MustCall annotation";
         } else if (enclosingMustCallValues.isEmpty()) {
             error =
-                    " The enclosing element "
+                    "the enclosing element "
                             + ElementUtils.getQualifiedName(enclosingElement)
                             + " has an empty @MustCall annotation";
         } else {
-            error = " [[checkOwningField() did not find a reason!]]"; // should be reassigned
+            error = "[[checkOwningField() did not find a reason!]]"; // should be reassigned
             List<? extends Element> siblingsOfOwningField = enclosingElement.getEnclosedElements();
             for (Element siblingElement : siblingsOfOwningField) {
                 if (siblingElement.getKind() == ElementKind.METHOD
@@ -542,7 +546,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
                                         rlTypeFactory.ensuresCalledMethodsValueElement,
                                         String.class);
                         for (String value : values) {
-                            if (expressionEqualsField(value, field)) {
+                            if (expressionIsFieldAccess(value, field)) {
                                 List<String> methods =
                                         AnnotationUtils.getElementValueArray(
                                                 ensuresCalledMethodsAnno,
@@ -562,7 +566,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
                                 rlTypeFactory.getExceptionalPostconditions(siblingMethod);
                         for (EnsuresCalledMethodOnExceptionContract postcond :
                                 exceptionalPostconds) {
-                            if (expressionEqualsField(postcond.getExpression(), field)) {
+                            if (expressionIsFieldAccess(postcond.getExpression(), field)) {
                                 unsatisfiedMustCallObligationsOfOwningField.remove(
                                         new DestructorObligation(
                                                 postcond.getMethod(),
@@ -582,7 +586,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
                         // This variable could be set immediately before reporting the error, but
                         // IMO it is more clear to set it here.
                         error =
-                                "Postconditions written on MustCall methods are missing: "
+                                "postconditions written on MustCall methods are missing: "
                                         + formatMissingMustCallMethodPostconditions(
                                                 field, unsatisfiedMustCallObligationsOfOwningField);
                     }
@@ -608,17 +612,17 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
     }
 
     /**
-     * Determine if the given expression <code>e</code> refers to <code>this.field</code>.
+     * Determine if the given expression {@code e} refers to {@code this.field}.
      *
      * @param e the expression
      * @param field the field
-     * @return true if <code>e</code> refers to <code>this.field</code>
+     * @return true if {@code e} refers to {@code this.field}
      */
-    private boolean expressionEqualsField(String e, VariableElement field) {
+    private boolean expressionIsFieldAccess(String e, VariableElement field) {
         try {
             JavaExpression je = StringToJavaExpression.atFieldDecl(e, field, this.checker);
             return je instanceof FieldAccess && ((FieldAccess) je).getField().equals(field);
-        } catch (JavaExpressionParseUtil.JavaExpressionParseException ex) {
+        } catch (JavaExpressionParseException ex) {
             // The parsing error will be reported elsewhere, assuming e was derived from an
             // annotation.
             return false;

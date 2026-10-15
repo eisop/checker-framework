@@ -179,75 +179,30 @@ public class InitializationStore extends CFAbstractStore<CFValue, Initialization
         }
         InitializationStore result = super.leastUpperBound(other);
 
-        result.initializedFields.addAll(other.initializedFields);
-        result.initializedFields.retainAll(initializedFields);
+        // The result's initialized fields are the intersection of both stores' initialized fields.
+        // If one set contains the other -- in particular, if both are the same set -- the
+        // intersection is the smaller set itself, so share it instead of building a new set. That
+        // keeps later equality checks against either store on the set-identity fast path.
+        boolean thisIsSmaller = initializedFields.size() <= other.initializedFields.size();
+        InitializationStore smallerStore = thisIsSmaller ? this : other;
+        Set<VariableElement> smaller = smallerStore.initializedFields;
+        Set<VariableElement> larger = thisIsSmaller ? other.initializedFields : initializedFields;
+        @SuppressWarnings("interning:not.interned") // fast path for a shared set
+        boolean sameSet = smaller == larger;
+        if (sameSet || larger.containsAll(smaller)) {
+            result.initializedFields = smaller;
+            result.isShared = true;
+            smallerStore.isShared = true;
+        } else {
+            for (VariableElement field : smaller) {
+                if (larger.contains(field)) {
+                    result.initializedFields.add(field);
+                }
+            }
+        }
 
         return result;
     }
-
-    /*
-     * TODO: implement a meaningful `isDeclaredInitialized`.
-     *
-    @Override
-    protected CFValue newFieldValueAfterMethodCall(
-            FieldAccess fieldAccess,
-            GenericAnnotatedTypeFactory<CFValue, InitializationStore, ?, ?> atypeFactory,
-            CFValue value) {
-        if (isDeclaredInitialized(fieldAccess)) {
-            return value;
-        }
-
-        return super.newFieldValueAfterMethodCall(fieldAccess, atypeFactory, value);
-    }
-    */
-
-    /*
-     * Determine whether the given field is declared as {@link Initialized} (taking into account
-     * viewpoint adaption for {@link NotOnlyInitialized}).
-     *
-     * @param fieldAccess the field to check
-     * @return whether the given field is declared as {@link Initialized} (taking into account
-     *     viewpoint adaption for {@link NotOnlyInitialized})
-     *
-    protected boolean isDeclaredInitialized(FieldAccess fieldAccess) {
-        // Returning false is the conservative answer, but not much faster than asking the ATF.
-        return false;
-        /*
-        InitializationParentAnnotatedTypeFactory atypeFactory =
-                (InitializationParentAnnotatedTypeFactory) analysis.getTypeFactory();
-        AnnotatedTypeMirror declField = atypeFactory.getAnnotatedType(fieldAccess.getField());
-        if (!declField.hasAnnotation(atypeFactory.INITIALIZED)) {
-            return false;
-        }
-
-        AnnotatedTypeMirror receiverType;
-        if (thisValue != null
-                && thisValue.getUnderlyingType().getKind() != TypeKind.ERROR
-                && thisValue.getUnderlyingType().getKind() != TypeKind.NULL) {
-            receiverType =
-                    AnnotatedTypeMirror.createType(
-                            thisValue.getUnderlyingType(), atypeFactory, false);
-            for (AnnotationMirror anno : thisValue.getAnnotations()) {
-                receiverType.replaceAnnotation(anno);
-            }
-        } else if (!fieldAccess.isStatic()) {
-            receiverType =
-                    AnnotatedTypeMirror.createType(
-                                    fieldAccess.getReceiver().getType(), atypeFactory, false)
-                            .getErased();
-            receiverType.addAnnotations(atypeFactory.getQualifierHierarchy().getTopAnnotations());
-        } else {
-            receiverType = null;
-        }
-
-        if (receiverType != null) {
-            return receiverType.hasAnnotation(atypeFactory.INITIALIZED);
-        } else {
-            // The field is static and INITIALIZED, so there is nothing else to check.
-            return true;
-        }
-    }
-    */
 
     @Override
     protected String internalVisualize(CFGVisualizer<CFValue, InitializationStore, ?> viz) {

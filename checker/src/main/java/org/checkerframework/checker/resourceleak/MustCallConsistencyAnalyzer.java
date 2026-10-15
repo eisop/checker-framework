@@ -45,22 +45,22 @@ import org.checkerframework.dataflow.cfg.node.SuperNode;
 import org.checkerframework.dataflow.cfg.node.ThisNode;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
+import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFValue;
-import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -168,13 +168,13 @@ public class MustCallConsistencyAnalyzer {
     /**
      * A cache for the result of calling {@code
      * RLCCalledMethodsAnnotatedTypeFactory.getStoreAfter()} on a node. The cache prevents
-     * repeatedly computing least upper bounds on stores
+     * repeatedly computing least upper bounds on stores.
      */
     private final IdentityHashMap<Node, AccumulationStore> cmStoreAfter = new IdentityHashMap<>();
 
     /**
      * A cache for the result of calling {@code MustCallAnnotatedTypeFactory.getStoreAfter()} on a
-     * node. The cache prevents repeatedly computing least upper bounds on stores
+     * node. The cache prevents repeatedly computing least upper bounds on stores.
      */
     private final IdentityHashMap<Node, CFStore> mcStoreAfter = new IdentityHashMap<>();
 
@@ -556,7 +556,9 @@ public class MustCallConsistencyAnalyzer {
             String referenceStr = reference.toString();
             // We assume that any temporary variable name will not be a syntactically-valid
             // identifier or keyword.
-            return !SourceVersion.isIdentifier(referenceStr) ? tree.toString() : referenceStr;
+            return !SourceVersion.isIdentifier(referenceStr)
+                    ? TreeUtils.toStringTruncated(tree, 50)
+                    : referenceStr;
         }
     }
 
@@ -620,8 +622,8 @@ public class MustCallConsistencyAnalyzer {
      *
      * @param obligations the Obligations to update
      * @param node the method or constructor invocation
-     * @param exceptionType a description of the outgoing CFG edge from the node: <code>null</code>
-     *     to indicate normal return, or a {@link TypeMirror} to indicate a subclass of the given
+     * @param exceptionType a description of the outgoing CFG edge from the node: {@code null} to
+     *     indicate normal return, or a {@link TypeMirror} to indicate a subclass of the given
      *     throwable class was thrown
      */
     private void updateObligationsForInvocation(
@@ -813,8 +815,8 @@ public class MustCallConsistencyAnalyzer {
     }
 
     /**
-     * Checks whether the two JavaExpressions are the same. This is identical to calling equals() on
-     * one of them, with two exceptions: the second expression can be null, and {@code this}
+     * Returns true if the two JavaExpressions are the same. This is identical to calling equals()
+     * on one of them, with two exceptions: the second expression can be null, and {@code this}
      * references are compared using their underlying type. (ThisReference#equals always returns
      * true, which is probably a bug and isn't accurate in the case of nested classes.)
      *
@@ -1017,8 +1019,8 @@ public class MustCallConsistencyAnalyzer {
      * @param obligations the current set of Obligations, which is side-effected to remove
      *     Obligations for locals that are passed as owning parameters to the method or constructor
      * @param node a method or constructor invocation node
-     * @param exceptionType a description of the outgoing CFG edge from the node: <code>null</code>
-     *     to indicate normal return, or a {@link TypeMirror} to indicate a subclass of the given
+     * @param exceptionType a description of the outgoing CFG edge from the node: {@code null} to
+     *     indicate normal return, or a {@link TypeMirror} to indicate a subclass of the given
      *     throwable class was thrown
      */
     private void removeObligationsAtOwnershipTransferToParameters(
@@ -1154,8 +1156,8 @@ public class MustCallConsistencyAnalyzer {
             return;
         }
         // Use the temporary variable for the rhs if it exists.
-        Node rhs = NodeUtils.removeCasts(assignmentNode.getExpression());
-        rhs = getTempVarOrNode(rhs);
+        Node rhsExpr = NodeUtils.removeCasts(assignmentNode.getExpression());
+        Node rhs = getTempVarOrNode(rhsExpr);
 
         // Ownership transfer to @Owning field.
         if (lhsElement.getKind() == ElementKind.FIELD) {
@@ -1165,7 +1167,7 @@ public class MustCallConsistencyAnalyzer {
             if (isOwningField
                     && cmAtf.canCreateObligations()
                     && !ElementUtils.isFinal(lhsElement)) {
-                checkReassignmentToField(obligations, assignmentNode);
+                checkReassignmentToOwningField(obligations, assignmentNode);
             }
 
             // Remove Obligations from local variables, now that the owning field is responsible.
@@ -1479,13 +1481,13 @@ public class MustCallConsistencyAnalyzer {
      * @param obligations current tracked Obligations
      * @param node an assignment to a non-final, owning field
      */
-    private void checkReassignmentToField(Set<Obligation> obligations, AssignmentNode node) {
+    private void checkReassignmentToOwningField(Set<Obligation> obligations, AssignmentNode node) {
 
         Node lhsNode = node.getTarget();
 
         if (!(lhsNode instanceof FieldAccessNode)) {
             throw new TypeSystemError(
-                    "checkReassignmentToField: non-field node "
+                    "checkReassignmentToOwningField: non-field node "
                             + node
                             + " of class "
                             + node.getClass());
@@ -1542,8 +1544,8 @@ public class MustCallConsistencyAnalyzer {
                         formatMissingMustCallMethods(mcValues),
                         "field " + lhsElement.getSimpleName().toString(),
                         lhsElement.asType().toString(),
-                        "Field assignment outside method or declaration might overwrite field's"
-                                + " current value");
+                        "field assignment outside a method or declaration might overwrite the"
+                                + " field's current value");
                 return;
             }
         } else if (permitInitializationLeak && TreeUtils.isConstructor(enclosingMethodTree)) {
@@ -1669,7 +1671,7 @@ public class MustCallConsistencyAnalyzer {
                         formatMissingMustCallMethods(mcValues),
                         "field " + lhsElement.getSimpleName().toString(),
                         lhsElement.asType().toString(),
-                        " Non-final owning field might be overwritten");
+                        "non-final owning field might be overwritten");
             }
         }
     }
@@ -1819,7 +1821,7 @@ public class MustCallConsistencyAnalyzer {
     }
 
     /**
-     * Get the nodes representing the arguments of a method or constructor invocation from the
+     * Returns the nodes representing the arguments of a method or constructor invocation from the
      * invocation node.
      *
      * @param node a MethodInvocation or ObjectCreation node
@@ -1837,7 +1839,7 @@ public class MustCallConsistencyAnalyzer {
     }
 
     /**
-     * Get the elements representing the formal parameters of a method or constructor, from an
+     * Returns the elements representing the formal parameters of a method or constructor, from an
      * invocation of that method or constructor.
      *
      * @param node a method invocation or object creation node
@@ -1895,24 +1897,24 @@ public class MustCallConsistencyAnalyzer {
     }
 
     /**
-     * Get all successor blocks for some block, except for those corresponding to ignored exception
-     * types. See {@link RLCCalledMethodsAnalysis#isIgnoredExceptionType(TypeMirror)}. Each
-     * exceptional successor is paired with the type of exception that leads to it, for use in error
-     * messages.
+     * Returns all successor blocks for some block, except for those corresponding to ignored
+     * exception types. See {@link RLCCalledMethodsAnalysis#isIgnoredExceptionType(TypeMirror)}.
+     * Each exceptional successor is paired with the type of exception that leads to it, for use in
+     * error messages.
      *
      * @param block input block
      * @return set of pairs (b, t), where b is a successor block, and t is the type of exception for
      *     the CFG edge from block to b, or {@code null} if b is a non-exceptional successor
      */
-    private Set<IPair<Block, @Nullable TypeMirror>> getSuccessorsExceptIgnoredExceptions(
+    private Set<Pair<Block, @Nullable TypeMirror>> getSuccessorsExceptIgnoredExceptions(
             Block block) {
         if (block.getType() == Block.BlockType.EXCEPTION_BLOCK) {
             ExceptionBlock excBlock = (ExceptionBlock) block;
-            Set<IPair<Block, @Nullable TypeMirror>> result = new LinkedHashSet<>();
+            Set<Pair<Block, @Nullable TypeMirror>> result = new LinkedHashSet<>();
             // regular successor
             Block regularSucc = excBlock.getSuccessor();
             if (regularSucc != null) {
-                result.add(IPair.of(regularSucc, null));
+                result.add(Pair.of(regularSucc, null));
             }
             // non-ignored exception successors
             Map<TypeMirror, Set<Block>> exceptionalSuccessors = excBlock.getExceptionalSuccessors();
@@ -1920,15 +1922,15 @@ public class MustCallConsistencyAnalyzer {
                 TypeMirror exceptionType = entry.getKey();
                 if (!cmAtf.isIgnoredExceptionType(exceptionType)) {
                     for (Block exSucc : entry.getValue()) {
-                        result.add(IPair.of(exSucc, exceptionType));
+                        result.add(Pair.of(exSucc, exceptionType));
                     }
                 }
             }
             return result;
         } else {
-            Set<IPair<Block, @Nullable TypeMirror>> result = new LinkedHashSet<>();
+            Set<Pair<Block, @Nullable TypeMirror>> result = new LinkedHashSet<>();
             for (Block b : block.getSuccessors()) {
-                result.add(IPair.of(b, null));
+                result.add(Pair.of(b, null));
             }
             return result;
         }
@@ -1976,7 +1978,7 @@ public class MustCallConsistencyAnalyzer {
         // computes the set of Obligations that should be propagated to it and then adds it to the
         // worklist if any of its resource aliases are still in scope in the successor block. If
         // none are, then the loop performs a consistency check for that Obligation.
-        for (IPair<Block, @Nullable TypeMirror> successorAndExceptionType :
+        for (Pair<Block, @Nullable TypeMirror> successorAndExceptionType :
                 getSuccessorsExceptIgnoredExceptions(currentBlock)) {
 
             // A *mutable* set that eventually holds the set of dataflow facts to be propagated to
@@ -2019,9 +2021,8 @@ public class MustCallConsistencyAnalyzer {
      * @param obligations the Obligations for the current block
      * @param currentBlock the current block
      * @param successor a successor of the current block
-     * @param exceptionType the type of edge from <code>currentBlock</code> to <code>successor
-     *     </code>: <code>null</code> for normal control flow, or a throwable type for exceptional
-     *     control flow
+     * @param exceptionType the type of edge from {@code currentBlock} to {@code successor}: {@code
+     *     null} for normal control flow, or a throwable type for exceptional control flow
      * @param visited block-Obligations pairs already analyzed or already on the worklist
      * @param worklist current worklist
      */
@@ -2047,9 +2048,9 @@ public class MustCallConsistencyAnalyzer {
                         // exit, but that doesn't seem to provide additional helpful
                         // information.
                         "regular method exit"
-                        : "possible exceptional exit due to "
+                        : "possible exceptional exit before the required method call, if "
                                 + ((ExceptionBlock) currentBlock).getNode().getTree()
-                                + " with exception type "
+                                + " throws an exception of type "
                                 + exceptionType;
         // Computed outside the Obligation loop for efficiency.
         AccumulationStore regularStoreOfSuccessor = cmAtf.getInput(successor).getRegularStore();
@@ -2146,7 +2147,7 @@ public class MustCallConsistencyAnalyzer {
                 //        the block.
                 CFStore mcStore;
                 AccumulationStore cmStore;
-                if (currentBlockNodes.size() == 0 /* currentBlock is special or conditional */) {
+                if (currentBlockNodes.isEmpty() /* currentBlock is special or conditional */) {
                     cmStore = getStoreForEdgeFromEmptyBlock(currentBlock, successor); // 1. (CM)
                     // For the Must Call Checker, we currently apply a less precise handling and do
                     // not get the store for the specific CFG edge from currentBlock to successor.
@@ -2216,7 +2217,7 @@ public class MustCallConsistencyAnalyzer {
      * Block} of the edge must contain no {@link Node}s.
      *
      * @param currentBlock source block of the CFG edge. Must contain no {@link Node}s.
-     * @param successor target block of the CFG edge.
+     * @param successor target block of the CFG edge
      * @return store propagated by the {@link RLCCalledMethodsAnalysis} along the CFG edge
      */
     private AccumulationStore getStoreForEdgeFromEmptyBlock(Block currentBlock, Block successor) {
@@ -2241,7 +2242,7 @@ public class MustCallConsistencyAnalyzer {
      * Returns true if {@code alias.reference} is definitely in-scope in the successor store: that
      * is, there is a value for it in {@code successorStore}.
      *
-     * @param successorStore the regular store of the successor block
+     * @param successorStore the regular CalledMethods store of the successor block
      * @param alias the resource alias to check
      * @return true if the variable is definitely in scope for the purposes of the consistency
      *     checking algorithm in the successor block from which the store came
@@ -2305,7 +2306,7 @@ public class MustCallConsistencyAnalyzer {
     }
 
     /**
-     * Checks whether there is some resource alias set <em>R</em> in {@code obligations} such that
+     * Returns true if there is some resource alias set <em>R</em> in {@code obligations} such that
      * <em>R</em> contains a {@link ResourceAlias} whose local variable is {@code node}.
      *
      * @param obligations the set of Obligations to search
@@ -2450,7 +2451,7 @@ public class MustCallConsistencyAnalyzer {
     }
 
     /**
-     * Increment the -AcountMustCall counter.
+     * Increments the -AcountMustCall counter.
      *
      * @param node the node being counted, to extract the type
      */
@@ -2462,7 +2463,7 @@ public class MustCallConsistencyAnalyzer {
     }
 
     /**
-     * Increment the -AcountMustCall counter.
+     * Increments the -AcountMustCall counter.
      *
      * @param elt the elt being counted, to extract the type
      */

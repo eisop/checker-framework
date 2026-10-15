@@ -220,16 +220,41 @@ command-line option.)
   \code{-Amode=jspecify} to behave as JSpecify specifies would otherwise have no way
   to know that some of what they wrote was being interpreted by the checker's own
   rules instead of JSpecify's.
+  It also assumes that every called method is pure
+  (Section~\ref{purity-suppress-warnings}) and that assertions are enabled
+  (Section~\ref{type-refinement-assertions}).
+  It writes only source-code annotations into the \<.class> file
+  (Section~\ref{AstoreInBytecode}):  the qualifiers the checker infers by
+  defaulting are not part of the JSpecify specification of the code, and storing
+  them breaks downstream tools.
+  Code outside the scope of a \code{@NullMarked} or \code{@AnnotatedFor} has what
+  JSpecify calls unspecified nullness.  JSpecify leaves it to each tool how to treat
+  unspecified nullness, from strict to lenient (see the
+  \href{https://jspecify.dev/docs/spec/#multiple-worlds}{``multiple worlds'' discussion}
+  in the JSpecify specification).  The mode currently interprets it leniently, with
+  permissive defaults (Section~\ref{defaults-classfile}) for both source code and bytecode.
   This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
-  -AassumeKeyFor -AjspecifyUnrecognizedLocations}.  Each of those is an on/off flag with
-  no negative form, so there is currently no way to enable this mode but turn one of
-  them back off.
+  -AassumeKeyFor -AjspecifyUnrecognizedLocations -AassumePure
+  -AstoreInBytecode=false -AassumeAssertions=enabled
+  -AusePermissiveDefaultsForUncheckedCode=source,bytecode}.  The first five are on/off
+  flags with no negative form, so there is currently no way to enable this mode but turn
+  one of them back off.
+  The last three take a value, so writing one together with
+  \code{-Amode=jspecify} overrides what the mode assumes; for example,
+  \code{-AstoreInBytecode=true} stores the defaulted qualifiers after all,
+  \code{-AassumeAssertions=neither} restores the default treatment of \code{assert}
+  statements (Section~\ref{type-refinement-assertions}), and
+  \code{-AusePermissiveDefaultsForUncheckedCode=-source,-bytecode} restores the ordinary
+  defaults for unchecked code.  To use conservative defaults for unchecked code instead,
+  write \code{-AuseConservativeDefaultsForUncheckedCode}, which replaces the mode's
+  permissive defaults.
 
 \item
   \label{nullness-jspecifyNullMarkedAlias}%
   If you supply the \code{-AjspecifyNullMarkedAlias=false} command-line option, then the
-  checker will not recognize \code{org.jspecify.annotations.NullMarked}.
-  By default it is recognized, both as a defaulting
+  checker will not recognize \code{org.jspecify.annotations.NullMarked} or
+  \code{org.jspecify.annotations.NullUnmarked}.
+  By default \code{@NullMarked} is recognized, both as a defaulting
   annotation and as an alias for \code{@AnnotatedFor}, scoped to nullness checking alone
   (not initialization or \code{@KeyFor} checking, which JSpecify does not define and
   which \code{-Amode=jspecify} already excludes) with \code{applyToSubpackages = false},
@@ -239,8 +264,10 @@ command-line option.)
   \code{@AnnotatedFor("initialization")} or \code{@AnnotatedFor("keyfor")} still composes
   normally alongside \code{@NullMarked}.
   As JSpecify specifies, a \code{@NullMarked} package does not cover its subpackages.
-  \code{@NullUnmarked} is not yet honored: nested code under it is still checked as if
-  the enclosing \code{@NullMarked} scope applied.
+  \code{@NullUnmarked} is recognized as the inverse of both halves:  it undoes the
+  upper-bound default within its scope, and it aliases to \code{@UnannotatedFor} with the
+  same checker name and the same \code{applyToSubpackages = false}, so it subtracts its
+  scope from an enclosing \code{@NullMarked}.
 
 \item
   \label{nullness-jspecifyUnrecognizedLocations}%
@@ -740,8 +767,8 @@ Section~\ref{null-defaults}) your code uses.  You only need one of these tools.
   %
   If your code uses the standard CLIMB-to-top default (Section~\ref{climb-to-top}) or
   the NonNull default, then use the
-  \href{http://plse.cs.washington.edu/daikon/download/doc/daikon.html#AnnotateNullable}{AnnotateNullable}
-  tool of the \href{http://plse.cs.washington.edu/daikon/}{Daikon invariant
+  \href{https://plse.cs.washington.edu/daikon/download/doc/daikon.html#AnnotateNullable}{AnnotateNullable}
+  tool of the \href{https://plse.cs.washington.edu/daikon/}{Daikon invariant
     detector}.
 
 \item
@@ -998,7 +1025,7 @@ Type-checking occurs on each build.
 
 \item
 The
-\href{http://plse.cs.washington.edu/daikon/}{Daikon invariant detector}.
+\href{https://plse.cs.washington.edu/daikon/}{Daikon invariant detector}.
 Run the command \code{make check-nullness}.
 
 \end{itemize}

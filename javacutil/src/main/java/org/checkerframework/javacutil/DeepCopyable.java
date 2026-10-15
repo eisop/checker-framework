@@ -7,9 +7,7 @@ import org.checkerframework.checker.nullness.qual.PolyNull;
  * An interface for types that implement the {@link #deepCopy} method.
  *
  * @param <T> the type of the subtype of DeepCopyable
- * @deprecated use org.plumelib.util.DeepCopyable
  */
-@Deprecated // 2023-06-02
 public interface DeepCopyable<T> {
 
     /**

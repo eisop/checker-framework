@@ -12,7 +12,7 @@ import java.util.Collection;
  * <ol>
  *   <li value="1">Only localized output gets emitted to the user
  *   <li value="2">Only localizable keys (i.e. keys found in localizing resource bundles) get used
- *       as such.
+ *                 as such.
  * </ol>
  *
  * @see I18nSubchecker

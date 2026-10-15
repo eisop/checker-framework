@@ -1,0 +1,2 @@
+package-info.java:3:1: compiler.warn.proc.messager: [conflicting.annotatedfor] @AnnotatedFor and @UnannotatedFor on pkg both name this checker; whichever is written first decides whether it is checked. Remove one: an annotation that supplies both, such as JSpecify's @NullUnmarked, may still affect defaults even when it loses here.
+1 warning

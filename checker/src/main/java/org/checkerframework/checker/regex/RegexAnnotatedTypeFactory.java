@@ -41,7 +41,6 @@ import org.checkerframework.javacutil.TypeSystemError;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -55,13 +54,13 @@ import javax.lang.model.util.Elements;
  * <ol>
  *   <li value="1">a {@code String} or {@code char} literal that is a valid regular expression
  *   <li value="2">concatenation of two valid regular expression values (either {@code String} or
- *       {@code char}) or two partial regular expression values that make a valid regular expression
- *       when concatenated.
+ *                 {@code char}) or two partial regular expression values that make a valid regular
+ *                 expression when concatenated.
  *   <li value="3">for calls to Pattern.compile, change the group count value of the return type to
- *       be the same as the parameter. For calls to the asRegex methods of the classes in
- *       asRegexClasses, the returned {@code @Regex String} gets the same group count as the second
- *       argument to the call to asRegex.
- *       <!--<li value="4">initialization of a char array that when converted to a String
+ *                 be the same as the parameter. For calls to the asRegex methods of the classes in
+ *                 asRegexClasses, the returned {@code @Regex String} gets the same group count as
+ *                 the second argument to the call to asRegex.
+ *                 <!--<li value="4">initialization of a char array that when converted to a String
  * is a valid regular expression.</li>-->
  * </ol>
  *
@@ -72,7 +71,7 @@ import javax.lang.model.util.Elements;
  * <ol>
  *   <li value="1">a String literal that is not a valid regular expression.
  *   <li value="2">concatenation of two partial regex Strings that doesn't result in a regex String
- *       or a partial regex and regex String.
+ *                 or a partial regex and regex String.
  * </ol>
  *
  * Also, adds {@link PolyRegex} to the type of String/char concatenation of a Regex and a PolyRegex
@@ -142,13 +141,6 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         super(checker);
 
         this.postInit();
-    }
-
-    @Override
-    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-        return getBundledTypeQualifiers(
-                Regex.class, PartialRegex.class,
-                RegexBottom.class, UnknownRegex.class);
     }
 
     @Override

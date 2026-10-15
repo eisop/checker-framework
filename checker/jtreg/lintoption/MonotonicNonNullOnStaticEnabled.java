@@ -4,6 +4,8 @@
  *          static MonotonicNonNull field warns, a non-static one does not, and the warning is
  *          suppressible by the message key and by the checker name.
  * @compile/ref=MonotonicNonNullOnStaticEnabled.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Alint=monotonicNonNullOnStatic MonotonicNonNullOnStaticEnabled.java
+ * @compile/ref=MonotonicNonNullOnStaticEnabled.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -ANullnessChecker_lint=monotonicNonNullOnStatic MonotonicNonNullOnStaticEnabled.java
+ * @compile/ref=MonotonicNonNullOnStaticEnabled.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Alint=-monotonicNonNullOnStatic -ANullnessChecker_lint=monotonicNonNullOnStatic MonotonicNonNullOnStaticEnabled.java
  */
 
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;

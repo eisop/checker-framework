@@ -24,6 +24,8 @@ import java.lang.annotation.Target;
  * warnings. However, a class with a relevant {@code @AnnotatedFor} annotation is always defaulted
  * normally (typically using the CLIMB-to-top rule), and typechecking warnings are issued.
  *
+ * <p>This annotation is stored in class files and is available via reflection at run time.
+ *
  * <p>An {@code @AnnotatedFor} on a package also applies to subpackages, unless the {@code
  * applyToSubpackages} field is set to false. Setting it to false does not block an applicable
  * {@code @AnnotatedFor} on an enclosing package.
@@ -40,7 +42,7 @@ import java.lang.annotation.Target;
  * @checker_framework.manual #compiling-libraries Compiling partially-annotated libraries
  */
 @Documented
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
 @Repeatable(AnnotatedFor.List.class)
 public @interface AnnotatedFor {
@@ -69,7 +71,7 @@ public @interface AnnotatedFor {
      * writes more than one {@link AnnotatedFor} annotation at the same location.
      */
     @Documented
-    @Retention(RetentionPolicy.SOURCE)
+    @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
     public static @interface List {
         /**

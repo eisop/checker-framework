@@ -406,8 +406,6 @@ final class SupertypeFinder {
         }
 
         /**
-         *
-         *
          * <pre>{@code
          * For type = A[ ] ==>
          *  Object >: A[ ]

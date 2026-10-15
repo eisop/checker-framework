@@ -1,0 +1,2 @@
+UpstreamPrefixNonEmpty.java:25:24: compiler.warn.proc.messager: [optionalimpl:optional.field] Don't use Optional as the type of a field.
+1 warning

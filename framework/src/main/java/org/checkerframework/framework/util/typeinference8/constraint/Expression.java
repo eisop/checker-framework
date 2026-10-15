@@ -9,6 +9,7 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.util.typeinference8.bound.BoundSet;
 import org.checkerframework.framework.util.typeinference8.types.AbstractType;
 import org.checkerframework.framework.util.typeinference8.types.InferenceType;
@@ -18,11 +19,12 @@ import org.checkerframework.framework.util.typeinference8.types.Variable;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
 import org.checkerframework.framework.util.typeinference8.util.Theta;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
-import org.plumelib.util.IPair;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -186,7 +188,7 @@ public class Expression extends TypeConstraint {
     }
 
     /**
-     * Reduce this constraint
+     * Reduce this constraint.
      *
      * @param context the context
      * @return the result of reducing this constraint
@@ -227,7 +229,7 @@ public class Expression extends TypeConstraint {
                         new Typing(this, ps.get(i), fs.get(i), TypeConstraint.Kind.SUBTYPE));
             }
             AbstractType r = T.getFunctionTypeReturnType();
-            if (r != null && r.getTypeKind() != TypeKind.VOID) {
+            if (r != null) {
                 AbstractType rPrime = typeOfPoAppMethod.getReturnType(null).capture(context);
                 constraintSet.add(
                         new Typing(this, rPrime, r, TypeConstraint.Kind.TYPE_COMPATIBILITY));
@@ -242,8 +244,11 @@ public class Expression extends TypeConstraint {
         if (compileTimeDecl.isVoid()) {
             return ConstraintSet.TRUE;
         }
+        // https://docs.oracle.com/javase/specs/jls/se8/html/jls-18.html#jls-18.2.1-300-D-B-A
+        // "If the function type's result is void, the constraint reduces to true."
+        // getFunctionTypeReturnType() signals a void result by returning null.
         AbstractType r = T.getFunctionTypeReturnType();
-        if (r.getTypeKind() == TypeKind.VOID) {
+        if (r == null) {
             return ConstraintSet.TRUE;
         }
 
@@ -255,15 +260,30 @@ public class Expression extends TypeConstraint {
         // determine the method reference's invocation type when targeting the return type of the
         // function type, as defined in 18.5.2. B3 may contain new inference variables, as well as
         // dependencies between these new variables and the inference variables in T.
+        boolean thetaWasCached = context.maps.containsKey(memRef);
         Theta map =
                 context.inferenceTypeFactory.createThetaForMethodReference(
                         memRef, compileTimeDecl, context);
         AbstractType compileTimeReturn = compileTimeDecl.getReturnType(map);
-        if (TreeUtils.needsTypeArgInference(memRef) && !compileTimeReturn.isProper()) {
-            BoundSet b2 =
+        BoundSet b2;
+        if (TreeUtils.needsTypeArgInference(memRef)) {
+            b2 =
                     context.inference.createB2MethodRef(
                             compileTimeDecl, T.getFunctionTypeParameterTypes(), map);
-            return context.inference.createB3(b2, memRef, compileTimeDecl, r, map);
+            if (!compileTimeReturn.isProper()) {
+                return context.inference.createB3(b2, memRef, compileTimeDecl, r, map);
+            }
+        } else {
+            b2 = new BoundSet(context);
+        }
+        if (!thetaWasCached) {
+            // The variables in map are not part of this inference problem, but every cached map
+            // is resolved with it (see BoundSet#getDependencies). Nothing constrains them here, so
+            // they would be resolved to their bounds: for Merged::name with a raw Merged<X>, X
+            // would be Object instead of the type argument of the function type's parameter.
+            // Remove the map so the method reference is inferred on its own, against its
+            // instantiated target type.
+            context.maps.remove(memRef);
         }
 
         // https://docs.oracle.com/javase/specs/jls/se8/html/jls-18.html#jls-18.2.1-300-D-B-C
@@ -278,11 +298,11 @@ public class Expression extends TypeConstraint {
                                 compileTimeReturn.capture(context),
                                 r,
                                 TypeConstraint.Kind.TYPE_COMPATIBILITY)),
-                new BoundSet(context));
+                b2);
     }
 
     /**
-     * Reduce this constraint
+     * Reduce this constraint.
      *
      * @param context the context
      * @return the result of reducing this constraint
@@ -290,16 +310,18 @@ public class Expression extends TypeConstraint {
     // See https://docs.oracle.com/javase/specs/jls/se8/html/jls-18.html#jls-18.2.1-200
     private ReductionResultPair reduceLambda(Java8InferenceContext context) {
         LambdaExpressionTree lambda = (LambdaExpressionTree) expression;
-        IPair<AbstractType, BoundSet> pair = getGroundTargetType(T, lambda, context);
+        Pair<AbstractType, BoundSet> pair = getGroundTargetType(T, lambda, context);
         AbstractType tPrime = pair.first;
         BoundSet boundSet = pair.second == null ? new BoundSet(context) : pair.second;
 
         ConstraintSet constraintSet = new ConstraintSet();
 
         if (!TreeUtils.isImplicitlyTypedLambda(lambda)) {
-            // Explicitly typed lambda
+            // Explicitly typed lambda: G1, ..., Gn are the parameter types of the function type of
+            // the ground target type T', not of T.  T' and T are related by the constraint
+            // T' <: T below.
             List<? extends VariableTree> parameters = lambda.getParameters();
-            List<AbstractType> gs = T.getFunctionTypeParameterTypes();
+            List<AbstractType> gs = tPrime.getFunctionTypeParameterTypes();
             assert parameters.size() == gs.size();
 
             for (int i = 0; i < gs.size(); i++) {
@@ -318,7 +340,7 @@ public class Expression extends TypeConstraint {
         }
 
         AbstractType R = tPrime.getFunctionTypeReturnType();
-        if (R != null && R.getTypeKind() != TypeKind.VOID) {
+        if (R != null) {
             for (ExpressionTree e : TreeUtils.getReturnedExpressions(lambda)) {
                 if (R.isProper()) {
                     if (!context.env
@@ -348,10 +370,10 @@ public class Expression extends TypeConstraint {
      * @param context the context
      * @return the ground target type
      */
-    private IPair<AbstractType, BoundSet> getGroundTargetType(
+    private Pair<AbstractType, BoundSet> getGroundTargetType(
             AbstractType t, LambdaExpressionTree lambda, Java8InferenceContext context) {
         if (!t.isWildcardParameterizedType()) {
-            return IPair.of(t, null);
+            return Pair.of(t, null);
         }
         // 15.27.3:
         // If T is a wildcard-parameterized functional interface type and the lambda expression is
@@ -363,7 +385,7 @@ public class Expression extends TypeConstraint {
             // is implicitly typed, then the ground target type is the non-wildcard parameterization
             // (9.9) of T.
             // https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.9-200-C
-            return IPair.of(nonWildcardParameterization(t, context), null);
+            return Pair.of(nonWildcardParameterization(t, context), null);
         }
     }
 
@@ -407,7 +429,7 @@ public class Expression extends TypeConstraint {
      * @param context the context
      * @return a pair of the type of the lambda and the bound set that needs to be resolved
      */
-    private IPair<AbstractType, BoundSet> explicitlyTypedLambdaWithWildcard(
+    private Pair<AbstractType, BoundSet> explicitlyTypedLambdaWithWildcard(
             AbstractType t, LambdaExpressionTree lambda, Java8InferenceContext context) {
         // Where a lambda expression with explicit parameter types P1, ..., Pn targets a functional
         // interface type F<A1, ..., Am> with at least one wildcard type argument, then a
@@ -420,10 +442,14 @@ public class Expression extends TypeConstraint {
 
         // Let Q1, ..., Qk be the parameter types of the function type of the type F<alpha1, ...,
         // alpham>, where alpha1, ..., alpham are fresh inference variables.
+        // The map's keys are the type parameters of F, so F<alpha1, ..., alpham> is created from
+        // the declared type of F, not from t, which does not mention them.
         Theta map = context.inferenceTypeFactory.createThetaForLambda(lambda, t);
         List<Variable> alphas = new ArrayList<>(map.values());
+        AnnotatedDeclaredType declaredF =
+                context.typeFactory.getAnnotatedType(TypesUtils.getTypeElement(t.getJavaType()));
         AbstractType tprime =
-                InferenceType.create(t.getAnnotatedType(), t.getJavaType(), map, context);
+                InferenceType.create(declaredF, declaredF.getUnderlyingType(), map, context);
 
         List<AbstractType> qs = tprime.getFunctionTypeParameterTypes();
         assert qs.size() == ps.size();
@@ -464,9 +490,9 @@ public class Expression extends TypeConstraint {
 
         AbstractType target = t.replaceTypeArgs(APrimes);
         if (hasWildcard) {
-            return IPair.of(nonWildcardParameterization(target, context), b);
+            return Pair.of(nonWildcardParameterization(target, context), b);
         }
-        return IPair.of(target, b);
+        return Pair.of(target, b);
     }
 
     @Override

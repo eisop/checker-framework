@@ -4,7 +4,7 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.value.ValueChecker;
 import org.checkerframework.framework.source.SourceChecker;
-import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -26,8 +26,7 @@ public class ClassValChecker extends BaseTypeChecker {
         // Don't call super otherwise MethodVal will be added as a subChecker
         // which creates a circular dependency.
         // Use the same Set implementation as super.
-        Set<Class<? extends SourceChecker>> subCheckers =
-                new LinkedHashSet<>(CollectionsPlume.mapCapacity(2));
+        Set<Class<? extends SourceChecker>> subCheckers = new LinkedHashSet<>(MapsP.mapCapacity(2));
         subCheckers.add(ValueChecker.class);
         return subCheckers;
     }

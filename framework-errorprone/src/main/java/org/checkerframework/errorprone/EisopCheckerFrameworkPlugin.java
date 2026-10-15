@@ -7,12 +7,14 @@ import com.google.errorprone.SuppressionInfo;
 import com.google.errorprone.VisitorState;
 import com.google.errorprone.bugpatterns.BugChecker;
 import com.google.errorprone.bugpatterns.BugChecker.ClassTreeMatcher;
+import com.google.errorprone.bugpatterns.BugChecker.CompilationUnitTreeMatcher;
 import com.google.errorprone.fixes.SuggestedFix;
 import com.google.errorprone.fixes.SuggestedFixes;
 import com.google.errorprone.matchers.Description;
 import com.google.errorprone.util.ASTHelpers;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.PackageTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
@@ -25,6 +27,7 @@ import com.sun.tools.javac.util.Context;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.source.DiagnosticSink;
 import org.checkerframework.framework.source.SuggestedFixData;
+import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -32,7 +35,9 @@ import java.util.Deque;
 import java.util.List;
 
 import javax.inject.Inject;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.NestingKind;
+import javax.lang.model.element.PackageElement;
 import javax.tools.Diagnostic;
 
 /**
@@ -81,7 +86,8 @@ import javax.tools.Diagnostic;
 // -XepOpt: option prefix and the @SuppressWarnings key), deliberately different from the
 // descriptive class name; suppress Error Prone's BugPatternNaming check accordingly.
 @SuppressWarnings("BugPatternNaming")
-public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTreeMatcher {
+public class EisopCheckerFrameworkPlugin extends BugChecker
+        implements ClassTreeMatcher, CompilationUnitTreeMatcher {
 
     /** The serial version identifier. */
     private static final long serialVersionUID = 1L;
@@ -482,6 +488,52 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
         }
         // Findings are reported via state.reportMatch through the diagnostic sink, so there is no
         // Description to return here.
+        return Description.NO_MATCH;
+    }
+
+    /**
+     * Drives the Checker Framework over a {@code package-info.java}'s package declaration.
+     *
+     * <p>{@link #matchClass} cannot reach one: a {@code package-info.java} declares no class, so
+     * Error Prone's scanner never offers a {@link ClassTree} for it. In standalone mode {@code
+     * AbstractTypeProcessor}'s {@code TaskListener} dispatches the package declaration, but a host
+     * drives the lifecycle itself and that listener is not registered, so without this the
+     * declaration annotations on a package would go unchecked under this plugin.
+     *
+     * <p>Every compilation unit reaches this method, so it returns immediately for one that
+     * declares a type; those are handled by {@link #matchClass}, once per top-level class.
+     */
+    @Override
+    public Description matchCompilationUnit(CompilationUnitTree tree, VisitorState state) {
+        PackageTree pkgTree = tree.getPackage();
+        if (pkgTree == null || !tree.getTypeDecls().isEmpty()) {
+            return Description.NO_MATCH;
+        }
+        if (checkerClassNames.isEmpty()) {
+            // matchClass reports the configuration error; a compilation of only package-info.java
+            // files would otherwise report nothing, but reporting it from both places would
+            // duplicate it for every other compilation.
+            return Description.NO_MATCH;
+        }
+        CheckerFrameworkDriver currentDriver;
+        try {
+            currentDriver = driverFor(state.context);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // Configuration errors are reported by matchClass, which sees the same context.
+            return Description.NO_MATCH;
+        }
+        TreePath pkgPath = new TreePath(new TreePath(tree), pkgTree);
+        Element pkgElt = TreeUtils.elementFromDeclaration(pkgTree);
+        if (!(pkgElt instanceof PackageElement packageElt)) {
+            return Description.NO_MATCH;
+        }
+        VisitorState previous = currentState;
+        currentState = state;
+        try {
+            currentDriver.processPackage(packageElt, pkgPath);
+        } finally {
+            currentState = previous;
+        }
         return Description.NO_MATCH;
     }
 }

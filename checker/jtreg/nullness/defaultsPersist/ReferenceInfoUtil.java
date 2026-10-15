@@ -16,8 +16,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Utility class for extracting and comparing type annotations from a {@link ClassFile} using the
+ * legacy {@code com.sun.tools.classfile} API on JDK versions prior to 25.
+ *
+ * <p>For JDK 25 and later, see the counterpart utility {@code
+ * checker/jtreg/nullness/defaultsPersist25/ReferenceInfoUtil.java} which uses {@code
+ * java.lang.classfile}.
+ *
+ * @see Driver
+ * @see PersistUtil
+ */
 public class ReferenceInfoUtil {
 
+    /** Sentinel value for ignored attributes or indices. */
     public static final int IGNORE_VALUE = -321;
 
     /** If true, don't collect annotations on constructors. */
@@ -32,6 +44,13 @@ public class ReferenceInfoUtil {
         this.ignoreConstructors = ignoreConstructors;
     }
 
+    /**
+     * Extracts all type annotations from the given class file.
+     *
+     * @param cf the class file to inspect
+     * @param ignoreConstructors whether to ignore constructor methods
+     * @return list of type annotations found
+     */
     public static List<TypeAnnotation> extendedAnnotationsOf(
             ClassFile cf, boolean ignoreConstructors) {
         ReferenceInfoUtil riu = new ReferenceInfoUtil(ignoreConstructors);
@@ -253,12 +272,26 @@ public class ReferenceInfoUtil {
     }
 }
 
+/**
+ * Exception thrown when expected type annotations do not match actual annotations found in
+ * bytecode.
+ */
 class ComparisonException extends RuntimeException {
     private static final long serialVersionUID = -3930499712333815821L;
 
+    /** The expected annotations and positions. */
     public final List<AnnoPosPair> expected;
+
+    /** The actual type annotations found. */
     public final List<TypeAnnotation> found;
 
+    /**
+     * Constructs a ComparisonException with diagnostic details.
+     *
+     * @param message the detail message
+     * @param expected the expected annotations and positions
+     * @param found the actual annotations found
+     */
     public ComparisonException(
             String message, List<AnnoPosPair> expected, List<TypeAnnotation> found) {
         super(message);
@@ -266,9 +299,10 @@ class ComparisonException extends RuntimeException {
         this.found = found;
     }
 
+    @Override
     public String toString() {
         return String.format(
-                "%s%n  Expected (%d): %s%s  Found (%d): %s",
+                "%s%n  Expected (%d): %s%n  Found (%d): %s",
                 super.toString(), expected.size(), expected, found.size(), found);
     }
 }

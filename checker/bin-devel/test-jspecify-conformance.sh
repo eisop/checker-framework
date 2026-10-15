@@ -24,7 +24,7 @@ echo "Testing jspecify-conformance against io.github.eisop:*:${CF_VERSION}"
 
 "$SCRIPT_DIR/.git-scripts/git-clone-related" eisop jspecify-conformance
 "$SCRIPT_DIR/.git-scripts/git-clone-related" jspecify jspecify
-"$SCRIPT_DIR/.git-scripts/git-clone-related" jspecify jspecify-reference-checker
+"$SCRIPT_DIR/.git-scripts/git-clone-related" eisop jspecify-reference-checker
 
 # Build conformance test artifacts locally.
 # This duplicates logic from jspecify-conformance/.github/workflows/workflow.yml

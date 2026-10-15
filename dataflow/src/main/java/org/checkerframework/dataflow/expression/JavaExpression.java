@@ -846,7 +846,7 @@ public abstract class JavaExpression {
      * @return viewpoint-adapted version of this
      */
     public final JavaExpression atMethodInvocation(MethodInvocationTree methodInvocationTree) {
-        JavaExpression receiverJe = JavaExpression.getReceiver(methodInvocationTree);
+        JavaExpression receiverJe = getReceiver(methodInvocationTree);
         List<JavaExpression> argumentsJe =
                 argumentTreesToJavaExpressions(
                         TreeUtils.elementFromUse(methodInvocationTree),
@@ -861,8 +861,7 @@ public abstract class JavaExpression {
      * @return viewpoint-adapted version of this
      */
     public final JavaExpression atMethodInvocation(MethodInvocationNode invocationNode) {
-        JavaExpression receiverJe =
-                JavaExpression.fromNode(invocationNode.getTarget().getReceiver());
+        JavaExpression receiverJe = fromNode(invocationNode.getTarget().getReceiver());
         List<JavaExpression> argumentsJe =
                 CollectionsPlume.mapList(JavaExpression::fromNode, invocationNode.getArguments());
         return ViewpointAdaptJavaExpression.viewpointAdapt(this, receiverJe, argumentsJe);
@@ -875,7 +874,7 @@ public abstract class JavaExpression {
      * @return viewpoint-adapted version of this
      */
     public JavaExpression atConstructorInvocation(NewClassTree newClassTree) {
-        JavaExpression receiverJe = JavaExpression.getReceiver(newClassTree);
+        JavaExpression receiverJe = getReceiver(newClassTree);
         List<JavaExpression> argumentsJe =
                 argumentTreesToJavaExpressions(
                         TreeUtils.elementFromUse(newClassTree), newClassTree.getArguments());

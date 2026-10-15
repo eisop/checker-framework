@@ -1,7 +1,9 @@
 package org.checkerframework.framework.type.poly;
 
+import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.Tree;
 
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -23,7 +25,6 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.CollectionsPlume;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -192,18 +193,14 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
         if (TreeUtils.isEnumSuperCall(tree)) {
             return;
         }
-        List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypes.adaptParameters(atypeFactory, type, tree.getArguments(), tree);
-        List<AnnotatedTypeMirror> arguments =
-                CollectionsPlume.mapList(atypeFactory::getAnnotatedType, tree.getArguments());
-
         AnnotationMirrorMap<AnnotationMirror> instantiationMapping =
-                collector.visit(arguments, parameters);
+                collectFromArguments(tree.getArguments(), type, tree);
 
         // For super() and this() method calls, getReceiverType(tree) does not return the correct
         // type. So, just skip those.  This is consistent with skipping receivers of constructors
         // below.
         if (type.getReceiverType() != null
+                && hasPolymorphicQualifiers(type.getReceiverType())
                 && !TreeUtils.isSuperConstructorCall(tree)
                 && !TreeUtils.isThisConstructorCall(tree)) {
             instantiationMapping =
@@ -215,6 +212,9 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
 
         if ((instantiationMapping != null && !instantiationMapping.isEmpty())
                 || TreeUtils.isCallToVarargsMethodWithZeroVarargsActuals(tree)) {
+            if (instantiationMapping == null) {
+                instantiationMapping = new AnnotationMirrorMap<>();
+            }
             replacer.visit(type, instantiationMapping);
         } else {
             completer.visit(type);
@@ -222,18 +222,65 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
         reset();
     }
 
+    /**
+     * Returns the instantiations of the polymorphic qualifiers of {@code type} that are determined
+     * by the arguments of the invocation {@code invocation}.
+     *
+     * <p>The type of an argument is computed only if its formal parameter type contains a
+     * polymorphic qualifier; the other arguments cannot contribute an instantiation. Besides saving
+     * work, this lets type-argument inference resolve the polymorphic qualifiers of an invocation
+     * whose other arguments are poly expressions, whose types depend on that inference.
+     *
+     * @param args the arguments of {@code invocation}
+     * @param type the type of the invoked method or constructor
+     * @param invocation a method or constructor invocation
+     * @return a mapping from polymorphic qualifiers to their instantiations
+     */
+    private AnnotationMirrorMap<AnnotationMirror> collectFromArguments(
+            List<? extends ExpressionTree> args, AnnotatedExecutableType type, Tree invocation) {
+        if (args.isEmpty()) {
+            return null;
+        }
+        boolean hasPolyParam = false;
+        for (AnnotatedTypeMirror param : type.getParameterTypes()) {
+            if (hasPolymorphicQualifiers(param)) {
+                hasPolyParam = true;
+                break;
+            }
+        }
+        if (!hasPolyParam) {
+            return null;
+        }
+        List<AnnotatedTypeMirror> parameters =
+                AnnotatedTypes.adaptParameters(atypeFactory, type, args, invocation);
+        if (parameters.size() != args.size()) {
+            throw new BugInCF(
+                    "collectFromArguments: %d arguments but %d parameters for %s:%n"
+                            + "  parameters = %s",
+                    args.size(), parameters.size(), invocation, parameters);
+        }
+        List<AnnotatedTypeMirror> polyParameters = new ArrayList<>(parameters.size());
+        List<AnnotatedTypeMirror> arguments = new ArrayList<>(parameters.size());
+        for (int i = 0; i < parameters.size(); i++) {
+            AnnotatedTypeMirror parameter = parameters.get(i);
+            if (hasPolymorphicQualifiers(parameter)) {
+                polyParameters.add(parameter);
+                arguments.add(atypeFactory.getAnnotatedType(args.get(i)));
+            }
+        }
+        if (polyParameters.isEmpty()) {
+            return null;
+        }
+        return collector.visit(arguments, polyParameters);
+    }
+
     @Override
     public void resolve(NewClassTree tree, AnnotatedExecutableType type) {
         if (polyQuals.isEmpty() || !hasPolymorphicQualifiers(type)) {
             return;
         }
-        List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypes.adaptParameters(atypeFactory, type, tree.getArguments(), tree);
-        List<AnnotatedTypeMirror> arguments =
-                CollectionsPlume.mapList(atypeFactory::getAnnotatedType, tree.getArguments());
-
         AnnotationMirrorMap<AnnotationMirror> instantiationMapping =
-                collector.visit(arguments, parameters);
+                collectFromArguments(tree.getArguments(), type, tree);
         // TODO: poly on receiver for constructors?
         // instantiationMapping = collector.reduce(instantiationMapping,
         //        collector.visit(factory.getReceiverType(tree), type.getReceiverType()));
@@ -400,7 +447,7 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
          *
          * <p>Uses reference equality rather than equals because the visitor may visit two types
          * that are structurally equal, but not actually the same. For example, the wildcards in
-         * {@code IPair<?,?>} may be equal, but they both should be visited.
+         * {@code Pair<?,?>} may be equal, but they both should be visited.
          *
          * <p>This set is re-instantiated in {@link #reset()} instead of cleared to avoid the O(N)
          * cost of IdentityHashMap.clear().

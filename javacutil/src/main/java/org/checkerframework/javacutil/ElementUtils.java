@@ -368,27 +368,6 @@ public class ElementUtils {
     }
 
     /**
-     * Returns a user-friendly name for the given method. Does not return {@code "<init>"} or {@code
-     * "<clinit>"} as ExecutableElement.getSimpleName() does.
-     *
-     * @param element a method declaration
-     * @return a user-friendly name for the method
-     * @deprecated use {@link #getSimpleDescription}
-     */
-    @Deprecated // 2023-06-01
-    public static CharSequence getSimpleNameOrDescription(ExecutableElement element) {
-        Name result = element.getSimpleName();
-        switch (result.toString()) {
-            case "<init>":
-                return element.getEnclosingElement().getSimpleName();
-            case "<clinit>":
-                return "class initializer";
-            default:
-                return result;
-        }
-    }
-
-    /**
      * Returns a user-friendly name for the given method, which includes the name of the enclosing
      * type. Does not return {@code "<init>"} or {@code "<clinit>"} as
      * ExecutableElement.getSimpleName() does.
@@ -444,7 +423,7 @@ public class ElementUtils {
     }
 
     /**
-     * Checks whether a given element came from a source file.
+     * Returns true if a given element came from a source file.
      *
      * <p>By contrast, {@link ElementUtils#isElementFromByteCode(Element)} returns true if there is
      * a classfile for the given element, even if there is also a source file.
@@ -468,7 +447,7 @@ public class ElementUtils {
     }
 
     /**
-     * Checks whether a given ClassSymbol came from a source file.
+     * Returns true if a given ClassSymbol came from a source file.
      *
      * <p>By contrast, {@link ElementUtils#isElementFromByteCode(Element)} returns true if there is
      * a classfile for the given element, even if there is also a source file.
@@ -581,7 +560,7 @@ public class ElementUtils {
      * @param names simple names of fields that might be declared in {@code type} or a supertype.
      *     Names that are found are removed from this list.
      * @return the {@code VariableElement}s for non-private fields that are declared in {@code type}
-     *     whose simple names were in {@code names} when the method was called.
+     *     whose simple names were in {@code names} when the method was called
      */
     public static Set<VariableElement> findFieldsInTypeOrSuperType(
             TypeMirror type, Collection<String> names) {
@@ -643,7 +622,7 @@ public class ElementUtils {
      * variable does not require a receiver.
      *
      * @param element the element to test
-     * @return whether the element requires a receiver for accesses
+     * @return true if the element requires a receiver for accesses
      */
     public static boolean hasReceiver(Element element) {
         if (element.getKind() == ElementKind.CONSTRUCTOR) {
@@ -771,7 +750,7 @@ public class ElementUtils {
     }
 
     /**
-     * Return all fields declared in the given type or any superclass/interface.
+     * Returns all fields declared in the given type or any superclass/interface.
      *
      * <p>TODO: should this use javax.lang.model.util.Elements.getAllMembers(TypeElement) instead of
      * our own getSuperTypes?
@@ -808,7 +787,7 @@ public class ElementUtils {
     }
 
     /**
-     * Return all methods declared in the given type or any superclass/interface. Note that no
+     * Returns all methods declared in the given type or any superclass/interface. Note that no
      * constructors will be returned.
      *
      * <p>TODO: should this use javax.lang.model.util.Elements.getAllMembers(TypeElement) instead of
@@ -830,7 +809,7 @@ public class ElementUtils {
     }
 
     /**
-     * Return all nested/inner classes/interfaces declared in the given type.
+     * Returns all nested/inner classes/interfaces declared in the given type.
      *
      * @param type a type
      * @return all nested/inner classes/interfaces declared in {@code type}
@@ -852,7 +831,7 @@ public class ElementUtils {
     }
 
     /**
-     * Return the set of kinds that represent classes.
+     * Returns the set of kinds that represent classes.
      *
      * @return the set of kinds that represent classes
      */
@@ -882,6 +861,34 @@ public class ElementUtils {
     public static boolean isAnonymous(Element element) {
         return element instanceof TypeElement
                 && ((TypeElement) element).getNestingKind() == NestingKind.ANONYMOUS;
+    }
+
+    /**
+     * Returns the type that an anonymous class is created from: the interface it implements if it
+     * implements one, and otherwise its superclass.
+     *
+     * <p>An anonymous class names exactly one supertype -- {@code new Iface() {}} or {@code new
+     * AClass() {}} -- so it implements at most one interface, and {@code getInterfaces()} being
+     * non-empty is what distinguishes the two cases.
+     *
+     * <p>The result is null only if that supertype is not a declared type, which means it did not
+     * resolve: an anonymous class names exactly one supertype, and {@code getSuperclass()} is a
+     * {@code NoType} only for {@code java.lang.Object} and for interfaces, neither of which an
+     * anonymous class can be. Source that fails to resolve does not reach a checker -- {@link
+     * javax.annotation.processing.Processor} runs after attribution and {@code
+     * SourceChecker.typeProcess} returns early once javac has reported an error -- so a caller
+     * should treat null as an unresolvable supertype read from bytecode (an incomplete classpath)
+     * and skip, rather than report it as a bug in the checker.
+     *
+     * @param anonClass an anonymous class
+     * @return the declared type {@code anonClass} is created from, or null if that supertype did
+     *     not resolve
+     * @see #isAnonymous(Element)
+     */
+    public static @Nullable DeclaredType getAnonymousSupertype(TypeElement anonClass) {
+        List<? extends TypeMirror> interfaces = anonClass.getInterfaces();
+        TypeMirror superType = interfaces.isEmpty() ? anonClass.getSuperclass() : interfaces.get(0);
+        return superType.getKind() == TypeKind.DECLARED ? (DeclaredType) superType : null;
     }
 
     /**
@@ -917,7 +924,7 @@ public class ElementUtils {
                     ElementKind.EXCEPTION_PARAMETER);
 
     /**
-     * Return true if the element is a local variable.
+     * Returns true if the element is a local variable.
      *
      * @param elt the element to test
      * @return true if the argument is a local variable
@@ -927,7 +934,7 @@ public class ElementUtils {
     }
 
     /**
-     * Return true if the element is a binding variable.
+     * Returns true if the element is a binding variable.
      *
      * <p>This implementation compiles and runs under JDK 8 and 11 as well as versions that contain
      * {@code ElementKind.BINDING_VARIABLE}.
@@ -1078,8 +1085,8 @@ public class ElementUtils {
     }
 
     /**
-     * Get all the supertypes of a given type, including the type itself. The result includes both
-     * superclasses and implemented interfaces.
+     * Returns all the supertypes of a given type, including the type itself. The result includes
+     * both superclasses and implemented interfaces.
      *
      * @param type a type
      * @param env the processing environment

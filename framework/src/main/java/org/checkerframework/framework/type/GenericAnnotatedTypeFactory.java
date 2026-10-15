@@ -39,6 +39,7 @@ import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.cfg.visualize.DOTCFGVisualizer;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
+import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
@@ -80,7 +81,6 @@ import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.Contract;
 import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.DefaultContractsFromMethod;
-import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.NoContractsFromMethod;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
@@ -91,6 +91,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
@@ -98,7 +99,7 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
+import org.plumelib.util.MapsP;
 import org.plumelib.util.SystemPlume;
 
 import java.lang.annotation.Annotation;
@@ -161,7 +162,10 @@ public abstract class GenericAnnotatedTypeFactory<
     /** To cache the supported monotonic type qualifiers. */
     private @MonotonicNonNull Set<Class<? extends Annotation>> supportedMonotonicQuals;
 
-    /** to annotate types based on the given tree */
+    /**
+     * Used to annotate types based on the given un-annotated types. The type may be for source code
+     * or bytecode.
+     */
     protected TypeAnnotator typeAnnotator;
 
     /** for use in addAnnotationsFromDefaultForType */
@@ -170,7 +174,7 @@ public abstract class GenericAnnotatedTypeFactory<
     /** for use in addAnnotationsFromDefaultForType */
     private DefaultForTypeAnnotator defaultForTypeAnnotator;
 
-    /** to annotate types based on the given un-annotated types */
+    /** Used to annotate types based on a given tree. */
     protected TreeAnnotator treeAnnotator;
 
     /** to handle any polymorphic types */
@@ -198,7 +202,7 @@ public abstract class GenericAnnotatedTypeFactory<
     public final @Nullable Set<TypeMirror> relevantJavaTypes;
 
     /**
-     * Whether users may write type annotations on arrays. Ignored unless {@link #relevantJavaTypes}
+     * True if users may write type annotations on arrays. Ignored unless {@link #relevantJavaTypes}
      * is non-null.
      */
     protected final boolean arraysAreRelevant;
@@ -218,6 +222,9 @@ public abstract class GenericAnnotatedTypeFactory<
 
     /** Is this type factory configured to use flow-sensitive type refinement? */
     private final boolean everUseFlow;
+
+    /** True if "-AignoreDeadCode" was passed on the command line. */
+    private final boolean ignoreDeadCode;
 
     /**
      * Should the local variable default annotation be applied to type variables?
@@ -347,7 +354,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * Creates a type factory. Its compilation unit is not yet set.
      *
      * @param checker the checker to which this type factory belongs
-     * @param useFlow whether flow analysis should be performed
+     * @param useFlow true if flow analysis should be performed
      */
     @SuppressWarnings("this-escape")
     protected GenericAnnotatedTypeFactory(BaseTypeChecker checker, boolean useFlow) {
@@ -367,27 +374,26 @@ public abstract class GenericAnnotatedTypeFactory<
 
         this.cfgVisualizer = createCFGVisualizer();
         this.handleCFGViz = checker.hasOption("flowdotdir") || checker.hasOption("cfgviz");
+        this.ignoreDeadCode = checker.hasOption("ignoreDeadCode");
 
         if (shouldCache) {
             int cacheSize = getCacheSize();
-            flowResultAnalysisCaches = CollectionsPlume.createLruCache(cacheSize);
-            initializerCache = CollectionsPlume.createLruCache(cacheSize);
+            flowResultAnalysisCaches = MapsP.createLruCache(cacheSize);
+            initializerCache = MapsP.createLruCache(cacheSize);
         } else {
             flowResultAnalysisCaches = null;
             initializerCache = null;
         }
 
-        RelevantJavaTypes relevantJavaTypesAnno =
-                checker.getClass().getAnnotation(RelevantJavaTypes.class);
-        if (relevantJavaTypesAnno == null) {
+        Set<Class<?>> classes = checker.getRelevantJavaTypes();
+        if (classes == null) {
             this.relevantJavaTypes = null;
             this.arraysAreRelevant = true;
         } else {
             Types types = getChecker().getTypeUtils();
             Elements elements = getElementUtils();
-            Class<?>[] classes = relevantJavaTypesAnno.value();
             Set<TypeMirror> relevantJavaTypesTemp =
-                    new HashSet<>(CollectionsPlume.mapCapacity(classes.length));
+                    new HashSet<>(MapsP.mapCapacity(classes.size()));
             boolean arraysAreRelevantTemp = false;
             for (Class<?> clazz : classes) {
                 if (clazz == Object[].class) {
@@ -451,6 +457,15 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
+     * Returns the {@link QualifierDefaults} this factory applies.
+     *
+     * @return the {@link QualifierDefaults} this factory applies
+     */
+    public QualifierDefaults getQualifierDefaults() {
+        return defaults;
+    }
+
+    /**
      * Performs flow-sensitive type refinement on {@code classTree} if this type factory is
      * configured to do so.
      *
@@ -459,7 +474,7 @@ public abstract class GenericAnnotatedTypeFactory<
     @Override
     public void preProcessClassTree(ClassTree classTree) {
         if (this.everUseFlow) {
-            checkAndPerformFlowAnalysis(classTree);
+            performFlowAnalysisForClassOnce(classTree);
         }
     }
 
@@ -485,7 +500,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
         super.setRoot(root);
         this.scannedClasses = new IdentityHashMap<>();
-        // this.reachableNodes.clear();
+        this.reachableNodes.clear();
         this.flowResult = null;
         this.finalLocalValuesByDeclarer.clear();
         this.regularExitStores = new IdentityHashMap<>();
@@ -633,6 +648,16 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected DefaultQualifierForUseTypeAnnotator createDefaultForUseTypeAnnotator() {
         return new DefaultQualifierForUseTypeAnnotator(this);
+    }
+
+    @Override
+    protected AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
+        // The annotator is created in postInit, so it is null while the type factory is still
+        // being constructed; a type queried that early has no default-for-use qualifiers yet.
+        if (defaultQualifierForUseTypeAnnotator != null) {
+            return defaultQualifierForUseTypeAnnotator.getDefaultAnnosForUses(element);
+        }
+        return AnnotationMirrorSet.emptySet();
     }
 
     /**
@@ -883,7 +908,8 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Adds standard unchecked defaults that do not conflict with previously added defaults.
+     * Adds the defaults for unchecked code of each mode the command-line options enable. Subclasses
+     * may override this method to customize unchecked-code defaults.
      *
      * @param defs {@link QualifierDefaults} object to which defaults are added
      */
@@ -1046,11 +1072,11 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return the JavaExpression and offset for the given expression
      * @throws JavaExpressionParseException thrown if the expression cannot be parsed
      */
-    public IPair<JavaExpression, String> getExpressionAndOffsetFromJavaExpressionString(
+    public Pair<JavaExpression, String> getExpressionAndOffsetFromJavaExpressionString(
             String expression, TreePath currentPath) throws JavaExpressionParseException {
-        IPair<String, String> p = getExpressionAndOffset(expression);
+        Pair<String, String> p = getExpressionAndOffset(expression);
         JavaExpression r = parseJavaExpressionString(p.first, currentPath);
-        return IPair.of(r, p.second);
+        return Pair.of(r, p.second);
     }
 
     /**
@@ -1079,15 +1105,16 @@ public abstract class GenericAnnotatedTypeFactory<
         return value != null ? value.getAnnotations().iterator().next() : null;
     }
 
-    /*
+    /**
      * Returns true if the {@code exprTree} is unreachable. This is a conservative estimate and may
-     * return {@code false} even though the {@code exprTree} is unreachable.
+     * return {@code false} even though the {@code exprTree} is unreachable. Only meaningful when
+     * "-AignoreDeadCode" was passed on the command line; otherwise always returns {@code false}.
      *
      * @param exprTree an expression tree
      * @return true if the {@code exprTree} is unreachable
-     *
+     */
     public boolean isUnreachable(ExpressionTree exprTree) {
-        if (!everUseFlow) {
+        if (!everUseFlow || !ignoreDeadCode) {
             return false;
         }
         Set<Node> nodes = getNodesForTree(exprTree);
@@ -1104,7 +1131,6 @@ public abstract class GenericAnnotatedTypeFactory<
         // None of the corresponding nodes is reachable, so this tree is dead.
         return true;
     }
-    */
 
     /**
      * Track the state of org.checkerframework.dataflow analysis scanning for each class tree in the
@@ -1121,19 +1147,20 @@ public abstract class GenericAnnotatedTypeFactory<
      * Map from ClassTree to their dataflow analysis state.
      *
      * <p>This field is intentionally not final; it should only be re-assigned by {@link
-     * #performFlowAnalysis}.
+     * #performFlowAnalysisForClass}.
      */
     protected IdentityHashMap<ClassTree, ScanState> scannedClasses = new IdentityHashMap<>();
 
-    /*
+    /**
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
      * reachable trees. Use {@link #isUnreachable(ExpressionTree)} instead of this set directly.
+     * Only populated when "-AignoreDeadCode" was passed on the command line.
      *
      * <p>This cannot be a set of Nodes, because two LocalVariableNodes are equal if they have the
      * same name but represent different uses of the variable. So instead of storing Nodes, it
      * stores the result of {@code Node#getTree}.
      */
-    // private final Set<Tree> reachableNodes = new HashSet<>();
+    private final Set<Tree> reachableNodes = new HashSet<>();
 
     /**
      * The merged result of all the analyses performed in the current compilation unit. Invariant:
@@ -1143,7 +1170,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * </pre>
      *
      * Note that flowResult contains analysis results for Trees from multiple classes which are
-     * produced by multiple calls to performFlowAnalysis.
+     * produced by multiple calls to performFlowAnalysisForClass.
      */
     protected @MonotonicNonNull AnalysisResult<Value, Store> flowResult;
 
@@ -1152,7 +1179,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * postconditions).
      *
      * <p>This field is intentionally not final; it should only be re-assigned by {@link
-     * #performFlowAnalysis}.
+     * #performFlowAnalysisForClass}.
      */
     protected IdentityHashMap<Tree, Store> regularExitStores;
 
@@ -1160,7 +1187,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * A mapping from methods (or other code blocks) to their exceptional exit store.
      *
      * <p>This field is intentionally not final; it should only be re-assigned by {@link
-     * #performFlowAnalysis}.
+     * #performFlowAnalysisForClass}.
      */
     protected IdentityHashMap<Tree, Store> exceptionalExitStores;
 
@@ -1168,9 +1195,9 @@ public abstract class GenericAnnotatedTypeFactory<
      * A mapping from methods to a list with all return statements and the corresponding store.
      *
      * <p>This field is intentionally not final; it should only be re-assigned by {@link
-     * #performFlowAnalysis}.
+     * #performFlowAnalysisForClass}.
      */
-    protected IdentityHashMap<MethodTree, List<IPair<ReturnNode, TransferResult<Value, Store>>>>
+    protected IdentityHashMap<MethodTree, List<Pair<ReturnNode, TransferResult<Value, Store>>>>
             returnStatementStores;
 
     /**
@@ -1214,7 +1241,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return a list of all return statements of {@code method} paired with their corresponding
      *     {@link TransferResult} or an empty list if {@code method} has no return statements
      */
-    public List<IPair<ReturnNode, TransferResult<Value, Store>>> getReturnStatementStores(
+    public List<Pair<ReturnNode, TransferResult<Value, Store>>> getReturnStatementStores(
             MethodTree methodTree) {
         assert returnStatementStores.containsKey(methodTree);
         return returnStatementStores.get(methodTree);
@@ -1223,36 +1250,14 @@ public abstract class GenericAnnotatedTypeFactory<
     /**
      * Returns the store immediately before a given {@link Tree}.
      *
+     * @param tree the tree
      * @return the store immediately before a given {@link Tree}
      */
-    public Store getStoreBefore(Tree tree) {
-        if (!analysis.isRunning()) {
-            return flowResult.getStoreBefore(tree);
+    public @Nullable Store getStoreBefore(Tree tree) {
+        if (analysis.isRunning()) {
+            return analysis.getStoreBefore(tree, flowResultAnalysisCaches);
         }
-        Set<Node> nodes = analysis.getNodesForTree(tree);
-        if (nodes != null) {
-            return getStoreBefore(nodes);
-        } else {
-            return flowResult.getStoreBefore(tree);
-        }
-    }
-
-    /**
-     * Returns the store immediately before a given Set of {@link Node}s.
-     *
-     * @return the store immediately before a given Set of {@link Node}s
-     */
-    public Store getStoreBefore(Set<Node> nodes) {
-        Store merge = null;
-        for (Node aNode : nodes) {
-            Store s = getStoreBefore(aNode);
-            if (merge == null) {
-                merge = s;
-            } else if (s != null) {
-                merge = merge.leastUpperBound(s);
-            }
-        }
-        return merge;
+        return flowResult.getStoreBefore(tree);
     }
 
     /**
@@ -1262,21 +1267,10 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return the store immediately before {@code node}
      */
     public @Nullable Store getStoreBefore(Node node) {
-        if (!analysis.isRunning()) {
-            return flowResult.getStoreBefore(node);
+        if (analysis.isRunning()) {
+            return analysis.getStoreBefore(node, flowResultAnalysisCaches);
         }
-        TransferInput<Value, Store> prevStore = analysis.getInput(node.getBlock());
-        if (prevStore == null) {
-            return null;
-        }
-        Store store =
-                AnalysisResult.runAnalysisFor(
-                        node,
-                        Analysis.BeforeOrAfter.BEFORE,
-                        prevStore,
-                        analysis.getNodeValues(),
-                        flowResultAnalysisCaches);
-        return store;
+        return flowResult.getStoreBefore(node);
     }
 
     /**
@@ -1288,30 +1282,10 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return the store immediately after a given tree
      */
     public @Nullable Store getStoreAfter(Tree tree) {
-        if (!analysis.isRunning()) {
-            return flowResult.getStoreAfter(tree);
+        if (analysis.isRunning()) {
+            return analysis.getStoreAfter(tree, flowResultAnalysisCaches);
         }
-        Set<Node> nodes = analysis.getNodesForTree(tree);
-        return getStoreAfter(nodes);
-    }
-
-    /**
-     * Returns the store immediately after a given set of nodes.
-     *
-     * @param nodes the nodes whose post-stores to LUB
-     * @return the LUB of the stores store immediately after {@code nodes}
-     */
-    public Store getStoreAfter(Set<Node> nodes) {
-        Store merge = null;
-        for (Node node : nodes) {
-            Store s = getStoreAfter(node);
-            if (merge == null) {
-                merge = s;
-            } else if (s != null) {
-                merge = merge.leastUpperBound(s);
-            }
-        }
-        return merge;
+        return flowResult.getStoreAfter(tree);
     }
 
     /**
@@ -1321,17 +1295,10 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return the store immediately after a given {@link Node}
      */
     public Store getStoreAfter(Node node) {
-        if (!analysis.isRunning()) {
-            return flowResult.getStoreAfter(node);
+        if (analysis.isRunning()) {
+            return analysis.getStoreAfter(node, flowResultAnalysisCaches);
         }
-        Store res =
-                AnalysisResult.runAnalysisFor(
-                        node,
-                        Analysis.BeforeOrAfter.AFTER,
-                        analysis.getInput(node.getBlock()),
-                        analysis.getNodeValues(),
-                        flowResultAnalysisCaches);
-        return res;
+        return flowResult.getStoreAfter(node);
     }
 
     /**
@@ -1346,7 +1313,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Return the first {@link Node} for a given {@link Tree} that has class {@code kind}.
+     * Returns the first {@link Node} for a given {@link Tree} that has class {@code kind}.
      *
      * <p>You probably don't want to use this function: iterate over the result of {@link
      * #getNodesForTree(Tree)} yourself or ask for a conservative approximation of the store using
@@ -1422,7 +1389,7 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * @param classTree the class to analyze
      */
-    protected void performFlowAnalysis(ClassTree classTree) {
+    protected void performFlowAnalysisForClass(ClassTree classTree) {
         if (flowResult == null) {
             this.regularExitStores = new IdentityHashMap<>();
             this.exceptionalExitStores = new IdentityHashMap<>();
@@ -1438,14 +1405,14 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         // class trees and their initial stores
-        Queue<IPair<ClassTree, Store>> classQueue = new ArrayDeque<>();
+        Queue<Pair<ClassTree, Store>> classQueue = new ArrayDeque<>();
         List<FieldInitialValue<Value>> fieldValues = new ArrayList<>();
 
         // No captured store for top-level classes.
-        classQueue.add(IPair.of(classTree, null));
+        classQueue.add(Pair.of(classTree, null));
 
         while (!classQueue.isEmpty()) {
-            IPair<ClassTree, Store> qel = classQueue.remove();
+            Pair<ClassTree, Store> qel = classQueue.remove();
             ClassTree ct = qel.first;
             Store capturedStore = qel.second;
             scannedClasses.put(ct, ScanState.IN_PROGRESS);
@@ -1460,7 +1427,7 @@ public abstract class GenericAnnotatedTypeFactory<
             initializationStore = capturedStore;
 
             // The store is null if the lambda is unreachable.
-            Queue<IPair<LambdaExpressionTree, @Nullable Store>> lambdaQueue = new ArrayDeque<>();
+            Queue<Pair<LambdaExpressionTree, @Nullable Store>> lambdaQueue = new ArrayDeque<>();
 
             // Queue up classes (for top-level `while` loop) and methods (for within this `try`
             // construct); analyze top-level blocks and variable initializers as they are
@@ -1482,7 +1449,7 @@ public abstract class GenericAnnotatedTypeFactory<
                         case ENUM:
                             // Visit inner and nested class trees.
                             // TODO: Use no store for them? What can be captured?
-                            classQueue.add(IPair.of((ClassTree) m, capturedStore));
+                            classQueue.add(Pair.of((ClassTree) m, capturedStore));
                             break;
                         case METHOD:
                             MethodTree mt = (MethodTree) m;
@@ -1501,8 +1468,8 @@ public abstract class GenericAnnotatedTypeFactory<
 
                             // Wait with scanning the method until all other members
                             // have been processed.
-                            CFGMethod met = new CFGMethod(mt, ct);
-                            methods.add(met);
+                            CFGMethod method = new CFGMethod(mt, ct);
+                            methods.add(method);
                             break;
                         case VARIABLE:
                             VariableTree vt = (VariableTree) m;
@@ -1515,16 +1482,18 @@ public abstract class GenericAnnotatedTypeFactory<
                             if (initializer != null) {
                                 boolean isStatic =
                                         vt.getModifiers().getFlags().contains(Modifier.STATIC);
-                                analyze(
-                                        classQueue,
-                                        lambdaQueue,
-                                        new CFGStatement(vt, ct),
-                                        fieldValues,
-                                        classTree,
-                                        true,
-                                        true,
-                                        isStatic,
-                                        capturedStore);
+                                ControlFlowGraph cfg =
+                                        analyze(
+                                                classQueue,
+                                                lambdaQueue,
+                                                new CFGStatement(vt, ct),
+                                                fieldValues,
+                                                null,
+                                                true,
+                                                true,
+                                                isStatic,
+                                                capturedStore);
+                                postAnalyzeWithBodyPath(cfg);
                                 Value initializerValue = flowResult.getValue(initializer);
                                 if (initializerValue != null) {
                                     fieldValues.add(
@@ -1538,16 +1507,18 @@ public abstract class GenericAnnotatedTypeFactory<
                             break;
                         case BLOCK:
                             BlockTree b = (BlockTree) m;
-                            analyze(
-                                    classQueue,
-                                    lambdaQueue,
-                                    new CFGStatement(b, ct),
-                                    fieldValues,
-                                    ct,
-                                    true,
-                                    true,
-                                    b.isStatic(),
-                                    capturedStore);
+                            ControlFlowGraph cfg =
+                                    analyze(
+                                            classQueue,
+                                            lambdaQueue,
+                                            new CFGStatement(b, ct),
+                                            fieldValues,
+                                            null,
+                                            true,
+                                            true,
+                                            b.isStatic(),
+                                            capturedStore);
+                            postAnalyzeWithBodyPath(cfg);
                             break;
                         default:
                             assert false : "Unexpected member: " + m.getKind();
@@ -1558,38 +1529,32 @@ public abstract class GenericAnnotatedTypeFactory<
                 // Now analyze all methods.
                 // TODO: at this point, we don't have any information about
                 // fields of superclasses.
-                for (CFGMethod met : methods) {
-                    analyze(
-                            classQueue,
-                            lambdaQueue,
-                            met,
-                            fieldValues,
-                            classTree,
-                            TreeUtils.isConstructor(met.getMethod()),
-                            false,
-                            false,
-                            capturedStore);
+                for (CFGMethod method : methods) {
+                    performFlowAnalysisForMethod(
+                            ct, method, classQueue, fieldValues, capturedStore);
                 }
 
                 while (!lambdaQueue.isEmpty()) {
-                    IPair<LambdaExpressionTree, @Nullable Store> lambdaPair = lambdaQueue.poll();
+                    Pair<LambdaExpressionTree, @Nullable Store> lambdaPair = lambdaQueue.remove();
                     MethodTree mt =
                             (MethodTree)
                                     TreePathUtil.enclosingOfKind(
                                             getPath(lambdaPair.first), Tree.Kind.METHOD);
-                    analyze(
-                            classQueue,
-                            lambdaQueue,
-                            new CFGLambda(lambdaPair.first, classTree, mt),
-                            fieldValues,
-                            classTree,
-                            false,
-                            false,
-                            false,
-                            lambdaPair.second);
+                    ControlFlowGraph cfg =
+                            analyze(
+                                    classQueue,
+                                    lambdaQueue,
+                                    new CFGLambda(lambdaPair.first, ct, mt),
+                                    fieldValues,
+                                    null,
+                                    false,
+                                    false,
+                                    false,
+                                    lambdaPair.second);
+                    postAnalyzeWithBodyPath(cfg);
                 }
 
-                // By convention we store the static initialization store as the regular exit
+                // By convention, we store the static initialization store as the regular exit
                 // store of the class node, so that it can later be used to check
                 // that all fields are initialized properly.
                 // See InitializationVisitor.visitClass().
@@ -1604,6 +1569,116 @@ public abstract class GenericAnnotatedTypeFactory<
 
             scannedClasses.put(ct, ScanState.FINISHED);
         }
+    }
+
+    /**
+     * Analyzes {@code method} and all lambdas contained within it.
+     *
+     * @param classTree class tree containing {@code method}
+     * @param method method to analyze
+     * @param classQueue classes found within {@code method} are added to this queue
+     * @param fieldValues the abstract values for all fields of the same class
+     * @param capturedStore the input Store to use
+     */
+    private void performFlowAnalysisForMethod(
+            ClassTree classTree,
+            CFGMethod method,
+            Queue<Pair<ClassTree, @Nullable Store>> classQueue,
+            List<FieldInitialValue<Value>> fieldValues,
+            @Nullable Store capturedStore) {
+        // Each value is a list containing one element for each `return` statement in the lambda
+        // (which is the map key).
+        Map<LambdaExpressionTree, List<AnnotationMirrorSet>> lambdaToResultTypes = new HashMap<>();
+        Map<LambdaExpressionTree, ControlFlowGraph> lambdaToCFG = new HashMap<>();
+        ControlFlowGraph methodCFG = null;
+        MethodTree methodTree = method.getMethod();
+
+        boolean isConstructor = TreeUtils.isConstructor(method.getMethod());
+
+        // Analyze `method` and all lambdas contained in `method` until the type of the lambda
+        // result expressions do not change.
+        boolean firstIteration = true;
+        while (true) {
+            Queue<Pair<ClassTree, @Nullable Store>> classQueueInMethod = new ArrayDeque<>();
+            Queue<Pair<LambdaExpressionTree, @Nullable Store>> lambdaQueueInMethod =
+                    new ArrayDeque<>();
+            methodCFG =
+                    analyze(
+                            classQueueInMethod,
+                            lambdaQueueInMethod,
+                            method,
+                            fieldValues,
+                            methodCFG,
+                            isConstructor,
+                            /* updateInitializationStore= */ false,
+                            /* isStatic= */ false,
+                            capturedStore);
+            boolean anyLambdaResultChanged = false;
+            while (!lambdaQueueInMethod.isEmpty()) {
+                Pair<LambdaExpressionTree, @Nullable Store> lambdaPair =
+                        lambdaQueueInMethod.remove();
+                LambdaExpressionTree lambda = lambdaPair.first;
+                ControlFlowGraph cfgLambda =
+                        analyze(
+                                classQueueInMethod,
+                                lambdaQueueInMethod,
+                                new CFGLambda(lambda, classTree, methodTree),
+                                fieldValues,
+                                lambdaToCFG.get(lambda),
+                                /* isInitializationCode= */ false,
+                                /* updateInitializationStore= */ false,
+                                /* isStatic= */ false,
+                                lambdaPair.second);
+                lambdaToCFG.put(lambda, cfgLambda);
+
+                List<AnnotationMirrorSet> returnedExpressionAnnos =
+                        CollectionsPlume.mapList(
+                                tree -> getAnnotatedType(tree).getAnnotations(),
+                                TreeUtils.getReturnedExpressions(lambda));
+                List<AnnotationMirrorSet> prevReturnedExpressionAnnos =
+                        lambdaToResultTypes.get(lambda);
+                if (prevReturnedExpressionAnnos == null
+                        || !prevReturnedExpressionAnnos.equals(returnedExpressionAnnos)) {
+                    anyLambdaResultChanged = true;
+                }
+                lambdaToResultTypes.put(lambda, returnedExpressionAnnos);
+            }
+
+            if (!anyLambdaResultChanged
+                    || (firstIteration && containsAllVoidLambdas(lambdaToCFG.keySet()))) {
+                classQueue.addAll(classQueueInMethod);
+                break; // Done with this method.
+            } else {
+                if (fromExpressionTreeCache != null) {
+                    // If one cache is not null, then neither are the others.
+                    fromExpressionTreeCache.clear();
+                    fromMemberTreeCache.clear();
+                    fromTypeTreeCache.clear();
+                }
+                firstIteration = false;
+            }
+        }
+        postAnalyzeWithBodyPath(methodCFG);
+        lambdaToCFG.values().forEach(this::postAnalyzeWithBodyPath);
+    }
+
+    /**
+     * Returns true if every lambda in {@code lambdas} has a void return type; otherwise false.
+     *
+     * @param lambdas lambdas that are all contained within the same method
+     * @return true if no lambda has a non-void return type
+     */
+    private boolean containsAllVoidLambdas(Set<LambdaExpressionTree> lambdas) {
+        for (LambdaExpressionTree lambda : lambdas) {
+            if (TypesUtils.findFunctionType(TreeUtils.typeOf(lambda), processingEnv)
+                            .getReturnType()
+                            .getKind()
+                    != TypeKind.VOID) {
+                // The lambda return type is not void.
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Sorts a list of trees with the variables first. */
@@ -1640,55 +1715,59 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param lambdaQueue the queue for encountered lambda expression trees and their initial stores
      * @param ast the AST to analyze
      * @param fieldValues the abstract values for all fields of the same class
-     * @param currentClass the class we are currently looking at
+     * @param cfg control flow graph to use; if null, one will be created and returned
      * @param isInitializationCode are we analyzing a (static/non-static) initializer block of a
      *     class
      * @param updateInitializationStore should the initialization store be updated
      * @param isStatic are we analyzing a static construct
      * @param capturedStore the input Store to use for captured variables, e.g. in a lambda
+     * @return the control flow graph for {@code ast}, which is {@code cfg} if {@code cfg} is
+     *     non-null
      * @see #postAnalyze(org.checkerframework.dataflow.cfg.ControlFlowGraph)
      */
-    protected void analyze(
-            Queue<IPair<ClassTree, Store>> classQueue,
-            Queue<IPair<LambdaExpressionTree, Store>> lambdaQueue,
+    protected ControlFlowGraph analyze(
+            Queue<Pair<ClassTree, @Nullable Store>> classQueue,
+            Queue<Pair<LambdaExpressionTree, @Nullable Store>> lambdaQueue,
             UnderlyingAST ast,
             List<FieldInitialValue<Value>> fieldValues,
-            ClassTree currentClass,
+            @Nullable ControlFlowGraph cfg,
             boolean isInitializationCode,
             boolean updateInitializationStore,
             boolean isStatic,
             @Nullable Store capturedStore) {
-        // Prime the cache with this method body's path, built in O(1) from the enclosing class
-        // path, so the getPath(root, code) lookups below (in CFCFGBuilder.build, and when the
-        // visitor path is set before performAnalysis) are cache hits rather than an O(members) scan
-        // from the compilation-unit root -- which, once per body, is quadratic over a class with
-        // many methods. Only done for methods, whose body path is an unambiguous two-step extension
-        // of the class path (class -> method -> body); lambdas and initializers (rarer / nested)
-        // fall through to the normal lookup.
-        if (ast.getKind() == UnderlyingAST.Kind.METHOD) {
-            UnderlyingAST.CFGMethod cfgMethod = (UnderlyingAST.CFGMethod) ast;
-            TreePath classPath = getVisitorTreePath();
-            Tree body = cfgMethod.getCode();
-            if (classPath != null
-                    && body != null
-                    && treePathLeafIs(classPath, cfgMethod.getClassTree())) {
-                checker.getTreePathCacher()
-                        .addPath(
-                                body,
-                                new TreePath(new TreePath(classPath, cfgMethod.getMethod()), body));
+        if (cfg == null) {
+            // Prime the cache with this method body's path, built in O(1) from the enclosing class
+            // path, so the getPath(root, code) lookups below (in CFCFGBuilder.build, and when the
+            // visitor path is set before performAnalysis) are cache hits rather than an O(members)
+            // scan from the compilation-unit root -- which, once per body, is quadratic over a
+            // class with many methods. Only done for methods, whose body path is an unambiguous
+            // two-step extension of the class path (class -> method -> body); lambdas and
+            // initializers (rarer / nested) fall through to the normal lookup.
+            if (ast.getKind() == UnderlyingAST.Kind.METHOD) {
+                UnderlyingAST.CFGMethod cfgMethod = (UnderlyingAST.CFGMethod) ast;
+                TreePath classPath = getVisitorTreePath();
+                Tree body = cfgMethod.getCode();
+                if (classPath != null
+                        && body != null
+                        && treePathLeafIs(classPath, cfgMethod.getClassTree())) {
+                    checker.getTreePathCacher()
+                            .addPath(
+                                    body,
+                                    new TreePath(
+                                            new TreePath(classPath, cfgMethod.getMethod()), body));
+                }
+            }
+            cfg = CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
+            if (ignoreDeadCode) {
+                cfg.getAllNodes(this::isIgnoredExceptionType)
+                        .forEach(
+                                node -> {
+                                    if (node.getTree() != null) {
+                                        reachableNodes.add(node.getTree());
+                                    }
+                                });
             }
         }
-        ControlFlowGraph cfg =
-                CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
-        /*
-             cfg.getAllNodes(this::isIgnoredExceptionType)
-                     .forEach(
-                             node -> {
-                                 if (node.getTree() != null) {
-                                     reachableNodes.add(node.getTree());
-                                 }
-                             });
-        */
         if (isInitializationCode) {
             Store initStore = !isStatic ? initializationStore : initializationStaticStore;
             if (initStore != null) {
@@ -1704,12 +1783,12 @@ public abstract class GenericAnnotatedTypeFactory<
         }
         // Point the visitor path at the body being analyzed. getPath() -- used by, e.g.,
         // type-argument inference triggered during the analysis below -- uses visitorTreePath as a
-        // search-start hint. performFlowAnalysis sets it to the enclosing *class*, so a lookup for
-        // a tree inside this body rescans the whole class subtree, which is quadratic in the number
-        // of members. The body's path was just cached by CFCFGBuilder.build above, so this is a
-        // cache hit; query the cacher directly (not getPath) so this does not itself depend on
-        // visitorTreePath. Restored in the finally so the class path is back in place for the rest
-        // of performFlowAnalysis.
+        // search-start hint. performFlowAnalysisForClass sets it to the enclosing *class*, so a
+        // lookup for a tree inside this body rescans the whole class subtree, which is quadratic
+        // in the number of members. The body's path was just cached by CFCFGBuilder.build above,
+        // so this is a cache hit; query the cacher directly (not getPath) so this does not itself
+        // depend on visitorTreePath. Restored in the finally so the class path is back in place
+        // for the rest of performFlowAnalysisForClass.
         TreePath prevVisitorTreePath = getVisitorTreePath();
         setVisitorTreePath(checker.getTreePathCacher().getPath(this.getRoot(), ast.getCode()));
         try {
@@ -1780,14 +1859,44 @@ public abstract class GenericAnnotatedTypeFactory<
 
         // add classes declared in CFG
         for (ClassTree cls : cfg.getDeclaredClasses()) {
-            classQueue.add(IPair.of(cls, getStoreBefore(cls)));
+            classQueue.add(Pair.of(cls, getStoreBefore(cls)));
         }
         // add lambdas declared in CFG
         for (LambdaExpressionTree lambda : cfg.getDeclaredLambdas()) {
-            lambdaQueue.add(IPair.of(lambda, getStoreBefore(lambda)));
+            lambdaQueue.add(Pair.of(lambda, getStoreBefore(lambda)));
         }
+        return cfg;
+    }
 
-        postAnalyze(cfg);
+    /**
+     * Calls {@link #postAnalyze(ControlFlowGraph)} for {@code cfg}, with the visitor tree path set
+     * to the analyzed code.
+     *
+     * @param cfg a CFG that has been analyzed
+     */
+    private void postAnalyzeWithBodyPath(ControlFlowGraph cfg) {
+        runWithBodyVisitorPath(cfg, () -> postAnalyze(cfg));
+    }
+
+    /**
+     * Runs {@code action} with the visitor tree path set to the code of {@code cfg}, as {@link
+     * #analyze} does for the analysis itself. Without it, a path lookup made by {@code action}
+     * resolves against whatever path the visitor last set, fails, and {@link
+     * AnnotatedTypeFactory#getPath} caches that failure for the rest of the compilation unit.
+     *
+     * @param cfg a CFG that has been analyzed
+     * @param action the action to run
+     */
+    protected final void runWithBodyVisitorPath(ControlFlowGraph cfg, Runnable action) {
+        TreePath prevPath = getVisitorTreePath();
+        setVisitorTreePath(
+                checker.getTreePathCacher()
+                        .getPath(this.getRoot(), cfg.getUnderlyingAST().getCode()));
+        try {
+            action.run();
+        } finally {
+            setVisitorTreePath(prevPath);
+        }
     }
 
     /**
@@ -1802,21 +1911,21 @@ public abstract class GenericAnnotatedTypeFactory<
 
     /**
      * Perform any additional operations on a CFG. Called once per CFG, after the CFG has been
-     * analyzed by {@link #analyze(Queue, Queue, UnderlyingAST, List, ClassTree, boolean, boolean,
-     * boolean, CFAbstractStore)}. This method can be used to initialize additional state or to
-     * perform any analyses that are easier to perform on the CFG instead of the AST.
+     * analyzed by {@link #analyze(Queue, Queue, UnderlyingAST, List, ControlFlowGraph, boolean,
+     * boolean, boolean, CFAbstractStore)}. If the CFG is analyzed more than once, this method is
+     * still only called one time after the last time the CFG is analyzed. This method can be used
+     * to initialize additional state or to perform any analyzes that are easier to perform on the
+     * CFG instead of the AST.
      *
      * @param cfg the CFG
-     * @see #analyze(java.util.Queue, java.util.Queue,
-     *     org.checkerframework.dataflow.cfg.UnderlyingAST, java.util.List,
-     *     com.sun.source.tree.ClassTree, boolean, boolean, boolean,
-     *     org.checkerframework.framework.flow.CFAbstractStore)
+     * @see #analyze(Queue, Queue, UnderlyingAST, List, ControlFlowGraph, boolean, boolean, boolean,
+     *     CFAbstractStore)
      */
     protected void postAnalyze(ControlFlowGraph cfg) {
         handleCFGViz(cfg);
     }
 
-    /** Whether handling CFG visualization is necessary. */
+    /** True if handling CFG visualization is necessary. */
     private final boolean handleCFGViz;
 
     /**
@@ -2261,9 +2370,9 @@ public abstract class GenericAnnotatedTypeFactory<
      *   <li>Flow analysis has not already been performed on {@code tree}
      * </ul>
      *
-     * @param tree the tree to check and possibly perform flow analysis on
+     * @param classTree the tree to check and possibly perform flow analysis on
      */
-    protected void checkAndPerformFlowAnalysis(Tree tree) {
+    protected void performFlowAnalysisForClassOnce(ClassTree classTree) {
         // For performance reasons, we require that getAnnotatedType is called
         // on the ClassTree before it's called on any code contained in the class,
         // so that we can perform flow analysis on the class.  Previously we
@@ -2271,11 +2380,8 @@ public abstract class GenericAnnotatedTypeFactory<
         // alone consumed more than 10% of execution time.  See
         // BaseTypeVisitor.visitClass for the call to getAnnotatedType that
         // triggers analysis.
-        if (tree instanceof ClassTree) {
-            ClassTree classTree = (ClassTree) tree;
-            if (!scannedClasses.containsKey(classTree)) {
-                performFlowAnalysis(classTree);
-            }
+        if (!scannedClasses.containsKey(classTree)) {
+            performFlowAnalysisForClass(classTree);
         }
     }
 
@@ -2693,7 +2799,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return a map that represents the options
      */
     private Map<String, Object> processCFGVisualizerOption(List<String> opts) {
-        Map<String, Object> res = new HashMap<>(CollectionsPlume.mapCapacity(opts.size() - 1));
+        Map<String, Object> res = new HashMap<>(MapsP.mapCapacity(opts.size() - 1));
         // Index 0 is the visualizer class name and can be ignored.
         for (int i = 1; i < opts.size(); ++i) {
             String opt = opts.get(i);
@@ -2788,7 +2894,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /** For each type, whether it is relevant. A cache to avoid repeated re-computation. */
-    private final Map<TypeMirror, Boolean> isRelevantCache = CollectionsPlume.createLruCache(300);
+    private final Map<TypeMirror, Boolean> isRelevantCache = MapsP.createLruCache(300);
 
     /**
      * Returns true if users can write type annotations from this type system directly on the given
@@ -2958,7 +3064,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Return the type of the default value of the given type. The default value is 0, false, or
+     * Returns the type of the default value of the given type. The default value is 0, false, or
      * null.
      *
      * @param typeMirror a type
@@ -3204,7 +3310,7 @@ public abstract class GenericAnnotatedTypeFactory<
      *     value of {@code preOrPost})
      * @param declaredType the declared type of the expression, which is used to determine if the
      *     inferred type supplies no additional information beyond the declared type
-     * @param preOrPost whether to return preconditions or postconditions
+     * @param preOrPost what to return: preconditions or postconditions
      * @param preconds the precondition annotations for the method; used to suppress redundant
      *     postconditions; non-null exactly when {@code preOrPost} is {@code AFTER}
      * @return precondition or postcondition annotations for the element (possibly an empty list)
@@ -3284,7 +3390,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param qualifier the qualifier that must be present
      * @param declaredType the declared type of the expression, which is used to avoid inferring
      *     redundant pre- or postcondition annotations
-     * @param preOrPost whether to return a precondition or postcondition annotation
+     * @param preOrPost what to return: a precondition or postcondition annotation
      * @param preconds the list of precondition annotations; used to suppress redundant
      *     postconditions; non-null exactly when {@code preOrPost} is {@code BeforeOrAfter.BEFORE}
      * @return a {@code RequiresQualifier("...")} or {@code EnsuresQualifier("...")} annotation for
@@ -3329,7 +3435,7 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * @param tree the source code corresponding to cfg
      * @param cfg the control flow graph to use for tree
-     * @return whether a shared CFG was found to actually add to (duplicate keys also return true)
+     * @return true if a shared CFG was found to actually add to (duplicate keys also return true)
      */
     public boolean addSharedCFGForTree(Tree tree, ControlFlowGraph cfg) {
         if (!shouldCache) {
@@ -3361,7 +3467,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Get the shared control flow graph used for {@code tree} by this checker's topmost
+     * Returns the shared control flow graph used for {@code tree} by this checker's topmost
      * superchecker. Returns null if no information is available about the given tree, or if this
      * checker has a parent checker that does not have a GenericAnnotatedTypeFactory.
      *

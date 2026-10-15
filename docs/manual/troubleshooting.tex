@@ -356,7 +356,7 @@ the Nullness Checker will issue a warning on the second line:
 \begin{Verbatim}
 warning: [dereference.of.nullable] dereference of possibly-null reference currentOutgoing
     currentOutgoing.continueBuffering(message);
-    ^
+                   ^
 \end{Verbatim}
 
 If \<currentOutgoing> is a field rather than a local variable, and
@@ -696,6 +696,34 @@ the Checker Framework, rather than an official release.
 The Checker Framework can be built and runs under any JDK version 8 or later.
 
 
+\subsectionAndLabel{Development jars without building}{development-jars}
+
+If you only want to \emph{run} the latest development version --- say, to
+check whether a bug you reported is already fixed --- you do not have to
+build it.  Every continuous integration run of the
+\ahreforurl{https://github.com/eisop/checker-framework/actions/workflows/ci.yml}{CI
+tests} workflow attaches the jars it built to the run, under ``Artifacts''
+at the bottom of the run's summary page.  The archive contains
+\<checker.jar>, \<checker-qual.jar>, \<checker-util.jar> and \<javac.jar>,
+the same jars that the release distribution puts in its \<checker/dist>
+directory, so a \<-processorpath> that names \<checker.jar> works the same
+way as with a release.
+
+Runs happen on every pull request as well as on every change to the master
+branch, so there is an artifact for a proposed fix as well as for the
+development version.  With the
+\ahreforurl{https://cli.github.com/}{GitHub CLI}, the newest master build is
+
+\begin{Verbatim}
+gh run download --repo eisop/checker-framework --branch master \
+  --name checker-framework-jars
+\end{Verbatim}
+
+Two limitations are worth knowing:  GitHub serves these artifacts only to
+signed-in users, so they cannot be fetched anonymously or named as a
+dependency in a build file, and it deletes them 30 days after the run.
+
+
 \subsectionAndLabel{Install prerequisites}{building-prerequisites}
 
 You need to install several packages in order to build the Checker
@@ -718,32 +746,75 @@ You may need to log out and log back in for the setting to take effect.
 \item[Ubuntu]
   Run the following commands, which should be the same as those in
   \<checker/bin-devel/Dockerfile-ubuntu-jdk\emph{XX}-plus>, where \emph{XX}
-  is a JDK version such as 8, 11, 17, etc.:
+  is a JDK version such as 8, 11, 17, 21, 25, etc.:
 
 (This list should be the same as in
-\<checker/bin-devel/Dockerfile-ubuntu-jdk17-plus>; if your build fails
+\<checker/bin-devel/Dockerfile-ubuntu-jdk25-plus>; if your build fails
 because it is missing a package, try the commands there and report a bug
 in this manual.)
 
-% Keep this up to date with ../../checker/bin-devel/Dockerfile-ubuntu-jdk17-plus
+% Keep this in sync with ../../checker/bin-devel/Dockerfile-ubuntu-jdk25-plus
+% ... but before diffing with that, diff with
+%   ../../checker/bin-devel/Dockerfile-contents-ubuntu-base.m4
+%   ../../checker/bin-devel/Dockerfile-contents-ubuntu-plus.m4
 
 \begin{Verbatim}
-sudo apt-get -qqy update
-sudo apt-get -qqy install \
- openjdk-17-jdk \
- ant cpp git gradle jq jtreg7 libcurl3-gnutls \
- make maven pipx python3-requests python3-setuptools unzip wget \
- autoconf devscripts dia hevea imagemagick junit latexmk \
- librsvg2-bin libasound2-dev libcups2-dev libfontconfig1-dev \
+sudo apt -qqy update
+sudo apt -qqy install locales \
+  openjdk-21-jdk
+# Dependencies for building and running the Checker Framework.
+sudo apt -qqy install \
+  ant \
+  cpp \
+  git \
+  jq \
+  jtreg7 \
+  libcurl3-gnutls \
+  make \
+  maven \
+  python3-requests \
+  python3-setuptools \
+  unzip \
+  wget
+# Dependencies for developing the Checker Framework.
+apt -qqy install \
+  autoconf \
+  devscripts \
+  dia \
+  graphviz \
+  hevea \
+  imagemagick \
+  junit \
+  latexmk \
+  librsvg2-bin \
+  libasound2-dev libcups2-dev libfontconfig1-dev \
  libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev \
- pdf2svg rsync shellcheck \
- texlive-font-utils texlive-fonts-recommended \
- texlive-latex-base texlive-latex-extra texlive-latex-recommended
-pipx install black
-pipx install flake8
-pipx install html5validator
-pipx ensurepath
+  pdf2svg \
+  rsync \
+  shellcheck \
+  shfmt \
+  texlive-font-utils \
+  texlive-fonts-recommended \
+  texlive-latex-base \
+  texlive-latex-extra \
+  texlive-latex-recommended
+
+# Install uv (manages Python dependencies).
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH=$USER/.local/bin:$PATH
+
+# Install markdownlint.
+sudo apt -y install \
+  npm
+sudo npm install markdownlint-cli2 --global
+
+# Install the JDK.
+sudo apt -qqy install \
+  openjdk-25-jdk \
+&& update-java-alternatives --set java-1.25.0-openjdk-amd64
+export JAVA25_HOME=/usr/lib/jvm/java-25-openjdk-amd64
 \end{Verbatim}
+
 
   You may have to answer questions about which time zone your computer is in.
 
@@ -967,7 +1038,6 @@ checker/bin-devel/test-cftests-junit.sh
 \subsectionAndLabel{Related repositories}{building-related-repositories}
 
 Building the Checker Framework depends on other repositories, such as
-\href{https://github.com/eisop/annotation-tools/}{Annotation Tools} and
 \href{https://github.com/eisop/stubparser/}{Stub Parser}.
 You need to have compatible versions of each.
 

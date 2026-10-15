@@ -13,6 +13,7 @@ import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.tools.javac.util.Log;
 
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.source.SourceVisitor;
 import org.checkerframework.javacutil.AnnotationProvider;
@@ -67,8 +68,14 @@ public class JavaCodeStatistics extends SourceChecker {
     int numberOfIndexWarningSuppressions = 0;
 
     /** The SuppressWarnings.value field/element. */
-    final ExecutableElement suppressWarningsValueElement =
-            TreeUtils.getMethod(SuppressWarnings.class, "value", 0, processingEnv);
+    protected @MonotonicNonNull ExecutableElement suppressWarningsValueElement;
+
+    @Override
+    public void initChecker() {
+        super.initChecker();
+        suppressWarningsValueElement =
+                TreeUtils.getMethod(SuppressWarnings.class, "value", 0, processingEnv);
+    }
 
     /** Creates a JavaCodeStatistics. */
     public JavaCodeStatistics() {
@@ -107,8 +114,9 @@ public class JavaCodeStatistics extends SourceChecker {
         @Override
         public Void visitAnnotation(AnnotationTree tree, Void aVoid) {
             AnnotationMirror annotationMirror = TreeUtils.annotationFromAnnotationTree(tree);
-            if (AnnotationUtils.annotationName(annotationMirror)
-                    .equals(SuppressWarnings.class.getCanonicalName())) {
+            if (suppressWarningsValueElement != null
+                    && AnnotationUtils.annotationName(annotationMirror)
+                            .equals(SuppressWarnings.class.getCanonicalName())) {
                 List<String> keys =
                         AnnotationUtils.getElementValueArray(
                                 annotationMirror, suppressWarningsValueElement, String.class);

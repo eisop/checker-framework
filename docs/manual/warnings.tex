@@ -130,7 +130,7 @@ An example is ``\<dereference.of.nullable>'' in
 \begin{Verbatim}
 MyFile.java:107: error: [dereference.of.nullable] dereference of possibly-null reference myList
           myList.add(elt);
-          ^
+                ^
 \end{Verbatim}
 %BEGIN LATEX
 \end{smaller}
@@ -140,10 +140,10 @@ MyFile.java:107: error: [dereference.of.nullable] dereference of possibly-null r
 You are allowed to use any substring of a message key, so long as the
 substring extends at each end to a period or an end of the key.  For
 example, to suppress a warning with message key
-\code{"assignment.type.incompatible"}, you could use
-\<@SuppressWarnings("assignment")>,
-\<@SuppressWarnings("assignment.type")>,
-\<@SuppressWarnings("type.incompatible")>, or other variants.
+\code{"lock.expression.possibly.not.final"}, you could use
+\<@SuppressWarnings("lock.expression.possibly.not.final")>,
+\<@SuppressWarnings("lock.expression")>,
+\<@SuppressWarnings("not.final")>, or other variants.
 We recommend using
 the longest possible message key; a short message might suppress more
 warnings than you expect.
@@ -152,7 +152,7 @@ The checkername \<"allcheckers"> means all checkers.  Using this is not
 recommended, except for messages common to all checkers such as
 purity-related messages when using \<-AcheckPurityAnnotations>.  If you use
 \<"allcheckers">, you run some checker that does not issue any warnings,
-and you suply the \<-AwarnUnneededSuppressions> command-line argument, then
+and you supply the \<-AwarnUnneededSuppressions> command-line argument, then
 the Checker Framework will issue an \<unneeded.suppression>
 warning.
 
@@ -401,13 +401,13 @@ as for \<@SuppressWarnings> annotations, such as writing a comment
 justifying why the assumption is safe
 (Section~\ref{suppresswarnings-best-practices}).
 
-The \<-AassumeAssertionsAreEnabled> and \<-AassumeAssertionsAreDisabled>
-command-line options (Section~\ref{type-refinement-assertions}) do not
+The \<-AassumeAssertions>
+command-line option (Section~\ref{type-refinement-assertions}) does not
 affect processing of \<assert> statements that have \<@AssumeAssertion> in
 their message.  Writing \<@AssumeAssertion> means that the assertion would
 succeed if it were executed, and the Checker Framework makes use of that
-information regardless of the \<-AassumeAssertionsAreEnabled> and
-\<-AassumeAssertionsAreDisabled> command-line options.
+information regardless of the \<-AassumeAssertions>
+command-line option.
 
 
 %% Redundant.
@@ -736,17 +736,22 @@ An explicit \code{@SuppressWarnings} annotation can suppress warnings in
 \code{@AnnotatedFor} code and code outside the scope of a corresponding
 \code{@AnnotatedFor} annotation.
 For example, use \code{@AnnotatedFor("nullness")} for the Nullness Checker.
-This flag only suppresses warnings, compared to \code{-AuseConservativeDefaultsForUncheckedCode=source},
-which also applies conservative defaults for code outside the scope of an \code{@AnnotatedFor} annotation.
+This flag only suppresses warnings, compared to
+\code{-AuseConservativeDefaultsForUncheckedCode=source} and
+\code{-AusePermissiveDefaultsForUncheckedCode=source},
+which also apply conservative or permissive defaults for code outside the scope of an \code{@AnnotatedFor} annotation.
 \href{https://github.com/uber/NullAway}{NullAway} has a similar flag: \code{-XepOpt:NullAway:OnlyNullMarked=true}
 configures NullAway to only issue errors for code inside the scope of \code{@NullMarked} annotations.
 The Nullness Checker treats JSpecify's \code{@NullMarked} as an alias for
-\code{@AnnotatedFor}, scoped to nullness checking with \code{applyToSubpackages = false},
+\code{@AnnotatedFor}, and \code{@NullUnmarked} as an alias for \code{@UnannotatedFor},
+both scoped to nullness checking with \code{applyToSubpackages = false},
 so \code{-AonlyAnnotatedFor} gives the same behavior for \code{@NullMarked} code
 (see Section~\ref{nullness-jspecifyNullMarkedAlias}).
 A written \code{@AnnotatedFor} composes with an aliased one, so
 \code{@AnnotatedFor("index") @NullMarked} is checked by both the Index Checker and the
 Nullness Checker.
+You can exclude an element from an enclosing \code{@AnnotatedFor} scope with
+\refqualclass{framework/qual}{UnannotatedFor}; see Section~\ref{compiling-libraries}.
 
 \sectionAndLabel{\code{-Alint} command-line option\label{lint-options}}{alint}
 
@@ -886,8 +891,8 @@ suppressing warnings issued by the Fenum Checker
 % LocalWords:  AshowSuppressWarningsStrings NullableType NonNullType JUnit's
 % LocalWords:  PolyNullType MonotonicNonNullType KeyForType NullableDecl
 % LocalWords:  NonNullDecl PolyNullDecl MonotonicNonNullDecl KeyForDecl
-% LocalWords:  refactored AassumeAssertionsAreEnabled assertNotNull
-% LocalWords:  AassumeAssertionsAreDisabled NullnessUtil checkNotNull
+% LocalWords:  refactored AassumeAssertions assertNotNull
+% LocalWords:  NullnessUtil checkNotNull
 % LocalWords:  ElementType AuseSafeDefaultsForUnannotatedSourceCode
 % LocalWords:  AuseConservativeDefaultsForUncheckedCode checkerframework askipuses
 % LocalWords:  suppresswarnings ArequirePrefixInWarningSuppressions

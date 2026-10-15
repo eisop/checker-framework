@@ -320,7 +320,7 @@ public class AliasingVisitor extends BaseTypeVisitor<AliasingAnnotatedTypeFactor
     }
 
     /**
-     * Return true if the class declaration for annotated type {@code type} has annotation
+     * Returns true if the class declaration for annotated type {@code type} has annotation
      * {@code @Unique}.
      *
      * @param type the annotated type whose class must be checked

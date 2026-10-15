@@ -228,7 +228,7 @@ This section describes how to create an annotated library.
 
 \begin{enumerate}
 \item See the
-  \href{https://search.maven.org/search?q=org.checkerframework.annotatedlib}{\<org.checkerframework.annotatedlib>
+  \href{https://central.sonatype.com/search?q=org.checkerframework.annotatedlib}{\<org.checkerframework.annotatedlib>
     group in the Maven Central Repository}
   to find out whether an annotated version of the library already exists.
 %% This adds clutter to the source code, so omit the step from these instructions.
@@ -403,10 +403,12 @@ Here are two concerns you may have when partially annotating a library:
 
 \begin{sloppypar}
 When compiling a library that is not fully annotated, use command-line
-argument \<-AuseConservativeDefaultsForUncheckedCode=source,bytecode>.  This causes
-the checker to behave normally for classes with a relevant \<@AnnotatedFor>
-annotation.  For classes without \<@AnnotatedFor>, the checker uses
-conservative defaults
+argument \<-AuseConservativeDefaultsForUncheckedCode=source,bytecode>.
+This has the following effect.
+For classes with \<@AnnotatedFor> for the current checker,
+the checker applies defaults normally.
+For classes without \<@AnnotatedFor> for the current checker,
+the checker uses conservative defaults
 (see Section~\ref{defaults-classfile}) for any type use with no explicit
 user-written annotation, \emph{and} the checker issues no warnings.
 The command-line argument \code{-AonlyAnnotatedFor} can be used to suppress
@@ -417,24 +419,28 @@ In code with a relevant \<@AnnotatedFor> annotation, warnings can be suppressed
 by an explicit \<@SuppressWarnings> annotation.
 \end{sloppypar}
 
+As an unsound alternative, use
+\<-AusePermissiveDefaultsForUncheckedCode=source,bytecode> to trust code outside
+a relevant \<@AnnotatedFor> scope.  This applies permissive defaults (see
+Section~\ref{defaults-classfile}) and suppresses warnings in unannotated source code,
+like \<-AuseConservativeDefaultsForUncheckedCode=source>.  A kind of code cannot
+use both permissive and conservative defaults.
+
 The \refqualclass{framework/qual}{AnnotatedFor} annotation, written on a
 class, indicates that the class has been annotated for certain type
-systems.  For example, \<@AnnotatedFor(\ttlcb"nullness", "regex"\ttrcb)> means that
+systems.
+You may write \<@AnnotatedFor> on a class that contains no explicit
+annotations from the given type system, if the defaulting rules already
+give appropriate qualifiers for every type in the class.
+
+For example, \<@AnnotatedFor(\ttlcb"nullness", "regex"\ttrcb)> means that
 the programmer has written annotations for the Nullness and Regular
-Expression type systems.  If one of those two type-checkers is run,
-the \<-AuseConservativeDefaultsForUncheckedCode=source,bytecode> command-line argument
-has no effect and this class is treated normally:
-unannotated types are defaulted using normal source-code
-defaults and type-checking warnings are issued.
-\refqualclass{framework/qual}{AnnotatedFor}'s arguments are any string that
-may be passed to the \<-processor> command-line argument:  the
-fully-qualified class name for the checker, or a shorthand for built-in
-checkers (see Section~\ref{shorthand-for-checkers}).
+Expression type systems.
+For any type system other than Nullness or Regex, that \<@AnnotatedFor>
+annotation has no effect --- the checker treats the class as
+unannotated for that type system.
 The argument to \refqualclass{framework/qual}{AnnotatedFor} is not an
 annotation name, but a checker name.
-Writing \<@AnnotatedFor> on a class doesn't necessarily mean that you wrote
-any annotations, but that you examined the source code and verified
-that all appropriate annotations are present.
 
 \<@AnnotatedFor> may also be written on a package, via the
 \<package-info.java> file, in which case it applies to the given package
@@ -443,9 +449,22 @@ set the \<applyToSubpackages> element to false, as in
 \<@AnnotatedFor(value = "nullness", applyToSubpackages = false)>.
 This limits only that annotation; it does not block an applicable
 \<@AnnotatedFor> on an enclosing package.
-Because \<@AnnotatedFor> has source retention, a package annotation only
-affects compilation units that are compiled together with its
-\<package-info.java> file.
+\<@AnnotatedFor> and \<@UnannotatedFor> are stored in class files, so a
+package annotation also affects compilation units that are compiled
+separately from its \<package-info.java> file, as long as the compiled
+\<package-info.class> is on the classpath.  Likewise, under
+\<-AuseConservativeDefaultsForUncheckedCode=bytecode>, a class file whose
+class or package has a relevant \<@AnnotatedFor> is treated as checked code.
+
+\textbf{Limit package annotations to their own package.}  Because a package
+annotation is read from \<package-info.class>, one with the default
+\<applyToSubpackages = true> covers \emph{every} subpackage that is
+compiled against it, including subpackages in other libraries or projects
+whose authors never examined their code for that type system.  Such code is
+then type-checked and defaulted as if it had been annotated.  As a good
+practice, write \<applyToSubpackages = false> on a package-level
+\<@AnnotatedFor>, and annotate each subpackage separately, unless you
+control all of the subpackages.
 
 \<@AnnotatedFor> is repeatable, so it may be written more than once at the
 same location.  This lets different type systems be given different
@@ -459,13 +478,86 @@ same location.  This lets different type systems be given different
 this section, remains the right choice when they should share one
 \<applyToSubpackages> setting.)
 
+The \refqualclass{framework/qual}{UnannotatedFor} annotation is the inverse:
+it excludes a package, class, method, or constructor from the scope of an
+enclosing \<@AnnotatedFor>.  For example, if a package is
+\<@AnnotatedFor("nullness")> but one class in it has not been annotated, write
+\<@UnannotatedFor("nullness")> on that class; it is then treated as unchecked
+code, exactly as if the package had no \<@AnnotatedFor>.  An \<@AnnotatedFor>
+on a nested element takes effect again for that element.
+\refqualclass{framework/qual}{UnannotatedFor}'s arguments are checker names,
+in the same format as \refqualclass{framework/qual}{AnnotatedFor}'s; it has
+the same \<applyToSubpackages> element and is likewise repeatable.  Between
+two package annotations, the innermost one wins:  an \<@UnannotatedFor> on a
+package excludes its subpackages from an \<@AnnotatedFor> on an enclosing
+package, and vice versa.  When both are written on the same element and apply
+to the same checker, \<@AnnotatedFor> wins, since \<@UnannotatedFor> only
+subtracts from an \emph{enclosing} scope.  \<@UnannotatedFor> has no effect in
+a stub file (Section~\ref{stub}), where \<@AnnotatedFor> only decides whether
+each declaration's annotations are read.
+
+Code in the scope of an \<@UnannotatedFor> gets the same defaults as code
+with no enclosing \<@AnnotatedFor>.  Under
+\<-AuseConservativeDefaultsForUncheckedCode=source>, those are the
+conservative defaults of Section~\ref{defaults-classfile}.  Under
+\<-AonlyAnnotatedFor> alone, they are the ordinary defaults for checked code,
+and only warnings are suppressed.  An explicit \<@DefaultQualifier> whose
+scope includes the code, written on the excluded element or on an enclosing
+one, still takes precedence over the conservative defaults for the type
+hierarchy and locations it names:  \<@UnannotatedFor> removes the
+\<@AnnotatedFor> scope, not the \<@DefaultQualifier>s around it.  That
+includes the \<@DefaultQualifier> that JSpecify's \<@NullMarked> stands for;
+\<@NullUnmarked> additionally undoes that one's upper-bound default
+(Section~\ref{nullness-jspecifyNullMarkedAlias}).
+
 \begin{sloppypar}
 Whenever you compile a class using the Checker Framework, including when
 using the \<-AuseConservativeDefaultsForUncheckedCode=source,bytecode> command-line
 argument, the resulting \<.class> files are fully-annotated; each type use
 in the \<.class> file has an explicit type qualifier for any checker that
-is run.
+is run.  Section~\ref{AstoreInBytecode} explains how to suppress this.
 \end{sloppypar}
+
+
+\subsectionAndLabel{The \<-AstoreInBytecode> command-line argument}{AstoreInBytecode}
+
+Command-line argument \<-AstoreInBytecode=false> suppresses the storage
+described above:  the \<.class> file then contains only the annotations that appear in
+the source code, not the qualifiers the checker inferred by defaulting.  Use
+it when the defaults of the compilation that writes the \<.class> file should
+not be baked into it.
+The option also suppresses the storage of declaration annotations that a
+method inherits from the methods it overrides; only the declaration annotations
+written in the source code are stored.
+It likewise omits qualifiers supplied by an ajava file (\<-Aajava>) or, under
+\<-AmergeStubsWithSource>, by a stub file.  Unlike inherited declaration
+annotations, which a later compilation recomputes, those are seen by a later
+compilation only if it is given the same ajava or stub files.
+
+There are two reasons to want this.  First, the stored qualifiers are read by
+other tools, which may reject them:  a stored \<@NonNull> on a class type
+parameter makes the Kotlin compiler treat the type parameter as non-nullable,
+and \<javac> 25 reports ``cannot attach type annotations'' when a type
+mentioned by a stored annotation is not on the classpath, though \<javac> 21
+accepts the same class file.  Second, the stored qualifiers are the writing
+compilation's, so a later compilation cannot apply its own.
+
+The \<.class> file of a class compiled with \<-AstoreInBytecode=false> is
+partially annotated, like that of a library compiled without running a
+checker, and a later compilation applies its own defaults to the type uses
+that carry no annotation.  Because \<@AnnotatedFor> and \<@UnannotatedFor>
+are stored in the class file (Section~\ref{compiling-libraries}), that later
+compilation can still tell which classes were annotated:  a class that is not
+in the scope of a relevant \<@AnnotatedFor> is defaulted conservatively under
+\<-AuseConservativeDefaultsForUncheckedCode=bytecode>, which yields more
+warnings than the annotations that would have been stored.
+
+This also applies to a project's own classes.  An incremental build reads
+the classes it does not recompile from their \<.class> files, which under
+\<-AstoreInBytecode=false> carry no defaulted qualifiers; if bytecode is
+defaulted differently from source code, as under
+\<-AuseConservativeDefaultsForUncheckedCode=bytecode> alone, an incremental
+build can issue different warnings than a clean build.
 
 
 \subsectionAndLabel{Read-write sensitivity for unannotated fields}{qualifier-read-write-sensitivity}
@@ -474,11 +566,11 @@ A field of a class without \<@AnnotatedFor> has no user-written qualifier, so th
 checker must choose one.  No single choice is right for both uses of the field:
 a read should yield the top qualifier, so that the value is not trusted, but a
 write should require the bottom qualifier, so that nothing weaker is stored into
-the field.  Defaulting the field to the top qualifier in both positions, as the
-Checker Framework used to do, is unsound for writes.
+the field.  Defaulting the field to the top qualifier in both positions is
+unsound for writes.
 
-Such a field is therefore defaulted to a \emph{read-write dynamic} qualifier,
-which resolves to a different qualifier depending on the position in which it
+Under conservative defaults, such a field is therefore defaulted to the type
+system's \emph{read-write dynamic} qualifier, if it defines one, which resolves to a different qualifier depending on the position in which it
 appears:  the top qualifier where the field is read, and the bottom qualifier
 where the field is written.  A read-write dynamic qualifier is used only as an
 unchecked-code default, so it is applied only where conservative defaulting
@@ -497,7 +589,8 @@ with \<-AuseConservativeDefaultsForUncheckedCode=source> rejects both of these:
 A programmer never writes a read-write dynamic qualifier; the checker applies it.
 A type system defines one by writing the
 \refqualclass{framework/qual}{ReadWriteDynamicQualifier} meta-annotation on a
-qualifier, in place of \<@SubtypeOf>.
+qualifier, in place of \<@SubtypeOf>.  In a type system that defines none, the
+conservative default for such a field remains the top qualifier.
 
 
 \sectionAndLabel{Using stub classes}{stub}
@@ -1146,13 +1239,12 @@ Some command-line options make the stub parser issue more warnings:
   whether the \<-Werror> command-line argument is passed), but a note permits
   compilation to proceed.
 
+\item[\<-AstubDebug>]
+  Output debugging messages while parsing stub files, including about
+  unknown classes, methods, and annotations.  This overrides the
+  \<@NoAnnotationFileParserWarning> annotation.
+
 \end{description}
-
-Finally,
-use command-line option {\bf\<-AstubDebug>} to output debugging messages while
-parsing stub files, including about unknown classes, methods, and
-annotations.  This overrides the \<@NoAnnotationFileParserWarning> annotation.
-
 
 
 \subsubsectionAndLabel{Problems parsing stub libraries}{stub-troubleshooting-parsing}
@@ -1188,8 +1280,10 @@ can be read by the Checker Framework.
 Section~\ref{stub} describes stub files, which are used by programmers and
 type system designers.
 This section describes ajava files.
-Ajava files are read and written by tools, such as whole-program type
-inference (see Section~\ref{whole-program-inference}).  This section about
+Ajava files are primarily read and written by tools, such as whole-program type
+inference (see Section~\ref{whole-program-inference}).  (However,
+programmers are permitted to write \<.ajava> files.)
+This section about
 ajava files is primarily of interest to the maintainers of such tools.
 
 An ajava file is simply a valid Java source file.
