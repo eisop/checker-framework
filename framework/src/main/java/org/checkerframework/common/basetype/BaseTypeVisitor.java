@@ -93,6 +93,7 @@ import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.TypeHierarchy;
+import org.checkerframework.framework.type.TypeVariableSubstitutor;
 import org.checkerframework.framework.type.poly.QualifierPolymorphism;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
@@ -158,6 +159,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
 
 /* NO-AFU
@@ -5633,6 +5635,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * not carry over. There is also no type-parameter tree to report on, which is why {@link
          * #checkTypeParameterBoundsMsg} can cast {@code overriderTree} to a {@code MethodTree}.
          *
+         * <p>As in JLS 8.4.4, the overriding method's type parameters are substituted for the
+         * overridden method's in the overridden method's bounds before the bounds are compared. An
+         * F-bound such as {@code <T extends Comparable<T>>}, or a bound that names another type
+         * parameter of the method, would otherwise compare two distinct type variables.
+         *
          * @return true if every type-parameter bound is compatible
          */
         private boolean checkTypeParameterBounds() {
@@ -5642,6 +5649,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             List<AnnotatedTypeVariable> overriderTypeVars = overrider.getTypeVariables();
             List<AnnotatedTypeVariable> overriddenTypeVars = overridden.getTypeVariables();
             int count = Math.min(overriderTypeVars.size(), overriddenTypeVars.size());
+            if (count == 0) {
+                return true;
+            }
+            if (overriderTypeVars.size() == overriddenTypeVars.size()) {
+                overriddenTypeVars =
+                        substituteTypeVariablesInBounds(overriddenTypeVars, overriderTypeVars);
+            }
             boolean result = true;
             for (int i = 0; i < count; i++) {
                 boolean success =
@@ -5649,6 +5663,36 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                                 overriddenTypeVars.get(i), overriderTypeVars.get(i));
                 checkTypeParameterBoundsMsg(success, i, overriderTypeVars, overriddenTypeVars);
                 result &= success;
+            }
+            return result;
+        }
+
+        /**
+         * Returns copies of {@code overriddenTypeVars} whose bounds use {@code overriderTypeVars}
+         * in place of {@code overriddenTypeVars}.
+         *
+         * @param overriddenTypeVars the type parameters of the overridden method
+         * @param overriderTypeVars the type parameters of the overriding method, of the same size
+         * @return copies of {@code overriddenTypeVars} with substituted bounds
+         */
+        private List<AnnotatedTypeVariable> substituteTypeVariablesInBounds(
+                List<AnnotatedTypeVariable> overriddenTypeVars,
+                List<AnnotatedTypeVariable> overriderTypeVars) {
+            Map<TypeVariable, AnnotatedTypeMirror> mapping = new HashMap<>();
+            for (int i = 0; i < overriddenTypeVars.size(); i++) {
+                mapping.put(
+                        overriddenTypeVars.get(i).getUnderlyingType(),
+                        overriderTypeVars.get(i).asUse());
+            }
+            TypeVariableSubstitutor substitutor = atypeFactory.getTypeVarSubstitutor();
+            List<AnnotatedTypeVariable> result = new ArrayList<>(overriddenTypeVars.size());
+            for (AnnotatedTypeVariable overriddenTypeVar : overriddenTypeVars) {
+                AnnotatedTypeVariable copy = overriddenTypeVar.shallowCopy();
+                copy.setUpperBound(
+                        substitutor.substitute(mapping, overriddenTypeVar.getUpperBound()));
+                copy.setLowerBound(
+                        substitutor.substitute(mapping, overriddenTypeVar.getLowerBound()));
+                result.add(copy);
             }
             return result;
         }

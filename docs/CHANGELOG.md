@@ -180,6 +180,10 @@ literal (such as `i < n`): the loop variable takes the range that the bound
 permits right away. On plume-util, it takes 8.3s instead of 10.1s. Precision is
 unchanged or better.
 
+`override.typaram.invalid` is no longer reported for an override that widens the
+qualifier of an F-bounded type parameter, such as `<T extends @Nullable Comparable<T>>`
+overriding `<T extends @NonNull Comparable<T>>`.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -391,6 +395,7 @@ eisop#1887,
 eisop#1926,
 eisop#1958,
 eisop#1965,
+eisop#1971,
 eisop#1986,
 eisop#1987,
 eisop#1990,
