@@ -180,6 +180,11 @@ literal (such as `i < n`): the loop variable takes the range that the bound
 permits right away. On plume-util, it takes 8.3s instead of 10.1s. Precision is
 unchanged or better.
 
+An override whose receiver narrows the type arguments of the overridden method's
+receiver, such as `Child<@NonNull E> this` overriding `Parent<E> this`, is now
+reported as `override.receiver.invalid`. Previously only the receiver's primary
+annotations were compared.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -414,6 +419,7 @@ eisop#2061,
 eisop#2064,
 eisop#2072,
 eisop#2074,
+eisop#2076,
 eisop#2081,
 eisop#2083,
 eisop#2084,
