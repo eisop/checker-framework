@@ -1663,6 +1663,9 @@ public class AnnotationFileParser {
         // Clear existing annotations, which only makes a difference for
         // type variables, but doesn't hurt in other cases.
         atype.clearAnnotations();
+        if (atype instanceof AnnotatedTypeVariable) {
+            ((AnnotatedTypeVariable) atype).markAsPlainTypeVariableUsage();
+        }
     }
 
     /**
