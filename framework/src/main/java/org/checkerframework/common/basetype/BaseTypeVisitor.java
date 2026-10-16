@@ -5043,7 +5043,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedTypeMirror enclosingType;
         if (TreeUtils.isLikeDiamondMemberReference(memberReferenceTree)) {
             TypeElement typeElt = TypesUtils.getTypeElement(TreeUtils.typeOf(preColonTree));
-            enclosingType = atypeFactory.getAnnotatedType(typeElt);
+            // The class declaration's type arguments are type variable declarations; the receiver
+            // is a use of the class (eisop#2287).
+            enclosingType = atypeFactory.getAnnotatedType(typeElt).asUse();
         } else if (memberReferenceTree.getMode() == ReferenceMode.NEW
                 || memRefKind == MemberReferenceKind.UNBOUND
                 || memRefKind == MemberReferenceKind.STATIC) {
