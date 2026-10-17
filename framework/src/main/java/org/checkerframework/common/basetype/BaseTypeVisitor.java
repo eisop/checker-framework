@@ -154,6 +154,7 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
@@ -5455,20 +5456,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotatedDeclaredType overriddenReceiver = overridden.getReceiverType();
             // Check the receiver type.
             // isSubtype() requires its arguments to be actual subtypes with respect to the JLS, but
-            // an overrider receiver is not a subtype of the overridden receiver.  So, just check
-            // primary annotations.
-            // TODO: this will need to be improved for generic receivers.
-            if (!typeHierarchy.isSubtypeShallowEffective(overriddenReceiver, overriderReceiver)) {
-                AnnotationMirrorSet declaredAnnos =
-                        atypeFactory.getTypeDeclarationBounds(overriderType.getUnderlyingType());
-                if (typeHierarchy.isSubtypeShallowEffective(overriderReceiver, declaredAnnos)
-                        && typeHierarchy.isSubtypeShallowEffective(
-                                declaredAnnos, overriderReceiver)) {
-                    // All the type of an object must be no higher than its upper bound. So if the
-                    // receiver is annotated with the upper bound qualifiers, then the override is
-                    // safe.
-                    return true;
-                }
+            // an overrider receiver is not a subtype of the overridden receiver.  So, check the
+            // primary annotations and the type arguments separately.
+            if (!isReceiverPrimaryOverrideValid(overriderReceiver, overriddenReceiver)
+                    || !isReceiverTypeArgumentOverrideValid(
+                            overriderReceiver, overriddenReceiver)) {
                 FoundRequired pair = FoundRequired.of(overriderReceiver, overriddenReceiver);
                 checker.reportError(
                         overriderTree,
@@ -5484,6 +5476,89 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return true;
         }
 
+        /**
+         * Returns true if the primary annotations of the overrider's receiver accept every receiver
+         * that the overridden method's receiver accepts.
+         *
+         * @param overriderReceiver the receiver of the overrider
+         * @param overriddenReceiver the receiver of the overridden method
+         * @return true if the primary annotations of the overrider's receiver are valid
+         */
+        private boolean isReceiverPrimaryOverrideValid(
+                AnnotatedDeclaredType overriderReceiver, AnnotatedDeclaredType overriddenReceiver) {
+            if (typeHierarchy.isSubtypeShallowEffective(overriddenReceiver, overriderReceiver)) {
+                return true;
+            }
+            AnnotationMirrorSet declaredAnnos =
+                    atypeFactory.getTypeDeclarationBounds(overriderType.getUnderlyingType());
+            // All the type of an object must be no higher than its upper bound. So if the receiver
+            // is annotated with the upper bound qualifiers, then the override is safe.
+            return typeHierarchy.isSubtypeShallowEffective(overriderReceiver, declaredAnnos)
+                    && typeHierarchy.isSubtypeShallowEffective(declaredAnnos, overriderReceiver);
+        }
+
+        /**
+         * Returns true if the type arguments of the overrider's receiver accept every receiver that
+         * the overridden method's receiver accepts.
+         *
+         * <p>A receiver whose type arguments are the class's own type parameters, as in {@code
+         * Child<E> this} in {@code class Child<E>}, accepts every instance of the class, so it is
+         * always valid. Otherwise, the overrider's receiver viewed as the overridden method's class
+         * must be a supertype of the overridden method's receiver. Primary annotations are not
+         * compared here; {@link #isReceiverPrimaryOverrideValid} checks them.
+         *
+         * @param overriderReceiver the receiver of the overrider
+         * @param overriddenReceiver the receiver of the overridden method
+         * @return true if the type arguments of the overrider's receiver are valid
+         */
+        private boolean isReceiverTypeArgumentOverrideValid(
+                AnnotatedDeclaredType overriderReceiver, AnnotatedDeclaredType overriddenReceiver) {
+            if (overriddenReceiver.getTypeArguments().isEmpty()
+                    || hasOwnTypeParametersAsTypeArguments(overriderReceiver)) {
+                return true;
+            }
+            AnnotatedDeclaredType overriderAsSuper =
+                    AnnotatedTypes.asSuper(atypeFactory, overriderReceiver, overriddenReceiver)
+                            .deepCopy();
+            overriderAsSuper.replaceAnnotations(overriddenReceiver.getAnnotations());
+            return typeHierarchy.isSubtype(overriddenReceiver, overriderAsSuper);
+        }
+
+        /**
+         * Returns true if the type arguments of {@code type} and of its enclosing types are exactly
+         * the type parameters of their classes, without primary annotations, as in the type of
+         * {@code this}. Also returns true for a raw type.
+         *
+         * @param type a declared type
+         * @return true if the type arguments of {@code type} are its class's own type parameters
+         */
+        private boolean hasOwnTypeParametersAsTypeArguments(AnnotatedDeclaredType type) {
+            List<? extends TypeParameterElement> typeParams =
+                    ((TypeElement) type.getUnderlyingType().asElement()).getTypeParameters();
+            List<? extends AnnotatedTypeMirror> typeArgs = type.getTypeArguments();
+            if (typeArgs.size() == typeParams.size()) {
+                for (int i = 0; i < typeArgs.size(); i++) {
+                    AnnotatedTypeMirror typeArg = typeArgs.get(i);
+                    if (typeArg.getKind() != TypeKind.TYPEVAR
+                            || !typeArg.getAnnotations().isEmpty()
+                            || !((AnnotatedTypeVariable) typeArg)
+                                    .getUnderlyingType()
+                                    .asElement()
+                                    .equals(typeParams.get(i))) {
+                        return false;
+                    }
+                }
+            }
+            AnnotatedDeclaredType enclosing = type.getEnclosingType();
+            return enclosing == null || hasOwnTypeParametersAsTypeArguments(enclosing);
+        }
+
+        /**
+         * Checks that the overrider's parameter types are supertypes of the overridden method's
+         * parameter types.
+         *
+         * @return true if the overrider's parameter types are valid
+         */
         private boolean checkParameters() {
             List<AnnotatedTypeMirror> overriderParams = overrider.getParameterTypes();
             List<AnnotatedTypeMirror> overriddenParams = overridden.getParameterTypes();
