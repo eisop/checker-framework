@@ -30,6 +30,33 @@ class EisopIssue2011<T extends @Nullable Object> {
         return (T) p;
     }
 
+    // A cast to the type variable does not assert that an element of a null-padded array is
+    // non-null where the type argument is non-null (the pattern of plume-util's ArraySet).
+    static class PaddedArray<E extends @Nullable Object> {
+        @Nullable E[] values;
+
+        PaddedArray(@Nullable E[] values) {
+            this.values = values;
+        }
+
+        E get(int i) {
+            E result = values[i];
+            // :: error: (return.type.incompatible)
+            return (E) result;
+        }
+
+        void forEach(java.util.function.Consumer<? super E> action, int i) {
+            E e = values[i];
+            // :: error: (argument.type.incompatible)
+            action.accept((E) e);
+        }
+
+        @SuppressWarnings("nullness:return") // i is less than the size, so values[i] is an E
+        E getSuppressed(int i) {
+            return values[i];
+        }
+    }
+
     static void use() {
         EisopIssue2011<@NonNull String> b = new EisopIssue2011<>();
         @NonNull String s = b.launderViaLocal(null);
