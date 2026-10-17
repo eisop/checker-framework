@@ -287,6 +287,10 @@ Other improvements and bug fixes:
 - Type argument inference no longer crashes on a generic method call returned
   by a lambda whose target is a raw functional interface type, such as
   `Supplier s = () -> never();` or `(Supplier) () -> never()`.
+- Type argument inference no longer crashes on a generic method call returned
+  by a lambda that is returned by a lambda whose target is a raw functional
+  interface type, such as `S2 s = () -> () -> never();` for
+  `interface S2<T extends Supplier<List<String>>>`.
 - Type argument inference accounts for the type arguments of the enclosing
   type of an inner class type, such as `T` in `Outer<T>.Inner`; it used to
   crash on `consume(make(x))` where `make` returns `Outer<T>.Inner`.
@@ -435,6 +439,7 @@ eisop#2156,
 eisop#2158,
 eisop#2159,
 eisop#2160,
+eisop#2179,
 eisop#2187,
 eisop#2224,
 typetools#399,
