@@ -23,6 +23,7 @@ import org.checkerframework.framework.util.typeinference8.constraint.Expression;
 import org.checkerframework.framework.util.typeinference8.constraint.TypeConstraint;
 import org.checkerframework.framework.util.typeinference8.constraint.Typing;
 import org.checkerframework.framework.util.typeinference8.types.AbstractType;
+import org.checkerframework.framework.util.typeinference8.types.InferenceFactory;
 import org.checkerframework.framework.util.typeinference8.types.InferenceType;
 import org.checkerframework.framework.util.typeinference8.types.InvocationType;
 import org.checkerframework.framework.util.typeinference8.types.ProperType;
@@ -33,6 +34,7 @@ import org.checkerframework.framework.util.typeinference8.util.Java8InferenceCon
 import org.checkerframework.framework.util.typeinference8.util.Resolution;
 import org.checkerframework.framework.util.typeinference8.util.Theta;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreeUtils;
@@ -151,6 +153,14 @@ public class InvocationTypeInference {
      */
     public InferenceResult infer(ExpressionTree invocation, AnnotatedExecutableType methodType)
             throws FalseBoundException {
+        if (invocation instanceof NewClassTree
+                && TreeUtils.isAnonymousDiamondTree((NewClassTree) invocation)
+                && ElementUtils.isAnonymousConstructor(methodType.getElement())) {
+            // Infer the type arguments of the superclass from the super constructor.
+            methodType =
+                    context.typeFactory.getAnonymousDiamondSuperConstructor(
+                            (NewClassTree) invocation);
+        }
         ExecutableType e = methodType.getUnderlyingType();
         InvocationType invocationType = new InvocationType(methodType, e, invocation, context);
         ProperType target = context.inferenceTypeFactory.getTargetType();
@@ -166,7 +176,7 @@ public class InvocationTypeInference {
                         invocation, invocationType, context);
         BoundSet b2 = createB2(invocationType, args, map);
         BoundSet b3;
-        if (target != null && TreeUtils.isPolyExpression(invocation)) {
+        if (target != null && InferenceFactory.isPolyExpression(invocation)) {
             b3 = createB3(b2, invocation, invocationType, target, map);
         } else {
             b3 = b2;
@@ -469,7 +479,7 @@ public class InvocationTypeInference {
                 c.add(new Expression("Argument constraint", ei, fi));
             }
             if (ei instanceof MethodInvocationTree || ei instanceof NewClassTree) {
-                if (TreeUtils.isPolyExpression(ei)) {
+                if (InferenceFactory.isPolyExpression(ei)) {
                     AdditionalArgument aa = new AdditionalArgument(ei);
                     c.addAll(aa.reduce(context));
                 }
@@ -522,7 +532,7 @@ public class InvocationTypeInference {
                 break;
             case METHOD_INVOCATION:
             case NEW_CLASS:
-                if (TreeUtils.isPolyExpression(ei)) {
+                if (InferenceFactory.isPolyExpression(ei)) {
                     c.addAll(new AdditionalArgument(ei).reduce(context));
                 }
                 break;
@@ -640,7 +650,7 @@ public class InvocationTypeInference {
                 break;
             case METHOD_INVOCATION:
             case NEW_CLASS:
-                if (TreeUtils.isPolyExpression(expression)) {
+                if (InferenceFactory.isPolyExpression(expression)) {
                     if (lambdaInputs.isEmpty()) {
                         c.addAll(new AdditionalArgument(expression).reduce(context));
                     } else {

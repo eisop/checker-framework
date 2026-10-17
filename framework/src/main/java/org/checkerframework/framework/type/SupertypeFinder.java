@@ -1,6 +1,7 @@
 package org.checkerframework.framework.type;
 
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -358,6 +359,18 @@ final class SupertypeFinder {
                         (AnnotatedDeclaredType)
                                 atypeFactory.getAnnotatedTypeFromTypeTree(implemented);
                 supertypes.add(adt);
+            }
+
+            NewClassTree anonymousDiamond = atypeFactory.getAnonymousDiamondCreation(type);
+            if (anonymousDiamond != null) {
+                // javac's supertype of `new C<>(args) {...}` has defaulted type arguments. Use the
+                // type arguments inferred from the creation expression instead.
+                AnnotatedDeclaredType inferred =
+                        atypeFactory.getAnonymousDiamondSupertype(anonymousDiamond);
+                if (inferred != null) {
+                    int index = classTree.getExtendsClause() != null ? 0 : supertypes.size() - 1;
+                    supertypes.set(index, inferred);
+                }
             }
 
             TypeElement elem = TreeUtils.elementFromDeclaration(classTree);
