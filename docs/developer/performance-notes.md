@@ -2124,6 +2124,23 @@ inclusive (mostly `TreeScanner.scan` self-time, plausibly a per-call scan of the
 method body), and parsing the `Map.put` postcondition (`JavaExpressionParseUtil.parse` →
 `JavacParse.parseExpression`) on every call (eisop#2261) is 19%.
 
+### Cache the javac parse of contract expression strings (eisop#2261)
+
+`JavaExpressionParseUtil.parse` parsed the expression string with `JavacParse.parseExpression`
+every time. `StringToJavaExpression.atMethodDecl` calls it for each postcondition string of each
+call (`@EnsuresKeyFor(value={"#1"}, map={"this"})` and `@EnsuresNonEmpty("this")` on `Map.put`).
+The parse is expensive because `JavacParse.parseCompilationUnit` builds a new javac `Context`,
+`JavacFileManager` and `ParserFactory` per string: on the 4000-call workload (Nullness Checker,
+JDK 21, before eisop#2260's fix) `JavacParse.parseExpression` was 200 of 1191 samples (16.8%
+inclusive, of which `ParserFactory.instance` was 15%), while converting the parsed tree to a
+`JavaExpression` was about 1%. Only the parse is cached, in a bounded (2000 entries) synchronized
+LRU map from the string (after `#n` replacement) to the javac `ExpressionTree`; the tree depends
+only on the string. The conversion is not cached, because it depends on the enclosing type,
+`this`/parameter substitution and the compilation unit's scope. Failed parses are not cached.
+
+Median of 3 interleaved runs, 4000 fields and 4000 calls: 14.8 s to 10.8 s. Real code (javacutil
+and dataflow sources, 209 files, 5 interleaved runs): 22.0 s to 21.4 s. Diagnostics are identical.
+
 ---
 
 ## Tried and rejected
