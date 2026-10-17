@@ -220,6 +220,9 @@ Performance optimizations:
 - New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
   replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
+- The types of new class, new array, and conditional expressions are cached once the dataflow
+  analysis of their class has finished, instead of being recomputed, including type argument
+  inference, at every query (~7% of the Index Checker's time on plume-util).
 
 Other improvements and bug fixes:
 
