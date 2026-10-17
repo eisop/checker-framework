@@ -5541,8 +5541,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     AnnotatedTypeMirror typeArg = typeArgs.get(i);
                     if (typeArg.getKind() != TypeKind.TYPEVAR
                             || !typeArg.getAnnotations().isEmpty()
-                            || ((AnnotatedTypeVariable) typeArg).getUnderlyingType().asElement()
-                                    != typeParams.get(i)) {
+                            || !((AnnotatedTypeVariable) typeArg)
+                                    .getUnderlyingType()
+                                    .asElement()
+                                    .equals(typeParams.get(i))) {
                         return false;
                     }
                 }
