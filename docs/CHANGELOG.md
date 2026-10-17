@@ -220,6 +220,7 @@ Performance optimizations:
 - New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
   replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
+- `GenericAnnotatedTypeFactory.isRelevant` caches the relevance of declared types per class.
 
 Other improvements and bug fixes:
 
