@@ -80,6 +80,10 @@ Type-checking and subtyping improvements:
   bound and `@DefaultQualifierForUse`; and `new @A AIface() {}` no longer
   reports `cast.unsafe.constructor.invocation` when `@A` matches the
   interface's declaration bound.
+- A diamond on an anonymous class, `new C<>(args) {...}`, now infers the
+  qualifiers of the superclass's type arguments from the target type and the
+  arguments, as for `new C<>(args)`. They were defaulted, which caused false
+  positives and checked the arguments against the defaulted type.
 - CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
   try-with-resources) are now type-checked, with diagnostics pointing at the
   source construct.
@@ -437,6 +441,7 @@ eisop#2159,
 eisop#2160,
 eisop#2187,
 eisop#2224,
+eisop#2271,
 typetools#399,
 typetools#2816,
 typetools#3203,

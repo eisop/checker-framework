@@ -1004,6 +1004,18 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns true if {@code tree} creates an anonymous class and uses a diamond, as in {@code new
+     * C<>(args) {...}}. The type arguments of the anonymous class's supertype are then inferred
+     * (JLS 15.9.3).
+     *
+     * @param tree a new class tree
+     * @return true if {@code tree} creates an anonymous class and uses a diamond
+     */
+    public static boolean isAnonymousDiamondTree(NewClassTree tree) {
+        return tree.getClassBody() != null && isDiamondTree(tree);
+    }
+
+    /**
      * Returns the type arguments to the given new class tree.
      *
      * @param tree a new class tree

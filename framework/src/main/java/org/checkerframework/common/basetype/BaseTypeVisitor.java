@@ -2805,7 +2805,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 atypeFactory.constructorFromUseWithoutTypeArgInference(tree);
         if (!preInference.executableType.getElement().getTypeParameters().isEmpty()
                 || TreeUtils.isDiamondTree(tree)) {
-            if (!checkTypeArgumentInference(tree, preInference.executableType)) {
+            // For an anonymous class, `new C<>(args) {...}`, the type arguments of C are inferred
+            // from the super constructor.
+            AnnotatedExecutableType inferenceType =
+                    TreeUtils.isAnonymousDiamondTree(tree)
+                            ? atypeFactory.getAnonymousDiamondSuperConstructor(tree)
+                            : preInference.executableType;
+            if (!checkTypeArgumentInference(tree, inferenceType)) {
                 return null;
             }
         }
