@@ -318,9 +318,20 @@ public class ResourceLeakChecker extends AggregateChecker {
         return result;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Does nothing if {@code newRoot} is already the current root. {@link
+     * org.checkerframework.checker.rlccalledmethods.RLCCalledMethodsAnnotatedTypeFactory} calls
+     * this before it checks the must-call obligations of each analyzed method, and setting the root
+     * of this checker, the ultimate parent checker, clears the tree-path cache that it shares with
+     * its subcheckers.
+     */
     // public to allow access from RLCCalledMethodsAnnotatedTypeFactory.
     @Override
     public void setRoot(CompilationUnitTree newRoot) {
-        super.setRoot(newRoot);
+        if (newRoot != currentRoot) {
+            super.setRoot(newRoot);
+        }
     }
 }
