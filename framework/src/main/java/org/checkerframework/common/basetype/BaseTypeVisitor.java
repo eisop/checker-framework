@@ -5553,6 +5553,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return enclosing == null || hasOwnTypeParametersAsTypeArguments(enclosing);
         }
 
+        /**
+         * Checks that the overrider's parameter types are supertypes of the overridden method's
+         * parameter types.
+         *
+         * @return true if the overrider's parameter types are valid
+         */
         private boolean checkParameters() {
             List<AnnotatedTypeMirror> overriderParams = overrider.getParameterTypes();
             List<AnnotatedTypeMirror> overriddenParams = overridden.getParameterTypes();
