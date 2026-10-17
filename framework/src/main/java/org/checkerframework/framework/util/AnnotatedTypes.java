@@ -1132,9 +1132,7 @@ public class AnnotatedTypes {
                 && invok instanceof NewClassTree
                 && TreeUtils.isAnonymousConstructorWithExplicitEnclosingExpression(
                         method.getElement(), (NewClassTree) invok)) {
-            if (parameters.size() != args.size() || args.isEmpty()) {
-                parameters = parameters.subList(1, parameters.size());
-            }
+            parameters = parameters.subList(1, parameters.size());
         }
 
         // Handle vararg methods.
