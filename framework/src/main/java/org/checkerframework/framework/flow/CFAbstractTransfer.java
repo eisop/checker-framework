@@ -418,14 +418,26 @@ public abstract class CFAbstractTransfer<
                 addFinalLocalValues(store, enclosingElement);
             }
 
-            // We want the initialization stuff, but need to throw out any refinements.
-            // Update values in place; keys are unchanged.
+            // We want the initialization stuff, but need to throw out any refinements, except to
+            // the target of a monotonic qualifier: the lambda body runs later, when such a
+            // refinement still holds. Update values in place; keys are unchanged.
+            S storeForLambda = store;
             store.fieldValues.replaceAll(
                     (fieldAccess, currentValue) -> {
                         AnnotatedTypeMirror declaredType =
                                 atypeFactory.getAnnotatedType(fieldAccess.getField());
-                        return analysis.createAbstractValue(declaredType)
-                                .leastUpperBound(currentValue);
+                        V newValue =
+                                analysis.createAbstractValue(declaredType)
+                                        .leastUpperBound(currentValue);
+                        if (!fieldAccess.getReceiver().isAssignableByOtherCode()) {
+                            V monotonicValue =
+                                    storeForLambda.newMonotonicFieldValueAfterMethodCall(
+                                            fieldAccess, analysis.getTypeFactory(), currentValue);
+                            if (monotonicValue != null) {
+                                newValue = monotonicValue.mostSpecific(newValue, newValue);
+                            }
+                        }
+                        return newValue;
                     });
         } else {
             assert false : "Unexpected tree: " + underlyingAST;

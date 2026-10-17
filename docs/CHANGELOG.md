@@ -180,6 +180,10 @@ literal (such as `i < n`): the loop variable takes the range that the bound
 permits right away. On plume-util, it takes 8.3s instead of 10.1s. Precision is
 unchanged or better.
 
+A lambda body keeps the refinement of a field with a monotonic qualifier to its
+target, such as a `@MonotonicNonNull` field that was checked to be non-null before
+the lambda.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -350,6 +354,7 @@ eisop#627,
 eisop#719,
 eisop#720,
 eisop#737,
+eisop#771,
 eisop#778,
 eisop#786,
 eisop#792,
