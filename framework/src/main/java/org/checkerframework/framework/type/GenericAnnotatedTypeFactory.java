@@ -500,6 +500,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
         super.setRoot(root);
         this.scannedClasses = new IdentityHashMap<>();
+        this.flowAnalysisCompleted = false;
         this.reachableNodes.clear();
         this.flowResult = null;
         this.finalLocalValuesByDeclarer.clear();
@@ -1152,6 +1153,18 @@ public abstract class GenericAnnotatedTypeFactory<
     protected IdentityHashMap<ClassTree, ScanState> scannedClasses = new IdentityHashMap<>();
 
     /**
+     * The number of active calls to {@link #performFlowAnalysisForClass}; see {@link
+     * #areFlowDependentTypesFinal()}.
+     */
+    private int flowAnalysisDepth = 0;
+
+    /**
+     * True if a call to {@link #performFlowAnalysisForClass} completed since the last call to
+     * {@link #setRoot}; see {@link #areFlowDependentTypesFinal()}.
+     */
+    private boolean flowAnalysisCompleted = false;
+
+    /**
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
      * reachable trees. Use {@link #isUnreachable(ExpressionTree)} instead of this set directly.
      * Only populated when "-AignoreDeadCode" was passed on the command line.
@@ -1390,6 +1403,38 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param classTree the class to analyze
      */
     protected void performFlowAnalysisForClass(ClassTree classTree) {
+        flowAnalysisDepth++;
+        try {
+            if (flowDependentExpressionTreeCache != null) {
+                // The analysis may refine the types of trees that are in the cache.
+                flowDependentExpressionTreeCache.clear();
+            }
+            performFlowAnalysisForClassImpl(classTree);
+        } finally {
+            flowAnalysisDepth--;
+        }
+        flowAnalysisCompleted = true;
+    }
+
+    /**
+     * Returns true if no dataflow analysis is running and the analysis of the class being
+     * type-checked has completed, so its results are final. Since a top-level class and its nested
+     * classes are analyzed together before the visitor checks them, this holds while the visitor
+     * checks them. The cache is cleared before the next analysis.
+     *
+     * @return true if the dataflow results are final
+     */
+    @Override
+    protected boolean areFlowDependentTypesFinal() {
+        return useFlow && flowAnalysisCompleted && flowAnalysisDepth == 0;
+    }
+
+    /**
+     * The implementation of {@link #performFlowAnalysisForClass}.
+     *
+     * @param classTree the class to analyze
+     */
+    private void performFlowAnalysisForClassImpl(ClassTree classTree) {
         if (flowResult == null) {
             this.regularExitStores = new IdentityHashMap<>();
             this.exceptionalExitStores = new IdentityHashMap<>();

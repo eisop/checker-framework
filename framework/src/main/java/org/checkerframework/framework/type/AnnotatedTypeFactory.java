@@ -618,6 +618,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     protected IdentityHashMap<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
 
     /**
+     * Like {@link #fromExpressionTreeCache}, but for the expressions whose type depends on the
+     * dataflow store and that {@link #fromExpressionTreeCache} therefore does not cache: new class,
+     * new array, and conditional expressions (see Issue #602). It is used only while {@link
+     * #areFlowDependentTypesFinal()} holds, and a subclass that performs dataflow analysis must
+     * clear it before it starts an analysis.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    protected IdentityHashMap<Tree, AnnotatedTypeMirror> flowDependentExpressionTreeCache;
+
+    /**
      * Mapping from a member tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
      *
@@ -771,6 +783,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             int cacheSize = getCacheSize();
             this.classAndMethodTreeCache = new IdentityHashMap<>();
             this.fromExpressionTreeCache = new IdentityHashMap<>();
+            this.flowDependentExpressionTreeCache = new IdentityHashMap<>();
             this.fromMemberTreeCache = new IdentityHashMap<>();
             this.fromTypeTreeCache = new IdentityHashMap<>();
             this.elementCache = MapsP.createLruCache(cacheSize);
@@ -783,6 +796,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         } else {
             this.classAndMethodTreeCache = null;
             this.fromExpressionTreeCache = null;
+            this.flowDependentExpressionTreeCache = null;
             this.fromMemberTreeCache = null;
             this.fromTypeTreeCache = null;
             this.elementCache = null;
@@ -1323,6 +1337,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             elementToTreeCache = new IdentityHashMap<>();
             scannedEnclosingTrees = Collections.newSetFromMap(new IdentityHashMap<>());
             fromExpressionTreeCache = new IdentityHashMap<>();
+            flowDependentExpressionTreeCache = new IdentityHashMap<>();
             fromMemberTreeCache = new IdentityHashMap<>();
             fromTypeTreeCache = new IdentityHashMap<>();
             classAndMethodTreeCache = new IdentityHashMap<>();
@@ -2473,8 +2488,30 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @see TypeFromExpressionVisitor
      */
     private AnnotatedTypeMirror fromExpression(ExpressionTree tree) {
-        if (shouldCache) {
-            AnnotatedTypeMirror cached = fromExpressionTreeCache.get(tree);
+        if (!shouldCache) {
+            return TypeFromTree.fromExpression(this, tree);
+        }
+        // The type of some expressions depends on the dataflow store, so caching it during dataflow
+        // analysis would cache incorrect annotations (see Issue #602). Cache those only once the
+        // dataflow results are final, and not while type argument inference is running: the
+        // expressions that are part of the inference problem are then typed without inferring
+        // their type arguments.
+        IdentityHashMap<Tree, AnnotatedTypeMirror> cache;
+        if (tree instanceof NewClassTree
+                || tree instanceof NewArrayTree
+                || tree instanceof ConditionalExpressionTree) {
+            cache =
+                    areFlowDependentTypesFinal()
+                                    && typeArgumentInference instanceof DefaultTypeArgumentInference
+                                    && !((DefaultTypeArgumentInference) typeArgumentInference)
+                                            .isInferring()
+                            ? flowDependentExpressionTreeCache
+                            : null;
+        } else {
+            cache = fromExpressionTreeCache;
+        }
+        if (cache != null) {
+            AnnotatedTypeMirror cached = cache.get(tree);
             if (cached != null) {
                 return cached.deepCopy();
             }
@@ -2482,15 +2519,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         AnnotatedTypeMirror result = TypeFromTree.fromExpression(this, tree);
 
-        if (shouldCache
-                // Don't cache the type of some expressions, because incorrect annotations would be
-                // cached during dataflow analysis. See Issue #602.
-                && !(tree instanceof NewClassTree)
-                && !(tree instanceof NewArrayTree)
-                && !(tree instanceof ConditionalExpressionTree)) {
-            fromExpressionTreeCache.put(tree, frozenDeepCopy(result));
+        if (cache != null) {
+            cache.put(tree, frozenDeepCopy(result));
         }
         return result;
+    }
+
+    /**
+     * Returns true if the dataflow results that the types of new class, new array, and conditional
+     * expressions depend on are final, so that these types can be cached in {@link
+     * #flowDependentExpressionTreeCache}. This implementation returns false.
+     *
+     * @return true if the types of expressions that depend on the dataflow store can be cached
+     */
+    protected boolean areFlowDependentTypesFinal() {
+        return false;
     }
 
     /**
