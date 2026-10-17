@@ -220,6 +220,8 @@ Performance optimizations:
 - New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
   replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
+- The Initialization Checker no longer disables the type factory caches when it computes the
+  types of a constructor invocation's arguments (as in typetools/checker-framework fc3a55d).
 
 Other improvements and bug fixes:
 
