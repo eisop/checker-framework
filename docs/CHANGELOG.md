@@ -293,6 +293,9 @@ Other improvements and bug fixes:
 - Type argument inference no longer crashes on a nested `? extends` wildcard
   that mentions the inferred type variable, such as a lambda passed as
   `Supplier<? extends List<? extends T>>`.
+- Viewpoint adaptation no longer crashes on a field initializer or initializer
+  block whose field types mention a class type variable, such as
+  `T[] b = make(a);`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -437,6 +440,7 @@ eisop#2159,
 eisop#2160,
 eisop#2187,
 eisop#2224,
+eisop#2288,
 typetools#399,
 typetools#2816,
 typetools#3203,
