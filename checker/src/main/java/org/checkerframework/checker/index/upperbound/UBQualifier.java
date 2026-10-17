@@ -277,7 +277,13 @@ public abstract class UBQualifier {
             }
         }
 
-        return new LessThanLengthOf(sequences, offsets, extraEq);
+        Map<String, Set<OffsetEquation>> map =
+                LessThanLengthOf.sequencesAndOffsetsToMap(sequences, offsets, extraEq);
+        if (map == null) {
+            // An offset is an expression with an error.
+            return UpperBoundUnknownQualifier.UNKNOWN;
+        }
+        return new LessThanLengthOf(map);
     }
 
     /**
@@ -580,18 +586,6 @@ public abstract class UBQualifier {
         private LessThanLengthOf(Map<String, Set<OffsetEquation>> map) {
             assert !map.isEmpty();
             this.map = map;
-        }
-
-        /**
-         * Create a new LessThanLengthOf from the parallel array representation.
-         *
-         * @param sequences non-empty list of sequences
-         * @param offsets list of offset, if empty, an offset of 0 is used
-         * @param extraEq offset to add to each element of offsets; may be null
-         */
-        private LessThanLengthOf(
-                List<String> sequences, List<String> offsets, @Nullable OffsetEquation extraEq) {
-            this(sequencesAndOffsetsToMap(sequences, offsets, extraEq));
         }
 
         @Override
