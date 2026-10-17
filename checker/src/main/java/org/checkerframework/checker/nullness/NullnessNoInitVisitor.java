@@ -313,6 +313,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 return false;
             }
         }
+        // An unannotated field that is written must be assigned a non-null value.
+        atypeFactory.resolveDynamicWrite(varType);
         return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
     }
 

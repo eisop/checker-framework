@@ -244,24 +244,23 @@ public class QualifierDefaults {
                             TypeUseLocation.ALL));
 
     /** Conservative unchecked default locations that should be top. */
-    // Fields are defaulted to top so that warnings are issued at field reads, which we believe are
-    // more common than field writes. Future work is to specify different defaults for field reads
-    // and field writes.  (When a field is written to, its type should be bottom.)
-    // This is the root cause of https://github.com/eisop/checker-framework/issues/1358 : because
-    // TypeUseLocation.FIELD does not distinguish reads from writes, a field write under
-    // conservative defaults is unsoundly checked against the same (read-oriented) top default as a
-    // field read, instead of requiring the bottom qualifier.
-    // GenericAnnotatedTypeFactory#isComputingAnnotatedTypeMirrorOfLhs() is reachable while
-    // defaulting a field write (getAnnotatedTypeLhs disables caching, so defaults are reapplied),
-    // but a sound fix needs a separate write-variant of the unchecked FIELD default rather than
-    // flipping any top FIELD default to bottom: an explicit @DefaultQualifier(locations=FIELD) must
-    // still apply to writes. See the issue for discussion.
     public static final List<TypeUseLocation> CONSERVATIVE_UNCHECKED_DEFAULTS_TOP =
             Collections.unmodifiableList(
                     Arrays.asList(
                             TypeUseLocation.RETURN,
                             TypeUseLocation.FIELD,
                             TypeUseLocation.UPPER_BOUND));
+
+    /**
+     * Conservative unchecked default locations that should be the read-write dynamic qualifier, in
+     * each hierarchy that has one. A field is read as top and written as bottom, which {@link
+     * TypeUseLocation#FIELD} alone cannot express. A hierarchy with no read-write dynamic qualifier
+     * keeps top at these locations, from {@link #CONSERVATIVE_UNCHECKED_DEFAULTS_TOP}.
+     *
+     * @see QualifierHierarchy#getDynamicAnnotations()
+     */
+    public static final List<TypeUseLocation> CONSERVATIVE_UNCHECKED_DEFAULTS_DYNAMIC =
+            Collections.singletonList(TypeUseLocation.FIELD);
 
     /** Conservative unchecked default locations that should be bottom. */
     public static final List<TypeUseLocation> CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM =
@@ -406,12 +405,20 @@ public class QualifierDefaults {
     /**
      * Adds the conservative defaults for unchecked code, which {@code
      * -AuseConservativeDefaultsForUncheckedCode} (e.g., with {@code source} or {@code bytecode})
-     * enables: the top qualifier at {@link #CONSERVATIVE_UNCHECKED_DEFAULTS_TOP} and the bottom
-     * qualifier at {@link #CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM}, at each location the checker
-     * has not already given a conservative default. To add a checker-specific default instead, use
-     * {@link #addConservativeUncheckedCodeDefault}.
+     * enables: the read-write dynamic qualifier at {@link
+     * #CONSERVATIVE_UNCHECKED_DEFAULTS_DYNAMIC}, the top qualifier at {@link
+     * #CONSERVATIVE_UNCHECKED_DEFAULTS_TOP}, and the bottom qualifier at {@link
+     * #CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM}, at each location the checker has not already given
+     * a conservative default. To add a checker-specific default instead, use {@link
+     * #addConservativeUncheckedCodeDefault}.
      */
     public void addConservativeDefaultsForUncheckedCode() {
+        // Added before the top qualifiers, so that a hierarchy with a read-write dynamic qualifier
+        // gets it, not top, at a location in both lists.
+        addDefaultsForUncheckedCodeAtLocations(
+                UncheckedDefaultsMode.CONSERVATIVE,
+                this.atypeFactory.getQualifierHierarchy().getDynamicAnnotations(),
+                CONSERVATIVE_UNCHECKED_DEFAULTS_DYNAMIC);
         addDefaultsForUncheckedCode(
                 UncheckedDefaultsMode.CONSERVATIVE,
                 CONSERVATIVE_UNCHECKED_DEFAULTS_TOP,

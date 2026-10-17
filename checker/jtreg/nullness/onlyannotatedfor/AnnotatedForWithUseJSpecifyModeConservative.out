@@ -2,8 +2,11 @@ AnnotatedForWithUse.java:29:29: compiler.err.proc.messager: [jspecify.unrecogniz
 AnnotatedForWithUse.java:29:36: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable Object
 required: @NonNull Object
+AnnotatedForWithUse.java:34:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @Nullable NullType
+required: @NonNull Object
 AnnotatedForWithUse.java:36:20: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference u.get()
 AnnotatedForWithUse.java:38:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Unannotated.set.
 found   : @Nullable NullType
 required: @NonNull Object
-4 errors
+5 errors

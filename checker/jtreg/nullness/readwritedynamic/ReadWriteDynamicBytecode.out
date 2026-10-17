@@ -1,0 +1,7 @@
+ReadWriteDynamicBytecode.java:19:30: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @Nullable Object
+required: @NonNull Object
+ReadWriteDynamicBytecode.java:24:15: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @Nullable NullType
+required: @NonNull Object
+2 errors

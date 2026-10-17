@@ -116,6 +116,11 @@ JSpecify support in the Nullness Checker:
   respected under `-AuseConservativeDefaultsForUncheckedCode=bytecode`.
 - Package declarations (`package-info.java`) are now analyzed, so conflicting
   pairs and invalid `@HasQualifierParameter` uses are detected there.
+- Under `-AuseConservativeDefaultsForUncheckedCode`, the Nullness Checker now
+  reports writing `null` to a field of a class that is not annotated for it: a
+  write to such a field requires `@NonNull`, while a read still yields
+  `@Nullable`. Previously the field was `@Nullable` in both positions, which
+  accepted any write.
 
 Nullness Checker improvements:
 
@@ -246,6 +251,14 @@ Other improvements and bug fixes:
   document consistency requirements across overrides.
 - `QualifierDefaults` maintains permissive unchecked-code defaults alongside
   conservative ones.
+- New `@ReadWriteDynamicQualifier` meta-annotation marks a qualifier that means
+  top where the annotated expression is read and bottom where it is written. It
+  has no `@SubtypeOf`; it sits directly below the top of the hierarchy of its
+  `value()`. `QualifierHierarchy.getDynamicAnnotations()` returns these (empty by
+  default), and `QualifierKind` has a new abstract method
+  `isDynamicAnnotation()`. A hierarchy with one gets it as the conservative
+  unchecked-code default for fields, in place of top. The Nullness Checker's is
+  `@ReadWriteDynamicNull`, which is `@Target({})`, so it cannot be written.
 - `QualifierDefaults.addElementDefault` throws `TypeSystemError` after type
   checking begins; registered defaults combine instead of replacing.
   `AnnotatedTypeFactory.getRoot()` is now `public`.
@@ -371,6 +384,7 @@ eisop#1291,
 eisop#1292,
 eisop#1299,
 eisop#1315,
+eisop#1358,
 eisop#1359,
 eisop#1481,
 eisop#1542,
