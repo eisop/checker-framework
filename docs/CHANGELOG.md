@@ -293,6 +293,9 @@ Other improvements and bug fixes:
 - Type argument inference no longer crashes on a nested `? extends` wildcard
   that mentions the inferred type variable, such as a lambda passed as
   `Supplier<? extends List<? extends T>>`.
+- Type argument inference no longer crashes on nested calls to methods with an
+  F-bounded intersection type parameter, such as `until(cast(t))` where both
+  are declared `<T extends Temporal & Comparable<? super T>>`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -435,6 +438,7 @@ eisop#2156,
 eisop#2158,
 eisop#2159,
 eisop#2160,
+eisop#2164,
 eisop#2187,
 eisop#2224,
 typetools#399,

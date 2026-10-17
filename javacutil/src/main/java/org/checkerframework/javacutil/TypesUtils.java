@@ -23,6 +23,9 @@ import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.ImmutableTypes;
 import org.plumelib.util.StringsPlume;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -1298,6 +1301,72 @@ public final class TypesUtils {
                 (Type) upper,
                 (Type) lower,
                 (Type.WildcardType) wildcardType);
+    }
+
+    /** The {@code TypeVar.setUpperBound(Type)} method, which does not exist before JDK 9. */
+    private static final @Nullable Method TYPEVAR_SETUPPERBOUND;
+
+    /** The {@code TypeVar.bound} field, which holds the upper bound before JDK 9. */
+    private static final @Nullable Field TYPEVAR_BOUND;
+
+    static {
+        try {
+            if (SystemUtil.jreVersion >= 9) {
+                TYPEVAR_SETUPPERBOUND = Type.TypeVar.class.getMethod("setUpperBound", Type.class);
+                TYPEVAR_BOUND = null;
+            } else {
+                TYPEVAR_SETUPPERBOUND = null;
+                TYPEVAR_BOUND = Type.TypeVar.class.getField("bound");
+            }
+        } catch (NoSuchMethodException | NoSuchFieldException e) {
+            throw new BugInCF("Cannot access the upper bound of TypeVar", e);
+        }
+    }
+
+    /**
+     * Substitutes {@code freshTypeVariables} for {@code typeVariables} in the bounds of each type
+     * variable in {@code freshTypeVariables}, by side effect. Afterward, a bound that referred to
+     * the type variable at index i refers to the fresh type variable at index i instead, which may
+     * be the bounded type variable itself or another one in the list. {@link #substitute} cannot do
+     * this: it does not substitute in the bounds of a type variable, and a bound that refers to its
+     * own type variable cannot be built before that type variable exists.
+     *
+     * @param freshTypeVariables fresh type variables, such as created by {@link
+     *     #freshTypeVariable(TypeMirror, TypeMirror, ProcessingEnvironment)}, that are not used
+     *     anywhere else yet; their bounds are side-effected
+     * @param typeVariables the type variables to replace, at the same indices as {@code
+     *     freshTypeVariables}
+     * @param env processing environment
+     */
+    @SuppressWarnings("interning:argument.type.incompatible") // Field.set of a Type
+    public static void substituteInBounds(
+            List<? extends TypeMirror> freshTypeVariables,
+            List<? extends TypeVariable> typeVariables,
+            ProcessingEnvironment env) {
+        // Compute every new bound before setting any, so that each substitution sees the original
+        // bounds.
+        List<TypeMirror> uppers = new ArrayList<>(freshTypeVariables.size());
+        List<TypeMirror> lowers = new ArrayList<>(freshTypeVariables.size());
+        for (TypeMirror fresh : freshTypeVariables) {
+            Type.TypeVar typeVar = (Type.TypeVar) fresh;
+            uppers.add(substitute(typeVar.getUpperBound(), typeVariables, freshTypeVariables, env));
+            lowers.add(substitute(typeVar.getLowerBound(), typeVariables, freshTypeVariables, env));
+        }
+        for (int i = 0; i < freshTypeVariables.size(); i++) {
+            Type.TypeVar typeVar = (Type.TypeVar) freshTypeVariables.get(i);
+            try {
+                if (TYPEVAR_SETUPPERBOUND != null) {
+                    TYPEVAR_SETUPPERBOUND.invoke(typeVar, uppers.get(i));
+                } else {
+                    assert TYPEVAR_BOUND != null
+                            : "@AssumeAssertion(nullness): TYPEVAR_BOUND is set before JDK 9";
+                    TYPEVAR_BOUND.set(typeVar, uppers.get(i));
+                }
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                throw new BugInCF("Cannot set the upper bound of " + typeVar, e);
+            }
+            typeVar.lower = (Type) lowers.get(i);
+        }
     }
 
     /**
