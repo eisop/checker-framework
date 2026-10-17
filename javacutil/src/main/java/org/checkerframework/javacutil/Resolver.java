@@ -1,5 +1,6 @@
 package org.checkerframework.javacutil;
 
+import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacScope;
@@ -27,12 +28,14 @@ import com.sun.tools.javac.util.Names;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.plumelib.util.MapsP;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Map;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.SourceVersion;
@@ -60,6 +63,25 @@ public class Resolver {
 
     /** Instance of {@link Log} for error logs. */
     private final Log log;
+
+    /**
+     * The key of {@link #envCache} in the compiler's {@link Context}, which makes the cache
+     * per-compilation and shared by all {@code Resolver}s of the compilation.
+     */
+    private static final Context.Key<Map<Tree, Env<AttrContext>>> ENV_CACHE_KEY =
+            new Context.Key<>();
+
+    /** The maximum number of entries in {@link #envCache}. */
+    private static final int ENV_CACHE_SIZE = 300;
+
+    /**
+     * Maps the leaf of a tree path to the attribution environment that {@link #getEnvForPath}
+     * returned for it. Computing the environment of a path inside a method body re-attributes a
+     * copy of the method, and the same location is often queried repeatedly, such as when the
+     * expression strings in an annotation are parsed at the same location in several dataflow
+     * iterations or by several type factories. The environment is the same at each query.
+     */
+    private final Map<Tree, Env<AttrContext>> envCache;
 
     /** {@code Resolve#findMethod} method. */
     private static final Method FIND_METHOD;
@@ -289,6 +311,12 @@ public class Resolver {
         this.names = Names.instance(context);
         this.trees = Trees.instance(env);
         this.log = Log.instance(context);
+        Map<Tree, Env<AttrContext>> cache = context.get(ENV_CACHE_KEY);
+        if (cache == null) {
+            cache = MapsP.createLruCache(ENV_CACHE_SIZE);
+            context.put(ENV_CACHE_KEY, cache);
+        }
+        this.envCache = cache;
     }
 
     /**
@@ -298,6 +326,23 @@ public class Resolver {
      * @return the corresponding attribution environment
      */
     public Env<AttrContext> getEnvForPath(TreePath path) {
+        Tree leaf = path.getLeaf();
+        Env<AttrContext> cached = envCache.get(leaf);
+        if (cached != null) {
+            return cached;
+        }
+        Env<AttrContext> result = computeEnvForPath(path);
+        envCache.put(leaf, result);
+        return result;
+    }
+
+    /**
+     * Determine the environment for the given path. Does not use a cache.
+     *
+     * @param path the tree path to the local scope
+     * @return the corresponding attribution environment
+     */
+    private Env<AttrContext> computeEnvForPath(TreePath path) {
         TreePath iter = path;
         JavacScope scope = null;
         while (scope == null && iter != null) {
