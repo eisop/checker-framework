@@ -86,6 +86,12 @@ Type-checking and subtyping improvements:
 - Repeated `@RequiresNonEmpty` annotations on one method are now enforced:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
+- Flow-sensitive refinement of a method call's result is now kept only if the
+  method is both `@Deterministic` and `@SideEffectFree` (that is, `@Pure`).
+  Previously a `@Deterministic` method that is not side-effect-free was assumed
+  to return the same value when called again, although its first call may
+  have modified the heap. `-AassumeDeterministic` alone therefore no longer
+  enables such refinement; use `-AassumePure`.
 
 JSpecify support in the Nullness Checker:
 
@@ -422,6 +428,7 @@ eisop#2089,
 eisop#2091,
 eisop#2094,
 eisop#2098,
+eisop#2100,
 eisop#2104,
 eisop#2105,
 eisop#2106,

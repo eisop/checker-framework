@@ -92,9 +92,18 @@ public class MethodCall extends JavaExpression {
         return null;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>A method call is deterministic only if the method is both deterministic and
+     * side-effect-free: a deterministic method that modifies the heap may return a different value
+     * when it is called again.
+     */
     @Override
     public boolean isDeterministic(AnnotationProvider provider) {
         return (PurityUtils.isDeterministic(provider, method) || provider.isDeterministic(method))
+                && (PurityUtils.isSideEffectFree(provider, method)
+                        || provider.isSideEffectFree(method))
                 && listIsDeterministic(arguments, provider);
     }
 
