@@ -63,6 +63,9 @@ Type-checking and subtyping improvements:
 - Receiver type-argument subtyping is now checked: annotations on a method
   receiver's type arguments (e.g., `void test(Box<@NonNull T> this)`) were
   previously ignored.
+- Subtyping, type equality, and type argument inference now compare the type
+  arguments of enclosing types: `Outer<@Nullable String>.Inner` is no longer a
+  subtype of `Outer<@NonNull String>.Inner`.
 - `-AcheckCastElementType` now requires array components to be invariant in
   array casts and `instanceof` binding patterns, closing an unsoundness:
   array components are mutable and qualifiers are not reified.
@@ -437,6 +440,7 @@ eisop#2159,
 eisop#2160,
 eisop#2187,
 eisop#2224,
+eisop#2266,
 typetools#399,
 typetools#2816,
 typetools#3203,
