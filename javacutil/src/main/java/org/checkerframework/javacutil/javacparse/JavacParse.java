@@ -212,9 +212,6 @@ public final class JavacParse {
         /** The context. */
         private final Context context = new Context();
 
-        /** The file manager, which is registered in {@link #context}. */
-        private final JavacFileManager fileManager;
-
         /** The log, which reports to {@link #diagnostics}. */
         private final Log log;
 
@@ -229,7 +226,15 @@ public final class JavacParse {
             context.put(
                     DiagnosticListener.class,
                     (DiagnosticListener<JavaFileObject>) d -> diagnostics.add(d));
-            fileManager = new JavacFileManager(context, true, StandardCharsets.UTF_8);
+            // The constructor registers the file manager in `context`, which javac's Modules needs.
+            // It is never asked for a file, so it opens nothing, and it is dropped with the
+            // context, which the garbage collector discards; there is nothing to close.
+            @SuppressWarnings({
+                "builder:required.method.not.called",
+                "UnusedVariable" // `new JavacFileManager` sets a mapping in `context`.
+            })
+            JavacFileManager fileManagerUnused =
+                    new JavacFileManager(context, true, StandardCharsets.UTF_8);
             log = Log.instance(context);
             try {
                 parserFactory = ParserFactory.instance(context);
@@ -269,15 +274,6 @@ public final class JavacParse {
         boolean isWornOut() {
             return !diagnostics.isEmpty();
         }
-
-        /** Releases the resources of this object. */
-        void close() {
-            try {
-                fileManager.close();
-            } catch (IOException e) {
-                throw new Error("This can't happen", e);
-            }
-        }
     }
 
     /**
@@ -309,12 +305,10 @@ public final class JavacParse {
             result = parser.parse(source);
         } catch (IOException | RuntimeException e) {
             reusableParser.remove();
-            parser.close();
             throw e;
         }
         if (parser.isWornOut()) {
             reusableParser.remove();
-            parser.close();
         }
         return result;
     }
