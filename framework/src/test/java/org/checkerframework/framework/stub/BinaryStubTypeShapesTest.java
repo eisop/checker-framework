@@ -332,7 +332,7 @@ public class BinaryStubTypeShapesTest {
                             "plain ? in a vararg",
                             BOX + "public static void va(Box<? extends @Encrypted Object>... b) {}",
                             "public static void va(Box<?>... b);",
-                            "void m(Lib.Box<Object> b) { Lib.va(b); }",
+                            "void m(Lib.Box<Object>[] b) { Lib.va(b); }",
                             null),
                     row(
                             "plain ? in an array",
