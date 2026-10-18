@@ -95,7 +95,9 @@ public abstract class CloneOrUpdateRelatedTask extends GitTask {
 
     /**
      * Check that the {@code relatedRepo} is checked out to the same org and branch as the root
-     * directory of this project.
+     * directory of this project. If a branch of that name exists in the org of this project's
+     * clone, a different checkout of the related repo is usually a mistake. The exception is that
+     * when this project is on its default branch, a related repo from another org is accepted.
      *
      * @param relatedRepoDir a related repository
      */
@@ -128,6 +130,15 @@ public abstract class CloneOrUpdateRelatedTask extends GitTask {
                 && relatedOrg.equalsIgnoreCase(DEFAULT_ORG)) {
             // The related repo can use the default org and branch if CF is checked out to master
             // and any org.
+            return;
+        }
+        if (cfBranch.equals(DEFAULT_BRANCH) && !relatedOrg.equalsIgnoreCase(cfOrg)) {
+            // The Checker Framework is on its default branch, so there is no feature branch for
+            // the related repo to match.  A related repo from another org is a deliberate choice,
+            // for example the jspecify-reference-checker uses jspecify/jdk.
+            getLogger()
+                    .lifecycle(
+                            "Using {} from {}, not from {}.", relatedRepoName, relatedOrg, cfOrg);
             return;
         }
         if (remoteBranchExists(cfOrg, relatedRepoName, cfBranch)) {
