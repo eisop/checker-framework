@@ -115,7 +115,7 @@ public class BinaryStubWriter {
      * org.checkerframework.framework.stub.BinaryStubData#VERSION} references it. Increment whenever
      * the binary format changes.
      */
-    public static final short VERSION = 2;
+    public static final short VERSION = 3;
 
     /**
      * Magic number identifying a binary stub <em>bundle</em>: a container of several per-file
@@ -219,6 +219,16 @@ public class BinaryStubWriter {
      * super bound.
      */
     public static final byte TYPE_PATH_WILDCARD_BOUND_SUPER = 1;
+
+    /**
+     * Annotation-pool index of a type annotation that carries no annotation but marks an
+     * unannotated, unbounded wildcard {@code ?} at its type path. The text parser gives such a
+     * wildcard the bounds of the corresponding type variable's declaration, replacing whatever
+     * bound the class file has ({@code AnnotationFileParser.annotateUnannotatedUnboundedWildcard});
+     * the marker tells {@code BinaryStubReader} to do the same. Negative, so it cannot collide with
+     * a pool index, and distinct from {@code IGNORED}, which is never written.
+     */
+    public static final int TYPE_ANNO_UNBOUNDED_WILDCARD = -2;
 
     /**
      * Fully-qualified name of {@code org.checkerframework.framework.qual.CFComment}, which is never
@@ -549,7 +559,7 @@ public class BinaryStubWriter {
 
     /** Represents a TypeAnnotation with its path and annotation pool index. */
     private static class TypeAnno {
-        /** Index into the annotation pool. */
+        /** Index into the annotation pool, or {@link #TYPE_ANNO_UNBOUNDED_WILDCARD}. */
         int annoIndex;
 
         /** The path to the annotated type component. */
@@ -2289,6 +2299,10 @@ public class BinaryStubWriter {
      * BinaryStubDiffChecker} sees no difference. Implementing this would mean emitting and
      * resolving kind-1 path steps on both sides.
      *
+     * <p>An unannotated, unbounded wildcard {@code ?} yields a {@link
+     * #TYPE_ANNO_UNBOUNDED_WILDCARD} marker rather than nothing, except within the element type of
+     * an array type (see the comment where the marker is added).
+     *
      * @param type the type to extract annotations from
      * @param currentPath the current type path, built during traversal
      * @param result the list to add the extracted type annotations to
@@ -2296,6 +2310,27 @@ public class BinaryStubWriter {
      */
     private void extractTypeAnnotations(
             Type type, List<TypePathStep> currentPath, List<TypeAnno> result, CompilationUnit cu)
+            throws IOException {
+        extractTypeAnnotations(type, currentPath, result, cu, false);
+    }
+
+    /**
+     * Extracts type annotations from a JavaParser type; see {@link #extractTypeAnnotations(Type,
+     * List, List, CompilationUnit)}.
+     *
+     * @param type the type to extract annotations from
+     * @param currentPath the current type path, built during traversal
+     * @param result the list to add the extracted type annotations to
+     * @param cu the compilation unit
+     * @param inArrayElementType true if {@code type} is, or is within, the element type of an
+     *     {@link ArrayType} written in the stub
+     */
+    private void extractTypeAnnotations(
+            Type type,
+            List<TypePathStep> currentPath,
+            List<TypeAnno> result,
+            CompilationUnit cu,
+            boolean inArrayElementType)
             throws IOException {
         if (type == null) return;
 
@@ -2308,7 +2343,8 @@ public class BinaryStubWriter {
 
         if (type instanceof ArrayType) {
             currentPath.add(new TypePathStep(TYPE_PATH_KIND_ARRAY, (byte) 0)); // ARRAY
-            extractTypeAnnotations(((ArrayType) type).getComponentType(), currentPath, result, cu);
+            extractTypeAnnotations(
+                    ((ArrayType) type).getComponentType(), currentPath, result, cu, true);
             currentPath.remove(currentPath.size() - 1);
         } else if (type instanceof ClassOrInterfaceType) {
             ClassOrInterfaceType cit = (ClassOrInterfaceType) type;
@@ -2325,13 +2361,26 @@ public class BinaryStubWriter {
                     currentPath.add(
                             new TypePathStep(
                                     TYPE_PATH_KIND_TYPE_ARGUMENT, (byte) i)); // TYPE_ARGUMENT
-                    extractTypeAnnotations(t, currentPath, result, cu);
+                    extractTypeAnnotations(t, currentPath, result, cu, inArrayElementType);
                     currentPath.remove(currentPath.size() - 1);
                     i++;
                 }
             }
         } else if (type instanceof WildcardType) {
             WildcardType wt = (WildcardType) type;
+            if (!wt.getExtendedType().isPresent()
+                    && !wt.getSuperType().isPresent()
+                    && wt.getAnnotations().isEmpty()
+                    && !inArrayElementType) {
+                // An unannotated, unbounded "?": not an annotation, but it still determines the
+                // wildcard's bounds; see TYPE_ANNO_UNBOUNDED_WILDCARD. Not within the element type
+                // of an array type written in the stub, such as the "?" of Class<?>[]:
+                // AnnotationFileParser.annotateAsArray does not descend into the element type's
+                // type arguments, so the text parser leaves such a wildcard as the class file has
+                // it. The element type of a vararg "Class<?>..." is not an ArrayType node, and the
+                // text parser does annotate it.
+                result.add(new TypeAnno(TYPE_ANNO_UNBOUNDED_WILDCARD, currentPath));
+            }
             if (wt.getExtendedType().isPresent()) {
                 // WILDCARD_BOUND. JVMS leaves argIndex unused (0) for this kind, since a real
                 // wildcard has only one structurally possible bound; CF's AnnotatedWildcardType,
@@ -2343,7 +2392,8 @@ public class BinaryStubWriter {
                 currentPath.add(
                         new TypePathStep(
                                 TYPE_PATH_KIND_WILDCARD, TYPE_PATH_WILDCARD_BOUND_EXTENDS));
-                extractTypeAnnotations(wt.getExtendedType().get(), currentPath, result, cu);
+                extractTypeAnnotations(
+                        wt.getExtendedType().get(), currentPath, result, cu, inArrayElementType);
                 currentPath.remove(currentPath.size() - 1);
             }
             if (wt.getSuperType().isPresent()) {
@@ -2351,7 +2401,8 @@ public class BinaryStubWriter {
                         new TypePathStep(
                                 TYPE_PATH_KIND_WILDCARD,
                                 TYPE_PATH_WILDCARD_BOUND_SUPER)); // WILDCARD_BOUND, super
-                extractTypeAnnotations(wt.getSuperType().get(), currentPath, result, cu);
+                extractTypeAnnotations(
+                        wt.getSuperType().get(), currentPath, result, cu, inArrayElementType);
                 currentPath.remove(currentPath.size() - 1);
             }
         }

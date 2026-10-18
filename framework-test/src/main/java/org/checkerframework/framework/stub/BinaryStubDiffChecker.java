@@ -601,6 +601,10 @@ public class BinaryStubDiffChecker {
                 if (boundAnnos.length == 0) continue;
                 Set<String> promisedBound = new TreeSet<>();
                 for (BinaryStubData.TypeAnno ta : boundAnnos) {
+                    if (ta.isUnboundedWildcard()) {
+                        // A marker, not an annotation; it promises nothing by name.
+                        continue;
+                    }
                     promisedBound.add(data.stringPool[data.annotationPool[ta.annoIndex].nameIndex]);
                 }
                 promisedBound.removeIf(name -> !atypeFactory.isSupportedQualifier(name));
@@ -842,16 +846,31 @@ public class BinaryStubDiffChecker {
      * (already-visited text component, binary component) pair is not revisited, which terminates
      * recursion through F-bounded type variables such as {@code Enum<E extends Enum<E>>}.
      *
-     * <p>Derived positions are excluded from the comparison: the bounds of implicit (unbounded)
-     * wildcards and the bounds of type-variable <em>uses</em> cannot carry source annotations —
-     * whatever annotations they hold were computed at parse/load time from the type-parameter
-     * declaration (the text parser bakes parse-time {@code getAnnotatedType} results into them,
-     * which is order-dependent), and {@code mergeAnnotationFileAnnosIntoType}'s target recomputes
-     * that information at lookup time. Type-variable <em>declarations</em> ({@code
-     * atypes[TypeParameterElement]} entries, the direct type arguments of a class entry, and a
-     * method's {@code getTypeVariables()}) are source-annotatable, but their baselines also diverge
-     * (fromElement vs. createType), so their explicit annotations are guarded by the record-driven
-     * presence check in {@link #verifyRecordApplied} rather than by this comparison.
+     * <p>Of a wildcard, only a bound that the class file declares explicitly is compared; the other
+     * bound is synthesized, and its baseline differs between the loaders (fromElement vs.
+     * createType). That explicit bound is compared even if the stub writes a plain {@code ?}: both
+     * loaders then replace it with the annotations of the type variable's declared bounds ({@code
+     * AnnotationFileParser.annotateUnannotatedUnboundedWildcard}; the binary form records such a
+     * {@code ?} as a marker), e.g. the {@code ? extends Object} of a {@code Provider.compute}
+     * parameter, where the JSpecify annotated JDK's {@code ?} gives {@code R}'s {@code @Nullable}
+     * bound. The bounds of a wildcard that is unbounded in the class file are not compared. They,
+     * too, come from {@code getAnnotatedType} of the type variable, called while the class is
+     * loaded, and comparing them reports differences: on the JSpecify annotated JDK, {@code
+     * CompletionStage<?>} parameters of {@code CompletionStage}'s own methods get a {@code
+     * MinusNull} lower bound from the text parser and a {@code NullnessUnspecified} one from the
+     * binary reader. Presumably that is because the result of {@code getAnnotatedType} depends on
+     * what is loaded at the time, and this check runs the two loaders one after the other into
+     * scratch containers; this has not been confirmed.
+     *
+     * <p>Derived positions are excluded from the comparison: the bounds of type-variable
+     * <em>uses</em> cannot carry source annotations -- whatever annotations they hold were computed
+     * at parse/load time from the type-parameter declaration, and {@code
+     * mergeAnnotationFileAnnosIntoType}'s target recomputes that information at lookup time.
+     * Type-variable <em>declarations</em> ({@code atypes[TypeParameterElement]} entries, the direct
+     * type arguments of a class entry, and a method's {@code getTypeVariables()}) are
+     * source-annotatable, but their baselines also diverge (fromElement vs. createType), so their
+     * explicit annotations are guarded by the record-driven presence check in {@link
+     * #verifyRecordApplied} rather than by this comparison.
      *
      * @param text the text parser's type
      * @param binary the binary reader's type
@@ -918,8 +937,7 @@ public class BinaryStubDiffChecker {
                     visited);
         } else if (text instanceof AnnotatedWildcardType
                 && binary instanceof AnnotatedWildcardType) {
-            // Only explicit (source-written) wildcard bounds are compared; the bounds of an
-            // unbounded wildcard are derived state (see the method comment).
+            // Only a bound the class file declares is compared; see the method comment.
             WildcardType underlying = ((AnnotatedWildcardType) text).getUnderlyingType();
             if (underlying.getExtendsBound() != null) {
                 compareAtm(
@@ -1123,8 +1141,10 @@ public class BinaryStubDiffChecker {
      * are bounds source code cannot annotate directly, so any annotation there was computed by the
      * text parser (implicit-wildcard-bound and type-variable-bound copying) from information that
      * is available elsewhere. An entry stored only by the text parser whose every annotation is in
-     * a derived position is therefore benign: the binary path stores no entry, and checking
-     * recomputes the same information from the type-parameter declarations.
+     * a derived position is therefore treated as benign: the binary path stores no entry, and
+     * checking recomputes the same information from the type-parameter declarations. (A member
+     * whose stub type contains an unannotated, unbounded {@code ?} has a binary record, since the
+     * writer records a marker for the {@code ?}, so it normally has an entry on both sides.)
      *
      * <p>By contrast, if the member had any source annotation, the binary writer recorded it and
      * the binary reader stores an entry, so the entry would not be one-sided in the first place.

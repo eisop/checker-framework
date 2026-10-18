@@ -386,9 +386,22 @@ public class BinaryStubData {
         }
     }
 
-    /** Represents a type annotation with its type path. */
+    /**
+     * Represents a type annotation with its type path, or a marker for an unannotated, unbounded
+     * wildcard (see {@link #UNBOUNDED_WILDCARD}).
+     */
     public static class TypeAnno {
-        /** Index into {@link BinaryStubData#annotationPool} of the annotation record. */
+        /**
+         * {@link #annoIndex} of a marker for an unannotated, unbounded wildcard {@code ?}, which
+         * carries no annotation. Defined once in {@link
+         * BinaryStubWriter#TYPE_ANNO_UNBOUNDED_WILDCARD}.
+         */
+        public static final int UNBOUNDED_WILDCARD = BinaryStubWriter.TYPE_ANNO_UNBOUNDED_WILDCARD;
+
+        /**
+         * Index into {@link BinaryStubData#annotationPool} of the annotation record, or {@link
+         * #UNBOUNDED_WILDCARD}.
+         */
         public final int annoIndex;
 
         /** Type-path steps locating the annotated component. */
@@ -397,12 +410,23 @@ public class BinaryStubData {
         /**
          * Constructs a TypeAnno.
          *
-         * @param annoIndex index into the annotation pool of the annotation record
+         * @param annoIndex index into the annotation pool of the annotation record, or {@link
+         *     #UNBOUNDED_WILDCARD}
          * @param path type-path steps locating the annotated component
          */
         public TypeAnno(int annoIndex, TypePathStep[] path) {
             this.annoIndex = annoIndex;
             this.path = path;
+        }
+
+        /**
+         * Returns true if this is a marker for an unannotated, unbounded wildcard rather than an
+         * annotation.
+         *
+         * @return true if {@link #annoIndex} is {@link #UNBOUNDED_WILDCARD}
+         */
+        public boolean isUnboundedWildcard() {
+            return annoIndex == UNBOUNDED_WILDCARD;
         }
     }
 
@@ -991,6 +1015,18 @@ public class BinaryStubData {
      */
     private int readAnnoIndex(DataInputStream dataIn, String what) throws IOException {
         int index = dataIn.readInt();
+        checkAnnoIndex(index, what);
+        return index;
+    }
+
+    /**
+     * Throws if {@code index} is not an index into the annotation pool.
+     *
+     * @param index the index to check
+     * @param what what the index is for, for the error message
+     * @throws IOException if the index is outside the pool
+     */
+    private void checkAnnoIndex(int index, String what) throws IOException {
         if (index < 0 || index >= annotationPool.length) {
             throw new IOException(
                     "Malformed binary stub file: "
@@ -1000,7 +1036,6 @@ public class BinaryStubData {
                             + " is outside the annotation pool of size "
                             + annotationPool.length);
         }
-        return index;
     }
 
     /**
@@ -1069,7 +1104,10 @@ public class BinaryStubData {
      * @throws IOException if the stream cannot be read
      */
     private TypeAnno readTypeAnno(DataInputStream dataIn) throws IOException {
-        int annoIndex = readAnnoIndex(dataIn, "type annotation");
+        int annoIndex = dataIn.readInt();
+        if (annoIndex != TypeAnno.UNBOUNDED_WILDCARD) {
+            checkAnnoIndex(annoIndex, "type annotation");
+        }
         // path_length (JVMS 4.7.20.1) is a u1; read unsigned since it sizes the path array below
         // (a plain readByte() would misread a length of 128 or greater as negative). kind and
         // argIndex are stored as signed bytes (see TypePathStep's field javadoc), so plain
