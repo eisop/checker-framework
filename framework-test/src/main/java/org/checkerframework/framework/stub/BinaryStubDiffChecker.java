@@ -373,11 +373,25 @@ public class BinaryStubDiffChecker {
         if (!appliedTops.add(className)) {
             return;
         }
+        List<BinaryStubData.ClassRecord> innerCrs =
+                elementTypes.getInnerClassesFromBinary(className);
+        // As AnnotationFileElementTypes applies the annotated JDK: type parameters first.
+        BinaryStubReader.applyClassTypeParamRecords(
+                cr, className, atypeFactory, elementTypes, data, binaryAnnos, null);
+        for (BinaryStubData.ClassRecord innerCr : innerCrs) {
+            BinaryStubReader.applyClassTypeParamRecords(
+                    innerCr,
+                    data.stringPool[innerCr.nameIndex],
+                    atypeFactory,
+                    elementTypes,
+                    data,
+                    binaryAnnos,
+                    null);
+        }
         BinaryStubReader.applyClassRecord(
                 cr, className, atypeFactory, elementTypes, data, binaryAnnos);
         appliedRecords.add(cr);
-        for (BinaryStubData.ClassRecord innerCr :
-                elementTypes.getInnerClassesFromBinary(className)) {
+        for (BinaryStubData.ClassRecord innerCr : innerCrs) {
             String innerName = data.stringPool[innerCr.nameIndex];
             BinaryStubReader.applyClassRecord(
                     innerCr, innerName, atypeFactory, elementTypes, data, binaryAnnos);

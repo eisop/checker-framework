@@ -214,6 +214,79 @@ public class BinaryStubReader {
     }
 
     /**
+     * Stores the class's type parameter declarations from {@code cr} in {@code target}, unless
+     * {@code target} already has them, as {@link #applyClassRecord} would. Callers apply this to
+     * every class record of a stub file, or of an annotated JDK source file, before applying any
+     * record in full, because a plain {@code ?} takes the bounds of its type variable's declaration
+     * ({@link AnnotationFileParser#annotateUnannotatedUnboundedWildcard}), which can be in a class
+     * whose record comes later, such as a nested class. The text parser processes a file in order,
+     * so it gets the stub's bounds only for a declaration that precedes the {@code ?}.
+     *
+     * @param cr the class record from the binary stub data
+     * @param className the fully-qualified name of the class
+     * @param atypeFactory the factory used to create types and parse annotations
+     * @param elementTypes per-factory state, including the annotation-mirror cache
+     * @param data the complete binary stub data
+     * @param target the annotation container to store the results in
+     * @param fromStubFileAnno the {@code @FromStubFile} mirror for a stub file, or {@code null} for
+     *     the annotated JDK
+     */
+    public static void applyClassTypeParamRecords(
+            BinaryStubData.ClassRecord cr,
+            String className,
+            AnnotatedTypeFactory atypeFactory,
+            AnnotationFileElementTypes elementTypes,
+            BinaryStubData data,
+            AnnotationFileAnnotations target,
+            @Nullable AnnotationMirror fromStubFileAnno) {
+        if (cr.typeParams.length == 0) {
+            return;
+        }
+        @SuppressWarnings("signature:argument.type.incompatible") // see applyClassRecord
+        TypeElement typeElt =
+                atypeFactory.getProcessingEnv().getElementUtils().getTypeElement(className);
+        if (typeElt == null
+                || classRecordKind(typeElt.getKind()) != cr.kind
+                || typeElt.getTypeParameters().size() != cr.typeParams.length) {
+            return;
+        }
+        if (fromStubFileAnno == null) {
+            boolean anyAnnotated = false;
+            for (BinaryStubData.TypeParamRecord tp : cr.typeParams) {
+                anyAnnotated |= typeParamRecordHasAnnos(tp);
+            }
+            if (!anyAnnotated) {
+                return;
+            }
+        } else if (!isAnnotatedForThisChecker(
+                parseDeclAnnos(cr.declAnnos, className, data, atypeFactory, elementTypes),
+                atypeFactory)) {
+            return;
+        }
+        List<? extends TypeParameterElement> typeParamElts = typeElt.getTypeParameters();
+        for (int i = 0; i < cr.typeParams.length; i++) {
+            TypeParameterElement tpElt = typeParamElts.get(i);
+            if (target.atypes.containsKey(tpElt)) {
+                continue;
+            }
+            AnnotatedTypeMirror atm =
+                    AnnotatedTypeMirror.createType(tpElt.asType(), atypeFactory, false);
+            if (!(atm instanceof AnnotatedTypeVariable)) {
+                continue;
+            }
+            applyTypeParamRecord(
+                    cr.typeParams[i],
+                    (AnnotatedTypeVariable) atm,
+                    fromStubFileAnno == null ? null : tpElt,
+                    className,
+                    data,
+                    atypeFactory,
+                    elementTypes);
+            target.atypes.put(tpElt, atm);
+        }
+    }
+
+    /**
      * Applies the annotations from a {@link BinaryStubData.ClassRecord} to the given class and its
      * members. The annotations are converted to {@link AnnotationMirror}s and stored in {@code
      * target}, which is usually {@code elementTypes.annotationFileAnnos} but may be a scratch
