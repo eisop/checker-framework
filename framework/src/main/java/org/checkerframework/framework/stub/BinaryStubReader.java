@@ -1276,7 +1276,13 @@ public class BinaryStubReader {
             }
             AnnotatedTypeVariable atv = (AnnotatedTypeVariable) typeArgs.get(i);
             applyTypeParamRecord(
-                    cr.typeParams[i], atv, className, data, atypeFactory, elementTypes);
+                    cr.typeParams[i],
+                    atv,
+                    fromStubFileAnno == null ? null : typeParamElts.get(i),
+                    className,
+                    data,
+                    atypeFactory,
+                    elementTypes);
             // Store keyed by TypeParameterElement — this is what
             // fromElement(TypeParameterElement) reads via stubTypes.getAnnotatedTypeMirror(tpe).
             // The same object is a type argument of declType, matching the text parser.
@@ -1328,7 +1334,16 @@ public class BinaryStubReader {
                 continue;
             }
             AnnotatedTypeVariable atv = (AnnotatedTypeVariable) typeVars.get(i);
-            applyTypeParamRecord(typeParams[i], atv, className, data, atypeFactory, elementTypes);
+            applyTypeParamRecord(
+                    typeParams[i],
+                    atv,
+                    fromStubFileAnno == null || i >= typeParamElts.size()
+                            ? null
+                            : typeParamElts.get(i),
+                    className,
+                    data,
+                    atypeFactory,
+                    elementTypes);
             if (i < typeParamElts.size()) {
                 storeOrMerge(target, typeParamElts.get(i), atv, atypeFactory, fromStubFileAnno);
             }
@@ -1341,17 +1356,21 @@ public class BinaryStubReader {
      *
      * <ul>
      *   <li>If the type parameter declares no bounds (e.g. {@code <@X T>}), annotations on the type
-     *       variable itself become its primary annotation, covering both bounds.
+     *       variable itself become its primary annotation, covering both bounds. The bounds are
+     *       otherwise the class file's (see {@code classFileElt}).
      *   <li>Otherwise, annotations on the type variable apply to the lower bound, and if exactly
-     *       one declared bound carries annotations (for a sole bound, a marker for an unbounded
-     *       wildcard is enough), those are applied to the upper bound after clearing its existing
-     *       annotations (matching {@code clearAnnotations} in the text parser's {@code annotate}).
-     *       If more than one bound carries annotations, none are applied — the text parser has the
-     *       same (unimplemented) intersection-bound limitation.
+     *       one declared bound carries annotations (for a sole bound, a marker is enough), those
+     *       are applied to the upper bound after clearing its existing annotations (matching {@code
+     *       clearAnnotations} in the text parser's {@code annotate}). If more than one bound
+     *       carries annotations, none are applied — the text parser has the same (unimplemented)
+     *       intersection-bound limitation.
      * </ul>
      *
      * @param tp the type-parameter record to apply
      * @param atv the annotated type variable to annotate, modified in place
+     * @param classFileElt the type parameter's element, whose class-file bounds a type parameter
+     *     that the stub declares without a bound keeps; null for the annotated JDK, whose class
+     *     files carry no qualifiers
      * @param className the fully-qualified name of the enclosing class
      * @param data the complete binary stub data
      * @param atypeFactory the factory used to create types and parse annotations
@@ -1360,11 +1379,19 @@ public class BinaryStubReader {
     private static void applyTypeParamRecord(
             BinaryStubData.TypeParamRecord tp,
             AnnotatedTypeVariable atv,
+            @Nullable TypeParameterElement classFileElt,
             String className,
             BinaryStubData data,
             AnnotatedTypeFactory atypeFactory,
             AnnotationFileElementTypes elementTypes) {
         boolean hasDeclaredBounds = tp.boundAnnos.length > 0;
+        if (!hasDeclaredBounds && classFileElt != null) {
+            // The text parser keeps the class file's bounds where the stub declares none.
+            AnnotatedTypeVariable classFileAtv =
+                    (AnnotatedTypeVariable) atypeFactory.fromElement(classFileElt);
+            atv.getUpperBound().replaceAnnotations(classFileAtv.getUpperBound().getAnnotations());
+            atv.getLowerBound().replaceAnnotations(classFileAtv.getLowerBound().getAnnotations());
+        }
         for (int idx : tp.typeVarAnnos) {
             AnnotationMirror am =
                     annotationFromPool(idx, className, data, atypeFactory, elementTypes);
