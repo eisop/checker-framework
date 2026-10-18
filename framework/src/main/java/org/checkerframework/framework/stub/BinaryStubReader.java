@@ -336,14 +336,18 @@ public class BinaryStubReader {
         // source tree when none of its type parameters carry an annotation. If this is skipped, the
         // class-level-annotation code below still creates the stored type on demand (see its
         // "cr.typeParams was empty" comment, which also covers this case).
-        boolean anyTypeParamAnnotated = false;
+        // Every stub file but the annotated JDK stores the type even if no type parameter is
+        // annotated, as the text parser does: a stored type replaces the class file's, so the
+        // class file's annotations must not survive where the stub writes none. The annotated
+        // JDK's class files carry no qualifiers.
+        boolean applyTypeParams = fromStubFileAnno != null && cr.typeParams.length > 0;
         for (BinaryStubData.TypeParamRecord tp : cr.typeParams) {
             if (typeParamRecordHasAnnos(tp)) {
-                anyTypeParamAnnotated = true;
+                applyTypeParams = true;
                 break;
             }
         }
-        if (anyTypeParamAnnotated) {
+        if (applyTypeParams) {
             applyClassTypeParams(
                     cr,
                     className,
@@ -374,7 +378,7 @@ public class BinaryStubReader {
             if (!typeAlreadyPresent) {
                 AnnotatedTypeMirror storedType = target.atypes.get(typeElt);
                 if (storedType == null) {
-                    // anyTypeParamAnnotated was false, so applyClassTypeParams did not run; create
+                    // applyTypeParams was false, so applyClassTypeParams did not run; create
                     // one now.
                     storedType =
                             AnnotatedTypeMirror.createType(typeElt.asType(), atypeFactory, false);
@@ -646,7 +650,9 @@ public class BinaryStubReader {
                         fieldDeclAnnos,
                         fromStubFileAnno == null);
             }
-            if (fr.typeAnnos.length > 0) {
+            // Store the type even without annotations, except for the annotated JDK; see
+            // applyClassRecord's comment on applyTypeParams.
+            if (fr.typeAnnos.length > 0 || fromStubFileAnno != null) {
                 // Skip building the type at all when storeOrMerge would discard it: an entry
                 // exists and this content is from the lazily-loaded JDK.
                 if (!target.atypes.containsKey(ve) || fromStubFileAnno != null) {
@@ -732,7 +738,9 @@ public class BinaryStubReader {
                         fromStubFileAnno == null);
             }
 
-            if (!hasTypeInfo(mr)) {
+            // Store the type even without annotations, except for the annotated JDK; see
+            // applyClassRecord's comment on applyTypeParams.
+            if (!hasTypeInfo(mr) && fromStubFileAnno == null) {
                 continue;
             }
             // If an entry already exists and this content is from the lazily-loaded JDK, back
