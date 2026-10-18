@@ -7,12 +7,9 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.javacutil.javacparse.JavacParse;
 import org.checkerframework.javacutil.javacparse.JavacParseResult;
-import org.plumelib.util.MapsP;
 import org.plumelib.util.StringsPlume;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -53,17 +50,6 @@ public class JavaExpressionParseUtil {
     static final String PARAMETER_REPLACEMENT = PARAMETER_PREFIX + "$1";
 
     /**
-     * Maps a Java expression string, after replacement of formal parameter references, to the javac
-     * tree that parsing it produced. Parsing is expensive, because it creates a new javac {@code
-     * Context}, and depends only on the string; for example, the postconditions of a method are
-     * parsed again at every call to it. The trees are never modified. Only successful parses are
-     * cached. The cache is bounded and synchronized, because it is shared by every compilation in
-     * the JVM.
-     */
-    private static final Map<String, ExpressionTree> parsedExpressions =
-            Collections.synchronizedMap(MapsP.createLruCache(2000));
-
-    /**
      * Parses a string to a {@link JavaExpression}.
      *
      * @param expression the string expression to parse
@@ -92,23 +78,20 @@ public class JavaExpressionParseUtil {
 
         String expressionWithParameterNames =
                 StringsPlume.replaceAll(expression, PARAMETER_PATTERN, PARAMETER_REPLACEMENT);
-        ExpressionTree exprTree = parsedExpressions.get(expressionWithParameterNames);
-        if (exprTree == null) {
-            try {
-                JavacParseResult<ExpressionTree> jpr =
-                        JavacParse.parseExpression(expressionWithParameterNames);
-                if (jpr.hasParseError()) {
-                    throw JavaExpressionParseException.construct(
-                            expression, jpr.getParseErrorMessages());
-                }
-                exprTree = jpr.getTree();
-            } catch (IllegalArgumentException e) {
-                @SuppressWarnings(
-                        "nullness:assignment") // presently always non-null; could change in future
-                @NonNull String msg = e.getMessage();
-                throw JavaExpressionParseException.construct(expression, msg);
+        ExpressionTree exprTree;
+        try {
+            JavacParseResult<ExpressionTree> jpr =
+                    JavacParse.parseExpression(expressionWithParameterNames);
+            if (jpr.hasParseError()) {
+                throw JavaExpressionParseException.construct(
+                        expression, jpr.getParseErrorMessages());
             }
-            parsedExpressions.put(expressionWithParameterNames, exprTree);
+            exprTree = jpr.getTree();
+        } catch (IllegalArgumentException e) {
+            @SuppressWarnings(
+                    "nullness:assignment") // presently always non-null; could change in future
+            @NonNull String msg = e.getMessage();
+            throw JavaExpressionParseException.construct(expression, msg);
         }
 
         JavaExpression result =

@@ -14,13 +14,17 @@ import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Log;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.javacutil.UserError;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileObject;
@@ -199,26 +203,40 @@ public final class JavacParse {
     //    "this.fileManager is null" error in com.sun.tools.javac.comp.Modules.<init>.
 
     /**
-     * Parse the contents of a JavaFileObject.
-     *
-     * @param source a JavaFileObject
-     * @return a (parsed) compilation unit, which may include parse errors
-     * @throws IOException if there is trouble reading the file
+     * The javac state that {@link #parseCompilationUnit(JavaFileObject)} reuses for the parses of
+     * one thread. Creating it (a {@code Context}, a {@code JavacFileManager} and a {@code
+     * ParserFactory}) costs about 100 times as much as parsing a contract expression, such as the
+     * postcondition of {@code Map.put}, which is parsed at every call to the method.
      */
-    @SuppressWarnings("try") // `fileManagerUnused` is not used
-    public static JavacParseResult<CompilationUnitTree> parseCompilationUnit(JavaFileObject source)
-            throws IOException {
-        Context context = new Context();
-        DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
-        context.put(DiagnosticListener.class, diagnostics);
+    private static final class ReusableParser {
+        /** The number of parses after which a ReusableParser is replaced. */
+        private static final int MAX_PARSES = 1000;
 
-        try (@SuppressWarnings(
-                        "UnusedVariable") // `new JavacFileManager` sets a mapping in `context`.
-                JavacFileManager fileManagerUnused =
-                        new JavacFileManager(context, true, StandardCharsets.UTF_8)) {
+        /** The context. */
+        private final Context context = new Context();
 
-            Log.instance(context).useSource(source);
-            ParserFactory parserFactory;
+        /** The file manager, which is registered in {@link #context}. */
+        private final JavacFileManager fileManager;
+
+        /** The log, which reports to {@link #diagnostics}. */
+        private final Log log;
+
+        /** The factory for parsers. */
+        private final ParserFactory parserFactory;
+
+        /** The diagnostics of the current parse; the log reports to it. */
+        private List<Diagnostic<? extends JavaFileObject>> diagnostics = new ArrayList<>();
+
+        /** The number of parses that this object has done. */
+        private int parses = 0;
+
+        /** Creates a ReusableParser. */
+        ReusableParser() {
+            context.put(
+                    DiagnosticListener.class,
+                    (DiagnosticListener<JavaFileObject>) d -> diagnostics.add(d));
+            fileManager = new JavacFileManager(context, true, StandardCharsets.UTF_8);
+            log = Log.instance(context);
             try {
                 parserFactory = ParserFactory.instance(context);
             } catch (IllegalAccessError e) {
@@ -226,12 +244,84 @@ public final class JavacParse {
                         "Provide `--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED` along with"
                                 + " any other `--add-exports` in the Checker Framework invocation.");
             }
+        }
+
+        /**
+         * Parses a compilation unit.
+         *
+         * @param source the source file
+         * @return the parsed compilation unit, which may include parse errors
+         * @throws IOException if there is trouble reading the file
+         */
+        JavacParseResult<CompilationUnitTree> parse(JavaFileObject source) throws IOException {
+            parses++;
+            diagnostics = new ArrayList<>();
+            log.useSource(source);
             JavacParser parser =
                     parserFactory.newParser(source.getCharContent(false), true, true, true);
             CompilationUnitTree cu = parser.parseCompilationUnit();
             ((JCCompilationUnit) cu).sourcefile = source;
-            return new JavacParseResult<>(cu, diagnostics.getDiagnostics());
+            return new JavacParseResult<>(cu, diagnostics);
         }
+
+        /**
+         * Returns true if this object should not be used for another parse. The log counts errors
+         * and warnings and stops reporting after a maximum, and the name table of the context only
+         * grows.
+         *
+         * @return true if this object should be replaced
+         */
+        boolean isWornOut() {
+            return !diagnostics.isEmpty() || parses >= MAX_PARSES;
+        }
+
+        /** Releases the resources of this object. */
+        void close() {
+            try {
+                fileManager.close();
+            } catch (IOException e) {
+                throw new Error("This can't happen", e);
+            }
+        }
+    }
+
+    /**
+     * The parser of this thread, or null. It is only weakly reachable from here, so that a
+     * long-lived thread, such as one of a build daemon, does not keep the javac state and the
+     * classes of the Checker Framework reachable after the last parse; the garbage collector clears
+     * it and the next parse creates a new one.
+     */
+    private static final ThreadLocal<@Nullable WeakReference<ReusableParser>> reusableParser =
+            new ThreadLocal<>();
+
+    /**
+     * Parse the contents of a JavaFileObject.
+     *
+     * @param source a JavaFileObject
+     * @return a (parsed) compilation unit, which may include parse errors
+     * @throws IOException if there is trouble reading the file
+     */
+    public static JavacParseResult<CompilationUnitTree> parseCompilationUnit(JavaFileObject source)
+            throws IOException {
+        WeakReference<ReusableParser> parserRef = reusableParser.get();
+        ReusableParser parser = parserRef == null ? null : parserRef.get();
+        if (parser == null) {
+            parser = new ReusableParser();
+            reusableParser.set(new WeakReference<>(parser));
+        }
+        JavacParseResult<CompilationUnitTree> result;
+        try {
+            result = parser.parse(source);
+        } catch (IOException | RuntimeException e) {
+            reusableParser.remove();
+            parser.close();
+            throw e;
+        }
+        if (parser.isWornOut()) {
+            reusableParser.remove();
+            parser.close();
+        }
+        return result;
     }
 
     /**

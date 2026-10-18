@@ -20,12 +20,8 @@ under the Initialization Checker (and any checker built on it, such as the
 Nullness Checker) is no longer quadratic in the number of fields: a class
 with 4000 fields now type-checks in ~11 seconds instead of ~26. Merging
 dataflow stores after many method calls in such a class is also faster.
-Finding the defaulting scope of the expressions in a very long method body is no
-longer quadratic in the number of statements: a method with 4000 statements takes
-about 12 seconds instead of 15.
-Parsing the expression strings of contracts, such as the postconditions of `Map.put`,
-is cached rather than repeated at every call: a method with 4000 `map.put` calls takes
-about 11 seconds instead of 15.
+Very long method bodies, and many calls to methods with contracts such as `Map.put`,
+are also faster.
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale
