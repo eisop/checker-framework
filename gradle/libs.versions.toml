@@ -61,7 +61,7 @@ options = "org.plumelib:options:2.0.3"
 # plume-util includes a version of reflection-util.  When updating, ensure the versions are consistent.
 plume-util = "org.plumelib:plume-util:1.14.0"
 
-reflection-util = "org.plumelib:reflection-util:1.1.6"
+reflection-util = "org.plumelib:reflection-util:2.0.0"
 
 hashmap-util = "org.plumelib:hashmap-util:0.0.1"
 
