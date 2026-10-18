@@ -152,7 +152,7 @@ public class BinaryStubsCommandLineTest {
      * @param content the file's content
      * @throws IOException if the file cannot be written
      */
-    private static void write(Path path, String content) throws IOException {
+    static void write(Path path, String content) throws IOException {
         Files.createDirectories(path.getParent());
         Files.write(path, content.getBytes(StandardCharsets.UTF_8));
     }
@@ -182,6 +182,23 @@ public class BinaryStubsCommandLineTest {
      */
     private List<Diagnostic<? extends JavaFileObject>> compileSources(
             String libSource, String useSource, String... extraOptions) throws IOException {
+        return compileSources(tempDir, libSource, useSource, extraOptions);
+    }
+
+    /**
+     * Compiles fresh copies of the given library and use sources, in the given directory, with the
+     * Subtyping Checker and the given extra options, and returns the actual diagnostics.
+     *
+     * @param dir the directory to write the sources and classes into
+     * @param libSource the source of {@code Lib}, compiled with plain {@code javac} first
+     * @param useSource the source of {@code Use}, which the Subtyping Checker checks
+     * @param extraOptions options in addition to {@code -Aquals=...} (e.g. {@code -Astubs=...})
+     * @return the diagnostics the compilation produced
+     * @throws IOException if writing the source files fails
+     */
+    static List<Diagnostic<? extends JavaFileObject>> compileSources(
+            Path dir, String libSource, String useSource, String... extraOptions)
+            throws IOException {
         // Lib.java is compiled separately, ahead of time, and put on the classpath -- not
         // compiled as a source file alongside Use.java. A -Astubs file is meant to annotate a
         // library whose source is not part of the current compilation; a class that IS being
@@ -190,9 +207,9 @@ public class BinaryStubsCommandLineTest {
         // because they must distinguish "the stub's annotation took effect" from "the checker
         // fell back to Lib's real, unannotated declaration" -- which looks identical unless Lib
         // is genuinely precompiled, exactly as a real library would be.
-        File libClasses = compileLib(libSource);
+        File libClasses = compileLib(dir, libSource);
 
-        File useFile = tempDir.resolve("Use.java").toFile();
+        File useFile = dir.resolve("Use.java").toFile();
         write(useFile.toPath(), useSource);
 
         List<String> options = new ArrayList<>();
@@ -204,7 +221,7 @@ public class BinaryStubsCommandLineTest {
 
         TestConfiguration config =
                 TestConfigurationBuilder.buildDefaultConfiguration(
-                        tempDir.toString(),
+                        dir.toString(),
                         Collections.singletonList(useFile),
                         Collections.singletonList(libClasses.getAbsolutePath()),
                         Collections.singletonList(
@@ -216,17 +233,18 @@ public class BinaryStubsCommandLineTest {
     }
 
     /**
-     * Compiles a fresh copy of {@link #LIB_SOURCE} (plain {@code javac}, no annotation processing)
-     * into a classes directory under {@link #tempDir}, and returns that directory.
+     * Compiles {@code libSource} (plain {@code javac}, no annotation processing) into a classes
+     * directory under {@code dir}, and returns that directory.
      *
+     * @param dir the directory to write the source and classes into
      * @param libSource the source of {@code Lib}
      * @return the directory {@code Lib.class} was compiled into
      * @throws IOException if writing the source or compiling it fails
      */
-    private File compileLib(String libSource) throws IOException {
-        File libFile = tempDir.resolve("lib-src").resolve("Lib.java").toFile();
+    private static File compileLib(Path dir, String libSource) throws IOException {
+        File libFile = dir.resolve("lib-src").resolve("Lib.java").toFile();
         write(libFile.toPath(), libSource);
-        File libClasses = tempDir.resolve("lib-classes").toFile();
+        File libClasses = dir.resolve("lib-classes").toFile();
         Files.createDirectories(libClasses.toPath());
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         int result =
