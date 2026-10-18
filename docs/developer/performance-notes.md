@@ -2146,6 +2146,33 @@ from the real ones for thousands of trees in the nullness tests. Short-circuitin
 to `InitializationAnnotatedTypeFactory.isInitializedInTargetStore`, which does the same per-field
 scan, and was slower overall.
 
+### Reuse the javac parser state for contract expression strings (eisop#2261)
+
+`JavaExpressionParseUtil.parse` parsed the expression string with `JavacParse.parseExpression`
+every time. `StringToJavaExpression.atMethodDecl` calls it for each postcondition string of each
+call (`@EnsuresKeyFor(value={"#1"}, map={"this"})` and `@EnsuresNonEmpty("this")` on `Map.put`).
+The parse is expensive because `JavacParse.parseCompilationUnit` built a new javac `Context`,
+`JavacFileManager` and `ParserFactory` per string: on the 4000-call workload (Nullness Checker,
+JDK 21, before eisop#2260's fix) `JavacParse.parseExpression` was 200 of 1191 samples (16.8%
+inclusive, of which `ParserFactory.instance` was 15%), while converting the parsed tree to a
+`JavaExpression` was about 1%.
+
+`JavacParse.parseCompilationUnit(JavaFileObject)` now keeps one such state per thread and reuses
+it: about 2.5 microseconds per parse instead of 230 (JDK 21, 4000 parses of 50 distinct strings).
+The state is replaced after a parse that produced a diagnostic (javac's `Log` counts errors and
+stops reporting after a maximum). It is held through a weak reference, so the garbage collector
+also discards it, with the name table of its context, which only grows.
+
+*Tried first and replaced:* a bounded (2000 entries) static LRU cache of the parsed
+`ExpressionTree` per string. Each cached tree keeps the name table of the `Context` that parsed
+it reachable: 274 KB per tree, 535 MB at the bound (measured with 2000 distinct strings, JDK 21).
+Reusing the parser needs no cache, retains no trees, and was faster on the benchmark.
+
+Nullness Checker, `-proc:only`, JDK 25, 4000 fields and 4000 calls, 3 interleaved runs: no
+change 11.6 to 12.0 s, LRU cache 10.6 to 11.0 s, reused parser 8.7 to 9.0 s. Real code
+(javacutil sources 9.6 to 8.9 s, dataflow sources 15.8 to 15.2 s): within noise or slightly
+faster. Diagnostics are identical on all three workloads.
+
 ---
 
 ## Tried and rejected
