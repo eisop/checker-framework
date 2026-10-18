@@ -121,8 +121,8 @@ public class BinaryStubWriter {
      *   <li>1: the first format (#1853).
      *   <li>2: records the length and SHA-256 digest of the source stub file, for the staleness
      *       check of user-supplied {@code -Astubs} files (#1967).
-     *   <li>3: a type annotation with index {@link #TYPE_ANNO_UNBOUNDED_WILDCARD} marks an
-     *       unannotated, unbounded wildcard {@code ?}.
+     *   <li>3: markers for plain wildcards {@code ?} ({@link #TYPE_ANNO_UNBOUNDED_WILDCARD}); the
+     *       annotations on a wildcard with a bound are written at the path of its other bound.
      * </ul>
      */
     public static final short VERSION = 3;
@@ -2321,10 +2321,26 @@ public class BinaryStubWriter {
             throws IOException {
         if (type == null) return;
 
+        // As in AnnotationFileParser.annotate, the annotations on a wildcard with a bound apply to
+        // its other bound: "@A ? extends X" has the lower bound @A. Those on "@A ?" apply to the
+        // wildcard, that is, to both bounds.
+        List<TypePathStep> annoPath = currentPath;
+        if (type instanceof WildcardType) {
+            WildcardType wt = (WildcardType) type;
+            if (wt.getExtendedType().isPresent() || wt.getSuperType().isPresent()) {
+                annoPath = new ArrayList<>(currentPath);
+                annoPath.add(
+                        new TypePathStep(
+                                TYPE_PATH_KIND_WILDCARD,
+                                wt.getExtendedType().isPresent()
+                                        ? TYPE_PATH_WILDCARD_BOUND_SUPER
+                                        : TYPE_PATH_WILDCARD_BOUND_EXTENDS));
+            }
+        }
         for (AnnotationExpr ann : type.getAnnotations()) {
             int idx = annosPool.addAnnotation(ann, cu, this);
             if (idx != IGNORED) {
-                result.add(new TypeAnno(idx, currentPath));
+                result.add(new TypeAnno(idx, annoPath));
             }
         }
 
