@@ -20,6 +20,9 @@ under the Initialization Checker (and any checker built on it, such as the
 Nullness Checker) is no longer quadratic in the number of fields: a class
 with 4000 fields now type-checks in ~11 seconds instead of ~26. Merging
 dataflow stores after many method calls in such a class is also faster.
+Finding the defaulting scope of the expressions in a very long method body is no
+longer quadratic in the number of statements: a method with 4000 statements takes
+about 12 seconds instead of 15.
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale
@@ -439,6 +442,7 @@ eisop#2160,
 eisop#2187,
 eisop#2224,
 eisop#2259,
+eisop#2260,
 typetools#399,
 typetools#2816,
 typetools#3203,
