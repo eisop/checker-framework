@@ -1681,7 +1681,6 @@ public class AnnotationFileParser {
             ReferenceType type,
             @Nullable NodeList<AnnotationExpr> declAnnos,
             NodeWithRange<?> astNode) {
-        annotateInnermostComponentType(atype, declAnnos, astNode);
         Type typeDef = type;
         AnnotatedTypeMirror currentAtype = atype;
         while (typeDef.isArrayType()) {
@@ -1702,7 +1701,11 @@ public class AnnotationFileParser {
         }
         if (currentAtype.getKind() == TypeKind.ARRAY) {
             warn(astNode, "mismatched array lengths; atype: " + atype + "%n  type: " + type);
+            return;
         }
+        // The element type, including its type arguments, such as the ? of Box<?>[].
+        annotate(currentAtype, typeDef, null, astNode);
+        annotateInnermostComponentType(atype, declAnnos, astNode);
     }
 
     private @Nullable ClassOrInterfaceType unwrapDeclaredType(Type type) {
