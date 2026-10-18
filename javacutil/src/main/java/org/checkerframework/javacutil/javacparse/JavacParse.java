@@ -209,9 +209,6 @@ public final class JavacParse {
      * postcondition of {@code Map.put}, which is parsed at every call to the method.
      */
     private static final class ReusableParser {
-        /** The number of parses after which a ReusableParser is replaced. */
-        private static final int MAX_PARSES = 1000;
-
         /** The context. */
         private final Context context = new Context();
 
@@ -226,9 +223,6 @@ public final class JavacParse {
 
         /** The diagnostics of the current parse; the log reports to it. */
         private List<Diagnostic<? extends JavaFileObject>> diagnostics = new ArrayList<>();
-
-        /** The number of parses that this object has done. */
-        private int parses = 0;
 
         /** Creates a ReusableParser. */
         ReusableParser() {
@@ -254,7 +248,6 @@ public final class JavacParse {
          * @throws IOException if there is trouble reading the file
          */
         JavacParseResult<CompilationUnitTree> parse(JavaFileObject source) throws IOException {
-            parses++;
             diagnostics = new ArrayList<>();
             log.useSource(source);
             JavacParser parser =
@@ -265,14 +258,16 @@ public final class JavacParse {
         }
 
         /**
-         * Returns true if this object should not be used for another parse. The log counts errors
-         * and warnings and stops reporting after a maximum, and the name table of the context only
-         * grows.
+         * Returns true if this object should not be used for another parse. javac's {@code Log}
+         * counts the errors and warnings that it reports, remembers the positions it has reported,
+         * and stops reporting after a maximum number of errors (100 by default), which would hide
+         * later parse errors. A parse without diagnostics leaves the log unchanged, so only an
+         * object whose last parse had a diagnostic is replaced.
          *
          * @return true if this object should be replaced
          */
         boolean isWornOut() {
-            return !diagnostics.isEmpty() || parses >= MAX_PARSES;
+            return !diagnostics.isEmpty();
         }
 
         /** Releases the resources of this object. */

@@ -2160,8 +2160,8 @@ inclusive, of which `ParserFactory.instance` was 15%), while converting the pars
 `JavacParse.parseCompilationUnit(JavaFileObject)` now keeps one such state per thread and reuses
 it: about 2.5 microseconds per parse instead of 230 (JDK 21, 4000 parses of 50 distinct strings).
 The state is replaced after a parse that produced a diagnostic (javac's `Log` counts errors and
-stops reporting after a maximum) and after 1000 parses (the name table of the context only
-grows).
+stops reporting after a maximum). It is held through a weak reference, so the garbage collector
+also discards it, with the name table of its context, which only grows.
 
 *Tried first and replaced:* a bounded (2000 entries) static LRU cache of the parsed
 `ExpressionTree` per string. Each cached tree keeps the name table of the `Context` that parsed
