@@ -127,6 +127,18 @@ public class BinaryStubDiffChecker {
             }
             String className = entry.getKey();
 
+            // Load the class from the binary form first, as a compilation does before it uses
+            // the class. The text parser below marks the class as being processed, which keeps
+            // AnnotationFileElementTypes from loading it during the parse. Then a plain ? whose
+            // type variable is declared in the class takes the bounds of the class file's
+            // declaration, defaulted as if the class had no @NullMarked or other stub annotation.
+            @SuppressWarnings("signature:argument.type.incompatible") // a binary-stub class name
+            TypeElement realTypeElt =
+                    atypeFactory.getProcessingEnv().getElementUtils().getTypeElement(className);
+            if (realTypeElt != null) {
+                elementTypes.getDeclAnnotations(realTypeElt);
+            }
+
             AnnotationFileAnnotations textAnnos = new AnnotationFileAnnotations();
             if (!elementTypes.parseJdkSourceInto(className, textAnnos)) {
                 // Auxiliary (package-private) top-level classes live in the .java file of
@@ -861,30 +873,19 @@ public class BinaryStubDiffChecker {
      * (already-visited text component, binary component) pair is not revisited, which terminates
      * recursion through F-bounded type variables such as {@code Enum<E extends Enum<E>>}.
      *
-     * <p>Of a wildcard, a bound that the class file declares is compared. Its other bound is
-     * created by the type factory, differently in the two loaders (fromElement vs. createType), and
-     * is not compared. A plain {@code ?} in the stub replaces the class-file bound with the bounds
-     * of its type variable's declaration in both loaders ({@code
-     * AnnotationFileParser.annotateUnannotatedUnboundedWildcard}; the binary form has a marker), as
-     * for the {@code ? extends Object} of a {@code Provider.compute} parameter, where the JSpecify
-     * annotated JDK's {@code ?} takes the {@code @Nullable} bound of {@code BiFunction}'s {@code
-     * R}.
+     * <p>Of a wildcard, both bounds of a plain {@code ?} in the class file are compared, and of a
+     * wildcard with a bound in the class file, that bound. The other bound of such a wildcard is
+     * created by the type factory, differently in the two loaders (fromElement vs. createType). A
+     * plain {@code ?} in the stub sets the bounds from its type variable's declaration in both
+     * loaders ({@code AnnotationFileParser.annotateUnannotatedUnboundedWildcard}; the binary form
+     * has a marker), which is why {@link #run} loads each class before text-parsing it.
      *
-     * <p>The bounds of a wildcard that is a plain {@code ?} in the class file are not compared. On
-     * the JSpecify annotated JDK, 14 of their lower bounds differ: those of {@code
-     * CompletionStage<?>} parameters of {@code CompletionStage}'s own methods and of {@code
-     * TreeMap.Entry<K, ?>} in {@code TreeMap}, where the text parser gives {@code MinusNull} and
-     * the binary reader {@code NullnessUnspecified}. Both are defaults for the unannotated lower
-     * bound of a type variable declared in a {@code @NullMarked} class; why the two loaders get
-     * different ones in this check has not been determined. Applying class type parameters before
-     * members ({@code BinaryStubReader.applyClassTypeParamRecords}) does not change them.
-     *
-     * <p>The bounds of a type variable use are not compared either: they are those of its
-     * declaration or, for an annotated use such as {@code @A T}, {@code @A}. The use's own
-     * annotations are compared. Type variable declarations ({@code atypes[TypeParameterElement]}
-     * entries, the direct type arguments of a class entry, and a method's {@code
-     * getTypeVariables()}) have baselines that also differ (fromElement vs. createType), so their
-     * annotations are checked against the binary record by {@link #verifyRecordApplied} instead.
+     * <p>The bounds of a type variable use are not compared: they are those of its declaration or,
+     * for an annotated use such as {@code @A T}, {@code @A}. The use's own annotations are
+     * compared. Type variable declarations ({@code atypes[TypeParameterElement]} entries, the
+     * direct type arguments of a class entry, and a method's {@code getTypeVariables()}) have
+     * baselines that also differ (fromElement vs. createType), so their annotations are checked
+     * against the binary record by {@link #verifyRecordApplied} instead.
      *
      * @param text the text parser's type
      * @param binary the binary reader's type
@@ -951,16 +952,17 @@ public class BinaryStubDiffChecker {
                     visited);
         } else if (text instanceof AnnotatedWildcardType
                 && binary instanceof AnnotatedWildcardType) {
-            // Only a bound that the class file declares; see the method comment.
+            // See the method comment for which bounds are compared.
             WildcardType underlying = ((AnnotatedWildcardType) text).getUnderlyingType();
-            if (underlying.getExtendsBound() != null) {
+            if (underlying.getSuperBound() == null) {
                 compareAtm(
                         ((AnnotatedWildcardType) text).getExtendsBound(),
                         ((AnnotatedWildcardType) binary).getExtendsBound(),
                         path + ".extendsBound",
                         diffs,
                         visited);
-            } else if (underlying.getSuperBound() != null) {
+            }
+            if (underlying.getExtendsBound() == null) {
                 compareAtm(
                         ((AnnotatedWildcardType) text).getSuperBound(),
                         ((AnnotatedWildcardType) binary).getSuperBound(),
