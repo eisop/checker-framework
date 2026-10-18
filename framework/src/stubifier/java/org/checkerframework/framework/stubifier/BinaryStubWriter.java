@@ -113,7 +113,17 @@ public class BinaryStubWriter {
     /**
      * Format version of the binary stub file. This is the canonical definition; {@code
      * org.checkerframework.framework.stub.BinaryStubData#VERSION} references it. Increment whenever
-     * the binary format changes.
+     * the binary format changes, and add a line here.
+     *
+     * <p>Version history:
+     *
+     * <ul>
+     *   <li>1: the first format (#1853).
+     *   <li>2: records the length and SHA-256 digest of the source stub file, for the staleness
+     *       check of user-supplied {@code -Astubs} files (#1967).
+     *   <li>3: a type annotation with index {@link #TYPE_ANNO_UNBOUNDED_WILDCARD} marks an
+     *       unannotated, unbounded wildcard {@code ?}.
+     * </ul>
      */
     public static final short VERSION = 3;
 
