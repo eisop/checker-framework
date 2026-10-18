@@ -387,14 +387,14 @@ public class BinaryStubData {
     }
 
     /**
-     * Represents a type annotation with its type path, or a marker for an unannotated, unbounded
-     * wildcard (see {@link #UNBOUNDED_WILDCARD}).
+     * Represents a type annotation with its type path, or a marker for a plain wildcard {@code ?}
+     * (see {@link #UNBOUNDED_WILDCARD}).
      */
     public static class TypeAnno {
         /**
-         * {@link #annoIndex} of a marker for an unannotated, unbounded wildcard {@code ?}, which
-         * carries no annotation. Defined once in {@link
-         * BinaryStubWriter#TYPE_ANNO_UNBOUNDED_WILDCARD}.
+         * {@link #annoIndex} of a marker: a type annotation that carries no annotation and whose
+         * path locates a plain wildcard {@code ?}. Defined once in {@link
+         * BinaryStubWriter#TYPE_ANNO_UNBOUNDED_WILDCARD}, which says what the reader does with it.
          */
         public static final int UNBOUNDED_WILDCARD = BinaryStubWriter.TYPE_ANNO_UNBOUNDED_WILDCARD;
 
@@ -420,7 +420,7 @@ public class BinaryStubData {
         }
 
         /**
-         * Returns true if this is a marker for an unannotated, unbounded wildcard rather than an
+         * Returns true if this is a marker for a plain wildcard {@code ?} rather than an
          * annotation.
          *
          * @return true if {@link #annoIndex} is {@link #UNBOUNDED_WILDCARD}

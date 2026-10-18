@@ -1478,8 +1478,8 @@ public class BinaryStubReader {
         }
 
         // Find the single bound that carries annotations, if any. The text parser annotates a sole
-        // bound unconditionally, so a marker for an unbounded wildcard (see applyTypeAnnos) is
-        // enough there; of several bounds, it considers only those with annotations.
+        // bound unconditionally, so a marker is enough there; of several bounds, it considers only
+        // those with annotations.
         boolean soleBound = tp.boundAnnos.length == 1;
         int annotatedBound = -1;
         for (int b = 0; b < tp.boundAnnos.length; b++) {
@@ -1504,8 +1504,7 @@ public class BinaryStubReader {
     }
 
     /**
-     * Returns true if {@code annos} contains an annotation, not only markers for unbounded
-     * wildcards.
+     * Returns true if {@code annos} contains an annotation, not only markers.
      *
      * @param annos type annotations
      * @return true if some element of {@code annos} is not {@linkplain
@@ -1642,18 +1641,13 @@ public class BinaryStubReader {
      * existing annotation from the same hierarchy is replaced rather than duplicated, and
      * annotations that are not supported qualifiers of the current checker are filtered out.
      *
-     * <p>A {@linkplain BinaryStubData.TypeAnno#isUnboundedWildcard marker} for an unannotated,
-     * unbounded wildcard {@code ?} carries no annotation: the wildcard it reaches gets the
-     * annotations of its type variable's declared bounds, exactly as the text parser does (both
-     * call {@link AnnotationFileParser#annotateUnannotatedUnboundedWildcard}). This is not derived
-     * state that lookup recomputes: {@code mergeAnnotationFileAnnosIntoType} merges the stored type
-     * into the type read from the class file, so a stub's {@code ?} with no annotations on its
-     * bounds would leave in place a bound the class file declares, e.g. the {@code ? extends
-     * Object} of {@code Provider.compute}'s {@code BiFunction<? super Object, ? super Object, ?
-     * extends Object>} parameter, where the stub's {@code BiFunction<..., ?>} means {@code R}'s
-     * declared {@code @Nullable} bound. As in the text parser, the type variable's declared type is
-     * computed while the annotation file is being loaded, so it reflects the annotation files
-     * loaded so far.
+     * <p>A {@linkplain BinaryStubData.TypeAnno#isUnboundedWildcard marker} gives the wildcard at
+     * its path the annotations of the bounds of its type variable's declaration, by the method the
+     * text parser uses ({@link AnnotationFileParser#annotateUnannotatedUnboundedWildcard}). Without
+     * it, a plain {@code ?} over a class-file wildcard with a bound, such as the {@code ? extends
+     * Object} of {@code Provider.compute}'s {@code BiFunction} parameter, would keep an unannotated
+     * bound, which gets the default rather than the {@code @Nullable} bound of {@code BiFunction}'s
+     * {@code R}.
      *
      * @param atm the annotated type mirror to annotate
      * @param annos the type annotations to apply

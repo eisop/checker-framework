@@ -231,12 +231,12 @@ public class BinaryStubWriter {
     public static final byte TYPE_PATH_WILDCARD_BOUND_SUPER = 1;
 
     /**
-     * Annotation-pool index of a type annotation that carries no annotation but marks an
-     * unannotated, unbounded wildcard {@code ?} at its type path. The text parser gives such a
-     * wildcard the bounds of the corresponding type variable's declaration, replacing whatever
-     * bound the class file has ({@code AnnotationFileParser.annotateUnannotatedUnboundedWildcard});
-     * the marker tells {@code BinaryStubReader} to do the same. Negative, so it cannot collide with
-     * a pool index, and distinct from {@code IGNORED}, which is never written.
+     * Annotation-pool index that makes a type annotation a <em>marker</em>: it carries no
+     * annotation, and its type path locates a plain wildcard {@code ?}, one without a bound or an
+     * annotation. The reader gives that wildcard the annotations of the bounds of its type
+     * variable's declaration, as the text parser does ({@code
+     * AnnotationFileParser.annotateUnannotatedUnboundedWildcard}). Negative, so it is never a pool
+     * index, and not {@code IGNORED}, which is never written.
      */
     public static final int TYPE_ANNO_UNBOUNDED_WILDCARD = -2;
 

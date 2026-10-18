@@ -1860,20 +1860,16 @@ public class AnnotationFileParser {
     }
 
     /**
-     * Annotates a wildcard that an annotation file writes as an unannotated, unbounded {@code ?}:
-     * removes any existing annotations from its bounds and adds the annotations of the bounds of
-     * the corresponding type variable's declaration. The stub's {@code ?} thereby replaces whatever
-     * bound the class file has, e.g. {@code ? extends @A Object}. {@code BinaryStubReader} calls
-     * this for the same wildcard in the binary form, so that both forms produce the same type.
+     * Annotates a wildcard that an annotation file writes as a plain {@code ?}, without a bound or
+     * an annotation: replaces the annotations of its bounds with those of the bounds of its type
+     * variable's declaration, as currently known to {@code atypeFactory}. A class-file bound such
+     * as {@code ? extends @A Object} does not survive. {@code BinaryStubReader} calls this for the
+     * marker that the binary form has for such a wildcard.
      *
-     * <p>{@link AnnotatedWildcardType#getTypeVariable} can be null: it is only set while building a
-     * declared type's type arguments (see {@code AnnotatedDeclaredType#getTypeArguments} and {@code
-     * BoundsInitializer}). Then the wildcard's bounds are left as already computed by the type
-     * factory. Dereferencing it unguarded threw an uncaught NullPointerException while parsing an
-     * unbounded wildcard type argument (e.g. {@code Class<?>}) for some JDK releases (e.g. {@code
-     * --release 8}), silently aborting all remaining processing of the enclosing stub file --
-     * observed via {@code -AbinaryStubDiffCheck} forcing a full re-parse of every JDK stub file,
-     * which ordinary lazy per-reference parsing had never exercised for this combination before.
+     * <p>{@link AnnotatedWildcardType#getTypeVariable} is null unless the wildcard was built as a
+     * type argument by {@code AnnotatedDeclaredType#getTypeArguments}; then the bounds are left
+     * unchanged. (Dereferencing it unguarded once threw a NullPointerException that aborted the
+     * rest of a JDK stub file under {@code --release 8}.)
      *
      * @param wildcardType the wildcard to annotate, side-effected
      * @param atypeFactory the type factory, used to get the type variable's declared type
