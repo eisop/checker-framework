@@ -97,6 +97,7 @@ JSpecify support in the Nullness Checker:
   specifies: checks only `@AnnotatedFor` scope, treats `@NullMarked` as a
   defaulting annotation, skips initialization/map-key checking, assumes purity
   and enabled assertions, and applies permissive defaults to unscoped code.
+  Field reads through another object no longer crash (eisop#2259).
 - `@NullMarked` aliases `@AnnotatedFor` scoped to nullness (plus
   `@DefaultQualifier`), and `@NullUnmarked` aliases `@UnannotatedFor`. Both
   apply under `-AuseConservativeDefaultsForUncheckedCode` and compose with
@@ -439,6 +440,7 @@ eisop#2159,
 eisop#2160,
 eisop#2187,
 eisop#2224,
+eisop#2259,
 eisop#2260,
 eisop#2261,
 typetools#399,
