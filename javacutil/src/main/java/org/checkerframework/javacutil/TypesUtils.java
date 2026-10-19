@@ -1338,7 +1338,6 @@ public final class TypesUtils {
      *     freshTypeVariables}
      * @param env processing environment
      */
-    @SuppressWarnings("interning:argument.type.incompatible") // Field.set of a Type
     public static void substituteInBounds(
             List<? extends TypeMirror> freshTypeVariables,
             List<? extends TypeVariable> typeVariables,
@@ -1360,7 +1359,10 @@ public final class TypesUtils {
                 } else {
                     assert TYPEVAR_BOUND != null
                             : "@AssumeAssertion(nullness): TYPEVAR_BOUND is set before JDK 9";
-                    TYPEVAR_BOUND.set(typeVar, uppers.get(i));
+                    @SuppressWarnings(
+                            "interning:assignment") // Field.set requires an @Interned Object
+                    @Interned Object upper = uppers.get(i);
+                    TYPEVAR_BOUND.set(typeVar, upper);
                 }
             } catch (IllegalAccessException | InvocationTargetException e) {
                 throw new BugInCF("Cannot set the upper bound of " + typeVar, e);
