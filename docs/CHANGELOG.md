@@ -172,6 +172,11 @@ A stub file that declares a record where the running JDK has a class (for exampl
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
 members that follow the record.
 
+In a stub file, the element type of an array type is now annotated like any
+other type: annotations on its type arguments, such as the `@A` of
+`List<@A String>[]`, were ignored, and a `?` there, such as that of
+`Class<?>[]`, now takes the bounds of its type variable as it does elsewhere.
+
 The Nullness Checker and the other checkers built on the Initialization Checker
 no longer fail with "fromClass can't load class ... PolyInitialized" when the
 compilation classpath has a checker-qual artifact without `@PolyInitialized`,
