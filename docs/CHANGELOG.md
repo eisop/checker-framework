@@ -88,7 +88,8 @@ Type-checking and subtyping improvements:
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
 - Flow-sensitive refinement of a method call's result now requires the method to be
   `@Deterministic` and `@SideEffectFree`; `-AassumeDeterministic` alone no longer suffices,
-  use `-AassumePure`. `JavaExpression#isDeterministic` is renamed `isPure`.
+  use `-AassumePure`. `JavaExpression#isDeterministic` is renamed `isPure`, and `insertValuePermitNondeterministic` and
+  `insertOrRefinePermitNondeterministic` are renamed `...PermitImpure`.
 
 JSpecify support in the Nullness Checker:
 

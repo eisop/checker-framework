@@ -438,8 +438,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * and if the store already contains information about a hierarchy other than {@code a}s
      * hierarchy, that information is preserved.
      *
-     * <p>If {@code expr} is nondeterministic, this method does not insert {@code value} into the
-     * store.
+     * <p>If {@code expr} is impure, this method does not insert {@code value} into the store.
      *
      * @param expr an expression
      * @param a an annotation for the expression
@@ -449,18 +448,17 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     }
 
     /**
-     * Like {@link #insertValue(JavaExpression, AnnotationMirror)}, but permits nondeterministic
-     * expressions to be stored.
+     * Like {@link #insertValue(JavaExpression, AnnotationMirror)}, but permits impure expressions
+     * to be stored.
      *
-     * <p>For an explanation of when to permit nondeterministic expressions, see {@link
-     * #insertValuePermitNondeterministic(JavaExpression, CFAbstractValue)}.
+     * <p>For an explanation of when to permit impure expressions, see {@link
+     * #insertValuePermitImpure(JavaExpression, CFAbstractValue)}.
      *
      * @param expr an expression
      * @param a an annotation for the expression
      */
-    public void insertValuePermitNondeterministic(JavaExpression expr, AnnotationMirror a) {
-        insertValuePermitNondeterministic(
-                expr, analysis.createSingleAnnotationValue(a, expr.getType()));
+    public void insertValuePermitImpure(JavaExpression expr, AnnotationMirror a) {
+        insertValuePermitImpure(expr, analysis.createSingleAnnotationValue(a, expr.getType()));
     }
 
     /**
@@ -476,8 +474,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * <p>Note that this happens per hierarchy, and if the store already contains information about
      * a hierarchy other than {@code newAnno}'s hierarchy, that information is preserved.
      *
-     * <p>If {@code expr} is nondeterministic, this method does not insert {@code value} into the
-     * store.
+     * <p>If {@code expr} is impure, this method does not insert {@code value} into the store.
      *
      * @param expr an expression
      * @param newAnno the expression's annotation
@@ -487,35 +484,33 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     }
 
     /**
-     * Like {@link #insertOrRefine(JavaExpression, AnnotationMirror)}, but permits nondeterministic
+     * Like {@link #insertOrRefine(JavaExpression, AnnotationMirror)}, but permits impure
      * expressions to be inserted.
      *
-     * <p>For an explanation of when to permit nondeterministic expressions, see {@link
-     * #insertValuePermitNondeterministic(JavaExpression, CFAbstractValue)}.
+     * <p>For an explanation of when to permit impure expressions, see {@link
+     * #insertValuePermitImpure(JavaExpression, CFAbstractValue)}.
      *
      * @param expr an expression
      * @param newAnno the expression's annotation
      */
-    public final void insertOrRefinePermitNondeterministic(
-            JavaExpression expr, AnnotationMirror newAnno) {
+    public final void insertOrRefinePermitImpure(JavaExpression expr, AnnotationMirror newAnno) {
         insertOrRefine(expr, newAnno, true);
     }
 
     /**
      * Helper function for {@link #insertOrRefine(JavaExpression, AnnotationMirror)} and {@link
-     * #insertOrRefinePermitNondeterministic}.
+     * #insertOrRefinePermitImpure}.
      *
      * @param expr an expression
      * @param newAnno the expression's annotation
-     * @param permitNondeterministic true if nondeterministic expressions may be inserted into the
-     *     store
+     * @param permitImpure true if impure expressions may be inserted into the store
      */
     protected void insertOrRefine(
-            JavaExpression expr, AnnotationMirror newAnno, boolean permitNondeterministic) {
+            JavaExpression expr, AnnotationMirror newAnno, boolean permitImpure) {
         if (!canInsertJavaExpression(expr)) {
             return;
         }
-        if (!(permitNondeterministic || expr.isPure(analysis.getTypeFactory()))) {
+        if (!(permitImpure || expr.isPure(analysis.getTypeFactory()))) {
             return;
         }
 
@@ -525,11 +520,11 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             insertValue(
                     expr,
                     analysis.createSingleAnnotationValue(newAnno, expr.getType()),
-                    permitNondeterministic);
+                    permitImpure);
             return;
         }
         computeNewValueAndInsert(
-                expr, newValue, CFAbstractValue<V>::greatestLowerBound, permitNondeterministic);
+                expr, newValue, CFAbstractValue<V>::greatestLowerBound, permitImpure);
     }
 
     /** Returns true if {@code expr} can be stored in this store. */
@@ -558,8 +553,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * and if the store already contains information about a hierarchy for which {@code value} does
      * not contain information, then that information is preserved.
      *
-     * <p>If {@code expr} is nondeterministic, this method does not insert {@code value} into the
-     * store.
+     * <p>If {@code expr} is impure, this method does not insert {@code value} into the store.
      *
      * @param expr the expression to insert in the store
      * @param value the value of the expression
@@ -570,28 +564,28 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
 
     /**
      * Like {@link #insertValue(JavaExpression, CFAbstractValue)}, but updates the store even if
-     * {@code expr} is nondeterministic.
+     * {@code expr} is impure.
      *
-     * <p>Usually, nondeterministic JavaExpressions should not be stored in a Store. For example, in
-     * the body of {@code if (nondet() == 3) {...}}, the store should not record that the value of
-     * {@code nondet()} is 3, because it might not be 3 the next time {@code nondet()} is executed.
+     * <p>Usually, impure JavaExpressions (see {@link JavaExpression#isPure}) should not be stored
+     * in a Store. For example, in the body of {@code if (nondet() == 3) {...}}, the store should
+     * not record that the value of {@code nondet()} is 3, because it might not be 3 the next time
+     * {@code nondet()} is executed.
      *
-     * <p>However, contracts can mention a nondeterministic JavaExpression. For example, a contract
-     * might have a postcondition that {@code nondet()} is odd. This means that the next call to
-     * {@code nondet()} will return odd. Such a postcondition may be evicted from the store by
-     * calling a side-effecting method.
+     * <p>However, contracts can mention an impure JavaExpression. For example, a contract might
+     * have a postcondition that {@code nondet()} is odd. This means that the next call to {@code
+     * nondet()} will return odd. Such a postcondition may be evicted from the store by calling a
+     * side-effecting method.
      *
      * @param expr the expression to insert in the store
      * @param value the value of the expression
      */
-    public final void insertValuePermitNondeterministic(JavaExpression expr, @Nullable V value) {
+    public final void insertValuePermitImpure(JavaExpression expr, @Nullable V value) {
         insertValue(expr, value, true);
     }
 
     /**
      * Returns true if the given (expression, value) pair can be inserted in the store, namely if
-     * the value is non-null and the expression does not contain unknown or a nondeterministic
-     * expression.
+     * the value is non-null and the expression does not contain unknown or an impure expression.
      *
      * <p>This method returning true does not guarantee that the value will be inserted; the
      * implementation of {@link #insertValue( JavaExpression, CFAbstractValue, boolean)} might still
@@ -599,13 +593,12 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *
      * @param expr the expression to insert in the store
      * @param value the value of the expression
-     * @param permitNondeterministic if false, returns false if {@code expr} is nondeterministic; if
-     *     true, permits nondeterministic expressions to be placed in the store
+     * @param permitImpure if false, returns false if {@code expr} is impure; if true, permits
+     *     impure expressions to be placed in the store
      * @return true if the given (expression, value) pair can be inserted in the store
      */
     @EnsuresNonNullIf(expression = "#2", result = true)
-    protected boolean shouldInsert(
-            JavaExpression expr, @Nullable V value, boolean permitNondeterministic) {
+    protected boolean shouldInsert(JavaExpression expr, @Nullable V value, boolean permitImpure) {
         if (value == null) {
             // No need to insert a null abstract value because it represents
             // top and top is also the default value.
@@ -615,8 +608,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             // Expressions containing unknown expressions are not stored.
             return false;
         }
-        if (!(permitNondeterministic || expr.isPure(analysis.getTypeFactory()))) {
-            // Nondeterministic expressions may not be stored.
+        if (!(permitImpure || expr.isPure(analysis.getTypeFactory()))) {
+            // Impure expressions may not be stored.
             // (They are likely to be quickly evicted, as soon as a side-effecting method is
             // called.)
             return false;
@@ -626,7 +619,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
 
     /**
      * Helper method for {@link #insertValue(JavaExpression, CFAbstractValue)} and {@link
-     * #insertValuePermitNondeterministic}.
+     * #insertValuePermitImpure}.
      *
      * <p>Every overriding implementation should start with
      *
@@ -638,16 +631,12 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *
      * @param expr the expression to insert in the store
      * @param value the value of the expression
-     * @param permitNondeterministic if false, does nothing if {@code expr} is nondeterministic; if
-     *     true, permits nondeterministic expressions to be placed in the store
+     * @param permitImpure if false, does nothing if {@code expr} is impure; if true, permits impure
+     *     expressions to be placed in the store
      */
-    protected void insertValue(
-            JavaExpression expr, @Nullable V value, boolean permitNondeterministic) {
+    protected void insertValue(JavaExpression expr, @Nullable V value, boolean permitImpure) {
         computeNewValueAndInsert(
-                expr,
-                value,
-                (old, newValue) -> newValue.mostSpecific(old, null),
-                permitNondeterministic);
+                expr, value, (old, newValue) -> newValue.mostSpecific(old, null), permitImpure);
     }
 
     /**
@@ -657,15 +646,15 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * @param expr the JavaExpression
      * @param value the value of the JavaExpression
      * @param merger the function used to merge {@code value} and the previous value of {@code expr}
-     * @param permitNondeterministic if false, does nothing if {@code expr} is nondeterministic; if
-     *     true, permits nondeterministic expressions to be placed in the store
+     * @param permitImpure if false, does nothing if {@code expr} is impure; if true, permits impure
+     *     expressions to be placed in the store
      */
     protected void computeNewValueAndInsert(
             JavaExpression expr,
             @Nullable V value,
             BinaryOperator<V> merger,
-            boolean permitNondeterministic) {
-        if (!shouldInsert(expr, value, permitNondeterministic)) {
+            boolean permitImpure) {
+        if (!shouldInsert(expr, value, permitImpure)) {
             return;
         }
 

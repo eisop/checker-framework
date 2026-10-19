@@ -689,7 +689,7 @@ public abstract class CFAbstractTransfer<
                 // Errors are reported by BaseTypeVisitor.checkContractsAtMethodDeclaration().
                 continue;
             }
-            initialStore.insertValuePermitNondeterministic(exprJe, annotation);
+            initialStore.insertValuePermitImpure(exprJe, annotation);
         }
     }
 
@@ -1402,12 +1402,12 @@ public abstract class CFAbstractTransfer<
                 // are removed from the store before this method is called.
                 if (p.kind == Contract.Kind.CONDITIONALPOSTCONDITION) {
                     if (((ConditionalPostcondition) p).resultValue) {
-                        thenStore.insertOrRefinePermitNondeterministic(je, anno);
+                        thenStore.insertOrRefinePermitImpure(je, anno);
                     } else {
-                        elseStore.insertOrRefinePermitNondeterministic(je, anno);
+                        elseStore.insertOrRefinePermitImpure(je, anno);
                     }
                 } else {
-                    thenStore.insertOrRefinePermitNondeterministic(je, anno);
+                    thenStore.insertOrRefinePermitImpure(je, anno);
                 }
             } catch (JavaExpressionParseException e) {
                 // report errors here
@@ -1642,10 +1642,10 @@ public abstract class CFAbstractTransfer<
             JavaExpression target,
             AnnotationMirror newAnno) {
         if (result.containsTwoStores()) {
-            result.getThenStore().insertValuePermitNondeterministic(target, newAnno);
-            result.getElseStore().insertValuePermitNondeterministic(target, newAnno);
+            result.getThenStore().insertValuePermitImpure(target, newAnno);
+            result.getElseStore().insertValuePermitImpure(target, newAnno);
         } else {
-            result.getRegularStore().insertValuePermitNondeterministic(target, newAnno);
+            result.getRegularStore().insertValuePermitImpure(target, newAnno);
         }
     }
 }
