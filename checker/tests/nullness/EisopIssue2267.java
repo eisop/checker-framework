@@ -1,4 +1,3 @@
-// @below-java9-jdk-skip-test
 // Test case for https://github.com/eisop/checker-framework/issues/2267
 // The constructor of an anonymous subclass of an inner class takes the enclosing instance as its
 // first parameter if the class instance creation expression is qualified.  Argument checking
@@ -15,6 +14,10 @@ public class EisopIssue2267 {
         NonNullInner(String... args) {}
     }
 
+    class Mixed<T> {
+        Mixed(int i, String... args) {}
+    }
+
     void m(EisopIssue2267 n, @Nullable String nbl) {
         n.new Inner<String>("a", "b") {};
         n.new Inner<String>() {};
@@ -23,5 +26,10 @@ public class EisopIssue2267 {
         n.new Inner<String>("a", nbl) {};
         // :: error: (argument.type.incompatible)
         n.new NonNullInner(nbl) {};
+        n.new Mixed<String>(1) {};
+        n.new Mixed<String>(1, "a", "b") {};
+        // :: error: (argument.type.incompatible)
+        n.new Mixed<String>(1, "a", nbl) {};
+        n.new Inner<String>(new String[] {"a", "b"}) {};
     }
 }
