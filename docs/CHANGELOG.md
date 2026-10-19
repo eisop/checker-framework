@@ -59,6 +59,8 @@ are fixed; and shaded jars are ~2 MB smaller, no longer bundling a stray
 `module-info.class` or jsr305 classes.
 The shell scripts in `checker/bin`, such as `wpi.sh`, are executable in
 `checker-framework-VERSION.zip`.
+A checker that packages its own `annotated-jdk` in its jar (such as the JSpecify
+reference checker) now uses it, even when `checker.jar` is earlier on the processor path.
 
 Type-checking and subtyping improvements:
 
