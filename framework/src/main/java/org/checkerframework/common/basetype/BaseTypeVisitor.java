@@ -2823,9 +2823,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         CharSequence constructorName = ElementUtils.getSimpleDescription(constructor);
 
         List<? extends VariableElement> constructorParams = constructor.getParameters();
-        if (SystemUtil.jreVersion >= 11
-                && TreeUtils.isAnonymousConstructorWithExplicitEnclosingExpression(
-                        constructor, tree)) {
+        if (TreeUtils.hasEnclosingInstanceParameter(constructor, tree)) {
             // The first parameter is the enclosing instance, which is not among the arguments;
             // see AnnotatedTypes#adaptParameters.
             constructorParams = constructorParams.subList(1, constructorParams.size());

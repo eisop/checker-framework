@@ -30,7 +30,6 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.Pair;
-import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
@@ -1121,16 +1120,10 @@ public class AnnotatedTypes {
             List<? extends ExpressionTree> args,
             Tree invok) {
         List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
-        // Handle anonymous constructors that extend a class with an enclosing type.
-        // There is a mismatch between the number of parameters and arguments when
-        // the following conditions are met:
-        // 1. Java version >= 11
-        // 2. the method is an anonymous constructor
-        // 3. the constructor is invoked with an explicit enclosing expression
-        // In the case, we should remove the first parameter.
-        if (SystemUtil.jreVersion >= 11
-                && invok instanceof NewClassTree
-                && TreeUtils.isAnonymousConstructorWithExplicitEnclosingExpression(
+        // Handle anonymous constructors that extend a class with an enclosing type: the first
+        // parameter is the enclosing instance, which is not among the arguments.
+        if (invok instanceof NewClassTree
+                && TreeUtils.hasEnclosingInstanceParameter(
                         method.getElement(), (NewClassTree) invok)) {
             parameters = parameters.subList(1, parameters.size());
         }
