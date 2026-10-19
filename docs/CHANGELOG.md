@@ -302,10 +302,6 @@ Other improvements and bug fixes:
 - Type argument inference no longer crashes on a generic method call returned
   by a lambda whose target is a raw functional interface type, such as
   `Supplier s = () -> never();` or `(Supplier) () -> never()`.
-- Type argument inference no longer crashes on a call whose receiver is a call with
-  an unbound method reference to an inherited method, such as
-  `Comparator.comparing(Sub::name).thenComparing(Sub::other)` where `name` is
-  declared in a superclass of `Sub`.
 - Type argument inference accounts for the type arguments of the enclosing
   type of an inner class type, such as `T` in `Outer<T>.Inner`; it used to
   crash on `consume(make(x))` where `make` returns `Outer<T>.Inner`.
