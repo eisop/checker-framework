@@ -277,6 +277,8 @@ Other improvements and bug fixes:
   classes with an explicit enclosing instance (`outer.new Inner<>() {}`).
 - No longer crashes on a qualified anonymous subclass of an inner class with a
   varargs constructor (`outer.new Inner("a", "b") {}`).
+- Error messages about the constructor of an anonymous class name its supertype,
+  instead of printing an empty class name.
 - Type argument inference treats an `Error` thrown in a lambda body as an
   unchecked exception, instead of crashing.
 - Type argument inference no longer treats a `return` in a method of a local or
