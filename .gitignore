@@ -140,6 +140,7 @@ docs/examples/lombok/.gradle/
 docs/examples/lombok/Out.txt
 docs/examples/lombok/lombok.config
 docs/examples/publish-smoketest/.gradle/
+docs/examples/afu-consumer/.gradle/
 docs/examples/typetools-checker-qual/.gradle/
 docs/examples/typetools-checker-qual/Out.txt
 docs/manual/*.png

@@ -166,3 +166,28 @@ if grep -E '<artifactId>(checker|framework)</artifactId>' \
   "$MAVEN_LOCAL/annotation-file-utilities/${VERSION}/annotation-file-utilities-${VERSION}.pom"; then
   fail "The Annotation File Utilities POM depends on the Checker Framework."
 fi
+AFU_POM="$MAVEN_LOCAL/annotation-file-utilities/${VERSION}/annotation-file-utilities-${VERSION}.pom"
+for expected in \
+  "<groupId>io.github.eisop</groupId>" \
+  "<artifactId>annotation-file-utilities</artifactId>" \
+  "<version>${VERSION}</version>" \
+  "<name>Annotation File Utilities</name>" \
+  "<description>" \
+  "<name>The MIT License</name>" \
+  "<artifactId>asm</artifactId>" \
+  "<artifactId>guava</artifactId>" \
+  "<artifactId>plume-util</artifactId>" \
+  "<artifactId>options</artifactId>" \
+  "<artifactId>reflection-util</artifactId>"; do
+  grep -qF "$expected" "$AFU_POM" || fail "The Annotation File Utilities POM does not contain $expected."
+done
+# The published jar contains only the Annotation File Utilities, and no dependencies.
+if unzip -Z1 "$MAVEN_LOCAL/annotation-file-utilities/${VERSION}/annotation-file-utilities-${VERSION}.jar" \
+  | grep -v -e '/$' -e '^META-INF/' -e '^org/checkerframework/afu/' | grep .; then
+  fail "The Annotation File Utilities jar contains files outside org/checkerframework/afu."
+fi
+
+## Run the annotator from the published artifact, as a consumer project would.
+(cd docs/examples/afu-consumer \
+  && "$ROOT_DIR/gradlew" -Dmaven.repo.local="$MAVEN_REPO" -PafuVersion="${VERSION}" --console=plain \
+    clean smoketest)
