@@ -65,6 +65,13 @@ public class StorePure {
         }
     }
 
+    // A @Pure method is also side-effect-free, so a second call returns the same value.
+    void t1c(@Odd String p1, String p2, boolean b1) {
+        if (pure1() == p1) {
+            @Odd String l1 = pure1();
+        }
+    }
+
     void t2(@Odd String p1, String p2, boolean b1) {
         String l0 = "";
         if (pure1() == p1) {

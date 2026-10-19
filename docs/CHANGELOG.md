@@ -86,12 +86,9 @@ Type-checking and subtyping improvements:
 - Repeated `@RequiresNonEmpty` annotations on one method are now enforced:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
-- Flow-sensitive refinement of a method call's result is now kept only if the
-  method is both `@Deterministic` and `@SideEffectFree` (that is, `@Pure`).
-  Previously a `@Deterministic` method that is not side-effect-free was assumed
-  to return the same value when called again, although its first call may
-  have modified the heap. `-AassumeDeterministic` alone therefore no longer
-  enables such refinement; use `-AassumePure`.
+- Flow-sensitive refinement of a method call's result now requires the method to be
+  `@Deterministic` and `@SideEffectFree`; `-AassumeDeterministic` alone no longer suffices,
+  use `-AassumePure`. `JavaExpression#isDeterministic` is renamed `isPure`.
 
 JSpecify support in the Nullness Checker:
 

@@ -147,27 +147,29 @@ public abstract class JavaExpression {
     }
 
     /**
-     * Returns true if the expression is deterministic.
+     * Returns true if the expression is pure: evaluating it has no side effects, and evaluating it
+     * again in the same heap yields the same value. A method call is pure only if the method is
+     * both deterministic and side-effect-free.
      *
      * @param provider an annotation provider (a type factory)
-     * @return true if this expression is deterministic
+     * @return true if this expression is pure
      */
     @Pure
-    public abstract boolean isDeterministic(AnnotationProvider provider);
+    public abstract boolean isPure(AnnotationProvider provider);
 
     /**
-     * Returns true if all the expressions in the list are deterministic.
+     * Returns true if all the expressions in the list are pure.
      *
      * @param list the list whose elements to test
      * @param provider an annotation provider (a type factory)
-     * @return true if all the expressions in the list are deterministic
+     * @return true if all the expressions in the list are pure
      */
     @Pure
-    public static boolean listIsDeterministic(
+    public static boolean listIsPure(
             List<? extends @Nullable JavaExpression> list, AnnotationProvider provider) {
         for (int i = 0, n = list.size(); i < n; ++i) {
             JavaExpression je = list.get(i);
-            if (je != null && !je.isDeterministic(provider)) {
+            if (je != null && !je.isPure(provider)) {
                 return false;
             }
         }

@@ -95,16 +95,15 @@ public class MethodCall extends JavaExpression {
     /**
      * {@inheritDoc}
      *
-     * <p>A method call is deterministic only if the method is both deterministic and
-     * side-effect-free: a deterministic method that modifies the heap may return a different value
-     * when it is called again.
+     * <p>A deterministic method that modifies the heap may return a different value when it is
+     * called again, so a call is pure only if the method is also side-effect-free.
      */
     @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
+    public boolean isPure(AnnotationProvider provider) {
         return (PurityUtils.isDeterministic(provider, method) || provider.isDeterministic(method))
                 && (PurityUtils.isSideEffectFree(provider, method)
                         || provider.isSideEffectFree(method))
-                && listIsDeterministic(arguments, provider);
+                && listIsPure(arguments, provider);
     }
 
     @Override

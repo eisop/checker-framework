@@ -997,7 +997,7 @@ public abstract class CFAbstractTransfer<
                 List<Node> secondParts = splitAssignments(secondNode);
                 for (Node secondPart : secondParts) {
                     JavaExpression secondInternal = JavaExpression.fromNode(secondPart);
-                    if (!secondInternal.isDeterministic(analysis.atypeFactory)) {
+                    if (!secondInternal.isPure(analysis.atypeFactory)) {
                         continue;
                     }
                     if (CFAbstractStore.canInsertJavaExpression(secondInternal)) {

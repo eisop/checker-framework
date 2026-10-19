@@ -515,7 +515,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         if (!canInsertJavaExpression(expr)) {
             return;
         }
-        if (!(permitNondeterministic || expr.isDeterministic(analysis.getTypeFactory()))) {
+        if (!(permitNondeterministic || expr.isPure(analysis.getTypeFactory()))) {
             return;
         }
 
@@ -615,7 +615,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             // Expressions containing unknown expressions are not stored.
             return false;
         }
-        if (!(permitNondeterministic || expr.isDeterministic(analysis.getTypeFactory()))) {
+        if (!(permitNondeterministic || expr.isPure(analysis.getTypeFactory()))) {
             // Nondeterministic expressions may not be stored.
             // (They are likely to be quickly evicted, as soon as a side-effecting method is
             // called.)
