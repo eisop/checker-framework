@@ -20,6 +20,8 @@ under the Initialization Checker (and any checker built on it, such as the
 Nullness Checker) is no longer quadratic in the number of fields: a class
 with 4000 fields now type-checks in ~11 seconds instead of ~26. Merging
 dataflow stores after many method calls in such a class is also faster.
+Very long method bodies, and many calls to methods with contracts such as `Map.put`,
+are also faster.
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale
@@ -64,6 +66,9 @@ Type-checking and subtyping improvements:
 - Receiver type-argument subtyping is now checked: annotations on a method
   receiver's type arguments (e.g., `void test(Box<@NonNull T> this)`) were
   previously ignored.
+- Subtyping, type equality, and type argument inference now compare the type
+  arguments of enclosing types: `Outer<@Nullable String>.Inner` is no longer a
+  subtype of `Outer<@NonNull String>.Inner`.
 - `-AcheckCastElementType` now requires array components to be invariant in
   array casts and `instanceof` binding patterns, closing an unsoundness:
   array components are mutable and qualifiers are not reified.
@@ -96,6 +101,7 @@ JSpecify support in the Nullness Checker:
   specifies: checks only `@AnnotatedFor` scope, treats `@NullMarked` as a
   defaulting annotation, skips initialization/map-key checking, assumes purity
   and enabled assertions, and applies permissive defaults to unscoped code.
+  Field reads through another object no longer crash (eisop#2259).
 - `@NullMarked` aliases `@AnnotatedFor` scoped to nullness (plus
   `@DefaultQualifier`), and `@NullUnmarked` aliases `@UnannotatedFor`. Both
   apply under `-AuseConservativeDefaultsForUncheckedCode` and compose with
@@ -169,6 +175,11 @@ Command-line option additions and changes:
 A stub file that declares a record where the running JDK has a class (for example
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
 members that follow the record.
+
+In a stub file, the element type of an array type is now annotated like any
+other type: annotations on its type arguments, such as the `@A` of
+`List<@A String>[]`, were ignored, and a `?` there, such as that of
+`Class<?>[]`, now takes the bounds of its type variable as it does elsewhere.
 
 The Nullness Checker and the other checkers built on the Initialization Checker
 no longer fail with "fromClass can't load class ... PolyInitialized" when the
@@ -268,6 +279,10 @@ Other improvements and bug fixes:
   lambda-returned generic calls, implicitly typed lambdas, inexact method
   references, F-bounded wildcards, diamonds in anonymous subclasses of inner
   classes with an explicit enclosing instance (`outer.new Inner<>() {}`).
+- No longer crashes on a qualified anonymous subclass of an inner class with a
+  varargs constructor (`outer.new Inner("a", "b") {}`).
+- Error messages about the constructor of an anonymous class name its supertype,
+  instead of printing an empty class name.
 - Type argument inference treats an `Error` thrown in a lambda body as an
   unchecked exception, instead of crashing.
 - Type argument inference no longer treats a `return` in a method of a local or
@@ -294,6 +309,8 @@ Other improvements and bug fixes:
 - Type argument inference no longer crashes on a nested `? extends` wildcard
   that mentions the inferred type variable, such as a lambda passed as
   `Supplier<? extends List<? extends T>>`.
+- Type argument inference no longer crashes on nested calls to methods with an
+  F-bounded intersection type parameter, such as `<T extends Temporal & Comparable<? super T>>`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -436,8 +453,16 @@ eisop#2156,
 eisop#2158,
 eisop#2159,
 eisop#2160,
+eisop#2163,
+eisop#2164,
 eisop#2187,
 eisop#2224,
+eisop#2258,
+eisop#2259,
+eisop#2260,
+eisop#2261,
+eisop#2266,
+eisop#2267,
 typetools#399,
 typetools#2816,
 typetools#3203,
