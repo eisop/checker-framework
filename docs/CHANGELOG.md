@@ -20,6 +20,8 @@ under the Initialization Checker (and any checker built on it, such as the
 Nullness Checker) is no longer quadratic in the number of fields: a class
 with 4000 fields now type-checks in ~11 seconds instead of ~26. Merging
 dataflow stores after many method calls in such a class is also faster.
+Very long method bodies, and many calls to methods with contracts such as `Map.put`,
+are also faster.
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale
@@ -95,6 +97,7 @@ JSpecify support in the Nullness Checker:
   specifies: checks only `@AnnotatedFor` scope, treats `@NullMarked` as a
   defaulting annotation, skips initialization/map-key checking, assumes purity
   and enabled assertions, and applies permissive defaults to unscoped code.
+  Field reads through another object no longer crash (eisop#2259).
 - `@NullMarked` aliases `@AnnotatedFor` scoped to nullness (plus
   `@DefaultQualifier`), and `@NullUnmarked` aliases `@UnannotatedFor`. Both
   apply under `-AuseConservativeDefaultsForUncheckedCode` and compose with
@@ -168,6 +171,11 @@ Command-line option additions and changes:
 A stub file that declares a record where the running JDK has a class (for example
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
 members that follow the record.
+
+In a stub file, the element type of an array type is now annotated like any
+other type: annotations on its type arguments, such as the `@A` of
+`List<@A String>[]`, were ignored, and a `?` there, such as that of
+`Class<?>[]`, now takes the bounds of its type variable as it does elsewhere.
 
 The Nullness Checker and the other checkers built on the Initialization Checker
 no longer fail with "fromClass can't load class ... PolyInitialized" when the
@@ -439,6 +447,9 @@ eisop#2159,
 eisop#2160,
 eisop#2187,
 eisop#2224,
+eisop#2259,
+eisop#2260,
+eisop#2261,
 eisop#2267,
 typetools#399,
 typetools#2816,
