@@ -1342,8 +1342,14 @@ public final class TypesUtils {
             List<? extends TypeMirror> freshTypeVariables,
             List<? extends TypeVariable> typeVariables,
             ProcessingEnvironment env) {
+        for (TypeMirror fresh : freshTypeVariables) {
+            if (!(fresh instanceof Type.TypeVar)) {
+                throw new BugInCF("Not a type variable: %s [%s]", fresh, fresh.getClass());
+            }
+        }
         // Compute every new bound before setting any, so that each substitution sees the original
-        // bounds.
+        // bounds. For a captured type variable, the wildcard field is not updated: javac only
+        // compares it by identity, in isCaptureOf.
         List<TypeMirror> uppers = new ArrayList<>(freshTypeVariables.size());
         List<TypeMirror> lowers = new ArrayList<>(freshTypeVariables.size());
         for (TypeMirror fresh : freshTypeVariables) {
