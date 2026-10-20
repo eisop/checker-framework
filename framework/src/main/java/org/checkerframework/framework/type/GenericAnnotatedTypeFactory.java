@@ -2059,7 +2059,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
                 // A field declaration initializer assigns to an implicit this.field.
                 // Viewpoint-adapt the field's declared type to the enclosing class just as
-                // for an explicit member access, against a use of the class (eisop#2288).
+                // for an explicit member access, against a use of the class.
                 if (viewpointAdapter != null) {
                     VariableElement field = TreeUtils.elementFromDeclaration(varTree);
                     if (field.getKind().isField() && !ElementUtils.isStatic(field)) {
