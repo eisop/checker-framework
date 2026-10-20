@@ -111,7 +111,7 @@ public class MethodCall extends JavaExpression {
     public boolean isAssignableByOtherCode() {
         // This ignores whether the method is pure, so a call that is not pure, with a ClassName
         // receiver and unmodifiable arguments, is not evicted when a method with side effects is
-        // called.
+        // called; see https://github.com/eisop/checker-framework/issues/2326 .
         if (receiver.isModifiableByOtherCode()) {
             return true;
         }
