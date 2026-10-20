@@ -92,6 +92,13 @@ Type-checking and subtyping improvements:
 - Repeated `@RequiresNonEmpty` annotations on one method are now enforced:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
+- Flow-sensitive refinement of a method call's result now requires the method to be
+  `@Deterministic` and `@SideEffectFree`, except for facts stated by a contract about the next
+  evaluation of a call. A contract no longer refines an argument or receiver that is a call to a
+  method that is not pure, and no longer refines an expression that contains such a call, such as
+  `nondet().f`.
+- The Value Checker no longer refines the receiver of `startsWith` or `endsWith` if it is a call to
+  a method that is not pure.
 
 JSpecify support in the Nullness Checker:
 
@@ -151,6 +158,8 @@ The Fenum Checker preserves a fake enum across boxing/unboxing via
 
 Command-line option additions and changes:
 
+- `-AassumeDeterministic` alone no longer enables refinement of repeated calls; use `-AassumePure`
+  or both `-AassumeDeterministic` and `-AassumeSideEffectFree`.
 - `-AstoreInBytecode=false`: writes only source-code annotations to the `.class`
   file, not the qualifiers inferred by defaulting or read from ajava or merged
   stub files, which can break downstream tools (Kotlin treats a stored
@@ -197,6 +206,11 @@ unchanged or better.
 The test framework accepts an expected error key in square brackets, as in
 `// :: error: [assignment]`, as well as in parentheses, so tests written for
 typetools' bracket syntax work unchanged.
+
+`JavaExpression#isDeterministic` and `listIsDeterministic` are renamed `isPure` and `listIsPure`.
+`CFAbstractStore#insertValuePermitNondeterministic` is renamed `insertValuePermitImpure`. The unused
+`insertOrRefinePermitNondeterministic` and `CFAbstractTransfer#insertIntoStoresPermitNonDeterministic`
+are removed.
 
 Performance optimizations:
 
@@ -440,6 +454,7 @@ eisop#2089,
 eisop#2091,
 eisop#2094,
 eisop#2098,
+eisop#2100,
 eisop#2104,
 eisop#2105,
 eisop#2106,
@@ -463,9 +478,11 @@ eisop#2260,
 eisop#2261,
 eisop#2266,
 eisop#2267,
+eisop#2323,
 typetools#399,
 typetools#2816,
 typetools#3203,
+typetools#6291,
 typetools#8055.
 
 ## Version 3.55.1 (2026-04-03)
