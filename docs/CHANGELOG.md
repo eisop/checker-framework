@@ -203,8 +203,9 @@ The test framework accepts an expected error key in square brackets, as in
 typetools' bracket syntax work unchanged.
 
 `JavaExpression#isDeterministic` and `listIsDeterministic` are renamed `isPure` and `listIsPure`.
-The `...PermitNondeterministic` methods of `CFAbstractStore` and `CFAbstractTransfer` are renamed
-`...PermitImpure`.
+`CFAbstractStore#insertValuePermitNondeterministic` is renamed `insertValuePermitImpure`. The unused
+`insertOrRefinePermitNondeterministic` and `CFAbstractTransfer#insertIntoStoresPermitNonDeterministic`
+are removed.
 
 Performance optimizations:
 

@@ -1367,6 +1367,10 @@ public abstract class CFAbstractTransfer<
             S elseStore,
             Set<? extends Contract> postconditions) {
 
+        if (postconditions.isEmpty()) {
+            return;
+        }
+
         StringToJavaExpression stringToJavaExpr = null;
         if (invocationNode instanceof MethodInvocationNode) {
             stringToJavaExpr =
@@ -1657,28 +1661,5 @@ public abstract class CFAbstractTransfer<
             }
         }
         return true;
-    }
-
-    /**
-     * Inserts {@code newAnno} into all stores (conditional or not) in the result for {@code
-     * target}, while permitting impure expressions to be stored. This is a utility method for
-     * subclasses, for facts about the next evaluation of {@code target}, such as those of a
-     * contract.
-     *
-     * @param result the {@link TransferResult} holding the stores to modify
-     * @param target the {@link JavaExpression} for which the stores should be modified to contain
-     *     the value {@code newAnno}
-     * @param newAnno the new value
-     */
-    protected static void insertIntoStoresPermitImpure(
-            TransferResult<CFValue, CFStore> result,
-            JavaExpression target,
-            AnnotationMirror newAnno) {
-        if (result.containsTwoStores()) {
-            result.getThenStore().insertValuePermitImpure(target, newAnno);
-            result.getElseStore().insertValuePermitImpure(target, newAnno);
-        } else {
-            result.getRegularStore().insertValuePermitImpure(target, newAnno);
-        }
     }
 }

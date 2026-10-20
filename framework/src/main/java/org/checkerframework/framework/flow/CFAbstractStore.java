@@ -484,22 +484,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     }
 
     /**
-     * Like {@link #insertOrRefine(JavaExpression, AnnotationMirror)}, but permits impure
-     * expressions to be inserted.
-     *
-     * <p>For an explanation of when to permit impure expressions, see {@link
-     * #insertValuePermitImpure(JavaExpression, CFAbstractValue)}.
-     *
-     * @param expr an expression
-     * @param newAnno the expression's annotation
-     */
-    public final void insertOrRefinePermitImpure(JavaExpression expr, AnnotationMirror newAnno) {
-        insertOrRefine(expr, newAnno, true);
-    }
-
-    /**
-     * Helper function for {@link #insertOrRefine(JavaExpression, AnnotationMirror)} and {@link
-     * #insertOrRefinePermitImpure}.
+     * Helper function for {@link #insertOrRefine(JavaExpression, AnnotationMirror)}.
      *
      * @param expr an expression
      * @param newAnno the expression's annotation
