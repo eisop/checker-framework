@@ -48,8 +48,8 @@ class Issue5402_Ok3 {
     public void baz() {}
 
     public static void test() {
-        final Issue5402_Ok2 foo = new Issue5402_Ok2();
-        final Issue5402_Ok2 foo1 = foo.bar();
+        final Issue5402_Ok3 foo = new Issue5402_Ok3();
+        final Issue5402_Ok3 foo1 = foo.bar();
         foo1.baz(); // No error
     }
 }
