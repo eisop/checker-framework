@@ -574,7 +574,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * <p>However, contracts can mention an impure JavaExpression. For example, a contract might
      * have a postcondition that {@code nondet()} is odd. This means that the next call to {@code
      * nondet()} will return odd. Such a postcondition is evicted from the store when {@code
-     * nondet()} is evaluated or when a side-effecting method is called.
+     * nondet()} is evaluated, and may be evicted when a side-effecting method is called.
      *
      * <p>Use this method only for facts about the next evaluation of {@code expr}, such as those of
      * a contract, not for facts learned about a value that has already been computed.

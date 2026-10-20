@@ -26,7 +26,8 @@ import java.lang.annotation.Target;
  * value. Also see {@link Pure}, which means both side-effect-free and {@link Deterministic}, and
  * which lets a pluggable type-checker assume that repeated invocations with the same arguments
  * return the same value, so long as no other side effect intervenes. A type-checker keeps a
- * refinement of the result of a method call only if the method is {@code @Pure}.
+ * refinement of the result of a method call only if the method is {@code @Pure} (or both
+ * {@code @Deterministic} and {@code @SideEffectFree}).
  *
  * <p><b>Analysis:</b> The Checker Framework performs a conservative analysis to verify a
  * {@code @SideEffectFree} annotation. The Checker Framework issues a warning if the method uses any

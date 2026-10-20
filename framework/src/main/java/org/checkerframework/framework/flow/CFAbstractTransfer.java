@@ -82,7 +82,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -119,9 +118,6 @@ public abstract class CFAbstractTransfer<
      * running at all times)?
      */
     protected final boolean sequentialSemantics;
-
-    /** Matches an identifier followed by an opening parenthesis: a method call in a contract. */
-    private static final Pattern CALL_PATTERN = Pattern.compile("[\\w$]\\s*\\(");
 
     /** True if {@code -AassumeSideEffectFree} or {@code -AassumePure} was passed. */
     protected final boolean assumeSideEffectFree;
@@ -1392,6 +1388,8 @@ public abstract class CFAbstractTransfer<
                             + invocationNode.getClass().getSimpleName());
         }
 
+        boolean actualsArePure = actualsArePure(invocationNode);
+
         for (Contract p : postconditions) {
             // Viewpoint-adapt to the method use (the call site).
             AnnotationMirror anno =
@@ -1406,10 +1404,11 @@ public abstract class CFAbstractTransfer<
                 // existing information rather than replacing it.  If the called method is not
                 // side-effect-free, then the values that might have been changed by the method call
                 // are removed from the store before this method is called.
-                // Only an expression that contains a call can be impure: a name such as "#1" is
-                // replaced by an argument, which might be an impure call whose value has already
-                // been computed.
-                boolean permitImpure = mayContainCall(expressionString);
+                // A contract that mentions a call is a fact about the next evaluation of that
+                // call, so an impure expression is permitted if all the actual receiver and
+                // arguments are pure. If one of them is an impure call, a fact about it is about a
+                // value that has already been computed, which a later evaluation can change.
+                boolean permitImpure = actualsArePure;
                 if (p.kind == Contract.Kind.CONDITIONALPOSTCONDITION) {
                     S store = ((ConditionalPostcondition) p).resultValue ? thenStore : elseStore;
                     store.insertOrRefine(je, anno, permitImpure);
@@ -1635,17 +1634,29 @@ public abstract class CFAbstractTransfer<
     }
 
     /**
-     * Returns true if the given contract expression string may contain a method call.
+     * Returns true if the receiver and all arguments of the given invocation are pure.
      *
-     * <p>This is a textual approximation of "the expression may be impure": it does not detect an
-     * argument or receiver that is substituted for a name such as {@code #1} and is itself an
-     * impure call, when the string also contains a (pure) call, as in {@code "#1.foo()"}.
-     *
-     * @param expressionString a contract expression, as written in the annotation
-     * @return true if the expression may contain a method call
+     * @param invocationNode a method call node or an object creation node
+     * @return true if the receiver and all arguments of the invocation are pure
      */
-    private static boolean mayContainCall(String expressionString) {
-        return CALL_PATTERN.matcher(expressionString).find();
+    private boolean actualsArePure(Node invocationNode) {
+        List<Node> arguments;
+        if (invocationNode instanceof MethodInvocationNode) {
+            MethodInvocationNode call = (MethodInvocationNode) invocationNode;
+            if (!JavaExpression.fromNode(call.getTarget().getReceiver())
+                    .isPure(analysis.atypeFactory)) {
+                return false;
+            }
+            arguments = call.getArguments();
+        } else {
+            arguments = ((ObjectCreationNode) invocationNode).getArguments();
+        }
+        for (Node argument : arguments) {
+            if (!JavaExpression.fromNode(argument).isPure(analysis.atypeFactory)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
