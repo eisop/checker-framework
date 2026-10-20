@@ -1,7 +1,6 @@
 // Test case for https://github.com/eisop/checker-framework/issues/2100 :
 // a postcondition is a fact about the value computed by the call (its receiver and arguments), so
-// it
-// must not be kept if the receiver or an argument is a call that is not pure. A contract that
+// it must not be kept if the receiver or an argument is a call that is not pure. A contract that
 // contains a call is a fact about the next evaluation of that call.
 
 import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
