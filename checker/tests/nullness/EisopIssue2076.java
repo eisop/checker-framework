@@ -53,6 +53,24 @@ public class EisopIssue2076 {
         void inspect(Fixed this) {}
     }
 
+    // The type arguments of the enclosing type count, too.
+    static class Outer<O extends @Nullable Object> {
+        class Inner<I extends @Nullable Object> {
+            void m(Outer<O>.Inner<I> this) {}
+        }
+
+        class SubInner<I extends @Nullable Object> extends Inner<I> {
+            @Override
+            void m(Outer<O>.SubInner<I> this) {}
+        }
+
+        class NarrowedSubInner<I extends @Nullable Object> extends Inner<I> {
+            @Override
+            // :: error: (override.receiver.invalid)
+            void m(Outer<@NonNull O>.NarrowedSubInner<I> this) {}
+        }
+    }
+
     static void use() {
         Child<@Nullable String> child = new Child<>(null);
         Parent<@Nullable String> parent = child;
