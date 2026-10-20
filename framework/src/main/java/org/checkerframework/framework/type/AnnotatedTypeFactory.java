@@ -1515,9 +1515,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedExecutableType result =
                 AnnotatedTypes.asMemberOf(types, this, overriddenType, overriddenMethodElt);
         if (viewpointAdapter != null) {
-            // overriderType is the class declaration, whose type arguments are type variable
-            // declarations.  Adapt to a use of it, so that substituting those type arguments
-            // into the method type yields uses, which can be type variable bounds (eisop#2287).
+            // Adapt to a use of the class: the type arguments of its declaration are type variable
+            // declarations, which cannot be type variable bounds (eisop#2287).
             viewpointAdapter.viewpointAdaptMethod(
                     overriderType.asUse(), overriddenMethodElt, result);
         }

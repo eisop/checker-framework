@@ -1,7 +1,9 @@
-// Test case for eisop#2287: viewpoint-adapting an overridden method, or a method referenced
-// through a raw type, whose type variable is bounded by a class type variable crashed.
+// Test case for eisop#2287: viewpoint adaptation crashed for an override of, or a raw method
+// reference to, a method whose type variable is bounded by a class type variable.
 
 import java.util.function.Function;
+
+import viewpointtest.quals.*;
 
 public class Issue2287 {
     abstract static class Ord<T> {
@@ -12,12 +14,6 @@ public class Issue2287 {
         <S extends T> S put(S s) {
             return s;
         }
-
-        T get() {
-            return null;
-        }
-
-        void set(T t) {}
     }
 
     static class Rev<T> extends Ord<T> {
@@ -30,20 +26,29 @@ public class Issue2287 {
         <S extends T> S put(S s) {
             return s;
         }
-
-        @Override
-        T get() {
-            return null;
-        }
-
-        @Override
-        void set(T t) {}
     }
 
-    Function<Ord<String>, Ord<String>> revField = Ord::rev;
+    // The bound T is adapted to @A, so a bound of @A is the same and a bound of @B is not.
+    static class AOrd extends Ord<@A Object> {
+        @Override
+        <S extends @A Object> S put(S s) {
+            return s;
+        }
+    }
+
+    static class BOrd extends Ord<@A Object> {
+        @Override
+        // :: error: (override.return.invalid) :: error: (override.param.invalid)
+        // :: error: (override.typaram.invalid)
+        <S extends @B Object> S put(S s) {
+            return s;
+        }
+    }
 
     void rawMethodReference() {
-        Function<Ord<String>, Ord<String>> rev = Ord::rev;
-        Function<Ord<String>, String> get = Ord::get;
+        Function<Ord<@A Object>, Ord<@A Object>> rev = Ord::rev;
+        // S extends @A Object cannot be @B Object.
+        // :: error: (type.arguments.not.inferred)
+        Function<Ord<@A Object>, Ord<@B Object>> bad = Ord::rev;
     }
 }
