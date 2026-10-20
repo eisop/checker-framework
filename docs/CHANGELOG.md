@@ -334,6 +334,9 @@ Other improvements and bug fixes:
   supertypes of a type whose type argument is a type variable of another class,
   such as `Seq<E>` in `interface Coll<E> { void m(Seq<E> s); }`, or any member
   access on a three-deep generic interface such as `java.util.List`.
+- Viewpoint adaptation no longer crashes on an override of, or a raw method
+  reference to, a method whose type variable is bounded by a class type
+  variable, such as `<S extends T> Ord<S> rev()` in `class Ord<T>`.
 - `-AcheckCastElementType` fixes: no longer crashes on downcasts, incomparable
   types, null literal casts, or differing type-argument counts.
 - `BinaryStubFileGenerator` accepts a file, directory (`--bundle`), or jar.
@@ -482,6 +485,7 @@ eisop#2260,
 eisop#2261,
 eisop#2266,
 eisop#2267,
+eisop#2287,
 eisop#2323,
 typetools#399,
 typetools#2816,
