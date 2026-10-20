@@ -4,7 +4,7 @@
 
 import viewpointtest.quals.*;
 
-public class Issue2288<T> {
+public class Issue2288 {
     static <U extends V, V> V[] make(U[] u) {
         return null;
     }
@@ -13,43 +13,41 @@ public class Issue2288<T> {
         return null;
     }
 
-    T[] a = null;
+    static class Plain<T> {
+        T[] a = null;
 
-    T[] b = make(a);
+        T[] b = make(a);
 
-    Object c = make(this.a);
+        Object c = make(this.a);
 
-    // The class type variable reaches inference only through the field's type.
-    T[] g = make();
+        // The class type variable reaches inference only through the field's type.
+        T[] g = make();
 
-    {
-        T[] d = make(a);
+        {
+            T[] d = make(a);
+        }
+
+        Plain() {
+            T[] e = make(a);
+        }
+
+        void method() {
+            T[] f = make(a);
+        }
     }
 
-    Issue2288() {
-        T[] e = make(a);
+    // The receiver is still adapted to the class's own qualifier.
+    @SuppressWarnings({
+        "inconsistent.constructor.type",
+        "super.invocation.invalid",
+        "cast.unsafe.constructor.invocation"
+    })
+    @A static class Adapted<T> {
+        T[] t = make();
+
+        @ReceiverDependentQual Object compatible = new @A Object();
+
+        // :: error: (assignment.type.incompatible)
+        @ReceiverDependentQual Object incompatible = new @B Object();
     }
-
-    void method() {
-        T[] f = make(a);
-    }
-}
-
-// The receiver is still adapted to the class's own qualifier.
-@SuppressWarnings({
-    "inconsistent.constructor.type",
-    "super.invocation.invalid",
-    "cast.unsafe.constructor.invocation"
-})
-@A class Issue2288Adapted<T> {
-    static <U extends V, V> V[] make() {
-        return null;
-    }
-
-    T[] t = make();
-
-    @ReceiverDependentQual Object compatible = new @A Object();
-
-    // :: error: (assignment.type.incompatible)
-    @ReceiverDependentQual Object incompatible = new @B Object();
 }
