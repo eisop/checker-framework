@@ -1948,7 +1948,8 @@ The Dataflow Framework respects the
 \href{https://eisop.github.io/cf/api/org/checkerframework/dataflow/qual/SideEffectFree.html}{\code{@SideEffectFree}},
 \href{https://eisop.github.io/cf/api/org/checkerframework/dataflow/qual/Deterministic.html}{\code{@Deterministic}},and
 \href{https://eisop.github.io/cf/api/org/checkerframework/dataflow/qual/Pure.html}{\code{@Pure}}
-annotations of the Checker Framework
+annotations of the Checker Framework.
+The store keeps the result of a method call, and refinements of it, only if the method is pure.
 
 
 \subsubsection{Internal Representation of field access}

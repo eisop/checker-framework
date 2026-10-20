@@ -448,7 +448,7 @@ public abstract class JavaExpression {
             assert TreeUtils.isUseOfElement(t) : "@AssumeAssertion(nullness): tree kind";
             ExecutableElement invokedMethod = TreeUtils.elementFromUse(t);
 
-            // Note that the method might be nondeterministic.
+            // Note that the method might not be pure.
             List<JavaExpression> parameters =
                     CollectionsPlume.mapList(JavaExpression::fromNode, mn.getArguments());
             JavaExpression methodReceiver;
@@ -526,7 +526,7 @@ public abstract class JavaExpression {
                 assert TreeUtils.isUseOfElement(mn) : "@AssumeAssertion(nullness): tree kind";
                 ExecutableElement invokedMethod = TreeUtils.elementFromUse(mn);
 
-                // Note that the method might be nondeterministic.
+                // Note that the method might not be pure.
                 List<JavaExpression> parameters =
                         CollectionsPlume.mapList(JavaExpression::fromTree, mn.getArguments());
                 JavaExpression methodReceiver;
