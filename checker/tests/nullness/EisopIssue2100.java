@@ -3,6 +3,7 @@
 // may return a different value even with no intervening call.
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.checkerframework.dataflow.qual.Deterministic;
 import org.checkerframework.dataflow.qual.Pure;
 
@@ -45,7 +46,11 @@ public class EisopIssue2100 {
         }
     }
 
-    public static void main(String[] args) {
-        new EisopIssue2100().testDeterministic();
+    // A precondition about a call is a fact about its next evaluation only.
+    @RequiresNonNull("getAndClear()")
+    void testContractUsedOnce() {
+        getAndClear().hashCode();
+        // :: error: (dereference.of.nullable)
+        getAndClear().hashCode();
     }
 }

@@ -729,7 +729,7 @@ public class LowerBoundTransfer extends IndexAbstractTransfer {
         for (VariableTree variableTree : paramTrees) {
             if (TreeUtils.typeOf(variableTree).getKind() == TypeKind.CHAR) {
                 JavaExpression je = JavaExpression.fromVariableTree(variableTree);
-                info.insertValuePermitImpure(je, atypeFactory.NN);
+                info.insertValue(je, atypeFactory.NN);
             }
         }
     }

@@ -1629,15 +1629,16 @@ public abstract class CFAbstractTransfer<
 
     /**
      * Inserts {@code newAnno} into all stores (conditional or not) in the result for {@code
-     * target}, while permitting non-deterministic values to be stored. This is a utility method for
-     * subclasses.
+     * target}, while permitting impure expressions to be stored. This is a utility method for
+     * subclasses, for facts about the next evaluation of {@code target}, such as those of a
+     * contract.
      *
      * @param result the {@link TransferResult} holding the stores to modify
      * @param target the {@link JavaExpression} for which the stores should be modified to contain
      *     the value {@code newAnno}
      * @param newAnno the new value
      */
-    protected static void insertIntoStoresPermitNonDeterministic(
+    protected static void insertIntoStoresPermitImpure(
             TransferResult<CFValue, CFStore> result,
             JavaExpression target,
             AnnotationMirror newAnno) {
