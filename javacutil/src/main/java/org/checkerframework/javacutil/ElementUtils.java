@@ -370,14 +370,26 @@ public class ElementUtils {
     /**
      * Returns a user-friendly name for the given method, which includes the name of the enclosing
      * type. Does not return {@code "<init>"} or {@code "<clinit>"} as
-     * ExecutableElement.getSimpleName() does.
+     * ExecutableElement.getSimpleName() does. For a member of an anonymous class, which has no
+     * name, the enclosing type is described as {@code "anonymous "} followed by the simple name of
+     * its supertype.
      *
      * @param element a method declaration
      * @return a user-friendly name for the method
      */
     public static CharSequence getSimpleDescription(ExecutableElement element) {
-        String enclosingTypeName =
-                ((TypeElement) element.getEnclosingElement()).getSimpleName().toString();
+        TypeElement enclosingType = (TypeElement) element.getEnclosingElement();
+        String enclosingTypeName = enclosingType.getSimpleName().toString();
+        if (enclosingTypeName.isEmpty()) {
+            List<? extends TypeMirror> interfaces = enclosingType.getInterfaces();
+            TypeMirror supertype =
+                    interfaces.isEmpty() ? enclosingType.getSuperclass() : interfaces.get(0);
+            enclosingTypeName =
+                    "anonymous "
+                            + (supertype.getKind() == TypeKind.DECLARED
+                                    ? ((DeclaredType) supertype).asElement().getSimpleName()
+                                    : supertype);
+        }
         Name methodName = element.getSimpleName();
         switch (methodName.toString()) {
             case "<init>":

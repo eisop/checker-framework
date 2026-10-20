@@ -154,7 +154,10 @@ public class VariableBounds {
         assert savedBounds != null;
         assert savedConstraints != null;
         // Drop the constraints that incorporating the failed attempt added and left unreduced:
-        // they apply its instantiations, which no longer hold.
+        // they apply its instantiations, which no longer hold. This is not a full restore: a saved
+        // constraint that the failed attempt removed is not added back, and a saved constraint that
+        // is still here is the same instance, which the attempt may have changed by applying its
+        // instantiations.
         constraints.retainOnly(savedConstraints);
         instantiation = null;
         bounds.clear();

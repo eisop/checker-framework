@@ -1432,19 +1432,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 assert lastParamType instanceof ArrayType
                         : "variable argument formal must be an array";
                 // Handle anonymous constructors with an explicit enclosing expression.
-                // There is a mismatch between the number of parameters and arguments
-                // when the following conditions are met:
-                // 1. Java version >= 11,
-                // 2. the method is an anonymous constructor,
-                // 3. the executable element has varargs,
-                // 4. the constructor is invoked with an explicit enclosing expression.
-                // In this case, the parameters have an enclosing expression as its first parameter,
-                // while the arguments do not have such element. Hence, decrease the lastArgIndex
-                // to organize the arguments from the correct index later.
-                if (SystemUtil.jreVersion >= 11
-                        && newClassTree != null
-                        && TreeUtils.isAnonymousConstructorWithExplicitEnclosingExpression(
-                                executable, newClassTree)) {
+                // The parameters of an anonymous constructor with an explicit enclosing
+                // expression have the enclosing instance as their first parameter, while the
+                // arguments do not. Hence, decrease the lastArgIndex to organize the arguments
+                // from the correct index later.
+                if (newClassTree != null
+                        && TreeUtils.hasEnclosingInstanceParameter(executable, newClassTree)) {
                     lastArgIndex--;
                 }
 

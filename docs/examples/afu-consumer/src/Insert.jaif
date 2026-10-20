@@ -1,0 +1,6 @@
+package org.checkerframework.checker.nullness.qual:
+annotation @Nullable:
+
+package :
+class Insert:
+    field f: @org.checkerframework.checker.nullness.qual.Nullable

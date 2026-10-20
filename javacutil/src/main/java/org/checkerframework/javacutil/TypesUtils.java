@@ -1338,13 +1338,18 @@ public final class TypesUtils {
      *     freshTypeVariables}
      * @param env processing environment
      */
-    @SuppressWarnings("interning:argument.type.incompatible") // Field.set of a Type
     public static void substituteInBounds(
             List<? extends TypeMirror> freshTypeVariables,
             List<? extends TypeVariable> typeVariables,
             ProcessingEnvironment env) {
+        for (TypeMirror fresh : freshTypeVariables) {
+            if (!(fresh instanceof Type.TypeVar)) {
+                throw new BugInCF("Not a type variable: %s [%s]", fresh, fresh.getClass());
+            }
+        }
         // Compute every new bound before setting any, so that each substitution sees the original
-        // bounds.
+        // bounds. For a captured type variable, the wildcard field is not updated: javac only
+        // compares it by identity, in isCaptureOf.
         List<TypeMirror> uppers = new ArrayList<>(freshTypeVariables.size());
         List<TypeMirror> lowers = new ArrayList<>(freshTypeVariables.size());
         for (TypeMirror fresh : freshTypeVariables) {
@@ -1360,7 +1365,10 @@ public final class TypesUtils {
                 } else {
                     assert TYPEVAR_BOUND != null
                             : "@AssumeAssertion(nullness): TYPEVAR_BOUND is set before JDK 9";
-                    TYPEVAR_BOUND.set(typeVar, uppers.get(i));
+                    @SuppressWarnings(
+                            "interning:assignment") // Field.set requires an @Interned Object
+                    @Interned Object upper = uppers.get(i);
+                    TYPEVAR_BOUND.set(typeVar, upper);
                 }
             } catch (IllegalAccessException | InvocationTargetException e) {
                 throw new BugInCF("Cannot set the upper bound of " + typeVar, e);
