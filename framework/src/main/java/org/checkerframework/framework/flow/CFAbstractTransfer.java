@@ -82,6 +82,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -118,6 +119,9 @@ public abstract class CFAbstractTransfer<
      * running at all times)?
      */
     protected final boolean sequentialSemantics;
+
+    /** Matches an identifier followed by an opening parenthesis: a method call in a contract. */
+    private static final Pattern CALL_PATTERN = Pattern.compile("[\\w$]\\s*\\(");
 
     /** True if {@code -AassumeSideEffectFree} or {@code -AassumePure} was passed. */
     protected final boolean assumeSideEffectFree;
@@ -689,7 +693,11 @@ public abstract class CFAbstractTransfer<
                 // Errors are reported by BaseTypeVisitor.checkContractsAtMethodDeclaration().
                 continue;
             }
-            initialStore.insertValuePermitImpure(exprJe, annotation);
+            if (mayContainCall(stringExpr)) {
+                initialStore.insertValuePermitImpure(exprJe, annotation);
+            } else {
+                initialStore.insertValue(exprJe, annotation);
+            }
         }
     }
 
@@ -1400,14 +1408,15 @@ public abstract class CFAbstractTransfer<
                 // existing information rather than replacing it.  If the called method is not
                 // side-effect-free, then the values that might have been changed by the method call
                 // are removed from the store before this method is called.
+                // Only an expression that contains a call can be impure: a name such as "#1" is
+                // replaced by an argument, which might be an impure call whose value has already
+                // been computed.
+                boolean permitImpure = mayContainCall(expressionString);
                 if (p.kind == Contract.Kind.CONDITIONALPOSTCONDITION) {
-                    if (((ConditionalPostcondition) p).resultValue) {
-                        thenStore.insertOrRefinePermitImpure(je, anno);
-                    } else {
-                        elseStore.insertOrRefinePermitImpure(je, anno);
-                    }
+                    S store = ((ConditionalPostcondition) p).resultValue ? thenStore : elseStore;
+                    insertOrRefine(store, je, anno, permitImpure);
                 } else {
-                    thenStore.insertOrRefinePermitImpure(je, anno);
+                    insertOrRefine(thenStore, je, anno, permitImpure);
                 }
             } catch (JavaExpressionParseException e) {
                 // report errors here
@@ -1624,6 +1633,35 @@ public abstract class CFAbstractTransfer<
             result.getElseStore().insertValue(target, newAnno);
         } else {
             result.getRegularStore().insertValue(target, newAnno);
+        }
+    }
+
+    /**
+     * Returns true if the given contract expression string may contain a method call, which is the
+     * only way for the expression to be impure.
+     *
+     * @param expressionString a contract expression, as written in the annotation
+     * @return true if the expression may contain a method call
+     */
+    private static boolean mayContainCall(String expressionString) {
+        return CALL_PATTERN.matcher(expressionString).find();
+    }
+
+    /**
+     * Calls {@code store.insertOrRefine}, permitting an impure expression only if {@code
+     * permitImpure}.
+     *
+     * @param store the store to modify
+     * @param je the expression
+     * @param anno its annotation
+     * @param permitImpure true if {@code je} may be impure
+     */
+    private void insertOrRefine(
+            S store, JavaExpression je, AnnotationMirror anno, boolean permitImpure) {
+        if (permitImpure) {
+            store.insertOrRefinePermitImpure(je, anno);
+        } else {
+            store.insertOrRefine(je, anno);
         }
     }
 

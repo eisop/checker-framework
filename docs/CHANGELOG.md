@@ -87,10 +87,8 @@ Type-checking and subtyping improvements:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
 - Flow-sensitive refinement of a method call's result now requires the method to be
-  `@Deterministic` and `@SideEffectFree`; `-AassumeDeterministic` alone no longer suffices,
-  use `-AassumePure`.
-  `JavaExpression#isDeterministic` is renamed `isPure`, and the `...PermitNondeterministic`
-  methods of `CFAbstractStore` and `CFAbstractTransfer` are renamed `...PermitImpure`.
+  `@Deterministic` and `@SideEffectFree`. A contract no longer refines an argument or receiver
+  that is a call to a method that is not pure.
 
 JSpecify support in the Nullness Checker:
 
@@ -149,6 +147,7 @@ The Fenum Checker preserves a fake enum across boxing/unboxing via
 
 Command-line option additions and changes:
 
+- `-AassumeDeterministic` alone no longer enables refinement of repeated calls; use `-AassumePure`.
 - `-AstoreInBytecode=false`: writes only source-code annotations to the `.class`
   file, not the qualifiers inferred by defaulting or read from ajava or merged
   stub files, which can break downstream tools (Kotlin treats a stored
@@ -190,6 +189,10 @@ unchanged or better.
 The test framework accepts an expected error key in square brackets, as in
 `// :: error: [assignment]`, as well as in parentheses, so tests written for
 typetools' bracket syntax work unchanged.
+
+`JavaExpression#isDeterministic` and `listIsDeterministic` are renamed `isPure` and `listIsPure`.
+The `...PermitNondeterministic` methods of `CFAbstractStore` and `CFAbstractTransfer` are renamed
+`...PermitImpure`.
 
 Performance optimizations:
 

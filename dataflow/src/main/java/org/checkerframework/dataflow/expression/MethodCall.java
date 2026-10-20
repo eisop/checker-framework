@@ -103,6 +103,7 @@ public class MethodCall extends JavaExpression {
         return (PurityUtils.isDeterministic(provider, method) || provider.isDeterministic(method))
                 && (PurityUtils.isSideEffectFree(provider, method)
                         || provider.isSideEffectFree(method))
+                && receiver.isPure(provider)
                 && listIsPure(arguments, provider);
     }
 

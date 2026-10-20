@@ -1612,7 +1612,7 @@ public class ValueTransfer extends CFTransfer {
 
                 AnnotationMirror minLenAnno =
                         atypeFactory.createArrayLenRangeAnnotation(minLength, Integer.MAX_VALUE);
-                thenStore.insertValuePermitImpure(receiver, minLenAnno);
+                thenStore.insertValue(receiver, minLenAnno);
             }
         }
 

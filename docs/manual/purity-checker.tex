@@ -115,6 +115,10 @@ The command-line options \<-AassumeSideEffectFree>,
 \<-AassumeDeterministic>, and \<-AassumePure> make the Checker Framework
 unsoundly assume that \emph{every} called method is side-effect-free, is
 deterministic, or is both, respectively.
+Flow-sensitive refinement of the result of a repeated call requires the
+method to be both side-effect-free and deterministic, so
+\<-AassumeDeterministic> alone does not enable it; use \<-AassumePure> or
+both of the other two options.
 
 The command-line option \<-AassumePureGetters> makes the Checker Framework
 unsoundly assume that every getter method is side-effect-free and

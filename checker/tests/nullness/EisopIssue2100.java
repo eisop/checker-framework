@@ -2,6 +2,7 @@
 // a method that is @Deterministic but not @SideEffectFree may modify the heap, so a repeated call
 // may return a different value even with no intervening call.
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.checkerframework.dataflow.qual.Deterministic;
@@ -50,6 +51,18 @@ public class EisopIssue2100 {
     @RequiresNonNull("getAndClear()")
     void testContractUsedOnce() {
         getAndClear().hashCode();
+        // :: error: (dereference.of.nullable)
+        getAndClear().hashCode();
+    }
+
+    @SuppressWarnings("contracts.postcondition") // the body is irrelevant to this test
+    @EnsuresNonNull("#1")
+    void check(@Nullable Object o) {}
+
+    // The postcondition is a fact about the value passed in, not about the next evaluation of the
+    // argument expression.
+    void testPostconditionOnImpureArgument() {
+        check(getAndClear());
         // :: error: (dereference.of.nullable)
         getAndClear().hashCode();
     }
