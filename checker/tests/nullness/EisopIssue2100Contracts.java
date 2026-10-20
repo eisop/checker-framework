@@ -66,6 +66,25 @@ public class EisopIssue2100Contracts {
         return o != null;
     }
 
+    // The contract does not mention the impure argument, so its fact about the next evaluation of
+    // nondetObject() is kept.
+    @SuppressWarnings("contracts.conditional.postcondition")
+    @EnsuresNonNullIf(expression = "nondetObject()", result = true)
+    boolean has(@Nullable Object unused) {
+        return true;
+    }
+
+    // The store would not evict a fact about nondet().f when nondet() is evaluated.
+    @SuppressWarnings("contracts.postcondition")
+    @EnsuresNonNull("nondet().f")
+    void establishF() {}
+
+    static class Ctor {
+        @SuppressWarnings("contracts.postcondition")
+        @EnsuresNonNull("#1")
+        Ctor(@Nullable Object o) {}
+    }
+
     void testImpureReceiverOfContractWithCall() {
         nondet().establishGet();
         // :: error: (dereference.of.nullable)
@@ -98,5 +117,36 @@ public class EisopIssue2100Contracts {
             // :: error: (dereference.of.nullable)
             impureStatic().pureM().hashCode();
         }
+    }
+
+    void testImpureArgumentNotInContract() {
+        if (has(nondet())) {
+            nondetObject().hashCode();
+        }
+    }
+
+    void testNewObjectArgumentNotInContract() {
+        if (has(new Object())) {
+            nondetObject().hashCode();
+        }
+    }
+
+    void testContractOnFieldOfImpureCall() {
+        establishF();
+        // :: error: (dereference.of.nullable)
+        nondet().f.hashCode();
+        // :: error: (dereference.of.nullable)
+        nondet().f.hashCode();
+    }
+
+    void testConstructorWithImpureArgument() {
+        new Ctor(nondetObject());
+        // :: error: (dereference.of.nullable)
+        nondetObject().hashCode();
+    }
+
+    void testConstructorWithPureArgument(@Nullable Object p) {
+        new Ctor(p);
+        p.hashCode();
     }
 }

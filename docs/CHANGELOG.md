@@ -93,8 +93,12 @@ Type-checking and subtyping improvements:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
 - Flow-sensitive refinement of a method call's result now requires the method to be
-  `@Deterministic` and `@SideEffectFree`. A contract no longer refines an argument or receiver
-  that is a call to a method that is not pure.
+  `@Deterministic` and `@SideEffectFree`, except for facts stated by a contract about the next
+  evaluation of a call. A contract no longer refines an argument or receiver that is a call to a
+  method that is not pure, and no longer refines an expression that contains such a call, such as
+  `nondet().f`.
+- The Value Checker no longer refines the receiver of `startsWith` or `endsWith` if it is a call to
+  a method that is not pure.
 
 JSpecify support in the Nullness Checker:
 
@@ -154,7 +158,8 @@ The Fenum Checker preserves a fake enum across boxing/unboxing via
 
 Command-line option additions and changes:
 
-- `-AassumeDeterministic` alone no longer enables refinement of repeated calls; use `-AassumePure`.
+- `-AassumeDeterministic` alone no longer enables refinement of repeated calls; use `-AassumePure`
+  or both `-AassumeDeterministic` and `-AassumeSideEffectFree`.
 - `-AstoreInBytecode=false`: writes only source-code annotations to the `.class`
   file, not the qualifiers inferred by defaulting or read from ajava or merged
   stub files, which can break downstream tools (Kotlin treats a stored

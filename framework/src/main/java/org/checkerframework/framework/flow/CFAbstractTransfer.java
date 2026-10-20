@@ -1392,7 +1392,7 @@ public abstract class CFAbstractTransfer<
                             + invocationNode.getClass().getSimpleName());
         }
 
-        boolean actualsArePure = actualsArePure(invocationNode);
+        List<JavaExpression> impureActuals = impureActuals(invocationNode);
 
         for (Contract p : postconditions) {
             // Viewpoint-adapt to the method use (the call site).
@@ -1409,10 +1409,16 @@ public abstract class CFAbstractTransfer<
                 // side-effect-free, then the values that might have been changed by the method call
                 // are removed from the store before this method is called.
                 // A contract that mentions a call is a fact about the next evaluation of that
-                // call, so an impure expression is permitted if all the actual receiver and
-                // arguments are pure. If one of them is an impure call, a fact about it is about a
-                // value that has already been computed, which a later evaluation can change.
-                boolean permitImpure = actualsArePure;
+                // call, so an impure call is permitted. But if the contract expression contains an
+                // actual receiver or argument that is an impure call, the fact is about a value
+                // that has already been computed, which a later evaluation can change.
+                boolean permitImpure = true;
+                for (JavaExpression impureActual : impureActuals) {
+                    if (je.containsSyntacticEqualJavaExpression(impureActual)) {
+                        permitImpure = false;
+                        break;
+                    }
+                }
                 if (p.kind == Contract.Kind.CONDITIONALPOSTCONDITION) {
                     S store = ((ConditionalPostcondition) p).resultValue ? thenStore : elseStore;
                     store.insertOrRefine(je, anno, permitImpure);
@@ -1638,28 +1644,27 @@ public abstract class CFAbstractTransfer<
     }
 
     /**
-     * Returns true if the receiver and all arguments of the given invocation are pure.
+     * Returns the actual receiver and arguments of the given invocation that are not pure.
      *
      * @param invocationNode a method call node or an object creation node
-     * @return true if the receiver and all arguments of the invocation are pure
+     * @return the actual receiver and arguments of the invocation that are not pure
      */
-    private boolean actualsArePure(Node invocationNode) {
-        List<Node> arguments;
+    private List<JavaExpression> impureActuals(Node invocationNode) {
+        List<Node> actuals = new ArrayList<>();
         if (invocationNode instanceof MethodInvocationNode) {
             MethodInvocationNode call = (MethodInvocationNode) invocationNode;
-            if (!JavaExpression.fromNode(call.getTarget().getReceiver())
-                    .isPure(analysis.atypeFactory)) {
-                return false;
-            }
-            arguments = call.getArguments();
+            actuals.add(call.getTarget().getReceiver());
+            actuals.addAll(call.getArguments());
         } else {
-            arguments = ((ObjectCreationNode) invocationNode).getArguments();
+            actuals.addAll(((ObjectCreationNode) invocationNode).getArguments());
         }
-        for (Node argument : arguments) {
-            if (!JavaExpression.fromNode(argument).isPure(analysis.atypeFactory)) {
-                return false;
+        List<JavaExpression> result = new ArrayList<>();
+        for (Node actual : actuals) {
+            JavaExpression je = JavaExpression.fromNode(actual);
+            if (!je.isPure(analysis.atypeFactory)) {
+                result.add(je);
             }
         }
-        return true;
+        return result;
     }
 }

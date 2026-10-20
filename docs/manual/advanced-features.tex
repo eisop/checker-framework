@@ -1189,8 +1189,8 @@ Actually, it is necessary to use \refqualclass{dataflow/qual}{Pure} which
 means both \<@Deterministic> and \<@SideEffectFree>, because determinism
 alone does not prevent a method from modifying the heap (or having an
 intervening method do so), which may cause subsequent calls to return a
-different value.  The Checker Framework assumes that repeated calls return
-the same value only for a method that is both \<@Deterministic> and
+different value.  The Checker Framework therefore assumes that repeated calls
+return the same value only for a method that is both \<@Deterministic> and
 \<@SideEffectFree>.
 
 If you change the declaration of \code{getField} to

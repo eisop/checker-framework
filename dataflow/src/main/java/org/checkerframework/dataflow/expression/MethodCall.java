@@ -109,7 +109,9 @@ public class MethodCall extends JavaExpression {
 
     @Override
     public boolean isAssignableByOtherCode() {
-        // A MethodCall may be created for a method that is not pure.
+        // This ignores whether the method is pure, so a call that is not pure, with a ClassName
+        // receiver and unmodifiable arguments, is not evicted when a method with side effects is
+        // called.
         if (receiver.isModifiableByOtherCode()) {
             return true;
         }

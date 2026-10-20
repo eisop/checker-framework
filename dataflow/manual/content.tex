@@ -1946,10 +1946,11 @@ it is called with the same arguments and in the same environment.
 A pure method is both side-effect-free and deterministic.
 The Dataflow Framework respects the
 \href{https://eisop.github.io/cf/api/org/checkerframework/dataflow/qual/SideEffectFree.html}{\code{@SideEffectFree}},
-\href{https://eisop.github.io/cf/api/org/checkerframework/dataflow/qual/Deterministic.html}{\code{@Deterministic}},and
+\href{https://eisop.github.io/cf/api/org/checkerframework/dataflow/qual/Deterministic.html}{\code{@Deterministic}}, and
 \href{https://eisop.github.io/cf/api/org/checkerframework/dataflow/qual/Pure.html}{\code{@Pure}}
 annotations of the Checker Framework.
-The store keeps the result of a method call, and refinements of it, only if the method is pure.
+The store keeps the result of a method call, and refinements of it, only if the call is pure: the method is pure and so are the receiver and the arguments.
+A contract may also state a fact about the next evaluation of a call that is not pure.
 
 
 \subsubsection{Internal Representation of field access}

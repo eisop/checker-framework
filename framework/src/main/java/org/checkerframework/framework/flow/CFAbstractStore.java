@@ -24,6 +24,7 @@ import org.checkerframework.framework.qual.MonotonicQualifier;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
@@ -243,8 +244,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *       kept.
      * </ol>
      *
-     * Furthermore, if the method is deterministic and side-effect-free, we store its result {@code
-     * val} in the store.
+     * Furthermore, if the call is pure (see {@link JavaExpression#isPure}), we store its result
+     * {@code val} in the store. Contracts may store a fact about a call that is not pure.
      *
      * @param methodInvocationNode method whose information is being updated
      * @param atypeFactory the type factory of the associated checker
@@ -495,7 +496,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         if (!canInsertJavaExpression(expr)) {
             return;
         }
-        if (!(permitImpure || expr.isPure(analysis.getTypeFactory()))) {
+        if (!mayStore(expr, permitImpure)) {
             return;
         }
 
@@ -562,7 +563,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * nondet()} is evaluated, and may be evicted when a side-effecting method is called.
      *
      * <p>Use this method only for facts about the next evaluation of {@code expr}, such as those of
-     * a contract, not for facts learned about a value that has already been computed.
+     * a contract, not for facts learned about a value that has already been computed. Only a call
+     * with a pure receiver and pure arguments is stored; a fact about an expression that contains
+     * an impure call, such as {@code nondet().f}, is not, because the store would not evict it.
      *
      * @param expr the expression to insert in the store
      * @param value the value of the expression
@@ -596,13 +599,34 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             // Expressions containing unknown expressions are not stored.
             return false;
         }
-        if (!(permitImpure || expr.isPure(analysis.getTypeFactory()))) {
-            // Impure expressions may not be stored.
-            // (They are likely to be quickly evicted, as soon as a side-effecting method is
-            // called.)
+        // Impure expressions may not be stored, because a second evaluation may differ.
+        return mayStore(expr, permitImpure);
+    }
+
+    /**
+     * Returns true if {@code expr} may be stored: if it is pure, or if {@code permitImpure} is true
+     * and it is a call whose receiver and arguments are pure.
+     *
+     * <p>A fact about an impure call is a fact about its next evaluation, and the store removes it
+     * when that call is evaluated. The store does not remove a fact about an expression that
+     * contains the call, such as {@code nondet().f}, or about a call whose receiver or argument is
+     * an impure call, so such facts are never stored.
+     *
+     * @param expr an expression
+     * @param permitImpure true if a call that is not pure may be stored
+     * @return true if {@code expr} may be stored
+     */
+    private boolean mayStore(JavaExpression expr, boolean permitImpure) {
+        AnnotationProvider provider = analysis.getTypeFactory();
+        if (expr.isPure(provider)) {
+            return true;
+        }
+        if (!permitImpure || !(expr instanceof MethodCall)) {
             return false;
         }
-        return true;
+        MethodCall call = (MethodCall) expr;
+        return call.getReceiver().isPure(provider)
+                && JavaExpression.listIsPure(call.getArguments(), provider);
     }
 
     /**
