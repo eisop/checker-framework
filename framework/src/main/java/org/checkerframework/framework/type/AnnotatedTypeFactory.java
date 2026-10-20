@@ -24,11 +24,13 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
+import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.Options;
 
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
@@ -3143,7 +3145,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // In such case, use the synthetic argument as its receiver type.
         if ((expression instanceof NewClassTree)
                 && TreeUtils.hasSyntheticArgument((NewClassTree) expression)) {
-            receiverType = getAnnotatedType(((NewClassTree) expression).getArguments().get(0));
+            ExpressionTree syntheticArg = ((NewClassTree) expression).getArguments().get(0);
+            // javac wraps the enclosing expression in a synthetic null check `<*nullchk*>outer`.
+            // The type of that tree is the defaulted Java type, which loses the annotations of
+            // the enclosing expression's type, such as those on its type arguments.
+            if (((JCTree) syntheticArg).hasTag(JCTree.Tag.NULLCHK)) {
+                syntheticArg = ((UnaryTree) syntheticArg).getExpression();
+            }
+            receiverType = getAnnotatedType(syntheticArg);
         }
         return receiverType;
     }
