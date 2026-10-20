@@ -1,9 +1,9 @@
-// Test case for eisop#2288:
-// https://github.com/eisop/checker-framework/issues/2288
-// In a field initializer or initializer block, the receiver used to viewpoint-adapt a field must
-// be a use of the class, not its declaration. Otherwise, a field type that mentions a class type
-// variable (the field being read, or the field being initialized) gets the type-variable
-// declaration, and inference crashes when it substitutes that declaration into the bound of U.
+// Test case for eisop#2288: in a field initializer or initializer block, viewpoint adaptation must
+// use a use of the class, not its declaration. Otherwise, a field type that mentions a class type
+// variable put the type-variable declaration into the bound of U and crashed inference.
+
+import viewpointtest.quals.*;
+
 public class Issue2288<T> {
     static <U extends V, V> V[] make(U[] u) {
         return null;
@@ -33,4 +33,23 @@ public class Issue2288<T> {
     void method() {
         T[] f = make(a);
     }
+}
+
+// The receiver is still adapted to the class's own qualifier.
+@SuppressWarnings({
+    "inconsistent.constructor.type",
+    "super.invocation.invalid",
+    "cast.unsafe.constructor.invocation"
+})
+@A class Issue2288Adapted<T> {
+    static <U extends V, V> V[] make() {
+        return null;
+    }
+
+    T[] t = make();
+
+    @ReceiverDependentQual Object compatible = new @A Object();
+
+    // :: error: (assignment.type.incompatible)
+    @ReceiverDependentQual Object incompatible = new @B Object();
 }

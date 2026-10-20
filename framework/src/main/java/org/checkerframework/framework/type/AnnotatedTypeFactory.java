@@ -2986,9 +2986,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the type of {@code this} at the location of {@code tree}
      */
     public @Nullable AnnotatedDeclaredType getSelfType(Tree tree) {
-        // The type of a class tree is the class declaration, whose type arguments are type-variable
-        // declarations. The type of "this" is a use of the class, so call asUse() on it
-        // (eisop#2288).
+        // The type of "this" is a use of the class, not its declaration (eisop#2288).
         if (TreeUtils.isClassTree(tree)) {
             return getAnnotatedType(TreeUtils.elementFromDeclaration((ClassTree) tree)).asUse();
         }
