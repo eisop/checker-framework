@@ -42,8 +42,8 @@ public class ArrayAccess extends JavaExpression {
     }
 
     @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
-        return array.isDeterministic(provider) && index.isDeterministic(provider);
+    public boolean isPure(AnnotationProvider provider) {
+        return array.isPure(provider) && index.isPure(provider);
     }
 
     /**
