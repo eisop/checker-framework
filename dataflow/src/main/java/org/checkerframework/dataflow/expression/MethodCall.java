@@ -109,10 +109,7 @@ public class MethodCall extends JavaExpression {
 
     @Override
     public boolean isAssignableByOtherCode() {
-        // TODO: The following comment is no longer accurate.  It should be removed and the
-        // implementation changed.
-        // There is no need to check that the method is deterministic, because a MethodCall is
-        // only created for deterministic methods.
+        // A MethodCall may be created for a method that is not pure.
         if (receiver.isModifiableByOtherCode()) {
             return true;
         }

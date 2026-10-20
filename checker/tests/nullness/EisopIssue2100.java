@@ -61,6 +61,11 @@ public class EisopIssue2100 {
 
     // The postcondition is a fact about the value passed in, not about the next evaluation of the
     // argument expression.
+    void testPostconditionOnPureArgument() {
+        check(get());
+        get().hashCode();
+    }
+
     void testPostconditionOnImpureArgument() {
         check(getAndClear());
         // :: error: (dereference.of.nullable)

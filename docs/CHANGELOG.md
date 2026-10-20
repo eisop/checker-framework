@@ -476,6 +476,7 @@ eisop#2323,
 typetools#399,
 typetools#2816,
 typetools#3203,
+typetools#6291,
 typetools#8055.
 
 ## Version 3.55.1 (2026-04-03)

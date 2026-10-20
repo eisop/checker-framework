@@ -6,7 +6,7 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** JUnit tests for the Nullness Checker with the purity-assuming command-line options. */
+/** JUnit tests for the Nullness Checker with {@code -AassumeDeterministic} only. */
 public class NullnessAssumeDeterministicTest extends CheckerFrameworkPerDirectoryTest {
 
     /**

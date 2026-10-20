@@ -693,11 +693,9 @@ public abstract class CFAbstractTransfer<
                 // Errors are reported by BaseTypeVisitor.checkContractsAtMethodDeclaration().
                 continue;
             }
-            if (mayContainCall(stringExpr)) {
-                initialStore.insertValuePermitImpure(exprJe, annotation);
-            } else {
-                initialStore.insertValue(exprJe, annotation);
-            }
+            // The expression is parsed at the declaration, without substitution, so it can be
+            // impure only if it contains a call.
+            initialStore.insertValuePermitImpure(exprJe, annotation);
         }
     }
 
@@ -1414,9 +1412,9 @@ public abstract class CFAbstractTransfer<
                 boolean permitImpure = mayContainCall(expressionString);
                 if (p.kind == Contract.Kind.CONDITIONALPOSTCONDITION) {
                     S store = ((ConditionalPostcondition) p).resultValue ? thenStore : elseStore;
-                    insertOrRefine(store, je, anno, permitImpure);
+                    store.insertOrRefine(je, anno, permitImpure);
                 } else {
-                    insertOrRefine(thenStore, je, anno, permitImpure);
+                    thenStore.insertOrRefine(je, anno, permitImpure);
                 }
             } catch (JavaExpressionParseException e) {
                 // report errors here
@@ -1637,32 +1635,17 @@ public abstract class CFAbstractTransfer<
     }
 
     /**
-     * Returns true if the given contract expression string may contain a method call, which is the
-     * only way for the expression to be impure.
+     * Returns true if the given contract expression string may contain a method call.
+     *
+     * <p>This is a textual approximation of "the expression may be impure": it does not detect an
+     * argument or receiver that is substituted for a name such as {@code #1} and is itself an
+     * impure call, when the string also contains a (pure) call, as in {@code "#1.foo()"}.
      *
      * @param expressionString a contract expression, as written in the annotation
      * @return true if the expression may contain a method call
      */
     private static boolean mayContainCall(String expressionString) {
         return CALL_PATTERN.matcher(expressionString).find();
-    }
-
-    /**
-     * Calls {@code store.insertOrRefine}, permitting an impure expression only if {@code
-     * permitImpure}.
-     *
-     * @param store the store to modify
-     * @param je the expression
-     * @param anno its annotation
-     * @param permitImpure true if {@code je} may be impure
-     */
-    private void insertOrRefine(
-            S store, JavaExpression je, AnnotationMirror anno, boolean permitImpure) {
-        if (permitImpure) {
-            store.insertOrRefinePermitImpure(je, anno);
-        } else {
-            store.insertOrRefine(je, anno);
-        }
     }
 
     /**
