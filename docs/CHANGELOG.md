@@ -327,6 +327,8 @@ Other improvements and bug fixes:
   `Supplier<? extends List<? extends T>>`.
 - Type argument inference no longer crashes on nested calls to methods with an
   F-bounded intersection type parameter, such as `<T extends Temporal & Comparable<? super T>>`.
+- Viewpoint adaptation no longer crashes on a field initializer whose type
+  mentions a class type variable, such as `T[] b = make(a);`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -486,6 +488,7 @@ eisop#2261,
 eisop#2266,
 eisop#2267,
 eisop#2287,
+eisop#2288,
 eisop#2323,
 typetools#399,
 typetools#2816,
