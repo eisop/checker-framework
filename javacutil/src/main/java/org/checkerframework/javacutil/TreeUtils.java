@@ -1865,6 +1865,23 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns true if the first parameter of the given anonymous constructor is the enclosing
+     * instance, which is not among the arguments of the given class instance creation expression.
+     * This is the case for {@code outer.new Inner(args) {}} on Java 11 and later (JLS 15.9.5.1); on
+     * earlier versions, javac moves the enclosing expression into the arguments.
+     *
+     * @param con the constructor that the given tree invokes
+     * @param tree a class instance creation expression
+     * @return true if {@code con} has one more parameter than the tree has arguments, because of
+     *     the enclosing instance
+     * @see #isAnonymousConstructorWithExplicitEnclosingExpression(ExecutableElement, NewClassTree)
+     */
+    public static boolean hasEnclosingInstanceParameter(ExecutableElement con, NewClassTree tree) {
+        return SystemUtil.jreVersion >= 11
+                && isAnonymousConstructorWithExplicitEnclosingExpression(con, tree);
+    }
+
+    /**
      * Returns true if the given {@link MethodTree} is a compact canonical constructor (the
      * constructor for a record where the parameters are implicitly declared and implicitly assigned
      * to the record's fields). This may be an explicitly declared compact canonical constructor or

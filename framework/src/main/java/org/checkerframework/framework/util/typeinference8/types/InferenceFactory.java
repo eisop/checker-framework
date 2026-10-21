@@ -1355,7 +1355,9 @@ public class InferenceFactory {
     }
 
     /**
-     * Returns the result of substituting {@code typeArg} for {@code typeVar} in {@code types}.
+     * Returns the result of substituting {@code typeArg} for {@code typeVar} in {@code types}. Each
+     * type argument is a fresh type variable; this substitution is also applied to its bounds, by
+     * side effect.
      *
      * @param typeVar type variables
      * @param typeArg type arguments
@@ -1364,37 +1366,16 @@ public class InferenceFactory {
      */
     public List<AbstractType> getSubsTypeArgs(
             List<TypeVariable> typeVar, List<AbstractType> typeArg, List<Variable> types) {
-        List<TypeMirror> javaTypeArgs = new ArrayList<>();
-        // Recursive types:
-        for (int i = 0; i < typeArg.size(); i++) {
-            Variable ai = types.get(i);
-            TypeMirror inst = typeArg.get(i).getJavaType();
-            TypeVariable typeVariableI = ai.getJavaType();
-            if (ContainsInferenceVariable.hasAnyTypeVariable(
-                    Collections.singleton(typeVariableI), inst)) {
-                // If the instantiation of ai includes a reference to ai,
-                // then substitute ai with an unbound wildcard.  This isn't quite right but I'm not
-                // sure how to make recursive types Java types.
-                // TODO: This causes problems when incorporating the bounds.
-                TypeMirror unbound = context.env.getTypeUtils().getWildcardType(null, null);
-                inst =
-                        TypesUtils.substitute(
-                                inst,
-                                Collections.singletonList(typeVariableI),
-                                Collections.singletonList(unbound),
-                                context.env);
-                javaTypeArgs.add(inst);
-            } else {
-                javaTypeArgs.add(inst);
-            }
+        List<TypeMirror> javaTypeArgs = new ArrayList<>(typeArg.size());
+        for (AbstractType inst : typeArg) {
+            javaTypeArgs.add(inst.getJavaType());
         }
-
-        for (int i = 0; i < typeVar.size(); i++) {
-            TypeMirror javaTypeArg = javaTypeArgs.get(i);
-            TypeMirror x = TypesUtils.substitute(javaTypeArg, typeVar, javaTypeArgs, context.env);
-            javaTypeArgs.remove(i);
-            javaTypeArgs.add(i, x);
-        }
+        // Each type argument is a fresh type variable whose bounds may refer to any of the type
+        // variables, including its own (an F-bound). Make those bounds refer to the fresh type
+        // variables instead, in place, so that the result is consistent with the annotated types
+        // below and, for example, a fresh type variable whose bound refers to another one is a
+        // subtype of it.
+        TypesUtils.substituteInBounds(javaTypeArgs, typeVar, context.env);
 
         Map<TypeVariable, AnnotatedTypeMirror> map = new HashMap<>();
 
