@@ -207,6 +207,10 @@ reported as `override.receiver.invalid`, including a narrowed type argument of a
 enclosing type or of a type parameter that the overridden class does not see.
 Previously only the receiver's primary annotations were compared.
 
+A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
+keeps the qualifier of the expression instead of taking the type variable's
+upper bound, which hid errors such as returning `null` as a `T`.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -333,6 +337,8 @@ Other improvements and bug fixes:
   `Supplier<? extends List<? extends T>>`.
 - Type argument inference no longer crashes on nested calls to methods with an
   F-bounded intersection type parameter, such as `<T extends Temporal & Comparable<? super T>>`.
+- Viewpoint adaptation no longer crashes on a field initializer whose type
+  mentions a class type variable, such as `T[] b = make(a);`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -439,6 +445,7 @@ eisop#1987,
 eisop#1990,
 eisop#1991,
 eisop#2009,
+eisop#2011,
 eisop#2020,
 eisop#2021,
 eisop#2029,
@@ -493,6 +500,7 @@ eisop#2261,
 eisop#2266,
 eisop#2267,
 eisop#2287,
+eisop#2288,
 eisop#2323,
 typetools#399,
 typetools#2816,
