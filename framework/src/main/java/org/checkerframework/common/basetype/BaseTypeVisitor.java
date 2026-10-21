@@ -93,6 +93,7 @@ import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.TypeHierarchy;
+import org.checkerframework.framework.type.TypeVariableSubstitutor;
 import org.checkerframework.framework.type.poly.QualifierPolymorphism;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
@@ -154,10 +155,12 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
 
 /* NO-AFU
@@ -2828,7 +2831,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         ExecutableElement constructor = constructorType.getElement();
         CharSequence constructorName = ElementUtils.getSimpleDescription(constructor);
 
-        checkArguments(params, passedArguments, constructorName, constructor.getParameters());
+        List<? extends VariableElement> constructorParams = constructor.getParameters();
+        if (TreeUtils.hasEnclosingInstanceParameter(constructor, tree)) {
+            // The first parameter is the enclosing instance, which is not among the arguments;
+            // see AnnotatedTypes#adaptParameters.
+            constructorParams = constructorParams.subList(1, constructorParams.size());
+        }
+        checkArguments(params, passedArguments, constructorName, constructorParams);
         checkVarargs(constructorType, tree);
 
         List<AnnotatedTypeParameterBounds> paramBounds =
@@ -5049,7 +5058,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedTypeMirror enclosingType;
         if (TreeUtils.isLikeDiamondMemberReference(memberReferenceTree)) {
             TypeElement typeElt = TypesUtils.getTypeElement(TreeUtils.typeOf(preColonTree));
-            enclosingType = atypeFactory.getAnnotatedType(typeElt);
+            // A use of the class, not its declaration.
+            enclosingType = atypeFactory.getAnnotatedType(typeElt).asUse();
         } else if (memberReferenceTree.getMode() == ReferenceMode.NEW
                 || memRefKind == MemberReferenceKind.UNBOUND
                 || memRefKind == MemberReferenceKind.STATIC) {
@@ -5159,6 +5169,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         /** True if {@link #overriderTree} is a MEMBER_REFERENCE. */
         protected final boolean isMethodReference;
 
+        /**
+         * The overridden method's type variables mapped to uses of the overriding method's type
+         * variables at the same position, as in JLS 8.4.4. Empty if there is nothing to adapt: for
+         * a method reference, or if the methods do not declare the same number of type parameters.
+         */
+        private final Map<TypeVariable, AnnotatedTypeMirror> typeVariableMapping;
+
         /** The type of the overriding method. */
         protected final AnnotatedExecutableType overrider;
 
@@ -5211,6 +5228,57 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             this.overriddenReturnType = overriddenReturnType;
 
             this.isMethodReference = overriderTree instanceof MemberReferenceTree;
+            this.typeVariableMapping = computeTypeVariableMapping();
+        }
+
+        /**
+         * Returns the overridden method's type variables mapped to uses of the overriding method's
+         * type variables at the same position, as in JLS 8.4.4, or an empty map if there is nothing
+         * to adapt: for a method reference, or if the methods do not declare the same number of
+         * type parameters.
+         *
+         * @return a map from the overridden method's type variables to uses of the overriding
+         *     method's
+         */
+        private Map<TypeVariable, AnnotatedTypeMirror> computeTypeVariableMapping() {
+            if (isMethodReference) {
+                return Collections.emptyMap();
+            }
+            List<AnnotatedTypeVariable> overriderTypeVars = overrider.getTypeVariables();
+            List<AnnotatedTypeVariable> overriddenTypeVars = overridden.getTypeVariables();
+            if (overriderTypeVars.isEmpty()
+                    || overriderTypeVars.size() != overriddenTypeVars.size()) {
+                return Collections.emptyMap();
+            }
+            Map<TypeVariable, AnnotatedTypeMirror> mapping = new HashMap<>();
+            for (int i = 0; i < overriddenTypeVars.size(); i++) {
+                mapping.put(
+                        overriddenTypeVars.get(i).getUnderlyingType(),
+                        overriderTypeVars.get(i).asUse());
+            }
+            return mapping;
+        }
+
+        /**
+         * Returns {@code type}, a type in the signature of the overridden method, with the
+         * overriding method's type variables substituted for the overridden method's, as in JLS
+         * 8.4.4. Then every occurrence of a type parameter, wherever it is nested, is the same type
+         * variable on both sides, and the qualifiers of the two declarations' bounds are compared
+         * only by {@link #checkTypeParameterBounds}. Returns {@code type} itself if there is
+         * nothing to substitute.
+         *
+         * <p>This renames type variables; it does not instantiate them. So it uses the default
+         * {@link TypeVariableSubstitutor}, not the checker's own, whose rules for the annotations
+         * of the substituted type may depend on the bound of the type variable being replaced.
+         *
+         * @param type a type in the signature of the overridden method
+         * @return {@code type} adapted to the type parameters of the overriding method
+         */
+        private AnnotatedTypeMirror adaptToOverrider(AnnotatedTypeMirror type) {
+            if (typeVariableMapping.isEmpty()) {
+                return type;
+            }
+            return new TypeVariableSubstitutor().substitute(typeVariableMapping, type);
         }
 
         /**
@@ -5461,20 +5529,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotatedDeclaredType overriddenReceiver = overridden.getReceiverType();
             // Check the receiver type.
             // isSubtype() requires its arguments to be actual subtypes with respect to the JLS, but
-            // an overrider receiver is not a subtype of the overridden receiver.  So, just check
-            // primary annotations.
-            // TODO: this will need to be improved for generic receivers.
-            if (!typeHierarchy.isSubtypeShallowEffective(overriddenReceiver, overriderReceiver)) {
-                AnnotationMirrorSet declaredAnnos =
-                        atypeFactory.getTypeDeclarationBounds(overriderType.getUnderlyingType());
-                if (typeHierarchy.isSubtypeShallowEffective(overriderReceiver, declaredAnnos)
-                        && typeHierarchy.isSubtypeShallowEffective(
-                                declaredAnnos, overriderReceiver)) {
-                    // All the type of an object must be no higher than its upper bound. So if the
-                    // receiver is annotated with the upper bound qualifiers, then the override is
-                    // safe.
-                    return true;
-                }
+            // an overrider receiver is not a subtype of the overridden receiver.  So, check the
+            // primary annotations and the type arguments separately.
+            if (!isReceiverPrimaryOverrideValid(overriderReceiver, overriddenReceiver)
+                    || !isReceiverTypeArgumentOverrideValid(
+                            overriderReceiver, overriddenReceiver)) {
                 FoundRequired pair = FoundRequired.of(overriderReceiver, overriddenReceiver);
                 checker.reportError(
                         overriderTree,
@@ -5490,6 +5549,170 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return true;
         }
 
+        /**
+         * Returns true if the primary annotations of the overrider's receiver accept every receiver
+         * that the overridden method's receiver accepts.
+         *
+         * @param overriderReceiver the receiver of the overrider
+         * @param overriddenReceiver the receiver of the overridden method
+         * @return true if the primary annotations of the overrider's receiver are valid
+         */
+        private boolean isReceiverPrimaryOverrideValid(
+                AnnotatedDeclaredType overriderReceiver, AnnotatedDeclaredType overriddenReceiver) {
+            if (typeHierarchy.isSubtypeShallowEffective(overriddenReceiver, overriderReceiver)) {
+                return true;
+            }
+            AnnotationMirrorSet declaredAnnos =
+                    atypeFactory.getTypeDeclarationBounds(overriderType.getUnderlyingType());
+            // All the type of an object must be no higher than its upper bound. So if the receiver
+            // is annotated with the upper bound qualifiers, then the override is safe.
+            return typeHierarchy.isSubtypeShallowEffective(overriderReceiver, declaredAnnos)
+                    && typeHierarchy.isSubtypeShallowEffective(declaredAnnos, overriderReceiver);
+        }
+
+        /**
+         * Returns true if the type arguments of the overrider's receiver accept every receiver that
+         * the overridden method's receiver accepts.
+         *
+         * <p>Each type argument of the overrider's receiver and of its enclosing types is valid if
+         * either
+         *
+         * <ol>
+         *   <li>it is the class's own type parameter without an annotation, as in {@code Child<E>
+         *       this} in {@code class Child<E>}; this is the type of {@code this} and accepts every
+         *       instance of the class, or
+         *   <li>it is equal to the overridden receiver's type argument at every position that pins
+         *       it, and at least one position does.
+         * </ol>
+         *
+         * A type parameter that nothing pins, such as {@code F} in {@code class Child<E, F> extends
+         * Parent<E>}, is fixed by nothing, so any annotation on it is a narrowing. Primary
+         * annotations are not compared here; {@link #isReceiverPrimaryOverrideValid} checks them.
+         *
+         * @param overriderReceiver the receiver of the overrider
+         * @param overriddenReceiver the receiver of the overridden method
+         * @return true if the type arguments of the overrider's receiver are valid
+         */
+        private boolean isReceiverTypeArgumentOverrideValid(
+                AnnotatedDeclaredType overriderReceiver, AnnotatedDeclaredType overriddenReceiver) {
+            // The overrider's class viewed as the overridden class, such as Parent<E>.
+            AnnotatedDeclaredType seen =
+                    AnnotatedTypes.asSuper(atypeFactory, overriderType, overriddenType);
+            boolean isReceiver = true;
+            for (AnnotatedDeclaredType type = overriderReceiver;
+                    type != null;
+                    type = type.getEnclosingType(), isReceiver = false) {
+                TypeElement typeElt = (TypeElement) type.getUnderlyingType().asElement();
+                List<? extends TypeParameterElement> params = typeElt.getTypeParameters();
+                List<? extends AnnotatedTypeMirror> args = type.getTypeArguments();
+                if (args.size() != params.size()) {
+                    return false;
+                }
+                AnnotatedDeclaredType pinning =
+                        isReceiver ? seen : enclosingTypeOf(overriddenReceiver, typeElt);
+                for (int i = 0; i < args.size(); i++) {
+                    AnnotatedTypeMirror arg = args.get(i);
+                    if (isOwnTypeParameter(arg, params.get(i))) {
+                        // The type of "this" accepts every instance of the class.
+                        continue;
+                    }
+                    if (pinning == null) {
+                        // Fixed by nothing: the overridden receiver has no counterpart.
+                        return false;
+                    }
+                    List<? extends AnnotatedTypeMirror> pinningArgs = pinning.getTypeArguments();
+                    List<? extends AnnotatedTypeMirror> overriddenArgs =
+                            overriddenReceiver.getTypeArguments();
+                    boolean pinned = false;
+                    for (int j = 0; j < pinningArgs.size(); j++) {
+                        boolean pinsHere =
+                                isReceiver
+                                        ? isTypeVariableFor(pinningArgs.get(j), params.get(i))
+                                        : j == i;
+                        if (pinsHere) {
+                            pinned = true;
+                            AnnotatedTypeMirror required =
+                                    isReceiver ? overriddenArgs.get(j) : pinningArgs.get(j);
+                            if (!isEqualType(arg, required)) {
+                                return false;
+                            }
+                        }
+                    }
+                    if (!pinned) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        /**
+         * Returns the enclosing type of {@code type}, at any depth, that is for the class {@code
+         * typeElt}, or null if there is none.
+         *
+         * @param type a declared type
+         * @param typeElt a class
+         * @return an enclosing type of {@code type} for {@code typeElt}, or null
+         */
+        private @Nullable AnnotatedDeclaredType enclosingTypeOf(
+                AnnotatedDeclaredType type, TypeElement typeElt) {
+            for (AnnotatedDeclaredType enclosing = type.getEnclosingType();
+                    enclosing != null;
+                    enclosing = enclosing.getEnclosingType()) {
+                if (enclosing.getUnderlyingType().asElement().equals(typeElt)) {
+                    return enclosing;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Returns true if the two types are subtypes of each other.
+         *
+         * @param type1 a type
+         * @param type2 a type
+         * @return true if the two types are equal
+         */
+        private boolean isEqualType(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
+            return typeHierarchy.isSubtype(type1, type2) && typeHierarchy.isSubtype(type2, type1);
+        }
+
+        /**
+         * Returns true if {@code typeArg} is the type variable for {@code param} without a primary
+         * annotation.
+         *
+         * @param typeArg a type argument
+         * @param param a type parameter of the class that {@code typeArg} is an argument for
+         * @return true if {@code typeArg} is the unannotated type variable for {@code param}
+         */
+        private boolean isOwnTypeParameter(
+                AnnotatedTypeMirror typeArg, TypeParameterElement param) {
+            return typeArg.getAnnotations().isEmpty() && isTypeVariableFor(typeArg, param);
+        }
+
+        /**
+         * Returns true if {@code typeArg} is the type variable for {@code param}, with or without a
+         * primary annotation.
+         *
+         * @param typeArg a type argument
+         * @param param a type parameter
+         * @return true if {@code typeArg} is a type variable for {@code param}
+         */
+        private boolean isTypeVariableFor(AnnotatedTypeMirror typeArg, TypeParameterElement param) {
+            return typeArg.getKind() == TypeKind.TYPEVAR
+                    && ((AnnotatedTypeVariable) typeArg)
+                            .getUnderlyingType()
+                            .asElement()
+                            .equals(param);
+        }
+
+        /**
+         * Checks that the overrider's parameter types are supertypes of the overridden method's
+         * parameter types, after the overridden parameter types are adapted to the overriding
+         * method's type parameters as in JLS 8.4.4.
+         *
+         * @return true if the overrider's parameter types are valid
+         */
         private boolean checkParameters() {
             List<AnnotatedTypeMirror> overriderParams = overrider.getParameterTypes();
             List<AnnotatedTypeMirror> overriddenParams = overridden.getParameterTypes();
@@ -5511,6 +5734,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                                     overrider, overriddenParams);
                 }
             }
+
+            List<AnnotatedTypeMirror> adaptedParams = new ArrayList<>(overriddenParams.size());
+            for (AnnotatedTypeMirror overriddenParam : overriddenParams) {
+                adaptedParams.add(adaptToOverrider(overriddenParam));
+            }
+            overriddenParams = adaptedParams;
 
             boolean result = true;
             for (int i = 0; i < overriderParams.size(); ++i) {
@@ -5639,6 +5868,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * not carry over. There is also no type-parameter tree to report on, which is why {@link
          * #checkTypeParameterBoundsMsg} can cast {@code overriderTree} to a {@code MethodTree}.
          *
+         * <p>As in JLS 8.4.4, the overridden signature is adapted to the overriding method's type
+         * parameters before it is compared: the overriding method's type variables are substituted
+         * for the overridden method's in the overridden bounds, as in {@link #checkParameters} and
+         * {@link #checkReturn} for the parameter and return types. An F-bound such as {@code <T
+         * extends Comparable<T>>}, or a bound that names another type parameter of the method,
+         * would otherwise compare two distinct type variables.
+         *
          * @return true if every type-parameter bound is compatible
          */
         private boolean checkTypeParameterBounds() {
@@ -5648,6 +5884,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             List<AnnotatedTypeVariable> overriderTypeVars = overrider.getTypeVariables();
             List<AnnotatedTypeVariable> overriddenTypeVars = overridden.getTypeVariables();
             int count = Math.min(overriderTypeVars.size(), overriddenTypeVars.size());
+            if (count == 0) {
+                return true;
+            }
+            List<AnnotatedTypeVariable> adaptedTypeVars =
+                    new ArrayList<>(overriddenTypeVars.size());
+            for (AnnotatedTypeVariable overriddenTypeVar : overriddenTypeVars) {
+                AnnotatedTypeVariable adapted = overriddenTypeVar.shallowCopy();
+                adapted.setUpperBound(adaptToOverrider(overriddenTypeVar.getUpperBound()));
+                adapted.setLowerBound(adaptToOverrider(overriddenTypeVar.getLowerBound()));
+                adaptedTypeVars.add(adapted);
+            }
+            overriddenTypeVars = adaptedTypeVars;
             boolean result = true;
             for (int i = 0; i < count; i++) {
                 boolean success =
@@ -5768,8 +6016,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
-         * Returns true if the return type of the overridden method is a subtype of the return type
-         * of the overriding method.
+         * Returns true if the return type of the overriding method is a subtype of the return type
+         * of the overridden method, after the overridden return type is adapted to the overriding
+         * method's type parameters as in JLS 8.4.4.
          *
          * @return true if the return type is correct
          */
@@ -5778,7 +6027,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 // Nothing to check.
                 return true;
             }
-            boolean success = isReturnOverrideValid(overriddenReturnType, overriderReturnType);
+            AnnotatedTypeMirror adaptedReturnType = adaptToOverrider(overriddenReturnType);
+            boolean success = isReturnOverrideValid(adaptedReturnType, overriderReturnType);
 
             // Sometimes the overridden return type of a method reference becomes a captured
             // type variable.  This leads to defaulting that often makes the overriding return type
@@ -5796,7 +6046,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 }
             }
 
-            checkReturnMsg(success);
+            checkReturnMsg(success, adaptedReturnType);
             return success;
         }
 
@@ -5834,8 +6084,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * Issue an error message or log message about checking an overriding return type.
          *
          * @param success true if the check succeeded
+         * @param adaptedReturnType the return type of the overridden method, adapted to the
+         *     overriding method's type parameters
          */
-        private void checkReturnMsg(boolean success) {
+        private void checkReturnMsg(boolean success, AnnotatedTypeMirror adaptedReturnType) {
             if (success && !showchecks) {
                 return;
             }
@@ -5865,10 +6117,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         overrider.getReturnType().toString(),
                         overridden,
                         overriddenType,
-                        overridden.getReturnType().toString());
+                        adaptedReturnType.toString());
             }
             if (!success) {
-                FoundRequired pair = FoundRequired.of(overriderReturnType, overriddenReturnType);
+                FoundRequired pair = FoundRequired.of(overriderReturnType, adaptedReturnType);
                 checker.reportError(
                         posTree,
                         msgKey,

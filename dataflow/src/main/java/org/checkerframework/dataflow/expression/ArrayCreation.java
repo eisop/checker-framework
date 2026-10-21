@@ -72,9 +72,8 @@ public class ArrayCreation extends JavaExpression {
     }
 
     @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
-        return listIsDeterministic(dimensions, provider)
-                && listIsDeterministic(initializers, provider);
+    public boolean isPure(AnnotationProvider provider) {
+        return listIsPure(dimensions, provider) && listIsPure(initializers, provider);
     }
 
     @Override
