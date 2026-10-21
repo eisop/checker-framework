@@ -201,6 +201,12 @@ literal (such as `i < n`): the loop variable takes the range that the bound
 permits right away. On plume-util, it takes 8.3s instead of 10.1s. Precision is
 unchanged or better.
 
+Overrides of generic methods are checked against the overridden signature adapted to the
+overriding method's type parameters (JLS 8.4.4). Widening the qualifier of an F-bounded type
+parameter, such as `<T extends @Nullable Comparable<T>>` overriding
+`<T extends @NonNull Comparable<T>>`, is no longer reported, wherever the type parameter is
+used; narrowing it is reported once, as `override.typaram.invalid`.
+
 An override whose receiver narrows the type arguments of the overridden method's
 receiver, such as `Child<@NonNull E> this` overriding `Parent<E> this`, is now
 reported as `override.receiver.invalid`, including a narrowed type argument of an
@@ -440,6 +446,7 @@ eisop#1887,
 eisop#1926,
 eisop#1958,
 eisop#1965,
+eisop#1971,
 eisop#1986,
 eisop#1987,
 eisop#1990,
