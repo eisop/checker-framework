@@ -90,8 +90,8 @@ public class BinaryOperation extends JavaExpression {
     }
 
     @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
-        return left.isDeterministic(provider) && right.isDeterministic(provider);
+    public boolean isPure(AnnotationProvider provider) {
+        return left.isPure(provider) && right.isPure(provider);
     }
 
     @Override

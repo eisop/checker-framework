@@ -245,9 +245,8 @@ public class LockStore extends CFAbstractStore<CFValue, LockStore> {
     }
 
     @Override
-    public void insertValue(
-            JavaExpression je, @Nullable CFValue value, boolean permitNondeterministic) {
-        if (!shouldInsert(je, value, permitNondeterministic)) {
+    public void insertValue(JavaExpression je, @Nullable CFValue value, boolean permitImpure) {
+        if (!shouldInsert(je, value, permitImpure)) {
             return;
         }
 
@@ -274,6 +273,6 @@ public class LockStore extends CFAbstractStore<CFValue, LockStore> {
             }
         }
 
-        super.insertValue(je, value, permitNondeterministic);
+        super.insertValue(je, value, permitImpure);
     }
 }

@@ -1,5 +1,6 @@
 package org.checkerframework.framework.util.typeinference8.types;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.util.typeinference8.constraint.Constraint;
 import org.checkerframework.framework.util.typeinference8.constraint.Constraint.Kind;
 import org.checkerframework.framework.util.typeinference8.constraint.ConstraintSet;
@@ -105,6 +106,12 @@ public class VariableBounds {
     public EnumMap<BoundKind, LinkedHashSet<AbstractQualifier>> savedQualifierBounds = null;
 
     /**
+     * The constraints in {@link #constraints} when the bounds were saved, used in the event the
+     * first attempt at resolution fails.
+     */
+    private @Nullable Set<Constraint> savedConstraints = null;
+
+    /**
      * Creates bounds for {@code variable}.
      *
      * @param variable a variable
@@ -124,6 +131,7 @@ public class VariableBounds {
 
     /** Save the current bounds in case the first attempt at resolution fails. */
     public void save() {
+        savedConstraints = constraints.identitySnapshot();
         savedBounds = new EnumMap<>(BoundKind.class);
         savedBounds.put(BoundKind.EQUAL, new LinkedHashSet<>(bounds.get(BoundKind.EQUAL)));
         savedBounds.put(BoundKind.UPPER, new LinkedHashSet<>(bounds.get(BoundKind.UPPER)));
@@ -144,6 +152,13 @@ public class VariableBounds {
      */
     public void restore() {
         assert savedBounds != null;
+        assert savedConstraints != null;
+        // Drop the constraints that incorporating the failed attempt added and left unreduced:
+        // they apply its instantiations, which no longer hold. This is not a full restore: a saved
+        // constraint that the failed attempt removed is not added back, and a saved constraint that
+        // is still here is the same instance, which the attempt may have changed by applying its
+        // instantiations.
+        constraints.retainOnly(savedConstraints);
         instantiation = null;
         bounds.clear();
         bounds.put(BoundKind.EQUAL, new LinkedHashSet<>(savedBounds.get(BoundKind.EQUAL)));
@@ -516,18 +531,12 @@ public class VariableBounds {
     }
 
     /**
-     * Returns all upper bounds.
+     * Returns all upper bounds, including those that are another inference variable.
      *
      * @return all upper bounds
      */
     public Set<AbstractType> upperBounds() {
-        LinkedHashSet<AbstractType> set = new LinkedHashSet<>();
-        for (AbstractType bound : bounds.get(BoundKind.UPPER)) {
-            if (!bound.isUseOfVariable()) {
-                set.add(bound);
-            }
-        }
-        return set;
+        return new LinkedHashSet<>(bounds.get(BoundKind.UPPER));
     }
 
     /**
