@@ -321,6 +321,8 @@ Other improvements and bug fixes:
 - Type argument inference no longer crashes on a generic method call returned
   by a lambda whose target is a raw functional interface type, such as
   `Supplier s = () -> never();` or `(Supplier) () -> never()`.
+- Type argument inference no longer crashes on a lambda returned by a lambda
+  whose target is a raw type, such as `() -> () -> never()`.
 - Type argument inference accounts for the type arguments of the enclosing
   type of an inner class type, such as `T` in `Outer<T>.Inner`; it used to
   crash on `consume(make(x))` where `make` returns `Outer<T>.Inner`.
@@ -336,6 +338,9 @@ Other improvements and bug fixes:
   supertypes of a type whose type argument is a type variable of another class,
   such as `Seq<E>` in `interface Coll<E> { void m(Seq<E> s); }`, or any member
   access on a three-deep generic interface such as `java.util.List`.
+- Viewpoint adaptation no longer crashes on an override of, or a raw method
+  reference to, a method whose type variable is bounded by a class type
+  variable, such as `<S extends T> Ord<S> rev()` in `class Ord<T>`.
 - `-AcheckCastElementType` fixes: no longer crashes on downcasts, incomparable
   types, null literal casts, or differing type-argument counts.
 - `BinaryStubFileGenerator` accepts a file, directory (`--bundle`), or jar.
@@ -476,6 +481,7 @@ eisop#2159,
 eisop#2160,
 eisop#2163,
 eisop#2164,
+eisop#2179,
 eisop#2187,
 eisop#2224,
 eisop#2258,
@@ -484,6 +490,7 @@ eisop#2260,
 eisop#2261,
 eisop#2266,
 eisop#2267,
+eisop#2287,
 eisop#2323,
 typetools#399,
 typetools#2816,
