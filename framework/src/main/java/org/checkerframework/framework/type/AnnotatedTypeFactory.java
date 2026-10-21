@@ -1515,7 +1515,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedExecutableType result =
                 AnnotatedTypes.asMemberOf(types, this, overriddenType, overriddenMethodElt);
         if (viewpointAdapter != null) {
-            viewpointAdapter.viewpointAdaptMethod(overriderType, overriddenMethodElt, result);
+            // Adapt to a use of the class: the type arguments of its declaration are type variable
+            // declarations, which cannot be type variable bounds.
+            viewpointAdapter.viewpointAdaptMethod(
+                    overriderType.asUse(), overriddenMethodElt, result);
         }
         return result;
     }
@@ -2986,8 +2989,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the type of {@code this} at the location of {@code tree}
      */
     public @Nullable AnnotatedDeclaredType getSelfType(Tree tree) {
+        // The type of "this" is a use of the class, not its declaration.
         if (TreeUtils.isClassTree(tree)) {
-            return getAnnotatedType(TreeUtils.elementFromDeclaration((ClassTree) tree));
+            return getAnnotatedType(TreeUtils.elementFromDeclaration((ClassTree) tree)).asUse();
         }
 
         Tree enclosingTree = getEnclosingClassOrMethod(tree);
@@ -3002,7 +3006,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 return getAnnotatedType(enclosingMethod).getReceiverType();
             }
         } else if (TreeUtils.isClassTree(enclosingTree)) {
-            return (AnnotatedDeclaredType) getAnnotatedType(enclosingTree);
+            return ((AnnotatedDeclaredType) getAnnotatedType(enclosingTree)).asUse();
         }
         return null;
     }
@@ -6139,11 +6143,22 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Functional interface
         // This is the target type of `tree`.
         AnnotatedTypeMirror functionalInterfaceType = getFunctionalInterfaceType(tree);
+        TypeMirror javaType = TreeUtils.typeOf(tree);
+        if (AnnotatedTypes.isTypeArgOfRawType(functionalInterfaceType)
+                && javaType.getKind() == TypeKind.DECLARED) {
+            // The target is a type argument of a raw type, such as the return type of the function
+            // type of a raw functional interface type, for a lambda returned by a lambda.  The Java
+            // target type is the erasure of the type argument's bound, a raw functional interface
+            // type.  Use it, as for a lambda whose target type is written as a raw type.
+            AnnotatedTypeMirror rawType = toAnnotatedType(javaType, false);
+            rawType.addAnnotations(functionalInterfaceType.getEffectiveAnnotations());
+            functionalInterfaceType = rawType;
+        }
         if (functionalInterfaceType.getKind() == TypeKind.DECLARED) {
             functionalInterfaceType =
                     makeGroundTargetType(
                             (AnnotatedDeclaredType) functionalInterfaceType,
-                            (DeclaredType) TreeUtils.typeOf(tree));
+                            (DeclaredType) javaType);
         }
 
         // Functional method
