@@ -201,6 +201,10 @@ literal (such as `i < n`): the loop variable takes the range that the bound
 permits right away. On plume-util, it takes 8.3s instead of 10.1s. Precision is
 unchanged or better.
 
+A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
+keeps the qualifier of the expression instead of taking the type variable's
+upper bound, which hid errors such as returning `null` as a `T`.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -435,6 +439,7 @@ eisop#1987,
 eisop#1990,
 eisop#1991,
 eisop#2009,
+eisop#2011,
 eisop#2020,
 eisop#2021,
 eisop#2029,
