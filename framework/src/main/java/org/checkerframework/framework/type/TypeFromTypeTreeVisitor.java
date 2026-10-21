@@ -132,6 +132,18 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         AnnotatedTypeMirror result = f.type(tree); // use creator?
         AnnotatedTypeMirror atype = visit(tree.getType(), f);
         result.addAnnotations(atype.getAnnotationsField());
+        // For a qualified type such as Outer<@Anno String>.Inner<String>, f.type(tree) loses the
+        // annotations written on the type arguments of the enclosing type. The visit of
+        // tree.getType() restores them; see restoreWrittenEnclosingType.
+        if (tree.getType() instanceof MemberSelectTree
+                && result instanceof AnnotatedDeclaredType
+                && atype instanceof AnnotatedDeclaredType) {
+            AnnotatedDeclaredType writtenEnclosing =
+                    ((AnnotatedDeclaredType) atype).getEnclosingType();
+            if (writtenEnclosing != null) {
+                ((AnnotatedDeclaredType) result).setEnclosingType(writtenEnclosing);
+            }
+        }
         // new ArrayList<>() type is AnnotatedExecutableType for some reason
 
         // Don't initialize the type arguments if they are empty. The type arguments might be a
