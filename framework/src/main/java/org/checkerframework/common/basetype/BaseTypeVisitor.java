@@ -5532,16 +5532,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // The overrider's class viewed as the overridden class, such as Parent<E>.
             AnnotatedDeclaredType seen =
                     AnnotatedTypes.asSuper(atypeFactory, overriderType, overriddenType);
+            boolean isReceiver = true;
             for (AnnotatedDeclaredType type = overriderReceiver;
                     type != null;
-                    type = type.getEnclosingType()) {
+                    type = type.getEnclosingType(), isReceiver = false) {
                 TypeElement typeElt = (TypeElement) type.getUnderlyingType().asElement();
                 List<? extends TypeParameterElement> params = typeElt.getTypeParameters();
                 List<? extends AnnotatedTypeMirror> args = type.getTypeArguments();
                 if (args.size() != params.size()) {
                     return false;
                 }
-                boolean isReceiver = type == overriderReceiver;
                 AnnotatedDeclaredType pinning =
                         isReceiver ? seen : enclosingTypeOf(overriddenReceiver, typeElt);
                 for (int i = 0; i < args.size(); i++) {
