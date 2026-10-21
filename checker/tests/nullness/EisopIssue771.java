@@ -57,11 +57,46 @@ final class EisopIssue771 {
         Runnable r = () -> finalOther.value.toString();
     }
 
+    void explicitThis() {
+        if (this.value == null) {
+            return;
+        }
+        Runnable r = () -> this.value.toString();
+    }
+
+    void localReceiver() {
+        EisopIssue771 local = new EisopIssue771(0);
+        if (local.other == null) {
+            return;
+        }
+        Runnable r = () -> local.other.toString();
+    }
+
+    void nestedLambda() {
+        if (value == null) {
+            return;
+        }
+        Runnable r =
+                () -> {
+                    Runnable inner = () -> value.toString();
+                    inner.run();
+                };
+    }
+
     void assignableReceiver() {
         if (other == null || other.value == null) {
             return;
         }
         // :: error: (dereference.of.nullable)
         Runnable r = () -> other.value.toString();
+    }
+
+    static @MonotonicNonNull String staticValue = null;
+
+    static void staticChecked() {
+        if (staticValue == null) {
+            return;
+        }
+        Runnable r = () -> staticValue.toString();
     }
 }

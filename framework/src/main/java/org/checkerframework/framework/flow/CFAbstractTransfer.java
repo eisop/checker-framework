@@ -421,7 +421,8 @@ public abstract class CFAbstractTransfer<
             // We want the initialization stuff, but need to throw out any refinements, except to
             // the target of a monotonic qualifier: the lambda body runs later, when such a
             // refinement still holds. Update values in place; keys are unchanged.
-            S storeForLambda = store;
+            // `store` is reassigned in this method, so the lambda below captures a copy.
+            S lambdaStore = store;
             store.fieldValues.replaceAll(
                     (fieldAccess, currentValue) -> {
                         AnnotatedTypeMirror declaredType =
@@ -431,9 +432,10 @@ public abstract class CFAbstractTransfer<
                                         .leastUpperBound(currentValue);
                         if (!fieldAccess.getReceiver().isAssignableByOtherCode()) {
                             V monotonicValue =
-                                    storeForLambda.newMonotonicFieldValueAfterMethodCall(
+                                    lambdaStore.newMonotonicFieldValueAfterMethodCall(
                                             fieldAccess, analysis.getTypeFactory(), currentValue);
                             if (monotonicValue != null) {
+                                // The monotonic target, where comparable, else the declared type.
                                 newValue = monotonicValue.mostSpecific(newValue, newValue);
                             }
                         }
