@@ -93,6 +93,7 @@ import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.TypeHierarchy;
+import org.checkerframework.framework.type.TypeVariableSubstitutor;
 import org.checkerframework.framework.type.poly.QualifierPolymorphism;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
@@ -5260,6 +5261,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * only by {@link #checkTypeParameterBounds}. Returns {@code type} itself if there is
          * nothing to substitute.
          *
+         * <p>This renames type variables; it does not instantiate them. So it uses the default
+         * {@link TypeVariableSubstitutor}, not the checker's own, whose rules for the annotations
+         * of the substituted type may depend on the bound of the type variable being replaced.
+         *
          * @param type a type in the signature of the overridden method
          * @return {@code type} adapted to the type parameters of the overriding method
          */
@@ -5267,7 +5272,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (typeVariableMapping.isEmpty()) {
                 return type;
             }
-            return atypeFactory.getTypeVarSubstitutor().substitute(typeVariableMapping, type);
+            return new TypeVariableSubstitutor().substitute(typeVariableMapping, type);
         }
 
         /**
