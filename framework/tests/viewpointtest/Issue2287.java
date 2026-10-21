@@ -38,7 +38,6 @@ public class Issue2287 {
 
     static class BOrd extends Ord<@A Object> {
         @Override
-        // :: error: (override.return.invalid) :: error: (override.param.invalid)
         // :: error: (override.typaram.invalid)
         <S extends @B Object> S put(S s) {
             return s;

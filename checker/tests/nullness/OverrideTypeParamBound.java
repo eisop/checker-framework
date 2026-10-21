@@ -29,7 +29,7 @@
 // declarations identical and requalifies a single parameter or return occurrence with its own
 // explicit annotation -- a containment mismatch entirely invisible to
 // isTypeParameterBoundOverrideValid, caught only by isParameterOverrideValid/
-// isReturnOverrideValid's own type-variable fallback.
+// isReturnOverrideValid.
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -83,9 +83,8 @@ public class OverrideTypeParamBound {
     // caller of the overridden signature may instantiate T as @NonNull, per Super's (narrower)
     // lower bound -- an NPE the checker is supposed to prevent. Containment requires the
     // override's lower bound to be a subtype of (i.e. at least as restrictive as) the overridden
-    // one, so widening it is still rejected. This return type occurrence is bare (no explicit
-    // annotation of its own), so isReturnOverrideValid's own type-variable fallback independently
-    // reaches the same, now-widened, declared lower bound and reports a second diagnostic.
+    // one, so widening it is still rejected. The return type occurrence is the overrider's own type
+    // variable on both sides, so the mismatch is reported once, for the type parameter.
 
     static class Super {
         <T extends @Nullable Object> T pick(T p) {
@@ -96,7 +95,6 @@ public class OverrideTypeParamBound {
     static class SubWidenLowerReturn extends Super {
         @Override
         // :: error: (override.typaram.invalid)
-        // :: error: (override.return.invalid)
         <@Nullable T extends @Nullable Object> T pick(T p) {
             T t = null;
             return t;
@@ -111,9 +109,9 @@ public class OverrideTypeParamBound {
     // ---- Upper bound narrowed, type parameter used as a parameter. ----
     // A caller of Super2's declared signature may pass an @Nullable value; SubNarrowUpperParam's
     // own upper bound only accepts @NonNull. Containment requires the overridden upper bound to
-    // be a subtype of the override's, so narrowing is rejected. The parameter occurrence is bare,
-    // so isParameterOverrideValid's own type-variable fallback independently reaches the same
-    // declared-bound mismatch and reports a second diagnostic.
+    // be a subtype of the override's, so narrowing is rejected. The parameter occurrence is the
+    // overrider's own type variable on both sides, so the mismatch is reported once, for the type
+    // parameter.
 
     static class Super2 {
         <T extends @Nullable Object> void consume(T p) {}
@@ -122,7 +120,6 @@ public class OverrideTypeParamBound {
     static class SubNarrowUpperParam extends Super2 {
         @Override
         // :: error: (override.typaram.invalid)
-        // :: error: (override.param.invalid)
         <T extends @NonNull Object> void consume(T p) {}
     }
 
@@ -200,10 +197,7 @@ public class OverrideTypeParamBound {
     //
     // For this bare shape alone, nothing the body manufactures can escape, so this particular
     // rejection is imprecise; the check cannot distinguish it from Super16's shape, and rejects
-    // both. Note that only checkTypeParameterBounds catches this: unlike every upper-bound
-    // mismatch above, the bare parameter occurrence draws no second diagnostic, because the
-    // occurrence-level subtype check on two corresponding type variables compares their effective
-    // upper bounds and never reaches the differing lower bound.
+    // both. Only checkTypeParameterBounds catches this.
 
     static class Super15 {
         <T extends @Nullable Object> void consume(T p) {}
@@ -230,7 +224,6 @@ public class OverrideTypeParamBound {
     static class SubWidenLowerParamSink extends Super16 {
         @Override
         // :: error: (override.typaram.invalid)
-        // :: error: (override.param.invalid)
         <@Nullable T extends @Nullable Object> void consume(T p, List<T> sink) {
             T manufactured = null;
             sink.add(manufactured);
@@ -277,10 +270,8 @@ public class OverrideTypeParamBound {
     }
 
     // ---- Type parameter used only nested inside a parameter type, not bare. ----
-    // Unlike every case above, this reports two diagnostics, not one: the per-occurrence
-    // type-variable check that isParameterOverrideValid falls back to only ever applies to a bare
-    // occurrence, never to a type parameter nested inside List<T>. The ordinary parameter-type
-    // subtype check, which does see this nested occurrence, independently rejects it too.
+    // The nested occurrence is the overrider's own type variable on both sides, so the mismatch is
+    // reported once, for the type parameter.
 
     static class Super7 {
         <T extends @Nullable Object> void consumeList(List<T> p) {}
@@ -289,16 +280,13 @@ public class OverrideTypeParamBound {
     static class SubNestedTypeParam extends Super7 {
         @Override
         // :: error: (override.typaram.invalid)
-        // :: error: (override.param.invalid)
         <T extends @NonNull Object> void consumeList(List<T> p) {}
     }
 
     // ---- Multiple type parameters: only the second one's bound differs. ----
     // Confirms checkTypeParameterBounds compares type parameters positionally -- diagnostics only
     // for the mismatched index, none for the matching one -- not one verdict for the whole
-    // method. U's parameter occurrence is bare, so it draws a second diagnostic the same way the
-    // single-type-parameter cases above do; T's occurrence draws none, since T's own bound did
-    // not change.
+    // method.
 
     static class Super8 {
         <T extends @Nullable Object, U extends @Nullable Object> void consumeTwo(T p1, U p2) {}
@@ -310,7 +298,6 @@ public class OverrideTypeParamBound {
                         T extends @Nullable Object,
                         // :: error: (override.typaram.invalid)
                         U extends @NonNull Object>
-                // :: error: (override.param.invalid)
                 void consumeTwo(T p1, U p2) {}
     }
 
@@ -345,11 +332,15 @@ public class OverrideTypeParamBound {
     }
 
     // ---- A bound that mentions a type variable of the same method (eisop#1971). ----
-    // The overriding method's type variables are substituted for the overridden method's in the
-    // overridden bound before the bounds are compared, as in JLS 8.4.4. Otherwise an F-bound such
-    // as <T extends Comparable<T>>, or one type parameter's bound naming another, would compare
-    // two distinct type variables in an invariant type-argument position and fail no matter
-    // which direction the qualifier moved.
+    // The overridden signature is adapted to the overriding method's type parameters, as in JLS
+    // 8.4.4: the overriding method's type variables are substituted for the overridden method's
+    // in its bounds, parameter types and return type before they are compared. Both methods then
+    // use the same type variables wherever a type parameter occurs, however nested, and the
+    // qualifier difference between the two declarations' bounds is judged once, as
+    // override.typaram.invalid. Without the adaptation, an F-bound such as
+    // <T extends Comparable<T>>, or one type parameter's bound naming another, would compare two
+    // distinct type variables in an invariant type-argument position and fail no matter which
+    // direction the qualifier moved.
     //
     // Super17/SubFBoundWiden below is the sound direction: the F-bound's qualifier is widened.
 
@@ -370,9 +361,7 @@ public class OverrideTypeParamBound {
     static class SubFBoundNarrow extends Super17Narrow {
         @Override
         // :: error: (override.typaram.invalid)
-        <T extends @NonNull Comparable<T>> void use(
-                // :: error: (override.param.invalid)
-                T p) {}
+        <T extends @NonNull Comparable<T>> void use(T p) {}
     }
 
     // A bound that names another type parameter of the method.
@@ -388,13 +377,11 @@ public class OverrideTypeParamBound {
 
         @Override
         // :: error: (override.typaram.invalid)
-        <A extends @NonNull Object, B extends @NonNull List<A>> void narrow(
-                // :: error: (override.param.invalid)
-                B p) {}
+        <A extends @NonNull Object, B extends @NonNull List<A>> void narrow(B p) {}
     }
 
-    // The same holds when the type parameter is the return type or the type of a parameter that
-    // is checked by type-variable containment, not only when it is used inside another type.
+    // The same holds wherever the type parameter occurs: as a return type, as a parameter, or
+    // nested in another type.
     static class Super19 {
         <T extends @NonNull Comparable<T>> T max(T a, T b) {
             return a;
@@ -413,11 +400,7 @@ public class OverrideTypeParamBound {
 
         @Override
         // :: error: (override.typaram.invalid)
-        <T extends @NonNull Comparable<T>> T maxNarrow(
-                // :: error: (override.param.invalid)
-                T a,
-                // :: error: (override.param.invalid)
-                T b) {
+        <T extends @NonNull Comparable<T>> T maxNarrow(T a, T b) {
             return a;
         }
     }
@@ -450,7 +433,7 @@ public class OverrideTypeParamBound {
     // the type parameter's own declaration. Both type parameters below declare the identical bound
     // <T extends @Nullable Object>, so checkTypeParameterBounds sees no mismatch; the unsoundness
     // is entirely in the requalified occurrence, which only isParameterOverrideValid/
-    // isReturnOverrideValid's own type-variable fallback can see.
+    // isReturnOverrideValid can see.
 
     // Parameter requalified narrower than the shared declared bound: a caller of Super9's declared
     // signature may pass an @Nullable value; SubRequalifiedParamNarrower's own parameter only
