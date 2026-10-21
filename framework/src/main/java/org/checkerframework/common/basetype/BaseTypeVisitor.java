@@ -5508,11 +5508,21 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * Returns true if the type arguments of the overrider's receiver accept every receiver that
          * the overridden method's receiver accepts.
          *
-         * <p>A receiver whose type arguments are the class's own type parameters, as in {@code
-         * Child<E> this} in {@code class Child<E>}, accepts every instance of the class, so it is
-         * always valid. Otherwise, the overrider's receiver viewed as the overridden method's class
-         * must be a supertype of the overridden method's receiver. Primary annotations are not
-         * compared here; {@link #isReceiverPrimaryOverrideValid} checks them.
+         * <p>A type argument of the overrider's receiver or of one of its enclosing types is valid
+         * if either
+         *
+         * <ol>
+         *   <li>it is the class's own type parameter without an annotation, as in {@code Child<E>
+         *       this} in {@code class Child<E>}; this is the type of {@code this} and accepts every
+         *       instance of the class, or
+         *   <li>it is equal to the type argument that the overridden receiver fixes at that
+         *       position.
+         * </ol>
+         *
+         * A type parameter of the overrider's class that does not flow into the overridden class,
+         * such as {@code F} in {@code class Child<E, F> extends Parent<E>}, is fixed by nothing, so
+         * any annotation on it is a narrowing. Primary annotations are not compared here; {@link
+         * #isReceiverPrimaryOverrideValid} checks them.
          *
          * @param overriderReceiver the receiver of the overrider
          * @param overriddenReceiver the receiver of the overridden method
@@ -5520,8 +5530,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         private boolean isReceiverTypeArgumentOverrideValid(
                 AnnotatedDeclaredType overriderReceiver, AnnotatedDeclaredType overriddenReceiver) {
-            if (overriddenReceiver.getTypeArguments().isEmpty()
-                    || hasOwnTypeParametersAsTypeArguments(overriderReceiver)) {
+            if (hasOwnTypeParametersAsTypeArguments(overriderReceiver)) {
+                return true;
+            }
+            if (!areNonOwnTypeArgumentsSeenByOverridden(overriderReceiver)) {
+                return false;
+            }
+            if (overriddenReceiver.getTypeArguments().isEmpty()) {
                 return true;
             }
             AnnotatedDeclaredType overriderAsSuper =
@@ -5532,9 +5547,67 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
+         * Returns true if every type argument of {@code overriderReceiver} and of its enclosing
+         * types that is not its class's own type parameter is for a type parameter that the
+         * overridden class sees, that is, one that is a direct type argument of the overrider's
+         * class viewed as the overridden class. Other type arguments are fixed by nothing in the
+         * overridden method's receiver, and the subtype check on that receiver does not compare
+         * them.
+         *
+         * @param overriderReceiver the receiver of the overrider
+         * @return true if every non-own type argument of the overrider's receiver is seen by the
+         *     overridden class
+         */
+        private boolean areNonOwnTypeArgumentsSeenByOverridden(
+                AnnotatedDeclaredType overriderReceiver) {
+            AnnotatedDeclaredType seen =
+                    AnnotatedTypes.asSuper(atypeFactory, overriderType, overriddenType);
+            for (AnnotatedDeclaredType type = overriderReceiver;
+                    type != null;
+                    type = type.getEnclosingType()) {
+                List<? extends TypeParameterElement> typeParams =
+                        ((TypeElement) type.getUnderlyingType().asElement()).getTypeParameters();
+                List<? extends AnnotatedTypeMirror> typeArgs = type.getTypeArguments();
+                if (typeArgs.size() != typeParams.size()) {
+                    return false;
+                }
+                for (int i = 0; i < typeArgs.size(); i++) {
+                    TypeParameterElement param = typeParams.get(i);
+                    if (!isOwnTypeParameter(typeArgs.get(i), param)
+                            && !isDirectTypeArgument(seen, param)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        /**
+         * Returns true if {@code type} has the type parameter {@code param} as a type argument
+         * (with or without annotations).
+         *
+         * @param type a declared type
+         * @param param a type parameter
+         * @return true if {@code param} is a direct type argument of {@code type}
+         */
+        private boolean isDirectTypeArgument(
+                AnnotatedDeclaredType type, TypeParameterElement param) {
+            for (AnnotatedTypeMirror typeArg : type.getTypeArguments()) {
+                if (typeArg.getKind() == TypeKind.TYPEVAR
+                        && ((AnnotatedTypeVariable) typeArg)
+                                .getUnderlyingType()
+                                .asElement()
+                                .equals(param)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
          * Returns true if the type arguments of {@code type} and of its enclosing types are exactly
          * the type parameters of their classes, without primary annotations, as in the type of
-         * {@code this}. Also returns true for a raw type.
+         * {@code this}.
          *
          * @param type a declared type
          * @return true if the type arguments of {@code type} are its class's own type parameters
@@ -5543,21 +5616,34 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             List<? extends TypeParameterElement> typeParams =
                     ((TypeElement) type.getUnderlyingType().asElement()).getTypeParameters();
             List<? extends AnnotatedTypeMirror> typeArgs = type.getTypeArguments();
-            if (typeArgs.size() == typeParams.size()) {
-                for (int i = 0; i < typeArgs.size(); i++) {
-                    AnnotatedTypeMirror typeArg = typeArgs.get(i);
-                    if (typeArg.getKind() != TypeKind.TYPEVAR
-                            || !typeArg.getAnnotations().isEmpty()
-                            || !((AnnotatedTypeVariable) typeArg)
-                                    .getUnderlyingType()
-                                    .asElement()
-                                    .equals(typeParams.get(i))) {
-                        return false;
-                    }
+            if (typeArgs.size() != typeParams.size()) {
+                return false;
+            }
+            for (int i = 0; i < typeArgs.size(); i++) {
+                if (!isOwnTypeParameter(typeArgs.get(i), typeParams.get(i))) {
+                    return false;
                 }
             }
             AnnotatedDeclaredType enclosing = type.getEnclosingType();
             return enclosing == null || hasOwnTypeParametersAsTypeArguments(enclosing);
+        }
+
+        /**
+         * Returns true if {@code typeArg} is the type variable for {@code param} without a primary
+         * annotation.
+         *
+         * @param typeArg a type argument
+         * @param param a type parameter of the class that {@code typeArg} is an argument for
+         * @return true if {@code typeArg} is the unannotated type variable for {@code param}
+         */
+        private boolean isOwnTypeParameter(
+                AnnotatedTypeMirror typeArg, TypeParameterElement param) {
+            return typeArg.getKind() == TypeKind.TYPEVAR
+                    && typeArg.getAnnotations().isEmpty()
+                    && ((AnnotatedTypeVariable) typeArg)
+                            .getUnderlyingType()
+                            .asElement()
+                            .equals(param);
         }
 
         /**

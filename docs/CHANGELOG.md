@@ -203,8 +203,9 @@ unchanged or better.
 
 An override whose receiver narrows the type arguments of the overridden method's
 receiver, such as `Child<@NonNull E> this` overriding `Parent<E> this`, is now
-reported as `override.receiver.invalid`. Previously only the receiver's primary
-annotations were compared.
+reported as `override.receiver.invalid`, including a narrowed type argument of an
+enclosing type or of a type parameter that the overridden class does not see.
+Previously only the receiver's primary annotations were compared.
 
 ### Implementation details
 
