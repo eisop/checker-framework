@@ -393,6 +393,49 @@ public class OverrideTypeParamBound {
                 B p) {}
     }
 
+    // The same holds when the type parameter is the return type or the type of a parameter that
+    // is checked by type-variable containment, not only when it is used inside another type.
+    static class Super19 {
+        <T extends @NonNull Comparable<T>> T max(T a, T b) {
+            return a;
+        }
+
+        <T extends @Nullable Comparable<T>> T maxNarrow(T a, T b) {
+            return a;
+        }
+    }
+
+    static class SubFBoundReturn extends Super19 {
+        @Override
+        <T extends @Nullable Comparable<T>> T max(T a, T b) {
+            return a;
+        }
+
+        @Override
+        // :: error: (override.typaram.invalid)
+        <T extends @NonNull Comparable<T>> T maxNarrow(
+                // :: error: (override.param.invalid)
+                T a,
+                // :: error: (override.param.invalid)
+                T b) {
+            return a;
+        }
+    }
+
+    // A bound that names another type parameter, with the type parameter as the return type.
+    static class Super20 {
+        <A extends @NonNull Object, B extends @NonNull List<A>> B first(B p) {
+            return p;
+        }
+    }
+
+    static class SubCrossReturn extends Super20 {
+        @Override
+        <A extends @NonNull Object, B extends @Nullable List<A>> B first(B p) {
+            return p;
+        }
+    }
+
     // Identical F-bounds compare cleanly and terminate despite the self-reference.
     static class Super18 {
         <T extends @NonNull Comparable<T>> void use(T p) {}

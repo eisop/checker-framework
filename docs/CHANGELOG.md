@@ -201,9 +201,10 @@ literal (such as `i < n`): the loop variable takes the range that the bound
 permits right away. On plume-util, it takes 8.3s instead of 10.1s. Precision is
 unchanged or better.
 
-`override.typaram.invalid` is no longer reported for an override that widens the
-qualifier of an F-bounded type parameter, such as `<T extends @Nullable Comparable<T>>`
-overriding `<T extends @NonNull Comparable<T>>`.
+`override.typaram.invalid`, `override.return.invalid` and `override.param.invalid` are no
+longer reported for an override that widens the qualifier of an F-bounded type parameter,
+such as `<T extends @Nullable Comparable<T>> T max(T a, T b)` overriding
+`<T extends @NonNull Comparable<T>> T max(T a, T b)`.
 
 An override whose receiver narrows the type arguments of the overridden method's
 receiver, such as `Child<@NonNull E> this` overriding `Parent<E> this`, is now
