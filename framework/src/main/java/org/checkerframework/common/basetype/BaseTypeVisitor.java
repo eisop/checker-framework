@@ -5508,21 +5508,20 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * Returns true if the type arguments of the overrider's receiver accept every receiver that
          * the overridden method's receiver accepts.
          *
-         * <p>A type argument of the overrider's receiver or of one of its enclosing types is valid
-         * if either
+         * <p>Each type argument of the overrider's receiver and of its enclosing types is valid if
+         * either
          *
          * <ol>
          *   <li>it is the class's own type parameter without an annotation, as in {@code Child<E>
          *       this} in {@code class Child<E>}; this is the type of {@code this} and accepts every
          *       instance of the class, or
-         *   <li>it is equal to the type argument that the overridden receiver fixes at that
-         *       position.
+         *   <li>it is equal to the overridden receiver's type argument at every position that pins
+         *       it, and at least one position does.
          * </ol>
          *
-         * A type parameter of the overrider's class that does not flow into the overridden class,
-         * such as {@code F} in {@code class Child<E, F> extends Parent<E>}, is fixed by nothing, so
-         * any annotation on it is a narrowing. Primary annotations are not compared here; {@link
-         * #isReceiverPrimaryOverrideValid} checks them.
+         * A type parameter that nothing pins, such as {@code F} in {@code class Child<E, F> extends
+         * Parent<E>}, is fixed by nothing, so any annotation on it is a narrowing. Primary
+         * annotations are not compared here; {@link #isReceiverPrimaryOverrideValid} checks them.
          *
          * @param overriderReceiver the receiver of the overrider
          * @param overriddenReceiver the receiver of the overridden method
@@ -5530,73 +5529,50 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         private boolean isReceiverTypeArgumentOverrideValid(
                 AnnotatedDeclaredType overriderReceiver, AnnotatedDeclaredType overriddenReceiver) {
-            if (hasOwnTypeParametersAsTypeArguments(overriderReceiver)) {
-                return true;
-            }
-            if (!areNonOwnTypeArgumentsFixedByOverridden(overriderReceiver, overriddenReceiver)) {
-                return false;
-            }
-            if (overriddenReceiver.getTypeArguments().isEmpty()) {
-                return true;
-            }
-            AnnotatedDeclaredType overriderAsSuper =
-                    AnnotatedTypes.asSuper(atypeFactory, overriderReceiver, overriddenReceiver)
-                            .deepCopy();
-            overriderAsSuper.replaceAnnotations(overriddenReceiver.getAnnotations());
-            return typeHierarchy.isSubtype(overriddenReceiver, overriderAsSuper);
-        }
-
-        /**
-         * Returns true if every type argument of {@code overriderReceiver} and of its enclosing
-         * types that is not its class's own type parameter is fixed by the overridden method's
-         * receiver, so that comparing it is meaningful:
-         *
-         * <ul>
-         *   <li>A type argument of {@code overriderReceiver} itself must be for a type parameter
-         *       that the overrider's class passes on to the overridden class, that is, one that is
-         *       a direct type argument of the overrider's class viewed as the overridden class. The
-         *       subtype check on the receivers compares those type arguments.
-         *   <li>A type argument of an enclosing type must be equal to the type argument at the same
-         *       position of the enclosing type of the overridden receiver for the same class. If
-         *       there is no such enclosing type, the type parameter is fixed by nothing.
-         * </ul>
-         *
-         * @param overriderReceiver the receiver of the overrider
-         * @param overriddenReceiver the receiver of the overridden method
-         * @return true if every non-own type argument of the overrider's receiver is fixed by the
-         *     overridden receiver
-         */
-        private boolean areNonOwnTypeArgumentsFixedByOverridden(
-                AnnotatedDeclaredType overriderReceiver, AnnotatedDeclaredType overriddenReceiver) {
+            // The overrider's class viewed as the overridden class, such as Parent<E>.
             AnnotatedDeclaredType seen =
                     AnnotatedTypes.asSuper(atypeFactory, overriderType, overriddenType);
             for (AnnotatedDeclaredType type = overriderReceiver;
                     type != null;
                     type = type.getEnclosingType()) {
                 TypeElement typeElt = (TypeElement) type.getUnderlyingType().asElement();
-                List<? extends TypeParameterElement> typeParams = typeElt.getTypeParameters();
-                List<? extends AnnotatedTypeMirror> typeArgs = type.getTypeArguments();
-                if (typeArgs.size() != typeParams.size()) {
+                List<? extends TypeParameterElement> params = typeElt.getTypeParameters();
+                List<? extends AnnotatedTypeMirror> args = type.getTypeArguments();
+                if (args.size() != params.size()) {
                     return false;
                 }
-                AnnotatedDeclaredType overriddenEnclosing =
-                        type == overriderReceiver
-                                ? null
-                                : enclosingTypeOf(overriddenReceiver, typeElt);
-                for (int i = 0; i < typeArgs.size(); i++) {
-                    TypeParameterElement param = typeParams.get(i);
-                    AnnotatedTypeMirror typeArg = typeArgs.get(i);
-                    if (isOwnTypeParameter(typeArg, param)) {
+                boolean isReceiver = type == overriderReceiver;
+                AnnotatedDeclaredType pinning =
+                        isReceiver ? seen : enclosingTypeOf(overriddenReceiver, typeElt);
+                for (int i = 0; i < args.size(); i++) {
+                    AnnotatedTypeMirror arg = args.get(i);
+                    if (isOwnTypeParameter(arg, params.get(i))) {
+                        // The type of "this" accepts every instance of the class.
                         continue;
                     }
-                    if (type == overriderReceiver) {
-                        if (!isDirectTypeArgument(seen, param)) {
-                            return false;
+                    if (pinning == null) {
+                        // Fixed by nothing: the overridden receiver has no counterpart.
+                        return false;
+                    }
+                    List<? extends AnnotatedTypeMirror> pinningArgs = pinning.getTypeArguments();
+                    List<? extends AnnotatedTypeMirror> overriddenArgs =
+                            overriddenReceiver.getTypeArguments();
+                    boolean pinned = false;
+                    for (int j = 0; j < pinningArgs.size(); j++) {
+                        boolean pinsHere =
+                                isReceiver
+                                        ? isTypeVariableFor(pinningArgs.get(j), params.get(i))
+                                        : j == i;
+                        if (pinsHere) {
+                            pinned = true;
+                            AnnotatedTypeMirror required =
+                                    isReceiver ? overriddenArgs.get(j) : pinningArgs.get(j);
+                            if (!isEqualType(arg, required)) {
+                                return false;
+                            }
                         }
-                    } else if (overriddenEnclosing == null
-                            || overriddenEnclosing.getTypeArguments().size() != typeArgs.size()
-                            || !isEqualType(
-                                    typeArg, overriddenEnclosing.getTypeArguments().get(i))) {
+                    }
+                    if (!pinned) {
                         return false;
                     }
                 }
@@ -5636,52 +5612,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
-         * Returns true if {@code type} has the type parameter {@code param} as a type argument
-         * (with or without annotations).
-         *
-         * @param type a declared type
-         * @param param a type parameter
-         * @return true if {@code param} is a direct type argument of {@code type}
-         */
-        private boolean isDirectTypeArgument(
-                AnnotatedDeclaredType type, TypeParameterElement param) {
-            for (AnnotatedTypeMirror typeArg : type.getTypeArguments()) {
-                if (typeArg.getKind() == TypeKind.TYPEVAR
-                        && ((AnnotatedTypeVariable) typeArg)
-                                .getUnderlyingType()
-                                .asElement()
-                                .equals(param)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Returns true if the type arguments of {@code type} and of its enclosing types are exactly
-         * the type parameters of their classes, without primary annotations, as in the type of
-         * {@code this}.
-         *
-         * @param type a declared type
-         * @return true if the type arguments of {@code type} are its class's own type parameters
-         */
-        private boolean hasOwnTypeParametersAsTypeArguments(AnnotatedDeclaredType type) {
-            List<? extends TypeParameterElement> typeParams =
-                    ((TypeElement) type.getUnderlyingType().asElement()).getTypeParameters();
-            List<? extends AnnotatedTypeMirror> typeArgs = type.getTypeArguments();
-            if (typeArgs.size() != typeParams.size()) {
-                return false;
-            }
-            for (int i = 0; i < typeArgs.size(); i++) {
-                if (!isOwnTypeParameter(typeArgs.get(i), typeParams.get(i))) {
-                    return false;
-                }
-            }
-            AnnotatedDeclaredType enclosing = type.getEnclosingType();
-            return enclosing == null || hasOwnTypeParametersAsTypeArguments(enclosing);
-        }
-
-        /**
          * Returns true if {@code typeArg} is the type variable for {@code param} without a primary
          * annotation.
          *
@@ -5691,8 +5621,19 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         private boolean isOwnTypeParameter(
                 AnnotatedTypeMirror typeArg, TypeParameterElement param) {
+            return typeArg.getAnnotations().isEmpty() && isTypeVariableFor(typeArg, param);
+        }
+
+        /**
+         * Returns true if {@code typeArg} is the type variable for {@code param}, with or without a
+         * primary annotation.
+         *
+         * @param typeArg a type argument
+         * @param param a type parameter
+         * @return true if {@code typeArg} is a type variable for {@code param}
+         */
+        private boolean isTypeVariableFor(AnnotatedTypeMirror typeArg, TypeParameterElement param) {
             return typeArg.getKind() == TypeKind.TYPEVAR
-                    && typeArg.getAnnotations().isEmpty()
                     && ((AnnotatedTypeVariable) typeArg)
                             .getUnderlyingType()
                             .asElement()

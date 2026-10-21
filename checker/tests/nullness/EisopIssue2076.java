@@ -224,6 +224,18 @@ public class EisopIssue2076 {
         void m(GenericChildNarrowed<@NonNull E> this) {}
     }
 
+    // E is universal and F matches, so the override is valid even though the receivers are not
+    // equal as a whole.
+    static class TwoParent<E extends @Nullable Object, F extends @Nullable Object> {
+        void m(TwoParent<@PolyNull E, @NonNull F> this) {}
+    }
+
+    static class TwoChild<E extends @Nullable Object, F extends @Nullable Object>
+            extends TwoParent<E, F> {
+        @Override
+        void m(TwoChild<E, @NonNull F> this) {}
+    }
+
     static void use() {
         Child<@Nullable String> child = new Child<>(null);
         Parent<@Nullable String> parent = child;
