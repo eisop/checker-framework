@@ -1516,7 +1516,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 AnnotatedTypes.asMemberOf(types, this, overriddenType, overriddenMethodElt);
         if (viewpointAdapter != null) {
             // Adapt to a use of the class: the type arguments of its declaration are type variable
-            // declarations, which cannot be type variable bounds (eisop#2287).
+            // declarations, which cannot be type variable bounds.
             viewpointAdapter.viewpointAdaptMethod(
                     overriderType.asUse(), overriddenMethodElt, result);
         }
@@ -2989,8 +2989,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the type of {@code this} at the location of {@code tree}
      */
     public @Nullable AnnotatedDeclaredType getSelfType(Tree tree) {
+        // The type of "this" is a use of the class, not its declaration.
         if (TreeUtils.isClassTree(tree)) {
-            return getAnnotatedType(TreeUtils.elementFromDeclaration((ClassTree) tree));
+            return getAnnotatedType(TreeUtils.elementFromDeclaration((ClassTree) tree)).asUse();
         }
 
         Tree enclosingTree = getEnclosingClassOrMethod(tree);
@@ -3005,7 +3006,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 return getAnnotatedType(enclosingMethod).getReceiverType();
             }
         } else if (TreeUtils.isClassTree(enclosingTree)) {
-            return (AnnotatedDeclaredType) getAnnotatedType(enclosingTree);
+            return ((AnnotatedDeclaredType) getAnnotatedType(enclosingTree)).asUse();
         }
         return null;
     }
