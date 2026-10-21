@@ -164,6 +164,48 @@ public class EisopIssue2076 {
         }
     }
 
+    // An F-bounded class parameter.
+    static class FParent<E extends Comparable<E>> {
+        void m(FParent<E> this) {}
+    }
+
+    static class FChild<E extends Comparable<E>> extends FParent<E> {
+        @Override
+        void m(FChild<E> this) {}
+    }
+
+    // The overridden class is an interface.
+    interface Iface<E extends @Nullable Object> {
+        default void m(Iface<E> this) {}
+    }
+
+    static class Impl<E extends @Nullable Object> implements Iface<E> {
+        @Override
+        public void m(Impl<E> this) {}
+    }
+
+    static class ImplNarrowed<E extends @Nullable Object> implements Iface<E> {
+        @Override
+        // :: error: (override.receiver.invalid)
+        public void m(ImplNarrowed<@NonNull E> this) {}
+    }
+
+    // A generic class that extends a class without type parameters.
+    static class Base {
+        void m(Base this) {}
+    }
+
+    static class GenericChild<E extends @Nullable Object> extends Base {
+        @Override
+        void m(GenericChild<E> this) {}
+    }
+
+    static class GenericChildNarrowed<E extends @Nullable Object> extends Base {
+        @Override
+        // :: error: (override.receiver.invalid)
+        void m(GenericChildNarrowed<@NonNull E> this) {}
+    }
+
     static void use() {
         Child<@Nullable String> child = new Child<>(null);
         Parent<@Nullable String> parent = child;
