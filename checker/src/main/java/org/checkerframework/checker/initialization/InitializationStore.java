@@ -52,12 +52,12 @@ public class InitializationStore extends CFAbstractStore<CFValue, Initialization
      * initialized.
      */
     @Override
-    public void insertValue(JavaExpression je, CFValue value, boolean permitNondeterministic) {
-        if (!shouldInsert(je, value, permitNondeterministic)) {
+    public void insertValue(JavaExpression je, CFValue value, boolean permitImpure) {
+        if (!shouldInsert(je, value, permitImpure)) {
             return;
         }
 
-        super.insertValue(je, value, permitNondeterministic);
+        super.insertValue(je, value, permitImpure);
 
         if (je instanceof FieldAccess) {
             FieldAccess fa = (FieldAccess) je;
