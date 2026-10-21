@@ -92,18 +92,26 @@ public class MethodCall extends JavaExpression {
         return null;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>A deterministic method that modifies the heap may return a different value when it is
+     * called again, so a call is pure only if the method is also side-effect-free.
+     */
     @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
+    public boolean isPure(AnnotationProvider provider) {
         return (PurityUtils.isDeterministic(provider, method) || provider.isDeterministic(method))
-                && listIsDeterministic(arguments, provider);
+                && (PurityUtils.isSideEffectFree(provider, method)
+                        || provider.isSideEffectFree(method))
+                && receiver.isPure(provider)
+                && listIsPure(arguments, provider);
     }
 
     @Override
     public boolean isAssignableByOtherCode() {
-        // TODO: The following comment is no longer accurate.  It should be removed and the
-        // implementation changed.
-        // There is no need to check that the method is deterministic, because a MethodCall is
-        // only created for deterministic methods.
+        // This ignores whether the method is pure, so a call that is not pure, with a ClassName
+        // receiver and unmodifiable arguments, is not evicted when a method with side effects is
+        // called; see https://github.com/eisop/checker-framework/issues/2326 .
         if (receiver.isModifiableByOtherCode()) {
             return true;
         }
