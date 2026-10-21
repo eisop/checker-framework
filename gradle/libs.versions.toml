@@ -12,7 +12,7 @@ jgit-version = "7.8.0.202609011348-r"
 
 biz-aqute-bnd-builder = { id = "biz.aQute.bnd.builder", version = "7.4.0" }
 
-com-diffplug-spotless = { id = "com.diffplug.spotless", version = "8.10.3" }
+com-diffplug-spotless = { id = "com.diffplug.spotless", version = "8.10.4" }
 
 com-dorongold-task-tree = { id = "com.dorongold.task-tree", version = "4.0.2" }
 

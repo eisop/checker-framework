@@ -26,7 +26,7 @@ public class SuperReference extends JavaExpression {
     }
 
     @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
+    public boolean isPure(AnnotationProvider provider) {
         return true;
     }
 

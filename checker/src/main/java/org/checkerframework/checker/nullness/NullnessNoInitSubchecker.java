@@ -77,6 +77,10 @@ public class NullnessNoInitSubchecker extends BaseTypeChecker {
                 // Already the default; named here so the mode states the behavior it relies on.
                 activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
                 activeOptions.putIfAbsent("assumeKeyFor", null);
+                // The mode also sets this on InitializationFieldAccessSubchecker, which then does
+                // no analysis; NullnessNoInitSubchecker must agree, else its field-access
+                // annotator queries the stores of that unanalyzed subchecker.
+                activeOptions.putIfAbsent("assumeInitialized", null);
                 activeOptions.putIfAbsent("jspecifyUnrecognizedLocations", null);
                 activeOptions.putIfAbsent("assumePure", null);
                 // Not putIfAbsent: a bare -AstoreInBytecode maps to null, which putIfAbsent would
