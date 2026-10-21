@@ -34,7 +34,9 @@
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class OverrideTypeParamBound {
 
@@ -417,6 +419,46 @@ public class OverrideTypeParamBound {
         <A extends @NonNull Object, B extends @Nullable List<A>> B first(B p) {
             return p;
         }
+    }
+
+    // The type parameter nested in a parameter type and in a return type.
+    static class Super21 {
+        <T extends @NonNull Comparable<T>> void use(List<T> p) {}
+
+        <T extends @NonNull Comparable<T>> List<T> produce() {
+            return new ArrayList<>();
+        }
+    }
+
+    static class SubNestedWiden extends Super21 {
+        @Override
+        <T extends @Nullable Comparable<T>> void use(List<T> p) {}
+
+        @Override
+        <T extends @Nullable Comparable<T>> List<T> produce() {
+            return new ArrayList<>();
+        }
+    }
+
+    // Narrowing is reported once, for the type parameter.
+    static class Super21Narrow {
+        <T extends @Nullable Comparable<T>> void use(List<T> p) {}
+    }
+
+    static class SubNestedNarrow extends Super21Narrow {
+        @Override
+        // :: error: (override.typaram.invalid)
+        <T extends @NonNull Comparable<T>> void use(List<T> p) {}
+    }
+
+    // A bound that names another type parameter, with the type parameters nested in a type.
+    static class Super22 {
+        <A extends @NonNull Object, B extends @NonNull List<A>> void use(Map<A, B> p) {}
+    }
+
+    static class SubCrossNested extends Super22 {
+        @Override
+        <A extends @NonNull Object, B extends @Nullable List<A>> void use(Map<A, B> p) {}
     }
 
     // Identical F-bounds compare cleanly and terminate despite the self-reference.
