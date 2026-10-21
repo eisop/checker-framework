@@ -201,6 +201,12 @@ literal (such as `i < n`): the loop variable takes the range that the bound
 permits right away. On plume-util, it takes 8.3s instead of 10.1s. Precision is
 unchanged or better.
 
+An override whose receiver narrows the type arguments of the overridden method's
+receiver, such as `Child<@NonNull E> this` overriding `Parent<E> this`, is now
+reported as `override.receiver.invalid`, including a narrowed type argument of an
+enclosing type or of a type parameter that the overridden class does not see.
+Previously only the receiver's primary annotations were compared.
+
 A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
 keeps the qualifier of the expression instead of taking the type variable's
 upper bound, which hid errors such as returning `null` as a `T`.
@@ -458,6 +464,7 @@ eisop#2061,
 eisop#2064,
 eisop#2072,
 eisop#2074,
+eisop#2076,
 eisop#2081,
 eisop#2083,
 eisop#2084,
