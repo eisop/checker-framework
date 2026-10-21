@@ -70,6 +70,8 @@ public class Marks3c {
         if (getOptCustomerImpure().isPresent()) {
             // No "prefer.map.and.orelse" warning because calling `getOptCustomerImpure()` once
             // instead of twice may not be semantics-preserving.
+            // The second call may return an empty Optional, because the method is not pure.
+            // :: error: (method.invocation.invalid)
             Customer c = identity(getOptCustomerImpure().get());
         } else {
         }

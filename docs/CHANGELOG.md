@@ -20,6 +20,8 @@ under the Initialization Checker (and any checker built on it, such as the
 Nullness Checker) is no longer quadratic in the number of fields: a class
 with 4000 fields now type-checks in ~11 seconds instead of ~26. Merging
 dataflow stores after many method calls in such a class is also faster.
+Very long method bodies, and many calls to methods with contracts such as `Map.put`,
+are also faster.
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale
@@ -45,6 +47,7 @@ They are independent of the other subprojects. They are released separately from
 Checker Framework: as the Maven artifact `io.github.eisop:annotation-file-utilities`
 and as `annotation-file-utilities-VERSION.zip`. The changes of `eisop/annotation-tools` have
 been merged into them.
+The manual of the Annotation File Utilities documents the Maven artifact.
 The annotator and its tests now also work on Windows: an implicit class bound is no longer
 inserted one character too far to the right there.
 
@@ -63,6 +66,9 @@ Type-checking and subtyping improvements:
 - Receiver type-argument subtyping is now checked: annotations on a method
   receiver's type arguments (e.g., `void test(Box<@NonNull T> this)`) were
   previously ignored.
+- Subtyping, type equality, and type argument inference now compare the type
+  arguments of enclosing types: `Outer<@Nullable String>.Inner` is no longer a
+  subtype of `Outer<@NonNull String>.Inner`.
 - `-AcheckCastElementType` now requires array components to be invariant in
   array casts and `instanceof` binding patterns, closing an unsoundness:
   array components are mutable and qualifiers are not reified.
@@ -86,6 +92,13 @@ Type-checking and subtyping improvements:
 - Repeated `@RequiresNonEmpty` annotations on one method are now enforced:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
+- Flow-sensitive refinement of a method call's result now requires the method to be
+  `@Deterministic` and `@SideEffectFree`, except for facts stated by a contract about the next
+  evaluation of a call. A contract no longer refines an argument or receiver that is a call to a
+  method that is not pure, and no longer refines an expression that contains such a call, such as
+  `nondet().f`.
+- The Value Checker no longer refines the receiver of `startsWith` or `endsWith` if it is a call to
+  a method that is not pure.
 
 JSpecify support in the Nullness Checker:
 
@@ -95,6 +108,7 @@ JSpecify support in the Nullness Checker:
   specifies: checks only `@AnnotatedFor` scope, treats `@NullMarked` as a
   defaulting annotation, skips initialization/map-key checking, assumes purity
   and enabled assertions, and applies permissive defaults to unscoped code.
+  Field reads through another object no longer crash (eisop#2259).
 - `@NullMarked` aliases `@AnnotatedFor` scoped to nullness (plus
   `@DefaultQualifier`), and `@NullUnmarked` aliases `@UnannotatedFor`. Both
   apply under `-AuseConservativeDefaultsForUncheckedCode` and compose with
@@ -144,6 +158,8 @@ The Fenum Checker preserves a fake enum across boxing/unboxing via
 
 Command-line option additions and changes:
 
+- `-AassumeDeterministic` alone no longer enables refinement of repeated calls; use `-AassumePure`
+  or both `-AassumeDeterministic` and `-AassumeSideEffectFree`.
 - `-AstoreInBytecode=false`: writes only source-code annotations to the `.class`
   file, not the qualifiers inferred by defaulting or read from ajava or merged
   stub files, which can break downstream tools (Kotlin treats a stored
@@ -169,6 +185,11 @@ A stub file that declares a record where the running JDK has a class (for exampl
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
 members that follow the record.
 
+In a stub file, the element type of an array type is now annotated like any
+other type: annotations on its type arguments, such as the `@A` of
+`List<@A String>[]`, were ignored, and a `?` there, such as that of
+`Class<?>[]`, now takes the bounds of its type variable as it does elsewhere.
+
 The Nullness Checker and the other checkers built on the Initialization Checker
 no longer fail with "fromClass can't load class ... PolyInitialized" when the
 compilation classpath has a checker-qual artifact without `@PolyInitialized`,
@@ -180,11 +201,32 @@ literal (such as `i < n`): the loop variable takes the range that the bound
 permits right away. On plume-util, it takes 8.3s instead of 10.1s. Precision is
 unchanged or better.
 
+Overrides of generic methods are checked against the overridden signature adapted to the
+overriding method's type parameters (JLS 8.4.4). Widening the qualifier of an F-bounded type
+parameter, such as `<T extends @Nullable Comparable<T>>` overriding
+`<T extends @NonNull Comparable<T>>`, is no longer reported, wherever the type parameter is
+used; narrowing it is reported once, as `override.typaram.invalid`.
+
+An override whose receiver narrows the type arguments of the overridden method's
+receiver, such as `Child<@NonNull E> this` overriding `Parent<E> this`, is now
+reported as `override.receiver.invalid`, including a narrowed type argument of an
+enclosing type or of a type parameter that the overridden class does not see.
+Previously only the receiver's primary annotations were compared.
+
+A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
+keeps the qualifier of the expression instead of taking the type variable's
+upper bound, which hid errors such as returning `null` as a `T`.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
 `// :: error: [assignment]`, as well as in parentheses, so tests written for
 typetools' bracket syntax work unchanged.
+
+`JavaExpression#isDeterministic` and `listIsDeterministic` are renamed `isPure` and `listIsPure`.
+`CFAbstractStore#insertValuePermitNondeterministic` is renamed `insertValuePermitImpure`. The unused
+`insertOrRefinePermitNondeterministic` and `CFAbstractTransfer#insertIntoStoresPermitNonDeterministic`
+are removed.
 
 Performance optimizations:
 
@@ -267,6 +309,10 @@ Other improvements and bug fixes:
   lambda-returned generic calls, implicitly typed lambdas, inexact method
   references, F-bounded wildcards, diamonds in anonymous subclasses of inner
   classes with an explicit enclosing instance (`outer.new Inner<>() {}`).
+- No longer crashes on a qualified anonymous subclass of an inner class with a
+  varargs constructor (`outer.new Inner("a", "b") {}`).
+- Error messages about the constructor of an anonymous class name its supertype,
+  instead of printing an empty class name.
 - Type argument inference treats an `Error` thrown in a lambda body as an
   unchecked exception, instead of crashing.
 - Type argument inference no longer treats a `return` in a method of a local or
@@ -287,12 +333,18 @@ Other improvements and bug fixes:
 - Type argument inference no longer crashes on a generic method call returned
   by a lambda whose target is a raw functional interface type, such as
   `Supplier s = () -> never();` or `(Supplier) () -> never()`.
+- Type argument inference no longer crashes on a lambda returned by a lambda
+  whose target is a raw type, such as `() -> () -> never()`.
 - Type argument inference accounts for the type arguments of the enclosing
   type of an inner class type, such as `T` in `Outer<T>.Inner`; it used to
   crash on `consume(make(x))` where `make` returns `Outer<T>.Inner`.
 - Type argument inference no longer crashes on a nested `? extends` wildcard
   that mentions the inferred type variable, such as a lambda passed as
   `Supplier<? extends List<? extends T>>`.
+- Type argument inference no longer crashes on nested calls to methods with an
+  F-bounded intersection type parameter, such as `<T extends Temporal & Comparable<? super T>>`.
+- Viewpoint adaptation no longer crashes on a field initializer whose type
+  mentions a class type variable, such as `T[] b = make(a);`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
   `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
   Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
@@ -300,6 +352,9 @@ Other improvements and bug fixes:
   supertypes of a type whose type argument is a type variable of another class,
   such as `Seq<E>` in `interface Coll<E> { void m(Seq<E> s); }`, or any member
   access on a three-deep generic interface such as `java.util.List`.
+- Viewpoint adaptation no longer crashes on an override of, or a raw method
+  reference to, a method whose type variable is bounded by a class type
+  variable, such as `<S extends T> Ord<S> rev()` in `class Ord<T>`.
 - `-AcheckCastElementType` fixes: no longer crashes on downcasts, incomparable
   types, null literal casts, or differing type-argument counts.
 - `BinaryStubFileGenerator` accepts a file, directory (`--bundle`), or jar.
@@ -391,11 +446,13 @@ eisop#1887,
 eisop#1926,
 eisop#1958,
 eisop#1965,
+eisop#1971,
 eisop#1986,
 eisop#1987,
 eisop#1990,
 eisop#1991,
 eisop#2009,
+eisop#2011,
 eisop#2020,
 eisop#2021,
 eisop#2029,
@@ -414,6 +471,7 @@ eisop#2061,
 eisop#2064,
 eisop#2072,
 eisop#2074,
+eisop#2076,
 eisop#2081,
 eisop#2083,
 eisop#2084,
@@ -422,9 +480,11 @@ eisop#2089,
 eisop#2091,
 eisop#2094,
 eisop#2098,
+eisop#2100,
 eisop#2104,
 eisop#2105,
 eisop#2106,
+eisop#2107,
 eisop#2114,
 eisop#2115,
 eisop#2135,
@@ -435,11 +495,24 @@ eisop#2156,
 eisop#2158,
 eisop#2159,
 eisop#2160,
+eisop#2163,
+eisop#2164,
+eisop#2179,
 eisop#2187,
 eisop#2224,
+eisop#2258,
+eisop#2259,
+eisop#2260,
+eisop#2261,
+eisop#2266,
+eisop#2267,
+eisop#2287,
+eisop#2288,
+eisop#2323,
 typetools#399,
 typetools#2816,
 typetools#3203,
+typetools#6291,
 typetools#8055.
 
 ## Version 3.55.1 (2026-04-03)
