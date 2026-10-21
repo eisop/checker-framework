@@ -1482,6 +1482,16 @@ public class AnnotationFileElementTypes {
                 data, atypeFactory, this, target, /* fromLazyJdk= */ false);
         AnnotationMirror fromStubFile = getFromStubFileAnno();
         for (Map.Entry<String, BinaryStubData.ClassRecord> entry : data.classes.entrySet()) {
+            BinaryStubReader.applyClassTypeParamRecords(
+                    entry.getValue(),
+                    entry.getKey(),
+                    atypeFactory,
+                    this,
+                    data,
+                    target,
+                    fromStubFile);
+        }
+        for (Map.Entry<String, BinaryStubData.ClassRecord> entry : data.classes.entrySet()) {
             BinaryStubReader.applyClassRecord(
                     entry.getValue(),
                     entry.getKey(),
@@ -2281,19 +2291,42 @@ public class AnnotationFileElementTypes {
                 ++parsingCount;
                 boolean appliedAny = false;
                 try {
-                    if (!applyBinaryClassRecord(className, cr, cache)) {
+                    if (processedBinaryClasses.contains(className)) {
                         // Already processed via binary path; nothing more to do.
                         return;
                     }
-                    appliedAny = true;
-
                     // Also apply binary records for all inner classes in the same file.
                     // This mirrors the text parser's behavior of parsing the entire .java file at
                     // once (which includes all inner classes). Without this, inner-class
                     // annotations (e.g. @InternedDistinct on Symbol.Completer.NULL_COMPLETER) are
-                    // missed.
-                    for (BinaryStubData.ClassRecord innerCr :
-                            getInnerClassesFromBinary(className)) {
+                    // missed. The type parameters of all of them come first; see
+                    // BinaryStubReader.applyClassTypeParamRecords.
+                    List<BinaryStubData.ClassRecord> innerCrs =
+                            getInnerClassesFromBinary(className);
+                    BinaryStubReader.applyClassTypeParamRecords(
+                            cr,
+                            className,
+                            atypeFactory,
+                            this,
+                            cache.data,
+                            annotationFileAnnos,
+                            null);
+                    for (BinaryStubData.ClassRecord innerCr : innerCrs) {
+                        BinaryStubReader.applyClassTypeParamRecords(
+                                innerCr,
+                                cache.data.stringPool[innerCr.nameIndex],
+                                atypeFactory,
+                                this,
+                                cache.data,
+                                annotationFileAnnos,
+                                null);
+                    }
+                    if (!applyBinaryClassRecord(className, cr, cache)) {
+                        // Processed by a reentrant call while applying the type parameters.
+                        return;
+                    }
+                    appliedAny = true;
+                    for (BinaryStubData.ClassRecord innerCr : innerCrs) {
                         String innerName = cache.data.stringPool[innerCr.nameIndex];
                         applyBinaryClassRecord(innerName, innerCr, cache);
                     }

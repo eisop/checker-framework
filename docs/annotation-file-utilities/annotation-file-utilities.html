@@ -193,13 +193,74 @@ The source code is in the <code>annotation-file-utilities</code> directory of th
 EISOP Checker Framework repository
 <a href="https://github.com/eisop/checker-framework">https://github.com/eisop/checker-framework</a>.
 The Annotation File Utilities are also available from Maven Central, as
-<code>io.github.eisop:annotation-file-utilities</code>.
+<code>io.github.eisop:annotation-file-utilities</code>
+(see <a href="#maven">Using the Maven artifact</a>).
 </p>
 
 <p>
 To compile and run tests, do
 <code>../gradlew build</code> from the <code>annotation-file-utilities</code>
 subdirectory.
+</p>
+
+
+<hr />
+<h2 id="maven">Using the Maven artifact</h2>
+
+<p>
+The Annotation File Utilities are published to Maven Central as
+<code>io.github.eisop:annotation-file-utilities</code>, with the same version
+as the Checker Framework release.
+It depends on ASM, Guava, plume-util, options, and reflection-util, but not
+on the checkers or the framework.
+This is the way to get the Annotation File Utilities without the whole
+Checker Framework: the Checker Framework's <code>checker.jar</code> does not
+contain them.
+</p>
+
+<p>
+In a Gradle build, add:
+</p>
+
+<pre>
+dependencies {
+    implementation("io.github.eisop:annotation-file-utilities:VERSION")
+}
+</pre>
+
+<p>
+In a Maven build, add:
+</p>
+
+<pre>
+&lt;dependency&gt;
+  &lt;groupId&gt;io.github.eisop&lt;/groupId&gt;
+  &lt;artifactId&gt;annotation-file-utilities&lt;/artifactId&gt;
+  &lt;version&gt;VERSION&lt;/version&gt;
+&lt;/dependency&gt;
+</pre>
+
+<p>
+The inserter, the equivalent of <code>insert-annotations-to-source</code>, is
+the class <code>org.checkerframework.afu.annotator.Main</code>.
+It takes the same arguments as the script, for example:
+<code>java -cp <var>classpath</var> org.checkerframework.afu.annotator.Main -d <var>outdir</var> Foo.jaif Foo.java</code>.
+On JDK 9 and later, run it with
+<code>--add-opens=jdk.compiler/com.sun.tools.javac.<var>pkg</var>=ALL-UNNAMED</code>
+for <var>pkg</var> in <code>api</code>, <code>code</code>, <code>main</code>,
+<code>tree</code>, and <code>util</code>, and with
+<code>--add-opens=jdk.internal.opt/jdk.internal.opt=ALL-UNNAMED</code>;
+the script <code>bin/insert-annotations-to-source</code> in the distribution
+shows the exact command line.
+A complete Gradle example that runs the inserter from the artifact is
+<a href="https://github.com/eisop/checker-framework/tree/master/docs/examples/afu-consumer"><code>docs/examples/afu-consumer</code></a>
+in the EISOP Checker Framework repository; it is run by the release test.
+</p>
+
+<p>
+Do not put the artifact and a <code>org.checkerframework:checker</code> jar
+from the Checker Framework of the typetools project on the same classpath:
+both contain the package <code>org.checkerframework.afu</code>.
 </p>
 
 
