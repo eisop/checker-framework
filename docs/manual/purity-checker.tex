@@ -53,13 +53,6 @@ on the declaration of a method that
 is not actually side-effect-free or by writing \<@Deterministic> on the
 declaration of a method that is not actually deterministic.
 
-Furthermore, the Checker Framework currently assumes repeated calls to
-any \<@Deterministic> method return the same value even if the method is not
-\<@SideEffectFree>. This assumption is sound only when purity checking is enabled
-(via \<-AcheckPurityAnnotations>), because purity checking forbids side effects in
-\<@Deterministic> methods. Therefore, you should not write \<@Deterministic> on a
-method that has side effects; write \<@Pure> instead.
-
 To enable
 checking of the annotations, supply the command-line option
 \<-AcheckPurityAnnotations>.  It is not enabled by default because of a high false
@@ -122,6 +115,10 @@ The command-line options \<-AassumeSideEffectFree>,
 \<-AassumeDeterministic>, and \<-AassumePure> make the Checker Framework
 unsoundly assume that \emph{every} called method is side-effect-free, is
 deterministic, or is both, respectively.
+Flow-sensitive refinement of the result of a repeated call requires the
+method to be both side-effect-free and deterministic, so
+\<-AassumeDeterministic> alone does not enable it; use \<-AassumePure> or
+both of the other two options.
 
 The command-line option \<-AassumePureGetters> makes the Checker Framework
 unsoundly assume that every getter method is side-effect-free and

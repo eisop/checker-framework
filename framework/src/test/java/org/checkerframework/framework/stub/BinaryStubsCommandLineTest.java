@@ -84,6 +84,37 @@ public class BinaryStubsCommandLineTest {
     private static final String LIB_STUB_UNANNOTATED =
             "public class Lib {\n" + "    public static Object maybeEncrypted();\n" + "}\n";
 
+    /**
+     * The source of a class whose method returns {@code Box<? extends @Encrypted Object>}: the
+     * class file carries a qualifier on the wildcard's bound.
+     */
+    private static final String WILDCARD_LIB_SOURCE =
+            "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "public class Lib {\n"
+                    + "    public interface Box<T extends Object> { T get(); }\n"
+                    + "    public static Box<? extends @Encrypted Object> make() { return null; }\n"
+                    + "}\n";
+
+    /**
+     * A stub for {@link #WILDCARD_LIB_SOURCE} that writes the return type's wildcard as a plain
+     * {@code ?}, which takes the bound of {@code Box}'s type parameter (here unqualified) in place
+     * of whatever the class file says.
+     */
+    private static final String WILDCARD_STUB =
+            "public class Lib {\n"
+                    + "    public interface Box<T extends Object> { T get(); }\n"
+                    + "    public static Box<?> make();\n"
+                    + "}\n";
+
+    /** Uses the value of the wildcard's bound where {@code @Encrypted} is required. */
+    private static final String WILDCARD_USE_SOURCE =
+            "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "class Use {\n"
+                    + "    void m() {\n"
+                    + "        @Encrypted Object o = Lib.make().get();\n"
+                    + "    }\n"
+                    + "}\n";
+
     /** A trivial, unrelated stub file, used to make a directory's binary setup incomplete. */
     private static final String OTHER_STUB = "class Other {\n}\n";
 
@@ -121,7 +152,7 @@ public class BinaryStubsCommandLineTest {
      * @param content the file's content
      * @throws IOException if the file cannot be written
      */
-    private static void write(Path path, String content) throws IOException {
+    static void write(Path path, String content) throws IOException {
         Files.createDirectories(path.getParent());
         Files.write(path, content.getBytes(StandardCharsets.UTF_8));
     }
@@ -136,6 +167,38 @@ public class BinaryStubsCommandLineTest {
      */
     private List<Diagnostic<? extends JavaFileObject>> compile(String... extraOptions)
             throws IOException {
+        return compileSources(LIB_SOURCE, USE_SOURCE, extraOptions);
+    }
+
+    /**
+     * Compiles fresh copies of the given library and use sources with the Subtyping Checker and the
+     * given extra options, and returns the actual diagnostics.
+     *
+     * @param libSource the source of {@code Lib}, compiled with plain {@code javac} first
+     * @param useSource the source of {@code Use}, which the Subtyping Checker checks
+     * @param extraOptions options in addition to {@code -Aquals=...} (e.g. {@code -Astubs=...})
+     * @return the diagnostics the compilation produced
+     * @throws IOException if writing the source files fails
+     */
+    private List<Diagnostic<? extends JavaFileObject>> compileSources(
+            String libSource, String useSource, String... extraOptions) throws IOException {
+        return compileSources(tempDir, libSource, useSource, extraOptions);
+    }
+
+    /**
+     * Compiles fresh copies of the given library and use sources, in the given directory, with the
+     * Subtyping Checker and the given extra options, and returns the actual diagnostics.
+     *
+     * @param dir the directory to write the sources and classes into
+     * @param libSource the source of {@code Lib}, compiled with plain {@code javac} first
+     * @param useSource the source of {@code Use}, which the Subtyping Checker checks
+     * @param extraOptions options in addition to {@code -Aquals=...} (e.g. {@code -Astubs=...})
+     * @return the diagnostics the compilation produced
+     * @throws IOException if writing the source files fails
+     */
+    static List<Diagnostic<? extends JavaFileObject>> compileSources(
+            Path dir, String libSource, String useSource, String... extraOptions)
+            throws IOException {
         // Lib.java is compiled separately, ahead of time, and put on the classpath -- not
         // compiled as a source file alongside Use.java. A -Astubs file is meant to annotate a
         // library whose source is not part of the current compilation; a class that IS being
@@ -144,10 +207,10 @@ public class BinaryStubsCommandLineTest {
         // because they must distinguish "the stub's annotation took effect" from "the checker
         // fell back to Lib's real, unannotated declaration" -- which looks identical unless Lib
         // is genuinely precompiled, exactly as a real library would be.
-        File libClasses = compileLib();
+        File libClasses = compileLib(dir, libSource);
 
-        File useFile = tempDir.resolve("Use.java").toFile();
-        write(useFile.toPath(), USE_SOURCE);
+        File useFile = dir.resolve("Use.java").toFile();
+        write(useFile.toPath(), useSource);
 
         List<String> options = new ArrayList<>();
         options.add(
@@ -158,7 +221,7 @@ public class BinaryStubsCommandLineTest {
 
         TestConfiguration config =
                 TestConfigurationBuilder.buildDefaultConfiguration(
-                        tempDir.toString(),
+                        dir.toString(),
                         Collections.singletonList(useFile),
                         Collections.singletonList(libClasses.getAbsolutePath()),
                         Collections.singletonList(
@@ -170,17 +233,19 @@ public class BinaryStubsCommandLineTest {
     }
 
     /**
-     * Compiles a fresh copy of {@link #LIB_SOURCE} (plain {@code javac}, no annotation processing)
-     * into a classes directory under {@link #tempDir}, and returns that directory.
+     * Compiles {@code libSource} (plain {@code javac}, no annotation processing) into a classes
+     * directory under {@code dir}, and returns that directory.
      *
+     * @param dir the directory to write the source and classes into
+     * @param libSource the source of {@code Lib}
      * @return the directory {@code Lib.class} was compiled into
      * @throws IOException if writing the source or compiling it fails
      */
-    private File compileLib() throws IOException {
-        File libFile = tempDir.resolve("lib-src").resolve("Lib.java").toFile();
-        write(libFile.toPath(), LIB_SOURCE);
-        File libClasses = tempDir.resolve("lib-classes").toFile();
-        Assert.assertTrue(libClasses.mkdirs());
+    private static File compileLib(Path dir, String libSource) throws IOException {
+        File libFile = dir.resolve("lib-src").resolve("Lib.java").toFile();
+        write(libFile.toPath(), libSource);
+        File libClasses = dir.resolve("lib-classes").toFile();
+        Files.createDirectories(libClasses.toPath());
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         int result =
                 compiler.run(
@@ -221,6 +286,36 @@ public class BinaryStubsCommandLineTest {
         Assert.assertTrue(
                 "expected " + MISMATCH_KEY + " with no stub file at all",
                 has(diagnostics, MISMATCH_KEY));
+    }
+
+    /**
+     * A plain {@code ?} in a stub takes the annotations of the type parameter's bound, replacing
+     * what the class file has on the wildcard's bound. Text parsing and the binary form must agree:
+     * both give {@code Lib.make().get()} the unqualified type, so assigning it to an
+     * {@code @Encrypted} variable is an error.
+     */
+    @Test
+    public void unboundedWildcardTakesTypeParameterBound() throws IOException {
+        Path stubsDir = tempDir.resolve("stubs");
+        write(stubsDir.resolve("Lib.astub"), WILDCARD_STUB);
+        BinaryStubFileGenerator.main(new String[] {stubsDir.toString(), stubsDir.toString()});
+
+        String assignmentKey = "assignment.type.incompatible";
+        List<Diagnostic<? extends JavaFileObject>> text =
+                compileSources(
+                        WILDCARD_LIB_SOURCE,
+                        WILDCARD_USE_SOURCE,
+                        "-Astubs=" + stubsDir,
+                        "-AstubWarnIfNotFound");
+        Assert.assertTrue(
+                "text parsing: the stub's plain ? must replace the class file's @Encrypted bound",
+                has(text, assignmentKey));
+
+        List<Diagnostic<? extends JavaFileObject>> binary =
+                compileSources(WILDCARD_LIB_SOURCE, WILDCARD_USE_SOURCE, "-Astubs=" + stubsDir);
+        Assert.assertTrue(
+                "binary form: the stub's plain ? must replace the class file's @Encrypted bound",
+                has(binary, assignmentKey));
     }
 
     /** A fresh per-file binary sibling is read and applied, with no extra warnings. */
