@@ -596,6 +596,10 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
      * Returns true if the type arguments in {@code supertype} contain the type arguments in {@code
      * subtype} and false otherwise. See {@link #isContainedBy} for an explanation of containment.
      *
+     * <p>The type arguments of an inner class type include those of its enclosing types (JLS 4.5),
+     * so this method also compares the type arguments of the enclosing types. It does not compare
+     * the primary annotations of the enclosing types.
+     *
      * @param subtype a possible subtype
      * @param supertype a possible supertype
      * @param subtypeRaw true if {@code subtype} is a raw type
@@ -618,6 +622,41 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
         if (ignoreRawTypes && (subtypeRaw || supertypeRaw)) {
             return true;
         }
+
+        if (!visitOwnTypeArgs(subtype, subtypeAsSuper, supertype)) {
+            return false;
+        }
+
+        // subtypeAsSuper and supertype are types of the same class, so their enclosing types are
+        // types of the same class, too.
+        AnnotatedDeclaredType subtypeEnclosing = subtypeAsSuper.getEnclosingType();
+        AnnotatedDeclaredType supertypeEnclosing = supertype.getEnclosingType();
+        if (subtypeEnclosing == null || supertypeEnclosing == null) {
+            return true;
+        }
+        return visitTypeArgs(
+                subtypeEnclosing,
+                supertypeEnclosing,
+                subtypeEnclosing.isUnderlyingTypeRaw(),
+                supertypeEnclosing.isUnderlyingTypeRaw());
+    }
+
+    /**
+     * Returns true if the type arguments in {@code supertype} contain the type arguments in {@code
+     * subtypeAsSuper}, ignoring the type arguments of the enclosing types. Helper method for {@link
+     * #visitTypeArgs}.
+     *
+     * @param subtype a possible subtype
+     * @param subtypeAsSuper {@code subtype} as a type of the class of {@code supertype}
+     * @param supertype a possible supertype
+     * @return true if the type arguments in {@code supertype} contain the type arguments in {@code
+     *     subtypeAsSuper}
+     */
+    private boolean visitOwnTypeArgs(
+            AnnotatedDeclaredType subtype,
+            AnnotatedDeclaredType subtypeAsSuper,
+            AnnotatedDeclaredType supertype) {
+        AnnotatedTypeFactory typeFactory = subtype.atypeFactory;
 
         List<? extends AnnotatedTypeMirror> subtypeTypeArgs = subtypeAsSuper.getTypeArguments();
         List<? extends AnnotatedTypeMirror> supertypeTypeArgs = supertype.getTypeArguments();
