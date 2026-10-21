@@ -117,6 +117,24 @@ public class EisopIssue2076 {
         }
     }
 
+    // An enclosing type argument that the overridden receiver fixes to the same type is accepted.
+    static class Outer3<O extends @Nullable Object> {
+        class Inner {
+            void m(Outer3<@NonNull O>.Inner this) {}
+        }
+
+        class SameSub extends Inner {
+            @Override
+            void m(Outer3<@NonNull O>.SameSub this) {}
+        }
+
+        class DifferentSub extends Inner {
+            @Override
+            // :: error: (override.receiver.invalid)
+            void m(Outer3<@Nullable O>.DifferentSub this) {}
+        }
+    }
+
     // A raw supertype fixes no type argument, so narrowing E, which does not flow into Parent, is
     // reported, as for a type parameter that the overridden class never sees.
     @SuppressWarnings({"rawtypes", "unchecked"})

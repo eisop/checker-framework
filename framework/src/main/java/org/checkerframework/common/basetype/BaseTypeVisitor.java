@@ -5533,7 +5533,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (hasOwnTypeParametersAsTypeArguments(overriderReceiver)) {
                 return true;
             }
-            if (!areNonOwnTypeArgumentsSeenByOverridden(overriderReceiver)) {
+            if (!areNonOwnTypeArgumentsFixedByOverridden(overriderReceiver, overriddenReceiver)) {
                 return false;
             }
             if (overriddenReceiver.getTypeArguments().isEmpty()) {
@@ -5548,38 +5548,91 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         /**
          * Returns true if every type argument of {@code overriderReceiver} and of its enclosing
-         * types that is not its class's own type parameter is for a type parameter that the
-         * overridden class sees, that is, one that is a direct type argument of the overrider's
-         * class viewed as the overridden class. Other type arguments are fixed by nothing in the
-         * overridden method's receiver, and the subtype check on that receiver does not compare
-         * them.
+         * types that is not its class's own type parameter is fixed by the overridden method's
+         * receiver, so that comparing it is meaningful:
+         *
+         * <ul>
+         *   <li>A type argument of {@code overriderReceiver} itself must be for a type parameter
+         *       that the overrider's class passes on to the overridden class, that is, one that is
+         *       a direct type argument of the overrider's class viewed as the overridden class. The
+         *       subtype check on the receivers compares those type arguments.
+         *   <li>A type argument of an enclosing type must be equal to the type argument at the same
+         *       position of the enclosing type of the overridden receiver for the same class. If
+         *       there is no such enclosing type, the type parameter is fixed by nothing.
+         * </ul>
          *
          * @param overriderReceiver the receiver of the overrider
-         * @return true if every non-own type argument of the overrider's receiver is seen by the
-         *     overridden class
+         * @param overriddenReceiver the receiver of the overridden method
+         * @return true if every non-own type argument of the overrider's receiver is fixed by the
+         *     overridden receiver
          */
-        private boolean areNonOwnTypeArgumentsSeenByOverridden(
-                AnnotatedDeclaredType overriderReceiver) {
+        private boolean areNonOwnTypeArgumentsFixedByOverridden(
+                AnnotatedDeclaredType overriderReceiver, AnnotatedDeclaredType overriddenReceiver) {
             AnnotatedDeclaredType seen =
                     AnnotatedTypes.asSuper(atypeFactory, overriderType, overriddenType);
             for (AnnotatedDeclaredType type = overriderReceiver;
                     type != null;
                     type = type.getEnclosingType()) {
-                List<? extends TypeParameterElement> typeParams =
-                        ((TypeElement) type.getUnderlyingType().asElement()).getTypeParameters();
+                TypeElement typeElt = (TypeElement) type.getUnderlyingType().asElement();
+                List<? extends TypeParameterElement> typeParams = typeElt.getTypeParameters();
                 List<? extends AnnotatedTypeMirror> typeArgs = type.getTypeArguments();
                 if (typeArgs.size() != typeParams.size()) {
                     return false;
                 }
+                AnnotatedDeclaredType overriddenEnclosing =
+                        type == overriderReceiver
+                                ? null
+                                : enclosingTypeOf(overriddenReceiver, typeElt);
                 for (int i = 0; i < typeArgs.size(); i++) {
                     TypeParameterElement param = typeParams.get(i);
-                    if (!isOwnTypeParameter(typeArgs.get(i), param)
-                            && !isDirectTypeArgument(seen, param)) {
+                    AnnotatedTypeMirror typeArg = typeArgs.get(i);
+                    if (isOwnTypeParameter(typeArg, param)) {
+                        continue;
+                    }
+                    if (type == overriderReceiver) {
+                        if (!isDirectTypeArgument(seen, param)) {
+                            return false;
+                        }
+                    } else if (overriddenEnclosing == null
+                            || overriddenEnclosing.getTypeArguments().size() != typeArgs.size()
+                            || !isEqualType(
+                                    typeArg, overriddenEnclosing.getTypeArguments().get(i))) {
                         return false;
                     }
                 }
             }
             return true;
+        }
+
+        /**
+         * Returns the enclosing type of {@code type}, at any depth, that is for the class {@code
+         * typeElt}, or null if there is none.
+         *
+         * @param type a declared type
+         * @param typeElt a class
+         * @return an enclosing type of {@code type} for {@code typeElt}, or null
+         */
+        private @Nullable AnnotatedDeclaredType enclosingTypeOf(
+                AnnotatedDeclaredType type, TypeElement typeElt) {
+            for (AnnotatedDeclaredType enclosing = type.getEnclosingType();
+                    enclosing != null;
+                    enclosing = enclosing.getEnclosingType()) {
+                if (enclosing.getUnderlyingType().asElement().equals(typeElt)) {
+                    return enclosing;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Returns true if the two types are subtypes of each other.
+         *
+         * @param type1 a type
+         * @param type2 a type
+         * @return true if the two types are equal
+         */
+        private boolean isEqualType(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
+            return typeHierarchy.isSubtype(type1, type2) && typeHierarchy.isSubtype(type2, type1);
         }
 
         /**
