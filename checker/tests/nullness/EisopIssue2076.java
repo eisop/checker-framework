@@ -4,6 +4,7 @@
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 
 public class EisopIssue2076 {
     static class Parent<E extends @Nullable Object> {
@@ -127,6 +128,40 @@ public class EisopIssue2076 {
         @Override
         // :: error: (override.receiver.invalid)
         void inspect(RawChild<@NonNull E> this) {}
+    }
+
+    // A polymorphic qualifier gets no special treatment: a poly type argument in the overrider's
+    // receiver must equal the overridden receiver's type argument.
+    static class PolyParent<E extends @Nullable Object> {
+        @PolyNull Object m(PolyParent<E> this, @PolyNull Object p) {
+            return p;
+        }
+
+        @SuppressWarnings("return")
+        @PolyNull Object k(PolyParent<@PolyNull E> this) {
+            return null;
+        }
+    }
+
+    static class PolyChild<E extends @Nullable Object> extends PolyParent<E> {
+        E value;
+
+        PolyChild(E value) {
+            this.value = value;
+        }
+
+        @Override
+        @SuppressWarnings("return")
+        // :: error: (override.receiver.invalid)
+        @PolyNull Object m(PolyChild<@PolyNull E> this, @PolyNull Object p) {
+            return value;
+        }
+
+        @Override
+        @SuppressWarnings("return")
+        @PolyNull Object k(PolyChild<@PolyNull E> this) {
+            return value;
+        }
     }
 
     static void use() {
