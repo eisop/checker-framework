@@ -378,12 +378,10 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      * @return whether the given type has a primary annotation in all hierarchies
      */
     private boolean hasPrimaryAnnotationInAllHierarchies(AnnotatedTypeMirror type) {
-        // Use the primary annotation, not the effective one: the effective annotation of a type
-        // variable comes from its upper bound, so it would make every type variable look annotated
-        // and nothing would ever be propagated to it.
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-            AnnotationMirror anno = type.getAnnotationInHierarchy(top);
-            if (anno == null) {
+            // Not the effective annotation: that of a type variable comes from its upper bound, so
+            // it would make every type variable look annotated and nothing would be propagated.
+            if (type.getAnnotationInHierarchy(top) == null) {
                 return false;
             }
         }
