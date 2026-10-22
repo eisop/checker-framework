@@ -217,6 +217,10 @@ A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
 keeps the qualifier of the expression instead of taking the type variable's
 upper bound, which hid errors such as returning `null` as a `T`.
 
+A lambda body keeps the refinement of a field with a monotonic qualifier to its
+target, such as a `@MonotonicNonNull` field that was checked to be non-null before
+the lambda.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -262,6 +266,8 @@ Performance optimizations:
 - New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
   replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
+- `ElementUtils.isElementFromSourceCode` caches its result per source file object instead
+  of constructing a `URI` on every call.
 - `Resolver.getEnvForPath` caches the attribution environment per location, so that
   resolving the identifiers of Java expression strings does not re-attribute the enclosing
   method each time.
@@ -408,6 +414,7 @@ eisop#627,
 eisop#719,
 eisop#720,
 eisop#737,
+eisop#771,
 eisop#778,
 eisop#786,
 eisop#792,
