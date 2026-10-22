@@ -2173,6 +2173,49 @@ change 11.6 to 12.0 s, LRU cache 10.6 to 11.0 s, reused parser 8.7 to 9.0 s. Rea
 (javacutil sources 9.6 to 8.9 s, dataflow sources 15.8 to 15.2 s): within noise or slightly
 faster. Diagnostics are identical on all three workloads.
 
+### Anonymous classes created with a diamond (eisop#2271, PR #2306)
+
+`new C<>(args) {...}` has no explicit type arguments; the supertype of the anonymous class is
+inferred from the arguments and the context (JLS 15.9.3), and javac's own supertype, with defaulted
+type arguments, is wrong. The inference is correct but costs time, and three things made it much
+more expensive than necessary. Workload: Nullness Checker, `-proc:only`, JDK 25, 300 anonymous
+diamond classes with 3 methods of 16 calls each (median of 2 interleaved runs).
+
+1. *Eager constraint descriptions.* The type-inference constraints stored `"..." + invocation`
+   as their `source`, which is used only by `TypeConstraint.constraintHistory()`. For an anonymous
+   class, `toString()` prints the whole class body, for every constraint. It was 68% of the samples
+   on a case with 8 large classes. `InferenceFactory.describe` names the method select or class
+   instead (75 s to 22.6 s on that case). Keep a tree out of any string that is built eagerly.
+2. *No cache for the class body.* The types of the members of the anonymous class depend on the
+   inferred supertype, which can change while dataflow analysis refines the types of the arguments,
+   so `methodFromUse` and `getDirectSupertypes` skipped their caches for such a class and
+   re-inferred the supertype for each call in the body. Once dataflow analysis of the anonymous
+   class has started, which is after that of its enclosing method, the supertype is final and the
+   caches are used again (22.6 s to 10.2 s on the same case).
+3. *A factory that is never "final".* `isAnonymousDiamondSupertypeFinal` reads `scannedClasses`
+   of the `GenericAnnotatedTypeFactory`. The `InitializationAnnotatedTypeFactory` does not run
+   dataflow analysis (it reuses that of the `InitializationFieldAccessSubchecker`), so its
+   `scannedClasses` stays empty and it never cached. Counting the inferences showed 74,100 of
+   75,300 came from it, 247 per class instead of 1. It now asks the field access factory. This was
+   the largest remaining cost: 18.8 s to 13.1 s, the same as master (12.9 s; master gives the wrong
+   supertype, and reports 7,800 false positives). Any new factory that overrides
+   `performFlowAnalysisForClass` must also forward `isAnonymousDiamondSupertypeFinal`.
+
+A profile showed the problem without the code: `AnnotatedTypeFactory.getAnonymousDiamondSupertype`
+was 29% inclusive, called from `methodFromUse` while visiting the body, long after dataflow
+analysis. Counting the calls per factory (a temporary `System.err` line) identified the factory.
+After the fix the diamond code is about 3% of the samples.
+
+Other workloads, master against the PR: 8 large classes 6.0 to 6.3 s and 5.3 to 7.2 s (noisy); the
+larger stress input, with 28,920 false positives on master, 24.6 s and 20.5 s; Index Checker on plume-util
+22.62 s and 22.64 s. Anonymous diamonds are rare (8 in the framework, none in plume-util, daikon
+or guava), so only large or generated code is affected.
+
+*Not done:* making `TreeUtils.isPolyExpression` return true for anonymous diamonds would remove
+the `InferenceFactory.isPolyExpression` wrapper, but the Initialization Checker uses
+`isStandaloneExpression` to select the constructor arguments to check and would skip such an
+argument.
+
 ---
 
 ## Tried and rejected
