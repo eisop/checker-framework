@@ -277,12 +277,17 @@ Performance optimizations:
   method each time.
 - `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
   by their class instead of missing for each new instance of the same type.
-- The types of new class, new array, and conditional expressions are cached once the dataflow
-  analysis of their class has finished, instead of being recomputed, including type argument
-  inference, at every query (~7% of the Index Checker's time on plume-util).
+- The types of method invocations, new class, conditional, and other flow-dependent expressions are
+  cached once the dataflow analysis of their class has finished, instead of being recomputed,
+  including type argument inference, at every query; the types of new array expressions are
+  always cached.
 
 Other improvements and bug fixes:
 
+- The types of method invocations, field accesses, array accesses, and switch expressions are no
+  longer cached while dataflow analysis is running. A type cached in an early fixpoint iteration
+  of a loop missed errors, e.g., for a polymorphic or generic method whose argument becomes
+  nullable later in the loop (typetools#602, eisop#2343).
 - Checker subclass inheritance: inherits `@StubFiles` from nearest annotated
   superclass (shared bidirectionally in compound checkers), combines
   `@RelevantJavaTypes` across superclasses, and accepts the default
@@ -529,7 +534,9 @@ eisop#2271,
 eisop#2287,
 eisop#2288,
 eisop#2323,
+eisop#2343,
 typetools#399,
+typetools#602,
 typetools#2816,
 typetools#3203,
 typetools#6291,

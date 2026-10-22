@@ -2272,45 +2272,57 @@ retain the copied method body, which the 300-entry bound limits.
 that remains. The result depends on the path context and `JavaExpression`s are shared mutable
 state in places, so it needs an audit first.
 
-### Types of new class, new array, and conditional expressions after dataflow (October 2026, PR #2307)
+### Types of flow-dependent expressions after dataflow (October 2026, PR #2307)
 
-`AnnotatedTypeFactory.fromExpression` never cached these three kinds of trees, because their types
-depend on the dataflow store and a fixpoint iteration would cache wrong annotations (Issue #602).
-Almost all queries come after the analysis of their class, though: the visitor asks for the type
-of each `new` several times (`constructorFromUse` with and without inference, `validateTypeOf`,
+`AnnotatedTypeFactory.fromExpression` cached the types of most trees in every phase and never cached
+new class, new array, and conditional expressions, because their types depend on the dataflow store
+and a fixpoint iteration would cache wrong annotations (Issue #602). Both halves were wrong.
+
+*Which trees are flow-dependent.* A cached type is valid only if it equals what `-AatfDoNotCache`
+computes: the refined types of the subexpressions it read are final, `useFlow` equals `everUseFlow`,
+and no `DefaultTypeArgumentInference` problem is running. A temporary mode recomputed the type at
+every cache hit and counted differences (about 146M hits over `:framework:test`, 89 of the 97
+`:checker:test` suites, plume-util, and javacutil). Method invocations (store and inference), new
+class, conditional, and switch expressions, and field accesses on an instance receiver differ; array
+accesses are flow-dependent by reading the visitor, with no difference observed; new array
+expressions, identifiers, literals, and casts never differed. So master missed errors for method
+invocations (`id(nullable)` with `@PolyNull`, a generic `gid(nullable)`, `new ArrayList<>(...).get(0)`
+in a loop where the argument becomes nullable later; typetools#602, eisop#2343): 6 of 15 Nullness
+loop cases and 3 of 4 Value cases were found on master and on the first version of this PR, 15 and 4
+with the rule below. On plume-util, the Index Checker cached `Integer.valueOf(i)` as
+`@UpperBoundBottom` where the uncached type is `@LTLengthOf`. New array expressions were excluded
+needlessly.
+
+*The rule.* There is one map, `fromExpressionTreeCache`. `isFlowDependent(tree)` classifies the
+trees above. Other trees are cached in every phase. A flow-dependent tree is cached only while
+`canCacheFlowDependentTypes()` holds: no `performFlowAnalysisForClass` is active, flow refinement
+is not temporarily disabled (`useFlow == everUseFlow`), and no type argument inference is running
+(`DefaultTypeArgumentInference.isInferring()`; a checker with its own `TypeArgumentInference` never
+caches them). The map is cleared when a class analysis starts, which drops the entries that were
+cached for a class that was not analyzed yet. This replaces the first version of this PR, which
+added a second map for the three excluded kinds and a `flowAnalysisCompleted` flag.
+
+Almost all queries come after the analysis of their class: the visitor asks for the type of each
+`new` several times (`constructorFromUse` with and without inference, `validateTypeOf`,
 `getAnnotatedType`, the enclosing assignment check), and the Index Checker's Lower Bound and Upper
 Bound factories ask the Value factory for the type of every expression. Each query reran
 `constructorFromUse`, including type argument inference for a diamond. JFR, Index Checker on
 plume-util: `TypeFromExpressionVisitor.visitNewClass` 15.5% inclusive.
 
-They now go in a separate map, `flowDependentExpressionTreeCache`, which is used only while
-`areFlowDependentTypesFinal()` holds (a class analysis has completed and none is running, and flow
-is on) and no type argument inference is running. The map is cleared before each class analysis
-and for each compilation unit. The inference condition matters: the expressions that are part of a
-running inference problem are typed without inferring their type arguments, and caching such a type
-gave wrong results for a diamond nested in an enclosing inference (51 mismatches in
-`:framework:test`). `DefaultTypeArgumentInference.isInferring()` reports it; a checker with its own
-`TypeArgumentInference` never uses the cache.
-
-*How it was checked:* a temporary mode recomputed the type on every cache hit and threw on any
-difference. `:framework:test` (29.6k hits) and `:checker:test` (110k hits) had no mismatch, and
-neither did plume-util (Index, Nullness, Value) or the framework sources (Nullness), apart from
-capture-variable ids. Diagnostics are identical on plume-util without its `@SuppressWarnings`
-(Index 189, Nullness 149, Value 31, Interning 80, Resource Leak 22).
-
-Index Checker on plume-util, JDK 25, on master with #2303 to #2305: `visitNewClass` 15.5% to 4.9%
-inclusive and `inferTypeArgs` 17.9% to 10.3% (one JFR run each), 1876 to 1813 on-CPU samples. Wall
-time, median of 5 interleaved runs: Index on plume-util 26.8 to 25.2 s (the baseline ranged from
-21.7 to 29.7 s) and on javacutil 15.4 to 14.5 s; Nullness on plume-util 14.7 to 14.1 s; Value on
-plume-util 9.0 to 9.2 s, which is noise. Only the Index Checker gains reliably, by about 4% to 6%:
-the saving is real but small next to this machine's run-to-run spread (3% to 5%, more on the first
-workload), so judge it by the profile. The earlier run, before #2304 and #2305 were in master, gave
-21.1 to 19.5 s (-7%).
+*Cost.* Method invocations are no longer cached during dataflow, which doubles their computations
+for the Index Checker on plume-util (21.8k to 47.0k). JFR, Index Checker on plume-util, JDK 25
+(`fromExpression` inclusive, `inferTypeArgs` inclusive, on-CPU samples): master 30.1%, 19.1%, 1800;
+this PR 23.6%, 10.5%, 1701. Wall time, median of interleaved runs, master to this PR: Index on
+plume-util 21.6 to 20.6 s (8 runs), Index on javacutil 14.6 to 14.9 s (4 runs), Nullness on
+plume-util 12.3 to 12.3 s (5 runs), Value on plume-util 7.9 to 7.8 s (6 runs). So it is not slower
+than master, and diagnostics on plume-util and javacutil are unchanged. The first version of this
+PR, which cached method invocations during dataflow and so fixed nothing for them, was 19.95 s on
+the Index workload.
 
 *Not done:* a flag on `TypeArgumentInference` instead of the `instanceof` check. A default method
 that returns false would let a custom inference use the cache, which is unsafe if it also types
-sub-expressions without inference; the `instanceof` is conservative and runs only for these three
-kinds of trees.
+sub-expressions without inference. The Initialization Checker's type for `this` depends on
+`getStoreBefore` and differs even when both queries come after dataflow; that is a separate issue.
 
 ---
 
