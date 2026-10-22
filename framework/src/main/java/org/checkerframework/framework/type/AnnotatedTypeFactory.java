@@ -4292,19 +4292,29 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
+     * The anonymous class creations for which {@link #getAnonymousDiamondSupertype} last returned
+     * null, so that the supertype of the anonymous class is not the inferred one.
+     */
+    private final Set<NewClassTree> anonymousDiamondFallbacks =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /**
      * Returns the supertype of the anonymous class created by {@code tree}, a diamond such as
      * {@code new C<>(args) {...}}, with the type arguments inferred as for {@code new C<>(args)}
      * (JLS 15.9.3). The supertype is the superclass, or the interface that the anonymous class
      * implements.
      *
      * <p>Returns null if inference does not determine the type arguments, or if this method is
-     * invoked again for {@code tree} while it infers them.
+     * invoked again for {@code tree} while it infers them. The caller then uses javac's supertype,
+     * which has defaulted type arguments. Invariant: a supertype that is not the inferred one is
+     * never cached; see {@link #hasChangingSupertype}.
      *
      * @param tree an anonymous class creation with a diamond
      * @return the inferred supertype of the anonymous class, or null
      */
     public @Nullable AnnotatedDeclaredType getAnonymousDiamondSupertype(NewClassTree tree) {
         if (!anonymousDiamondSupertypesInProgress.add(tree)) {
+            anonymousDiamondFallbacks.add(tree);
             return null;
         }
         try {
@@ -4313,13 +4323,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     AnnotatedTypes.findTypeArguments(
                             this, tree, superCon.getElement(), superCon, true);
             if (typeArgs.needsDefaultedReturnType || typeArgs.typeArguments.isEmpty()) {
+                anonymousDiamondFallbacks.add(tree);
                 return null;
             }
-            return (AnnotatedDeclaredType)
-                    typeVarSubstitutor.substitute(
-                            typeArgs.typeArguments,
-                            getAnonymousDiamondGenericSupertype(tree),
-                            typeArgs.typeArgumentsInferred);
+            AnnotatedDeclaredType result =
+                    (AnnotatedDeclaredType)
+                            typeVarSubstitutor.substitute(
+                                    typeArgs.typeArguments,
+                                    getAnonymousDiamondGenericSupertype(tree),
+                                    typeArgs.typeArgumentsInferred);
+            anonymousDiamondFallbacks.remove(tree);
+            return result;
         } finally {
             anonymousDiamondSupertypesInProgress.remove(tree);
         }
@@ -4327,15 +4341,28 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Returns true if {@code type} is an anonymous class created with a diamond, as in {@code new
-     * C<>(args) {...}}, whose inferred supertype can still change, so that types that depend on it
-     * must not be cached.
+     * C<>(args) {...}}, whose supertype is not yet known to be the final inferred one, so that
+     * types that depend on it must not be cached. This is the case while
+     *
+     * <ul>
+     *   <li>the inferred supertype can still change (see {@link
+     *       #isAnonymousDiamondSupertypeFinal}),
+     *   <li>the supertype is being inferred, so that a result computed now uses javac's supertype,
+     *       or
+     *   <li>the last inference did not produce a supertype, so javac's supertype is used.
+     * </ul>
+     *
+     * Invariant: a supertype that is not the inferred one is never cached.
      *
      * @param type a declared type
-     * @return true if the supertype of {@code type} can still change
+     * @return true if the supertype of {@code type} must not be relied on or cached
      */
     private boolean hasChangingSupertype(AnnotatedDeclaredType type) {
         NewClassTree creation = getAnonymousDiamondCreation(type);
-        return creation != null && !isAnonymousDiamondSupertypeFinal(creation);
+        return creation != null
+                && (!isAnonymousDiamondSupertypeFinal(creation)
+                        || anonymousDiamondSupertypesInProgress.contains(creation)
+                        || anonymousDiamondFallbacks.contains(creation));
     }
 
     /**
