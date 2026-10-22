@@ -2894,7 +2894,10 @@ public abstract class GenericAnnotatedTypeFactory<
         }
     }
 
-    /** For each type, whether it is relevant. A cache to avoid repeated re-computation. */
+    /**
+     * For each type other than a declared type, whether it is relevant. A cache to avoid repeated
+     * re-computation.
+     */
     private final Map<TypeMirror, Boolean> isRelevantCache = MapsP.createLruCache(300);
 
     /**
@@ -2972,6 +2975,9 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * <p>Clients should never call this. Call {@link #isRelevant} instead. This is a helper method
      * for {@link #isRelevant}.
+     *
+     * <p>Overrides must depend only on the erasure of {@code tm}, and for a declared type only on
+     * its class: {@link #isRelevant} caches the result per class.
      *
      * @param tm a type
      * @return true if users can write type annotations from this type system on the given Java type
