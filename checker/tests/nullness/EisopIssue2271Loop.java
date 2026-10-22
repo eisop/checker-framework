@@ -17,7 +17,8 @@ class EisopIssue2271Loop {
         return true;
     }
 
-    // Known missed error, for both the named and the anonymous diamond (eisop#2343): `n` is nullable in the
+    // Known missed error, for both the named and the anonymous diamond (eisop#2343): `n` is
+    // nullable in the
     // second iteration, so `get()` should return a nullable value. The type arguments of the
     // diamond are not inferred again after the loop's store changes.
     void namedInLoop() {
