@@ -3334,15 +3334,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // viewpoint adaptation + asMemberOf), since the same method is invoked on the same receiver
         // type at many call sites. Everything call-site-dependent -- type-argument inference,
         // polymorphic-qualifier resolution, unchecked-conversion and getClass adjustments below --
-        // runs per call on a copy. Two soundness conditions: (1) do not cache a method type that
+        // runs per call on a copy. Three soundness conditions: (1) do not cache a method type that
         // contains a polymorphic qualifier (its annotations are resolved per call from the
         // arguments); (2) checkers whose method types are otherwise call-dependent (e.g. Value,
-        // MethodVal) opt out via shouldCacheMethodAsMemberOf.
+        // MethodVal) opt out via shouldCacheMethodAsMemberOf; (3) do not cache a member of an
+        // anonymous class created with a diamond while its inferred supertype can change (see
+        // hasChangingSupertype).
         MethodAsMemberOfCacheKey cacheKey =
                 (shouldCache
                                 && receiverType != null
                                 && shouldCacheMethodAsMemberOf()
-                                && !methodDeclaresPolymorphicQualifier(methodElt))
+                                && !methodDeclaresPolymorphicQualifier(methodElt)
+                                && !(receiverType.getKind() == TypeKind.DECLARED
+                                        && hasChangingSupertype(
+                                                (AnnotatedDeclaredType) receiverType)))
                         ? new MethodAsMemberOfCacheKey(methodElt, receiverType)
                         : null;
         AnnotatedExecutableType methodType;
@@ -3588,13 +3593,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * the structural {@code (type)} key is sound; the same structural type's supertypes are
      * recomputed constantly while walking type hierarchies ({@code asSuper}, {@code
      * allSupertypes}). Stores and returns deep copies, since callers mutate the supertypes'
-     * annotations.
+     * annotations. The exception is an anonymous class created with a diamond while its supertype,
+     * which is inferred from the creation expression, can still change; see {@link
+     * #hasChangingSupertype}.
      *
      * @param type a declared type
      * @return the direct supertypes of {@code type} (an unmodifiable list)
      */
     public List<AnnotatedDeclaredType> getDirectSupertypes(AnnotatedDeclaredType type) {
-        DirectSupertypesCacheKey key = shouldCache ? new DirectSupertypesCacheKey(type) : null;
+        DirectSupertypesCacheKey key =
+                shouldCache && !hasChangingSupertype(type)
+                        ? new DirectSupertypesCacheKey(type)
+                        : null;
         List<AnnotatedDeclaredType> cached = key == null ? null : directSupertypesCache.get(key);
         if (cached != null) {
             return Collections.unmodifiableList(deepCopySupertypes(cached));
@@ -3982,6 +3992,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedExecutableType con = getAnnotatedType(ctor); // get unsubstituted type
         constructorFromUsePreSubstitution(tree, con, inferTypeArgs);
 
+        // The type arguments inferred for the superclass of an anonymous class created with a
+        // diamond, or null.
+        TypeArguments anonymousDiamondTypeArgs = null;
         if (tree.getClassBody() != null) {
             // Because the anonymous constructor can't have explicit annotations on its parameters,
             // they are copied from the super constructor invoked in the anonymous constructor. To
@@ -3992,10 +4005,29 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // 4. copy the parameters to the anonymous constructor, `con`.
             // 5. copy annotations on the return type to `con`.
             ExecutableElement superCtor = TreeUtils.getSuperConstructor(tree);
-            AnnotatedExecutableType superCon = getAnnotatedType(superCtor);
-            constructorFromUsePreSubstitution(tree, superCon, inferTypeArgs);
-            superCon =
-                    AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
+            AnnotatedExecutableType superCon;
+            if (TreeUtils.isDiamondTree(tree)) {
+                // The type arguments of the superclass are inferred as for `new C<>(args)` (JLS
+                // 15.9.3), so adapt the super constructor to the generic superclass and infer them
+                // from it. Adapting it to `type`, the anonymous class, would use the superclass
+                // that javac inferred, whose type arguments are defaulted.
+                superCon = getAnonymousDiamondSuperConstructor(tree, inferTypeArgs);
+                anonymousDiamondTypeArgs =
+                        AnnotatedTypes.findTypeArguments(
+                                this, tree, superCtor, superCon, inferTypeArgs);
+                superCon =
+                        (AnnotatedExecutableType)
+                                typeVarSubstitutor.substitute(
+                                        anonymousDiamondTypeArgs.typeArguments,
+                                        superCon,
+                                        anonymousDiamondTypeArgs.typeArgumentsInferred);
+            } else {
+                superCon = getAnnotatedType(superCtor);
+                constructorFromUsePreSubstitution(tree, superCon, inferTypeArgs);
+                superCon =
+                        AnnotatedTypes.asMemberOf(
+                                types, this, type, superCon.getElement(), superCon);
+            }
             if (viewpointAdapter != null) {
                 // Viewpoint adapt the super constructor, because the return type could depend on
                 // the viewpoint and there is an LUB computation later.
@@ -4078,8 +4110,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
         }
 
+        // The anonymous constructor has no type parameters, and for a diamond its parameters were
+        // substituted above.
         TypeArguments typeArguments =
-                AnnotatedTypes.findTypeArguments(this, tree, ctor, con, inferTypeArgs);
+                anonymousDiamondTypeArgs != null
+                        ? anonymousDiamondTypeArgs
+                        : AnnotatedTypes.findTypeArguments(this, tree, ctor, con, inferTypeArgs);
         Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg =
                 new HashMap<>(typeArguments.typeArguments);
         List<AnnotatedTypeMirror> typeargs;
@@ -4194,6 +4230,184 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     .getTypeArguments();
         }
         return Collections.emptyList();
+    }
+
+    /**
+     * Returns the generic supertype of the anonymous class created by {@code tree}, a diamond such
+     * as {@code new C<>(args) {...}}: the declared type {@code C<T>} whose type arguments are the
+     * type parameters of {@code C}, with the primary annotations and enclosing type of the
+     * anonymous class's extends or implements clause.
+     *
+     * @param tree an anonymous class creation with a diamond
+     * @return the generic supertype of the anonymous class
+     */
+    private AnnotatedDeclaredType getAnonymousDiamondGenericSupertype(NewClassTree tree) {
+        AnnotatedDeclaredType clause =
+                (AnnotatedDeclaredType) getAnnotatedTypeFromTypeTree(tree.getIdentifier());
+        TypeElement superElt = (TypeElement) clause.getUnderlyingType().asElement();
+        AnnotatedDeclaredType generic = getAnnotatedType(superElt).asUse();
+        generic.replaceAnnotations(clause.getAnnotations());
+        AnnotatedDeclaredType enclosing = clause.getEnclosingType();
+        generic.setEnclosingType(enclosing == null ? null : enclosing.deepCopy());
+        return generic;
+    }
+
+    /**
+     * Returns the type of the superclass constructor that {@code tree}, an anonymous class creation
+     * with a diamond such as {@code new C<>(args) {...}}, invokes, as a member of the generic
+     * superclass {@code C<T>}. Type argument inference treats {@code tree} as {@code new C<>(args)}
+     * (JLS 15.9.3), and uses this type to infer the type arguments of the superclass. Polymorphic
+     * qualifiers are not resolved.
+     *
+     * @param tree an anonymous class creation with a diamond
+     * @return the type of the invoked superclass constructor, before type argument inference
+     */
+    public AnnotatedExecutableType getAnonymousDiamondSuperConstructor(NewClassTree tree) {
+        return getAnonymousDiamondSuperConstructor(tree, false);
+    }
+
+    /**
+     * Implementation of {@link #getAnonymousDiamondSuperConstructor(NewClassTree)}.
+     *
+     * @param tree an anonymous class creation with a diamond
+     * @param resolvePolyQuals if true, resolve polymorphic qualifiers
+     * @return the type of the invoked superclass constructor, before type argument inference
+     */
+    private AnnotatedExecutableType getAnonymousDiamondSuperConstructor(
+            NewClassTree tree, boolean resolvePolyQuals) {
+        ExecutableElement superCtor = TreeUtils.getSuperConstructor(tree);
+        AnnotatedExecutableType superCon = getAnnotatedType(superCtor);
+        constructorFromUsePreSubstitution(tree, superCon, resolvePolyQuals);
+        AnnotatedDeclaredType generic = getAnonymousDiamondGenericSupertype(tree);
+        if (generic.getUnderlyingType().asElement().getKind().isInterface()) {
+            // The super constructor is Object(), which does not mention the type parameters of the
+            // interface. They are inferred from the target type alone.
+            return superCon;
+        }
+        return AnnotatedTypes.asMemberOf(types, this, generic, superCtor, superCon);
+    }
+
+    /** The anonymous class creations whose superclass is being inferred. */
+    private final Set<NewClassTree> anonymousDiamondSupertypesInProgress =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /**
+     * The anonymous class creations for which {@link #getAnonymousDiamondSupertype} last returned
+     * null, so that the supertype of the anonymous class is not the inferred one.
+     */
+    private final Set<NewClassTree> anonymousDiamondFallbacks =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /**
+     * Returns the supertype of the anonymous class created by {@code tree}, a diamond such as
+     * {@code new C<>(args) {...}}, with the type arguments inferred as for {@code new C<>(args)}
+     * (JLS 15.9.3). The supertype is the superclass, or the interface that the anonymous class
+     * implements.
+     *
+     * <p>Returns null if inference does not determine the type arguments, or if this method is
+     * invoked again for {@code tree} while it infers them. The caller then uses javac's supertype,
+     * which has defaulted type arguments. Invariant: a supertype that is not the inferred one is
+     * never cached; see {@link #hasChangingSupertype}.
+     *
+     * @param tree an anonymous class creation with a diamond
+     * @return the inferred supertype of the anonymous class, or null
+     */
+    public @Nullable AnnotatedDeclaredType getAnonymousDiamondSupertype(NewClassTree tree) {
+        if (!anonymousDiamondSupertypesInProgress.add(tree)) {
+            anonymousDiamondFallbacks.add(tree);
+            return null;
+        }
+        try {
+            AnnotatedExecutableType superCon = getAnonymousDiamondSuperConstructor(tree, true);
+            TypeArguments typeArgs =
+                    AnnotatedTypes.findTypeArguments(
+                            this, tree, superCon.getElement(), superCon, true);
+            if (typeArgs.needsDefaultedReturnType || typeArgs.typeArguments.isEmpty()) {
+                anonymousDiamondFallbacks.add(tree);
+                return null;
+            }
+            AnnotatedDeclaredType result =
+                    (AnnotatedDeclaredType)
+                            typeVarSubstitutor.substitute(
+                                    typeArgs.typeArguments,
+                                    getAnonymousDiamondGenericSupertype(tree),
+                                    typeArgs.typeArgumentsInferred);
+            anonymousDiamondFallbacks.remove(tree);
+            return result;
+        } finally {
+            anonymousDiamondSupertypesInProgress.remove(tree);
+        }
+    }
+
+    /**
+     * Returns true if {@code type} is an anonymous class created with a diamond, as in {@code new
+     * C<>(args) {...}}, whose supertype is not yet known to be the final inferred one, so that
+     * types that depend on it must not be cached. This is the case while
+     *
+     * <ul>
+     *   <li>the inferred supertype can still change (see {@link
+     *       #isAnonymousDiamondSupertypeFinal}),
+     *   <li>the supertype is being inferred, so that a result computed now uses javac's supertype,
+     *       or
+     *   <li>the last inference did not produce a supertype, so javac's supertype is used.
+     * </ul>
+     *
+     * Invariant: a supertype that is not the inferred one is never cached.
+     *
+     * @param type a declared type
+     * @return true if the supertype of {@code type} must not be relied on or cached
+     */
+    private boolean hasChangingSupertype(AnnotatedDeclaredType type) {
+        NewClassTree creation = getAnonymousDiamondCreation(type);
+        return creation != null
+                && (!isAnonymousDiamondSupertypeFinal(creation)
+                        || anonymousDiamondSupertypesInProgress.contains(creation)
+                        || anonymousDiamondFallbacks.contains(creation));
+    }
+
+    /**
+     * Returns true if the supertype inferred for the anonymous class created by {@code creation}, a
+     * diamond such as {@code new C<>(args) {...}}, can no longer change. It is inferred from the
+     * types of the arguments and of the context, which change during dataflow analysis of the
+     * enclosing method.
+     *
+     * <p>This implementation returns false. {@link GenericAnnotatedTypeFactory} returns true once
+     * dataflow analysis of the anonymous class has started, which is after that of the enclosing
+     * method. A factory that does not keep track of the analyzed classes itself must forward to the
+     * factory that does.
+     *
+     * @param creation an anonymous class creation with a diamond
+     * @return true if the inferred supertype of the anonymous class can no longer change
+     */
+    public boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
+        return false;
+    }
+
+    /**
+     * Returns the class instance creation expression of {@code type}'s class if that is an
+     * anonymous class created with a diamond, as in {@code new C<>(args) {...}}.
+     *
+     * <p>The supertype of such a class is inferred from the creation expression and its context,
+     * and can change during dataflow analysis; see {@link #hasChangingSupertype}.
+     *
+     * @param type a declared type
+     * @return the anonymous class creation with a diamond that declares {@code type}'s class, or
+     *     null
+     */
+    public @Nullable NewClassTree getAnonymousDiamondCreation(AnnotatedDeclaredType type) {
+        TypeElement elt = (TypeElement) type.getUnderlyingType().asElement();
+        if (!ElementUtils.isAnonymous(elt)) {
+            return null;
+        }
+        ClassTree classTree = trees.getTree(elt);
+        TreePath path = classTree == null ? null : getPath(classTree);
+        TreePath parent = path == null ? null : path.getParentPath();
+        if (parent != null
+                && parent.getLeaf() instanceof NewClassTree
+                && TreeUtils.isDiamondTree(parent.getLeaf())) {
+            return (NewClassTree) parent.getLeaf();
+        }
+        return null;
     }
 
     /**

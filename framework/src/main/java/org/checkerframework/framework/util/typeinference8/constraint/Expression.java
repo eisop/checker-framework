@@ -12,6 +12,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.util.typeinference8.bound.BoundSet;
 import org.checkerframework.framework.util.typeinference8.types.AbstractType;
+import org.checkerframework.framework.util.typeinference8.types.InferenceFactory;
 import org.checkerframework.framework.util.typeinference8.types.InferenceType;
 import org.checkerframework.framework.util.typeinference8.types.InvocationType;
 import org.checkerframework.framework.util.typeinference8.types.ProperType;
@@ -91,7 +92,7 @@ public class Expression extends TypeConstraint {
         // See JLS 18.2.1
         if (getT().isProper()) {
             return reduceProperType();
-        } else if (TreeUtils.isStandaloneExpression(expression)) {
+        } else if (!InferenceFactory.isPolyExpression(expression)) {
             AbstractType s;
             if (!context.isLambdaParam(expression)) {
                 s = new ProperType(expression, context);
