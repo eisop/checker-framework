@@ -2004,6 +2004,14 @@ in `UBQualifier$LessThanLengthOf` — a null path yields an unparseable offset e
 layers from the cause. If this is revisited, the clear has to happen strictly before anything is
 cached for the new unit, and the Index Checker is the canary.
 
+*Update (October 2026).* This is now done: `TreePathCacher#useUnit` clears the cache only when the
+compilation unit changes, and every checker's `setRoot` calls it, so the paths that the CFG builder
+registered for artificial trees survive the parent checker's `setRoot`. It needed the fix for the
+upper bound offset with an error (a null path had hidden that Index Checker NPE). On plume-util the
+diagnostics are identical (Index, Resource Leak, Nullness, Interning, suppressions removed) and the
+Resource Leak Checker is not slower. A separate map of artificial trees was tried first and
+dropped: more code, and it kept the lossy null result.
+
 ### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
 
 `CheckerFrameworkPerDirectoryTest` previously hardcoded `-AajavaChecks` across all directory tests.
