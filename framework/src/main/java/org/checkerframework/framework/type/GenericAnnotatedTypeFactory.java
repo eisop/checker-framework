@@ -123,6 +123,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
@@ -2900,7 +2901,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /** For each type, whether it is relevant. A cache to avoid repeated re-computation. */
-    private final Map<TypeMirror, Boolean> isRelevantCache = MapsP.createLruCache(300);
+    private final Map<TypeMirror, Boolean> isRelevantCache = MapsP.createLruCache(2000);
 
     /**
      * Returns true if users can write type annotations from this type system directly on the given
@@ -2920,7 +2921,13 @@ public abstract class GenericAnnotatedTypeFactory<
         if (relevantJavaTypes == null) {
             return true;
         }
-        if (tm.getKind() != TypeKind.PACKAGE && tm.getKind() != TypeKind.MODULE) {
+        if (tm.getKind() == TypeKind.DECLARED) {
+            // The cache is keyed by identity, but erasure does not return one canonical instance
+            // per class: it returns a String type unchanged (with its constant value and
+            // annotations), and javac copies types in other ways. Look up the class's own erased
+            // type instead.
+            tm = types.erasure(((DeclaredType) tm).asElement().asType());
+        } else if (tm.getKind() != TypeKind.PACKAGE && tm.getKind() != TypeKind.MODULE) {
             tm = types.erasure(tm);
         }
         Boolean cachedResult = isRelevantCache.get(tm);
