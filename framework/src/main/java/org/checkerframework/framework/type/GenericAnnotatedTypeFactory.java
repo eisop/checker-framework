@@ -2894,18 +2894,8 @@ public abstract class GenericAnnotatedTypeFactory<
         }
     }
 
-    /**
-     * For each type other than a declared type, whether it is relevant. A cache to avoid repeated
-     * re-computation.
-     */
-    private final Map<TypeMirror, Boolean> isRelevantCache = MapsP.createLruCache(300);
-
-    /**
-     * For each class or interface, whether its declared types are relevant. A cache to avoid
-     * repeated re-computation; see {@link #isRelevant(TypeMirror)}.
-     */
-    private final IdentityHashMap<Element, Boolean> isRelevantDeclaredCache =
-            new IdentityHashMap<>();
+    /** For each type, whether it is relevant. A cache to avoid repeated re-computation. */
+    private final Map<TypeMirror, Boolean> isRelevantCache = MapsP.createLruCache(2000);
 
     /**
      * Returns true if users can write type annotations from this type system directly on the given
@@ -2926,20 +2916,12 @@ public abstract class GenericAnnotatedTypeFactory<
             return true;
         }
         if (tm.getKind() == TypeKind.DECLARED) {
-            // The erasure of a declared type is determined by its class, but erasure does not
-            // return one canonical instance for it: for example, every string literal has its own
-            // constant type. Keying isRelevantCache by the erased type therefore misses often, so
-            // key declared types by their class instead.
-            Element elt = ((DeclaredType) tm).asElement();
-            Boolean cachedResult = isRelevantDeclaredCache.get(elt);
-            if (cachedResult != null) {
-                return cachedResult;
-            }
-            boolean result = isRelevantImpl(types.erasure(tm));
-            isRelevantDeclaredCache.put(elt, result);
-            return result;
-        }
-        if (tm.getKind() != TypeKind.PACKAGE && tm.getKind() != TypeKind.MODULE) {
+            // The cache is keyed by identity, but erasure does not return one canonical instance
+            // per class: it returns a String type unchanged (with its constant value and
+            // annotations), and javac copies types in other ways. Look up the class's own erased
+            // type instead.
+            tm = types.erasure(((DeclaredType) tm).asElement().asType());
+        } else if (tm.getKind() != TypeKind.PACKAGE && tm.getKind() != TypeKind.MODULE) {
             tm = types.erasure(tm);
         }
         Boolean cachedResult = isRelevantCache.get(tm);
@@ -2975,9 +2957,6 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * <p>Clients should never call this. Call {@link #isRelevant} instead. This is a helper method
      * for {@link #isRelevant}.
-     *
-     * <p>Overrides must depend only on the erasure of {@code tm}, and for a declared type only on
-     * its class: {@link #isRelevant} caches the result per class.
      *
      * @param tm a type
      * @return true if users can write type annotations from this type system on the given Java type
