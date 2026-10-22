@@ -12,6 +12,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.util.typeinference8.types.ContainsInferenceVariable;
+import org.checkerframework.framework.util.typeinference8.types.InferenceFactory;
 import org.checkerframework.framework.util.typeinference8.types.Variable;
 import org.checkerframework.framework.util.typeinference8.util.InferenceBudgetExceededError;
 import org.checkerframework.framework.util.typeinference8.util.Theta;
@@ -195,7 +196,7 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         if (parentPath == null) {
             return tree;
         }
-        if (!TreeUtils.isPolyExpression(tree)) {
+        if (!InferenceFactory.isPolyExpression(tree)) {
             return tree;
         }
 
@@ -228,7 +229,12 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
                 if (!newClassTree.getTypeArguments().isEmpty()) {
                     return tree;
                 }
-                ExecutableElement constructor = TreeUtils.elementFromUse(newClassTree);
+                // The type arguments of the superclass of an anonymous class created with a
+                // diamond are inferred from the super constructor (JLS 15.9.3).
+                ExecutableElement constructor =
+                        TreeUtils.isAnonymousDiamondTree(newClassTree)
+                                ? TreeUtils.getSuperConstructor(newClassTree)
+                                : TreeUtils.elementFromUse(newClassTree);
                 if (argumentNeedsInference(
                         constructor, newClassTree.getArguments(), tree, newClassTree)) {
                     return outerInference((ExpressionTree) parentTree, parentPath.getParentPath());
@@ -303,9 +309,13 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         if (executableElement.getKind() == ElementKind.CONSTRUCTOR) {
             List<TypeVariable> list = new ArrayList<>(executableType.getTypeVariables());
             if (newClassTree != null && TreeUtils.isDiamondTree(newClassTree)) {
+                Tree classTypeTree =
+                        newClassTree.getClassBody() == null
+                                ? newClassTree
+                                : newClassTree.getIdentifier();
                 DeclaredType declaredType =
                         (DeclaredType)
-                                ((DeclaredType) TreeUtils.typeOf(newClassTree))
+                                ((DeclaredType) TreeUtils.typeOf(classTypeTree))
                                         .asElement()
                                         .asType();
                 for (TypeMirror typeVar : declaredType.getTypeArguments()) {

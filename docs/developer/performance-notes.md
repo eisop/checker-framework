@@ -2188,6 +2188,64 @@ change 11.6 to 12.0 s, LRU cache 10.6 to 11.0 s, reused parser 8.7 to 9.0 s. Rea
 (javacutil sources 9.6 to 8.9 s, dataflow sources 15.8 to 15.2 s): within noise or slightly
 faster. Diagnostics are identical on all three workloads.
 
+### Anonymous classes created with a diamond (eisop#2271, PR #2306)
+
+`new C<>(args) {...}` has no explicit type arguments; the supertype of the anonymous class is
+inferred from the arguments and the context (JLS 15.9.3), and javac's own supertype, with defaulted
+type arguments, is wrong. The inference is correct but costs time, and three things made it much
+more expensive than necessary. Workload: Nullness Checker, `-proc:only`, JDK 25, 300 anonymous
+diamond classes with 3 methods of 16 calls each.
+
+1. *Eager constraint descriptions.* The type-inference constraints stored `"..." + invocation`
+   as their `source`, which is used only by `TypeConstraint.constraintHistory()`. For an anonymous
+   class, `toString()` prints the whole class body, for every constraint. It was 68% of the samples
+   on a case with 8 large classes. `InferenceFactory.describe` names the method select or class
+   instead. Keep a tree out of any string that is built eagerly.
+2. *Caches gated on finality.* The types of the members of the anonymous class depend on the
+   inferred supertype, which can change while dataflow analysis refines the types of the arguments,
+   so `methodFromUse` and `getDirectSupertypes` skip their caches for such a class and infer the
+   supertype again for each call in the body. Once dataflow analysis of the anonymous class has
+   started, which is after that of its enclosing method, the supertype is final and the caches are
+   used. A supertype that is not the inferred one (inference re-entered, or failed) is never
+   cached.
+3. *A factory that never becomes final must forward or short-circuit.*
+   `isAnonymousDiamondSupertypeFinal` reads `scannedClasses` of the `GenericAnnotatedTypeFactory`,
+   which only `performFlowAnalysisForClass` fills. A factory that does not run it never became
+   final, and never cached:
+   - `InitializationAnnotatedTypeFactory` reuses the analysis of the
+     `InitializationFieldAccessSubchecker`, so its `scannedClasses` stays empty. 74,100 of 75,300
+     inferences came from it, 247 per class instead of 1. It now asks the field access factory.
+   - A factory without dataflow analysis (`useFlow` false, as in the Units and GUI Effect
+     Checkers) is final from the start, since the types of the arguments cannot change:
+     `!everUseFlow`. On two classes whose bodies call a method 50 times each,
+     `getAnonymousDiamondSupertype` ran 506 times in the Units Checker and 414 times in the GUI
+     Effect Checker, and once per class after the change.
+   - With `-AassumeInitialized` the `InitializationFieldAccessAnnotatedTypeFactory` does not
+     perform the analysis either. Nothing looks up members through it, so it inferred only twice
+     and needs no shortcut.
+
+   A profile showed the problem without the code: `getAnonymousDiamondSupertype` was 29% inclusive,
+   called from `methodFromUse` while visiting the body, long after dataflow analysis. Counting the
+   calls per factory identified the factory.
+
+Master against the PR (wall time, noisy by about 0.5 s). Master reports false positives on the first
+three inputs (3,856, 7,800 and 28,920), so it prints more and infers less:
+
+| Input | master | this PR |
+| --- | --- | --- |
+| 8 large classes, 40 methods of 24 calls each | 6.0 to 6.3 s | 5.3 to 7.2 s |
+| 300 classes, 3 methods of 16 calls each | 12.9 to 13.2 s | 13.0 to 13.3 s |
+| 60 classes, 40 methods each | 24.6 s | 20.5 s |
+| Index Checker on plume-util (no anonymous diamonds) | 22.64 s | 22.62 s |
+
+Anonymous diamonds are rare (8 in the framework, none in plume-util, daikon or guava), so only large
+or generated code is affected.
+
+*Not done:* making `TreeUtils.isPolyExpression` return true for anonymous diamonds would remove
+the `InferenceFactory.isPolyExpression` wrapper, but the Initialization Checker uses
+`isStandaloneExpression` to select the constructor arguments to check and would skip such an
+argument.
+
 ### `Resolver.getEnvForPath`: cache the attribution environment per location (October 2026, PR #2305)
 
 `Resolver.getEnvForPath` calls `Trees.getScope`, which copies the enclosing method and attributes
