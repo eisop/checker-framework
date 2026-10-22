@@ -2173,6 +2173,32 @@ change 11.6 to 12.0 s, LRU cache 10.6 to 11.0 s, reused parser 8.7 to 9.0 s. Rea
 (javacutil sources 9.6 to 8.9 s, dataflow sources 15.8 to 15.2 s): within noise or slightly
 faster. Diagnostics are identical on all three workloads.
 
+### `Resolver.getEnvForPath`: cache the attribution environment per location (October 2026, PR #2305)
+
+`Resolver.getEnvForPath` calls `Trees.getScope`, which copies the enclosing method and attributes
+the copy up to the given tree. The Index Checker resolves the identifiers of Java expression
+strings (the arguments of `@LTLengthOf`, `@SameLen`, ...) at the same locations again and again:
+per dataflow iteration, per type factory and per identifier. On plume-util 84% of the 5,661 calls
+repeat a location already seen (74% of 698 on the javacutil sources). Other checkers barely call
+it.
+
+Fix: an LRU map (300 entries) from the path's leaf to the `Env`, stored in the compiler `Context`
+under a `Context.Key`, so all `Resolver`s of one compilation share it and it dies with the
+compilation. The environment of a location does not change during type-checking.
+
+JFR (JDK 25 sampler, Index Checker, plume-util, 3 recordings combined, inclusive share of
+samples): `Resolver.getEnvForPath` 2.89% to 1.40%; `StringToJavaExpression.atPath` 3.98% to 2.50%;
+`JavaExpressionParseUtil.parse` 4.62% to 2.85%; total samples 5,632 to 5,438. Wall time 22.8 s to
+22.1 s (median of 3), within noise, so the benefit is the JFR share. Peak RSS did not grow
+(753, 741, 740 MB before; 727, 728, 712 MB after). What remains in `getEnvForPath` is the first
+query of each location. The cached `Env` references the real compilation's `Context`, not a new
+one, so it does not repeat the name-table retention that sank the parsed-tree LRU above; it does
+retain the copied method body, which the 300-entry bound limits.
+
+*Not done:* memoizing `StringToJavaExpression.atPath` per (string, location), the 2.5% inclusive
+that remains. The result depends on the path context and `JavaExpression`s are shared mutable
+state in places, so it needs an audit first.
+
 ---
 
 ## Tried and rejected
