@@ -501,7 +501,6 @@ public abstract class GenericAnnotatedTypeFactory<
 
         super.setRoot(root);
         this.scannedClasses = new IdentityHashMap<>();
-        this.flowAnalysisCompleted = false;
         this.reachableNodes.clear();
         this.flowResult = null;
         this.finalLocalValuesByDeclarer.clear();
@@ -1168,12 +1167,6 @@ public abstract class GenericAnnotatedTypeFactory<
     private int flowAnalysisDepth = 0;
 
     /**
-     * True if a call to {@link #performFlowAnalysisForClass} completed since the last call to
-     * {@link #setRoot}; see {@link #areFlowDependentTypesFinal()}.
-     */
-    private boolean flowAnalysisCompleted = false;
-
-    /**
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
      * reachable trees. Use {@link #isUnreachable(ExpressionTree)} instead of this set directly.
      * Only populated when "-AignoreDeadCode" was passed on the command line.
@@ -1414,28 +1407,29 @@ public abstract class GenericAnnotatedTypeFactory<
     protected void performFlowAnalysisForClass(ClassTree classTree) {
         flowAnalysisDepth++;
         try {
-            if (flowDependentExpressionTreeCache != null) {
-                // The analysis may refine the types of trees that are in the cache.
-                flowDependentExpressionTreeCache.clear();
+            if (fromExpressionTreeCache != null) {
+                // The analysis may refine the types of flow-dependent trees that were cached
+                // before it started.
+                fromExpressionTreeCache.clear();
             }
             performFlowAnalysisForClassImpl(classTree);
         } finally {
             flowAnalysisDepth--;
         }
-        flowAnalysisCompleted = true;
     }
 
     /**
-     * Returns true if no dataflow analysis is running and the analysis of the class being
-     * type-checked has completed, so its results are final. Since a top-level class and its nested
-     * classes are analyzed together before the visitor checks them, this holds while the visitor
-     * checks them. The cache is cleared before the next analysis.
+     * Returns true if no dataflow analysis is running and flow refinement is not temporarily
+     * disabled. Then the refined types of all trees of the classes that have been analyzed are
+     * final, and a class is analyzed before any of its trees are type-checked. The trees of a class
+     * that has not been analyzed yet have no refined types; their cached types are discarded when
+     * the analysis of the class starts.
      *
      * @return true if the dataflow results are final
      */
     @Override
     protected boolean areFlowDependentTypesFinal() {
-        return useFlow && flowAnalysisCompleted && flowAnalysisDepth == 0;
+        return flowAnalysisDepth == 0 && useFlow == everUseFlow;
     }
 
     /**
