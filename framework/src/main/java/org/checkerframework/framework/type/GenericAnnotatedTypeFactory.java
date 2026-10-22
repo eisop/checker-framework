@@ -1154,8 +1154,10 @@ public abstract class GenericAnnotatedTypeFactory<
 
     @Override
     public boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
-        // The anonymous class is analyzed after the method that contains it.
-        return scannedClasses.containsKey(creation.getClassBody());
+        // Without dataflow analysis the types of the arguments cannot change, so the inferred
+        // supertype is final from the start. Otherwise, the anonymous class is analyzed after the
+        // method that contains it.
+        return !everUseFlow || scannedClasses.containsKey(creation.getClassBody());
     }
 
     /**
