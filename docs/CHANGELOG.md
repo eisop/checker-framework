@@ -269,6 +269,8 @@ Performance optimizations:
 
 Other improvements and bug fixes:
 
+- The Index Checker no longer crashes with a `NullPointerException` on an upper bound
+  annotation, such as `@LTLengthOf`, whose `offset` is an expression with an error.
 - Checker subclass inheritance: inherits `@StubFiles` from nearest annotated
   superclass (shared bidirectionally in compound checkers), combines
   `@RelevantJavaTypes` across superclasses, and accepts the default
