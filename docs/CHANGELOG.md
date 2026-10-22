@@ -262,9 +262,8 @@ Performance optimizations:
 - New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
   replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
-- `TreePathCacher` no longer scans the compilation unit for the artificial trees of a shared
-  CFG after the ultimate parent checker cleared their paths (~6% of the Resource Leak
-  Checker's time on plume-util).
+- Compound checkers such as the Resource Leak Checker no longer scan the whole compilation unit
+  to find artificial trees (~5% of Resource Leak Checker samples on plume-util).
 
 Other improvements and bug fixes:
 

@@ -244,6 +244,33 @@ public class TreePathCacherTest {
     }
 
     /**
+     * Checks that the path of an artificial tree is not searched for after {@link
+     * TreePathCacher#clear}: the tree is not part of the compilation unit, so the answer is null,
+     * and the set of artificial trees is reset for a new compilation unit.
+     *
+     * @throws Exception if parsing the test sources fails
+     */
+    @Test
+    public void artificialTreeIsNotSearchedForAfterClear() throws Exception {
+        CompilationUnitTree cu1 = parse("A", "class A { int f() { return 1; } }");
+        CompilationUnitTree cu2 = parse("B", "class B { int g() { return 2; } }");
+        List<Tree> cu1Trees = treesUnder(cu1);
+        // Stands in for an artificial tree: a scan of cu1 would find it.
+        Tree artificial = cu1Trees.get(cu1Trees.size() - 1);
+
+        TreePathCacher cacher = new TreePathCacher();
+        cacher.addArtificialPath(artificial, new TreePath(cu1));
+        Assert.assertNotNull("added path", cacher.getPath(cu1, artificial));
+        cacher.clear();
+        Assert.assertNull("not searched for after clear", cacher.getPath(cu1, artificial));
+
+        // Artificial trees of another compilation unit replace the earlier ones.
+        cacher.addArtificialPath(treesUnder(cu2).get(0), new TreePath(cu2));
+        cacher.clear();
+        Assert.assertNotNull("searched for again", cacher.getPath(cu1, artificial));
+    }
+
+    /**
      * Checks that many lookups under the same leaf, enough for {@code TreePathCacher} to index the
      * leaf's subtree, match the JDK for targets under the leaf, outside it, and absent from the
      * compilation unit. The body declares {@code Integer a, b;}, whose declarators share a type

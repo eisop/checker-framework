@@ -180,7 +180,6 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
         }
         if (artificialTrees.contains(target)) {
             // An artificial tree is not part of the compilation unit; do not search for it.
-            foundPaths.put(target, null);
             return null;
         }
 
@@ -236,7 +235,6 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
         }
         if (artificialTrees.contains(target)) {
             // An artificial tree is not part of the compilation unit; do not search for it.
-            foundPaths.put(target, null);
             return null;
         }
 
