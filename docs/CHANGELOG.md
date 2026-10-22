@@ -271,6 +271,8 @@ Performance optimizations:
 - `Resolver.getEnvForPath` caches the attribution environment per location, so that
   resolving the identifiers of Java expression strings does not re-attribute the enclosing
   method each time.
+- `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
+  by their class instead of missing for each new instance of the same type.
 
 Other improvements and bug fixes:
 
