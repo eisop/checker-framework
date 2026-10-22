@@ -374,7 +374,7 @@ public class InvocationTypeInference {
             String source =
                     "Constraint between method call type and target type for method call (unchecked"
                             + " conversion): "
-                            + invocation;
+                            + InferenceFactory.describe(invocation);
             BoundSet b =
                     new ConstraintSet(
                                     new Typing(
@@ -423,7 +423,7 @@ public class InvocationTypeInference {
                 String source =
                         "Constraint between method call type and target type for method call (compatibility"
                                 + " constraint): "
-                                + invocation;
+                                + InferenceFactory.describe(invocation);
 
                 ConstraintSet constraintSet =
                         new ConstraintSet(new Typing(source, u, target, Kind.TYPE_COMPATIBILITY));
@@ -437,7 +437,7 @@ public class InvocationTypeInference {
                 // 5.1.7 is an instantiation, upper bound, or lower bound for [the variable] in B2."
                 String source =
                         "Constraint between method call type and target type for method call: "
-                                + invocation;
+                                + InferenceFactory.describe(invocation);
 
                 ConstraintSet constraintSet =
                         new ConstraintSet(new Typing(source, r, target, Kind.SUBTYPE));
@@ -447,7 +447,8 @@ public class InvocationTypeInference {
             }
         }
         String source =
-                "Constraint between method call type and target type for method call:" + invocation;
+                "Constraint between method call type and target type for method call:"
+                        + InferenceFactory.describe(invocation);
         ConstraintSet constraintSet =
                 new ConstraintSet(new Typing(source, r, target, Kind.TYPE_COMPATIBILITY));
         BoundSet newBounds = constraintSet.reduce(context);

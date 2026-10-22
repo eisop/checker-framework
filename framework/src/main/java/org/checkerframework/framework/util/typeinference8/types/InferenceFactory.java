@@ -799,6 +799,23 @@ public class InferenceFactory {
     }
 
     /**
+     * Returns a short description of {@code invocation} for the history of a constraint. Unlike
+     * {@code invocation.toString()}, it does not print an anonymous class body or a lambda
+     * argument, which can be large, and it is built eagerly for every constraint.
+     *
+     * @param invocation a method or constructor invocation
+     * @return a short description of {@code invocation}
+     */
+    public static String describe(ExpressionTree invocation) {
+        if (invocation instanceof MethodInvocationTree) {
+            return ((MethodInvocationTree) invocation).getMethodSelect() + "(...)";
+        } else if (invocation instanceof NewClassTree) {
+            return "new " + ((NewClassTree) invocation).getIdentifier() + "(...)";
+        }
+        return invocation.toString();
+    }
+
+    /**
      * Returns true if {@code expression} is a poly expression (JLS 15.2). Unlike {@link
      * TreeUtils#isPolyExpression(ExpressionTree)}, this is also true for an anonymous class created
      * with a diamond, as in {@code new C<>(args) {...}}, which is a poly expression (JLS 15.9) that
