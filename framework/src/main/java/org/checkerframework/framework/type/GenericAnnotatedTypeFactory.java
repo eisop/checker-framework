@@ -1152,7 +1152,7 @@ public abstract class GenericAnnotatedTypeFactory<
     protected IdentityHashMap<ClassTree, ScanState> scannedClasses = new IdentityHashMap<>();
 
     @Override
-    protected boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
+    public boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
         // The anonymous class is analyzed after the method that contains it.
         return scannedClasses.containsKey(creation.getClassBody());
     }

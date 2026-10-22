@@ -4346,12 +4346,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * <p>This implementation returns false. {@link GenericAnnotatedTypeFactory} returns true once
      * dataflow analysis of the anonymous class has started, which is after that of the enclosing
-     * method.
+     * method. A factory that does not keep track of the analyzed classes itself must forward to the
+     * factory that does.
      *
      * @param creation an anonymous class creation with a diamond
      * @return true if the inferred supertype of the anonymous class can no longer change
      */
-    protected boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
+    public boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
         return false;
     }
 
