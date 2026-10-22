@@ -1007,10 +1007,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected void setRoot(CompilationUnitTree newRoot) {
         this.currentRoot = newRoot;
         visitor.setRoot(currentRoot);
-        if (parentChecker == null) {
-            // Only clear the path cache if this is the main checker.
-            getTreePathCacher().clear();
-        }
+        // The cache is shared with the other checkers of a compound checker, which may have reached
+        // this compilation unit first. Clear it only when the unit changes.
+        getTreePathCacher().useUnit(newRoot);
     }
 
     /**

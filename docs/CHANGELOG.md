@@ -266,9 +266,13 @@ Performance optimizations:
 - New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
   replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
+- Compound checkers such as the Resource Leak Checker no longer scan the whole compilation unit
+  to find artificial trees (~5% of Resource Leak Checker samples on plume-util).
 
 Other improvements and bug fixes:
 
+- The Index Checker no longer crashes with a `NullPointerException` on an upper bound
+  annotation, such as `@LTLengthOf`, whose `offset` is an expression with an error.
 - Checker subclass inheritance: inherits `@StubFiles` from nearest annotated
   superclass (shared bidirectionally in compound checkers), combines
   `@RelevantJavaTypes` across superclasses, and accepts the default

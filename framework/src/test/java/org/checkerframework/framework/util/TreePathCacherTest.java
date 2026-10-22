@@ -244,6 +244,35 @@ public class TreePathCacherTest {
     }
 
     /**
+     * Checks that {@link TreePathCacher#useUnit} keeps the cache, including the path of a tree that
+     * a scan cannot find (an artificial tree), when called again for the same compilation unit, and
+     * clears it for another compilation unit.
+     *
+     * @throws Exception if parsing the test sources fails
+     */
+    @Test
+    public void useUnitClearsOnlyForANewUnit() throws Exception {
+        CompilationUnitTree cu1 = parse("A", "class A { int f() { return 1; } }");
+        CompilationUnitTree cu2 = parse("B", "class B { int g() { return 2; } }");
+        List<Tree> cu2Trees = treesUnder(cu2);
+        // Stands in for an artificial tree: absent from cu1, so a scan of cu1 cannot find it.
+        Tree artificial = cu2Trees.get(cu2Trees.size() - 1);
+        TreePath parentPath = new TreePath(cu1);
+        TreePath artificialPath = new TreePath(parentPath, artificial);
+
+        TreePathCacher cacher = new TreePathCacher();
+        cacher.useUnit(cu1);
+        cacher.addPath(artificial, artificialPath);
+
+        cacher.useUnit(cu1);
+        Assert.assertSame(
+                "same unit keeps the path", artificialPath, cacher.getPath(cu1, artificial));
+
+        cacher.useUnit(cu2);
+        Assert.assertFalse("new unit clears the cache", cacher.isCached(artificial));
+    }
+
+    /**
      * Checks that many lookups under the same leaf, enough for {@code TreePathCacher} to index the
      * leaf's subtree, match the JDK for targets under the leaf, outside it, and absent from the
      * compilation unit. The body declares {@code Integer a, b;}, whose declarators share a type
