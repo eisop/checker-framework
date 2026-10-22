@@ -768,6 +768,21 @@ so small per-call wins paid back substantially.
   Profiling showed the LRU eviction rate dominated some workloads;
   the win from cache-hit rate exceeds the memory cost at modern heap
   sizes.
+- **PR #2304** — *`GenericAnnotatedTypeFactory.isRelevant`: look up the canonical erased type.*
+  The identity-keyed LRU cache of relevance missed on 193,000 of 1.99 million calls (Index Checker,
+  plume-util; 2.7% of samples). A probe that classified each miss as cold, evicted (same instance
+  seen before) or new instance of a class already seen showed 96% were new instances, and none was
+  a constant type or had annotation metadata (25,356 of 33,590 were `java.lang.Object` in an
+  anonymous javac `ClassType` copy). `Types.erasure` does not return one canonical instance per
+  class: it returns primitives and `String` unchanged, and returns the canonical erased type only
+  for inputs without metadata. For a declared type the fix looks up
+  `types.erasure(elt.asType())`, which is canonical (declared-type misses: about 35,000 → 700), and
+  the cache grows from 300 to 2000 entries because daikon needs about 1,400 entries per factory
+  (99.96% hit rate). Wall time is unchanged within noise; the benefit is the JFR share. Lesson: do
+  not key an identity cache by `Types.erasure(t)`; canonicalize through the element first. A first
+  version kept a second `IdentityHashMap` keyed by class; the canonicalization replaced it with no
+  extra structure. Array types still miss on every lookup (0.3% of calls) and are left alone: a
+  fresh `ArrayType` is built per erasure and a special case is not worth about 5 ms.
 - The `Collections.synchronizedMap` wrapper around
   `AnnotatedTypeFactory.annotationClassNames` is gone. The wrapper was
   carried over from a 2020 refactor of a previously static
