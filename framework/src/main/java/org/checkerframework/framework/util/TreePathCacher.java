@@ -79,6 +79,29 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
      */
     private final IdentityHashMap<Tree, Tree> parentInIndex = new IdentityHashMap<>();
 
+    /** The compilation unit whose paths are cached. */
+    private @Nullable CompilationUnitTree unit;
+
+    /**
+     * Prepares the cache for the given compilation unit: clears it, unless it is already for that
+     * unit. The checkers of a compound checker share one cache, and each of them calls this when it
+     * starts a compilation unit.
+     *
+     * <p>Clearing the cache when a later checker starts the same unit would lose the paths of the
+     * artificial trees that a CFG builder registered. A scan cannot find an artificial tree, so the
+     * registered path is the only source of its path.
+     *
+     * @param newUnit the compilation unit that is about to be checked
+     */
+    public void useUnit(CompilationUnitTree newUnit) {
+        @SuppressWarnings("interning:not.interned") // reference equality of compilation units
+        boolean changed = newUnit != unit;
+        if (changed) {
+            clear();
+            unit = newUnit;
+        }
+    }
+
     /** Construct a TreePathCacher. */
     public TreePathCacher() {}
 
