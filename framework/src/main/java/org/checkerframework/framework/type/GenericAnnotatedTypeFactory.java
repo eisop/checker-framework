@@ -1151,6 +1151,12 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected IdentityHashMap<ClassTree, ScanState> scannedClasses = new IdentityHashMap<>();
 
+    @Override
+    protected boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
+        // The anonymous class is analyzed after the method that contains it.
+        return scannedClasses.containsKey(creation.getClassBody());
+    }
+
     /**
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
      * reachable trees. Use {@link #isUnreachable(ExpressionTree)} instead of this set directly.

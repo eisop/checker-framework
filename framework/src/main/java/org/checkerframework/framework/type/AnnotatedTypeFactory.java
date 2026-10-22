@@ -3338,17 +3338,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // contains a polymorphic qualifier (its annotations are resolved per call from the
         // arguments); (2) checkers whose method types are otherwise call-dependent (e.g. Value,
         // MethodVal) opt out via shouldCacheMethodAsMemberOf; (3) do not cache a member of an
-        // anonymous class created with a diamond, whose inferred supertype can change (see
-        // getAnonymousDiamondCreation).
+        // anonymous class created with a diamond while its inferred supertype can change (see
+        // hasChangingSupertype).
         MethodAsMemberOfCacheKey cacheKey =
                 (shouldCache
                                 && receiverType != null
                                 && shouldCacheMethodAsMemberOf()
                                 && !methodDeclaresPolymorphicQualifier(methodElt)
                                 && !(receiverType.getKind() == TypeKind.DECLARED
-                                        && getAnonymousDiamondCreation(
-                                                        (AnnotatedDeclaredType) receiverType)
-                                                != null))
+                                        && hasChangingSupertype(
+                                                (AnnotatedDeclaredType) receiverType)))
                         ? new MethodAsMemberOfCacheKey(methodElt, receiverType)
                         : null;
         AnnotatedExecutableType methodType;
@@ -3594,15 +3593,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * the structural {@code (type)} key is sound; the same structural type's supertypes are
      * recomputed constantly while walking type hierarchies ({@code asSuper}, {@code
      * allSupertypes}). Stores and returns deep copies, since callers mutate the supertypes'
-     * annotations. The exception is an anonymous class created with a diamond, whose supertype is
-     * inferred from the creation expression; it is not cached.
+     * annotations. The exception is an anonymous class created with a diamond while its supertype,
+     * which is inferred from the creation expression, can still change; see {@link
+     * #hasChangingSupertype}.
      *
      * @param type a declared type
      * @return the direct supertypes of {@code type} (an unmodifiable list)
      */
     public List<AnnotatedDeclaredType> getDirectSupertypes(AnnotatedDeclaredType type) {
         DirectSupertypesCacheKey key =
-                shouldCache && getAnonymousDiamondCreation(type) == null
+                shouldCache && !hasChangingSupertype(type)
                         ? new DirectSupertypesCacheKey(type)
                         : null;
         List<AnnotatedDeclaredType> cached = key == null ? null : directSupertypesCache.get(key);
@@ -4326,11 +4326,41 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns true if {@code type} is an anonymous class created with a diamond, as in {@code new
+     * C<>(args) {...}}, whose inferred supertype can still change, so that types that depend on it
+     * must not be cached.
+     *
+     * @param type a declared type
+     * @return true if the supertype of {@code type} can still change
+     */
+    private boolean hasChangingSupertype(AnnotatedDeclaredType type) {
+        NewClassTree creation = getAnonymousDiamondCreation(type);
+        return creation != null && !isAnonymousDiamondSupertypeFinal(creation);
+    }
+
+    /**
+     * Returns true if the supertype inferred for the anonymous class created by {@code creation}, a
+     * diamond such as {@code new C<>(args) {...}}, can no longer change. It is inferred from the
+     * types of the arguments and of the context, which change during dataflow analysis of the
+     * enclosing method.
+     *
+     * <p>This implementation returns false. {@link GenericAnnotatedTypeFactory} returns true once
+     * dataflow analysis of the anonymous class has started, which is after that of the enclosing
+     * method.
+     *
+     * @param creation an anonymous class creation with a diamond
+     * @return true if the inferred supertype of the anonymous class can no longer change
+     */
+    protected boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
+        return false;
+    }
+
+    /**
      * Returns the class instance creation expression of {@code type}'s class if that is an
      * anonymous class created with a diamond, as in {@code new C<>(args) {...}}.
      *
      * <p>The supertype of such a class is inferred from the creation expression and its context,
-     * and can change during dataflow analysis, so types that depend on it are not cached.
+     * and can change during dataflow analysis; see {@link #hasChangingSupertype}.
      *
      * @param type a declared type
      * @return the anonymous class creation with a diamond that declares {@code type}'s class, or
