@@ -268,6 +268,8 @@ Performance optimizations:
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
 - `ElementUtils.isElementFromSourceCode` caches its result per source file object instead
   of constructing a `URI` on every call.
+- `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
+  by their class instead of missing for each new instance of the same type.
 
 Other improvements and bug fixes:
 
