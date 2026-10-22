@@ -261,7 +261,8 @@ public abstract class UBQualifier {
      * @param sequences non-empty list of sequences
      * @param offsets list of offset, if empty, an offset of 0 is used
      * @param extraOffset offset to add to each element of offsets; may be null
-     * @return an {@link UBQualifier} for the sequences with the given offsets
+     * @return an {@link UBQualifier} for the sequences with the given offsets, or UNKNOWN if an
+     *     offset is an expression with an error
      */
     public static UBQualifier createUBQualifier(
             List<String> sequences, List<String> offsets, @Nullable String extraOffset) {
