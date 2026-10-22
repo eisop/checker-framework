@@ -2498,20 +2498,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         // The type of some expressions depends on the dataflow store, so caching it during dataflow
         // analysis would cache incorrect annotations (see Issue #602). Cache those only once the
-        // dataflow results are final, and not while type argument inference is running: the
-        // expressions that are part of the inference problem are then typed without inferring
-        // their type arguments.
+        // dataflow results are final; see canCacheFlowDependentTypes.
         IdentityHashMap<Tree, AnnotatedTypeMirror> cache;
         if (tree instanceof NewClassTree
                 || tree instanceof NewArrayTree
                 || tree instanceof ConditionalExpressionTree) {
-            cache =
-                    areFlowDependentTypesFinal()
-                                    && typeArgumentInference instanceof DefaultTypeArgumentInference
-                                    && !((DefaultTypeArgumentInference) typeArgumentInference)
-                                            .isInferring()
-                            ? flowDependentExpressionTreeCache
-                            : null;
+            cache = canCacheFlowDependentTypes() ? flowDependentExpressionTreeCache : null;
         } else {
             cache = fromExpressionTreeCache;
         }
@@ -2531,11 +2523,25 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns true if the dataflow results that the types of new class, new array, and conditional
-     * expressions depend on are final, so that these types can be cached in {@link
-     * #flowDependentExpressionTreeCache}. This implementation returns false.
+     * Returns true if the types of new class, new array, and conditional expressions can be cached
+     * in {@link #flowDependentExpressionTreeCache}: the dataflow results that they depend on are
+     * final, and no type argument inference is running. The expressions that are part of a running
+     * inference problem are typed without inferring their type arguments, so their types must not
+     * be cached. A checker with its own {@link TypeArgumentInference} never caches them.
      *
      * @return true if the types of expressions that depend on the dataflow store can be cached
+     */
+    private boolean canCacheFlowDependentTypes() {
+        return areFlowDependentTypesFinal()
+                && typeArgumentInference instanceof DefaultTypeArgumentInference
+                && !((DefaultTypeArgumentInference) typeArgumentInference).isInferring();
+    }
+
+    /**
+     * Returns true if the dataflow results that the types of new class, new array, and conditional
+     * expressions depend on are final. This implementation returns false.
+     *
+     * @return true if the dataflow results are final
      */
     protected boolean areFlowDependentTypesFinal() {
         return false;
