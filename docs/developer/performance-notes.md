@@ -2004,6 +2004,14 @@ in `UBQualifier$LessThanLengthOf` — a null path yields an unparseable offset e
 layers from the cause. If this is revisited, the clear has to happen strictly before anything is
 cached for the new unit, and the Index Checker is the canary.
 
+*Update (October 2026).* The Resource Leak Checker now does a scoped version of this:
+`ResourceLeakChecker.setRoot` ignores a call with the current root, so the clear that its
+`RLCCalledMethodsAnnotatedTypeFactory` triggered after each analyzed method is gone, and the
+clear at the start of each unit still happens strictly before anything is cached for it. The
+lost-artificial-path problem above no longer arises on that path, and the lookups of artificial
+trees that remain are answered without a scan once #2301 is merged. The general change for all
+checkers is still not done.
+
 ### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
 
 `CheckerFrameworkPerDirectoryTest` previously hardcoded `-AajavaChecks` across all directory tests.
