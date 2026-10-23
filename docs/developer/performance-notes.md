@@ -2274,55 +2274,63 @@ state in places, so it needs an audit first.
 
 ### Types of flow-dependent expressions after dataflow (October 2026, PR #2307)
 
-`AnnotatedTypeFactory.fromExpression` cached the types of most trees in every phase and never cached
-new class, new array, and conditional expressions, because their types depend on the dataflow store
-and a fixpoint iteration would cache wrong annotations (Issue #602). Both halves were wrong.
-
-*Which trees are flow-dependent.* A cached type is valid only if it equals what `-AatfDoNotCache`
-computes: the refined types of the subexpressions it read are final, `useFlow` equals `everUseFlow`,
-and no `DefaultTypeArgumentInference` problem is running. A temporary mode recomputed the type at
-every cache hit and counted differences (about 146M hits over `:framework:test`, 89 of the 97
-`:checker:test` suites, plume-util, and javacutil). Method invocations (store and inference), new
-class, conditional, and switch expressions, and field accesses on an instance receiver differ; array
-accesses are flow-dependent by reading the visitor, with no difference observed; new array
-expressions, identifiers, literals, and casts never differed. So master missed errors for method
-invocations (`id(nullable)` with `@PolyNull`, a generic `gid(nullable)`, `new ArrayList<>(...).get(0)`
-in a loop where the argument becomes nullable later; typetools#602, eisop#2343): 6 of 15 Nullness
-loop cases and 3 of 4 Value cases were found on master and on the first version of this PR, 15 and 4
-with the rule below. On plume-util, the Index Checker cached `Integer.valueOf(i)` as
-`@UpperBoundBottom` where the uncached type is `@LTLengthOf`. New array expressions were excluded
-needlessly.
-
-*The rule.* There is one map, `fromExpressionTreeCache`. `isFlowDependent(tree)` classifies the
-trees above. Other trees are cached in every phase. A flow-dependent tree is cached only while
-`canCacheFlowDependentTypes()` holds: no `performFlowAnalysisForClass` is active, flow refinement
-is not temporarily disabled (`useFlow == everUseFlow`), and no type argument inference is running
-(`DefaultTypeArgumentInference.isInferring()`; a checker with its own `TypeArgumentInference` never
-caches them). The map is cleared when a class analysis starts, which drops the entries that were
-cached for a class that was not analyzed yet. This replaces the first version of this PR, which
-added a second map for the three excluded kinds and a `flowAnalysisCompleted` flag.
-
-Almost all queries come after the analysis of their class: the visitor asks for the type of each
-`new` several times (`constructorFromUse` with and without inference, `validateTypeOf`,
+`AnnotatedTypeFactory.fromExpression` cached the types of most trees in every phase and never
+cached new class, new array, and conditional expressions, because their types depend on the
+dataflow store and a fixpoint iteration would cache wrong annotations (Issue #602). Almost all
+queries come after the analysis of their class, though: the visitor asks for the type of each `new`
+several times (`constructorFromUse` with and without inference, `validateTypeOf`,
 `getAnnotatedType`, the enclosing assignment check), and the Index Checker's Lower Bound and Upper
 Bound factories ask the Value factory for the type of every expression. Each query reran
 `constructorFromUse`, including type argument inference for a diamond. JFR, Index Checker on
 plume-util: `TypeFromExpressionVisitor.visitNewClass` 15.5% inclusive.
 
+*Which trees are flow-dependent.* A cached type is valid only if it equals what `-AatfDoNotCache`
+computes: the refined types of the subexpressions it read are final, `useFlow` equals `everUseFlow`,
+and no `DefaultTypeArgumentInference` problem is running. A temporary mode recomputed the type at
+every cache hit and counted differences: about 146M hits over `:framework:test`, 89 of the 97
+`:checker:test` suites, plume-util, and javacutil. Method invocations (store and inference), new
+class, conditional, and switch expressions, and field accesses on an instance receiver differ; array
+accesses are flow-dependent by reading the visitor, with no difference observed; new array
+expressions, identifiers, literals, and casts never differed, so the new array exclusion was
+needless. On plume-util, the Index Checker cached `Integer.valueOf(i)` as `@UpperBoundBottom` where
+the uncached type is `@LTLengthOf`.
+
+*The rule.* One map, `fromExpressionTreeCache`; `isFlowDependent(tree)` classifies the trees above.
+Other trees are cached in every phase. A flow-dependent tree is cached only while
+`areFlowDependentTypesFinal()` holds: no `performFlowAnalysisForClass` is active and flow refinement
+is not temporarily disabled (`useFlow == everUseFlow`), and no type argument inference is running
+(`DefaultTypeArgumentInference.isInferring()`; a checker with its own `TypeArgumentInference` never
+caches them). The map is cleared when a class analysis starts, which drops the entries cached for a
+class that was not analyzed yet. A second map for the previously excluded kinds only was tried; it
+left method invocations, switch expressions, and array accesses cached during dataflow, so one map
+with one predicate replaced it.
+
 *Cost.* Method invocations are no longer cached during dataflow, which doubles their computations
 for the Index Checker on plume-util (21.8k to 47.0k). JFR, Index Checker on plume-util, JDK 25
 (`fromExpression` inclusive, `inferTypeArgs` inclusive, on-CPU samples): master 30.1%, 19.1%, 1800;
-this PR 23.6%, 10.5%, 1701. Wall time, median of interleaved runs, master to this PR: Index on
-plume-util 21.6 to 20.6 s (8 runs), Index on javacutil 14.6 to 14.9 s (4 runs), Nullness on
-plume-util 12.3 to 12.3 s (5 runs), Value on plume-util 7.9 to 7.8 s (6 runs). So it is not slower
-than master, and diagnostics on plume-util and javacutil are unchanged. The first version of this
-PR, which cached method invocations during dataflow and so fixed nothing for them, was 19.95 s on
-the Index workload.
+this change 23.6%, 10.5%, 1701. Wall time, median of interleaved runs, master to this change: Index
+on plume-util 21.6 to 20.6 s (8 runs), Index on javacutil 14.6 to 14.9 s (4 runs), Nullness on
+plume-util 12.3 to 12.3 s (5 runs), Value on plume-util 7.9 to 7.8 s (6 runs). Diagnostics on
+plume-util and javacutil are unchanged.
+
+*Clearing the whole map.* `performFlowAnalysisForClass` clears the map at every class analysis, which
+also drops the entries of trees that are not flow-dependent. A/B on generated files, Nullness
+(Index in parentheses), median of 7 interleaved runs, JDK 25: 300 top-level classes 10.25 s (19.67 s)
+with the full clear, 10.48 s (19.72 s) with no clear (unsound; it bounds the cost of the clear), and
+11.21 s (20.90 s) when removing only the flow-dependent keys, which is slower because the map then
+grows to the size of the compilation unit and is scanned at every class start. A second map for the
+flow-dependent trees that is the only one cleared took 10.33 s (19.47 s), the same as the full clear.
+One class with 100 nested, 100 anonymous, and 100 local classes: 8.45 s with the full clear, 8.35 s
+with no clear. Counters showed that no cleared entry was ever requested again (76,843 dropped
+entries over 1200 clears on the first file), and JFR attributes no samples to `clear()`. Index on
+plume-util: 20.70 s with the full clear, 20.60 s with no clear. So the full clear stays. *Hypothesis:*
+the trees of a class are queried only while it is analyzed and checked; this held on these six
+workload and checker pairs, not on every checker.
 
 *Not done:* a flag on `TypeArgumentInference` instead of the `instanceof` check. A default method
 that returns false would let a custom inference use the cache, which is unsafe if it also types
 sub-expressions without inference. The Initialization Checker's type for `this` depends on
-`getStoreBefore` and differs even when both queries come after dataflow; that is a separate issue.
+`getStoreBefore` and differs even when both queries come after dataflow (eisop#2344).
 
 ---
 
@@ -2997,9 +3005,9 @@ Capture format: hot method, hypothesis, blockers.
     structural `contains` (see *Tried and rejected*: the identity fix for that regresses allocation).
     **Possibly-fixable angle (applied in PR #2307, October 2026, not re-measured on this shape):**
     #602 forbids caching conditionals *during dataflow*, but the *post-dataflow* visitor pass has a
-    final, stable store where a conditional-type cache is sound. Sizing = measure conditional-query provenance (dataflow iterations vs. post-analysis
-    visitor). Realistic conditionals are shallow, so the everyday win is small; this is mostly
-    worst-case (generated-code) protection.
+    final, stable store where a conditional-type cache is sound. Sizing = measure conditional-query
+    provenance (dataflow iterations vs. post-analysis visitor). Realistic conditionals are shallow,
+    so the everyday win is small; this is mostly worst-case (generated-code) protection.
   - **`inherit` (depth-D class chain + D up-assignments) — quadratic.** 320 MB → 4.6 GB at D =
     20→160; `AsSuperVisitor.visitDeclared_Declared` 22% + repeated `getDirectSupertypes` /
     `AnnotatedDeclaredType.directSupertypes` 17% — the asSuper/supertype walk is super-linear in
@@ -3157,11 +3165,11 @@ Capture format: hot method, hypothesis, blockers.
      cacheable tree** — not cacheable away. The only remaining redundancy is the Issue #602 exclusions
      (`NewClassTree`/`NewArrayTree`/`ConditionalExpressionTree`): on all-systems, ~20% of build time
      (an upper bound — build timing is inclusive of nested re-entrant `fromExpression` calls) is spent
-     rebuilding just 153 distinct trees ~16× each (94% repeats). That was **blocked by #602** (see the October 2026
-     section on PR #2307, which caches them once dataflow is final): those
-     trees' types are flow-dependent (they change across fixpoint iterations), the same soundness crux
-     that rejected the per-analysis `getValueFromFactory` memo (#1, where 8–18% of flow-dependent
-     repeats return a *different* type). No safe caching win remains. Do not pursue.
+     rebuilding just 153 distinct trees ~16× each (94% repeats). During dataflow their types are
+     flow-dependent (they change across fixpoint iterations), the same soundness crux that rejected
+     the per-analysis `getValueFromFactory` memo (#1, where 8–18% of flow-dependent repeats return a
+     *different* type). #602 blocked caching them until PR #2307 (October 2026 section), which
+     caches them once dataflow is final. No safe caching win remains during dataflow. Do not pursue.
   4. **Cache the *applied* defaults** (not just the `DefaultSet`, which is already cached) per
      (element, structural shape) to skip the per-call `DefaultApplierElementImpl.scan` (~12% incl).
      **MEASURED AND REJECTED (June 2026)** — prototype built and A/B'd; see *Per-CU tree-defaults
