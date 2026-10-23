@@ -30,7 +30,8 @@ jobs:
   linux-tests:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-26.04
-    timeout-minutes: 60
+    # A matrix entry that needs longer sets `timeout`.
+    timeout-minutes: ${{ matrix.timeout || 35 }}
     strategy:
       fail-fast: true
       matrix:
