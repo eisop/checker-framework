@@ -2296,22 +2296,35 @@ needless. On plume-util, the Index Checker cached `Integer.valueOf(i)` as `@Uppe
 the uncached type is `@LTLengthOf`.
 
 *The rule.* One map, `fromExpressionTreeCache`; `isFlowDependent(tree)` classifies the trees above.
-Other trees are cached in every phase. A flow-dependent tree is cached only while
-`areFlowDependentTypesFinal()` holds: no `performFlowAnalysisForClass` is active and flow refinement
-is not temporarily disabled (`useFlow == everUseFlow`), and no type argument inference is running
-(`DefaultTypeArgumentInference.isInferring()`; a checker with its own `TypeArgumentInference` never
-caches them). The map is cleared when a class analysis starts, which drops the entries cached for a
-class that was not analyzed yet. A second map for the previously excluded kinds only was tried; it
-left method invocations, switch expressions, and array accesses cached during dataflow, so one map
-with one predicate replaced it.
+Other trees are cached in every phase. `canUseCachedFlowDependentType` and
+`canCacheFlowDependentType` decide for a flow-dependent tree, and `GenericAnnotatedTypeFactory`
+overrides both. Neither holds if flow refinement is temporarily disabled (`useFlow != everUseFlow`).
+After the analysis of the classes (no `performFlowAnalysisForClass` is active) both hold. While a
+class is analyzed, a type is cached only when the analysis computes the value of the tree's own node
+(`analysis.getCurrentTree() == tree`), and is used by every other query: then the refined types of
+the tree's subexpressions are the current ones, and they do not change before the analysis visits
+the tree again, because subexpressions are visited before the tree; the type cached at the last
+visit is the final one. This relies on the node visit order of a forward analysis, as all analyses
+here are; a backward analysis, or a transfer function that queries the type of a tree whose own
+node has not been visited yet, would need another rule. During a `DefaultTypeArgumentInference`
+problem nothing flow-dependent is cached (the expressions of the problem are typed without
+inferring their type arguments), but a type cached before can be used; not using it took 22 s
+instead of 2 s for the chain of generic calls with lambdas in jtreg `Issue2853`, as every level
+typed its receiver again. A checker with its own `TypeArgumentInference` never caches them. The map
+is cleared when a class analysis starts, which drops the entries cached for a class that was not
+analyzed yet. A second map for the previously excluded kinds only was tried; it left method
+invocations, switch expressions, and array accesses cached during dataflow, so one map replaced it.
 
-*Cost.* Method invocations are no longer cached during dataflow, which doubles their computations
-for the Index Checker on plume-util (21.8k to 47.0k). JFR, Index Checker on plume-util, JDK 25
-(`fromExpression` inclusive, `inferTypeArgs` inclusive, on-CPU samples): master 30.1%, 19.1%, 1800;
-this change 23.6%, 10.5%, 1701. Wall time, median of interleaved runs, master to this change: Index
-on plume-util 21.6 to 20.6 s (8 runs), Index on javacutil 14.6 to 14.9 s (4 runs), Nullness on
-plume-util 12.3 to 12.3 s (5 runs), Value on plume-util 7.9 to 7.8 s (6 runs). Diagnostics on
-plume-util and javacutil are unchanged.
+*Cost.* Without the own-node rule, method invocations were not cached during dataflow at all, which
+doubled their computations for the Index Checker on plume-util (21.8k to 47.0k) and took 39 s on
+`Issue2853` (master 2.7 s). With it: 27.9k computations, 2.0 s. JFR, Index Checker on plume-util,
+JDK 25 (`fromExpression` inclusive, `inferTypeArgs` inclusive, on-CPU samples): master 30.1%, 19.1%,
+1800; without the own-node rule 23.6%, 10.5%, 1701; with it 18.0%, 8.9%, 1602. Wall time, median of
+interleaved runs, master to with the own-node rule: Index on plume-util 21.6 to 19.9 s (8 runs),
+Index on javacutil 14.6 to 14.3 s (4 runs), Nullness on plume-util 12.3 to 12.1 s (5 runs), Value on
+plume-util 7.9 to 7.7 s (6 runs). A temporary mode that recomputed the type at every cache use found
+no difference to the uncached type for the own-node rule on plume-util (Index, Nullness, Value; 813k
+uses). Diagnostics on plume-util and javacutil are unchanged.
 
 *Clearing the whole map.* `performFlowAnalysisForClass` clears the map at every class analysis, which
 also drops the entries of trees that are not flow-dependent. A/B on generated files, Nullness

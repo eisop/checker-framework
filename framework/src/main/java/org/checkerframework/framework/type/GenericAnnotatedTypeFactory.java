@@ -1162,7 +1162,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
     /**
      * The number of active calls to {@link #performFlowAnalysisForClass}; see {@link
-     * #areFlowDependentTypesFinal()}.
+     * #canUseCachedFlowDependentType(ExpressionTree)}.
      */
     private int flowAnalysisDepth = 0;
 
@@ -1402,10 +1402,11 @@ public abstract class GenericAnnotatedTypeFactory<
      * Perform a org.checkerframework.dataflow analysis over a single class tree and its nested
      * classes.
      *
-     * <p>This method does the bookkeeping that {@link #areFlowDependentTypesFinal()} relies on: it
-     * counts the active analyses and discards the cached types of expressions that the analysis may
-     * refine. It is final so that no subclass can skip it; a subclass customizes the analysis by
-     * overriding {@link #performFlowAnalysisForClassImpl(ClassTree)}.
+     * <p>This method does the bookkeeping that {@link
+     * #canUseCachedFlowDependentType(ExpressionTree)} relies on: it counts the active analyses and
+     * discards the cached types of expressions that the analysis may refine. It is final so that no
+     * subclass can skip it; a subclass customizes the analysis by overriding {@link
+     * #performFlowAnalysisForClassImpl(ClassTree)}.
      *
      * @param classTree the class to analyze
      */
@@ -1424,17 +1425,42 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Returns true if no dataflow analysis is running and flow refinement is not temporarily
-     * disabled. Then the refined types of all trees of the classes that have been analyzed are
-     * final, and a class is analyzed before any of its trees are type-checked. The trees of a class
-     * that has not been analyzed yet have no refined types; their cached types are discarded when
-     * the analysis of the class starts.
+     * {@inheritDoc}
      *
-     * @return true if the dataflow results are final
+     * <p>When no dataflow analysis is running, the refined types of the trees of all classes that
+     * have been analyzed are final, and a class is analyzed before any of its trees are
+     * type-checked; the cached types of the trees of a class that has not been analyzed yet are
+     * discarded when its analysis starts. While a class is analyzed, the type of a tree is cached
+     * only when the analysis computes the value of the tree's own node: then the refined types of
+     * its subexpressions are the current ones, and they do not change before the analysis visits
+     * the tree again, because the subexpressions are visited before the tree. The tree's own node
+     * recomputes its type at each visit.
      */
     @Override
-    protected boolean areFlowDependentTypesFinal() {
-        return flowAnalysisDepth == 0 && useFlow == everUseFlow;
+    protected boolean canUseCachedFlowDependentType(ExpressionTree tree) {
+        if (useFlow != everUseFlow) {
+            return false;
+        }
+        return flowAnalysisDepth == 0 || !isAnalyzingNodeOf(tree);
+    }
+
+    @Override
+    protected boolean canCacheFlowDependentType(ExpressionTree tree) {
+        if (useFlow != everUseFlow) {
+            return false;
+        }
+        return flowAnalysisDepth == 0 || isAnalyzingNodeOf(tree);
+    }
+
+    /**
+     * Returns true if the dataflow analysis is computing the value of a node of {@code tree}.
+     *
+     * @param tree an expression tree
+     * @return true if the dataflow analysis is computing the value of a node of {@code tree}
+     */
+    @SuppressWarnings("interning:not.interned") // Looking for exact tree.
+    private boolean isAnalyzingNodeOf(ExpressionTree tree) {
+        return analysis.isRunning() && analysis.getCurrentTree() == tree;
     }
 
     /**
