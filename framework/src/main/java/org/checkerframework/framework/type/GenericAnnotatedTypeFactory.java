@@ -1489,9 +1489,13 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param tree an expression tree
      * @return true if the dataflow analysis is computing the value of a node of {@code tree}
      */
-    @SuppressWarnings("interning:not.interned") // Looking for exact tree.
     private boolean isAnalyzingNodeOf(ExpressionTree tree) {
-        return analysis.isRunning() && analysis.getCurrentTree() == tree;
+        if (!analysis.isRunning()) {
+            return false;
+        }
+        @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+        boolean isCurrent = analysis.getCurrentTree() == tree;
+        return isCurrent;
     }
 
     /**
@@ -1506,7 +1510,6 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return true if {@code tree} is evaluated before the tree whose node the dataflow analysis is
      *     computing
      */
-    @SuppressWarnings("interning:not.interned") // Looking for exact trees.
     private boolean isEvaluatedBeforeAnalyzedTree(ExpressionTree tree) {
         if (!analysis.isRunning()) {
             return false;
@@ -1517,7 +1520,12 @@ public abstract class GenericAnnotatedTypeFactory<
             Node currentNode = analysis.getCurrentNode();
             current = currentNode == null ? null : currentNode.getTree();
         }
-        if (current == null || current == tree) {
+        if (current == null) {
+            return false;
+        }
+        @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+        boolean isSame = current == tree;
+        if (isSame) {
             return false;
         }
         TreePath path = getPath(tree);
@@ -1528,7 +1536,9 @@ public abstract class GenericAnnotatedTypeFactory<
         Tree child = tree;
         for (TreePath p = path.getParentPath(); p != null; p = p.getParentPath()) {
             Tree leaf = p.getLeaf();
-            if (leaf == current) {
+            @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+            boolean isCurrent = leaf == current;
+            if (isCurrent) {
                 return true;
             }
             if (isOtherControlFlowGraph(leaf)) {
@@ -1576,18 +1586,21 @@ public abstract class GenericAnnotatedTypeFactory<
      *     parent} is not a method invocation or a new class expression, or {@code child} is neither
      *     its receiver nor an argument
      */
-    @SuppressWarnings("interning:not.interned") // Looking for exact trees.
     private static int evaluationIndex(Tree parent, Tree child) {
         List<? extends ExpressionTree> arguments;
         if (parent instanceof MethodInvocationTree) {
             MethodInvocationTree invocation = (MethodInvocationTree) parent;
-            if (invocation.getMethodSelect() == child) {
+            @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+            boolean isReceiver = invocation.getMethodSelect() == child;
+            if (isReceiver) {
                 return 0;
             }
             arguments = invocation.getArguments();
         } else if (parent instanceof NewClassTree) {
             NewClassTree newClass = (NewClassTree) parent;
-            if (newClass.getEnclosingExpression() == child) {
+            @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+            boolean isEnclosing = newClass.getEnclosingExpression() == child;
+            if (isEnclosing) {
                 return 0;
             }
             arguments = newClass.getArguments();
@@ -1595,7 +1608,9 @@ public abstract class GenericAnnotatedTypeFactory<
             return -1;
         }
         for (int i = 0; i < arguments.size(); i++) {
-            if (arguments.get(i) == child) {
+            @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+            boolean isArgument = arguments.get(i) == child;
+            if (isArgument) {
                 return i + 1;
             }
         }
@@ -1616,12 +1631,13 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return the child of {@code ancestor} on {@code path}, or null if {@code ancestor} is not on
      *     {@code path} within the same control flow graph
      */
-    @SuppressWarnings("interning:not.interned") // Looking for exact trees.
     private static @Nullable Tree childTowards(TreePath path, Tree ancestor) {
         Tree child = path.getLeaf();
         for (TreePath p = path.getParentPath(); p != null; p = p.getParentPath()) {
             Tree leaf = p.getLeaf();
-            if (leaf == ancestor) {
+            @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+            boolean isAncestor = leaf == ancestor;
+            if (isAncestor) {
                 return child;
             }
             if (isOtherControlFlowGraph(leaf)) {
