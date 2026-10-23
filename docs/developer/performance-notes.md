@@ -2329,9 +2329,11 @@ doubled their computations for the Index Checker on plume-util (21.8k to 47.0k) 
 `Issue2853` (master 2.7 s). With it: 27.9k computations, 2.0 s. JFR, Index Checker on plume-util,
 JDK 25 (`fromExpression` inclusive, `inferTypeArgs` inclusive, on-CPU samples): master 30.1%, 19.1%,
 1800; without the own-node rule 23.6%, 10.5%, 1701; with it 18.0%, 8.9%, 1602. Wall time, median of
-interleaved runs, master to with the own-node rule: Index on plume-util 21.6 to 19.9 s (8 runs),
-Index on javacutil 14.6 to 14.3 s (4 runs), Nullness on plume-util 12.3 to 12.1 s (5 runs), Value on
-plume-util 7.9 to 7.7 s (6 runs). A temporary mode that recomputed the type at every cache use found
+interleaved runs, master to the final rule (own node, evaluated-before reads, inference roots): Index on
+plume-util 20.7 to 19.6 s (8 runs), Index on javacutil 14.25 to 14.27 s (4 runs), Nullness on
+plume-util 11.9 to 11.3 s (5 runs), Value on plume-util 7.4 to 7.2 s (6 runs); diagnostic counts are
+unchanged. (The computation counts and JFR shares above were measured with the first version of the
+rule, which read more cached types, and were not repeated.) A temporary mode that recomputed the type at every cache use found
 no difference to the uncached type for the own-node rule on plume-util (Index, Nullness, Value; 813k
 uses). Diagnostics on plume-util and javacutil are unchanged.
 
