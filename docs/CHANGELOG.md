@@ -236,6 +236,12 @@ typetools' bracket syntax work unchanged.
 `insertOrRefinePermitNondeterministic` and `CFAbstractTransfer#insertIntoStoresPermitNonDeterministic`
 are removed.
 
+`GenericAnnotatedTypeFactory#performFlowAnalysisForClass` is now `final`; a subclass that customizes
+the dataflow analysis overrides the new `performFlowAnalysisForClassImpl` instead. New hooks
+`AnnotatedTypeFactory#canUseCachedFlowDependentType` and `#canCacheFlowDependentType` decide when
+the type of a flow-dependent expression is cached; `AnnotatedTypeFactory#isAnonymousDiamondSupertypeFinal`
+now defaults to true, like them.
+
 Performance optimizations:
 
 - Capped type argument inference work via `-AinferenceWorkBudget=N` (default
