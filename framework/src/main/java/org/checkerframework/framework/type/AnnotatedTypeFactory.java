@@ -2562,9 +2562,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Returns true if a cached type of the flow-dependent expression {@code tree} (see {@link
-     * #isFlowDependent(ExpressionTree)}) is still correct, i.e., the refined types of its
-     * subexpressions have not changed since it was cached. This implementation, which performs no
-     * dataflow analysis, returns true.
+     * #isFlowDependent(ExpressionTree)}) is still correct, i.e., the refined types of the
+     * expressions it was computed from have not changed since it was cached. This implementation,
+     * which performs no dataflow analysis, returns true.
      *
      * <p>A factory that computes the types of expressions from another factory's dataflow results,
      * such as the Initialization Checker's from the {@code InitializationFieldAccessSubchecker}'s,
@@ -2584,10 +2584,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Returns true if the type of the flow-dependent expression {@code tree} (see {@link
-     * #isFlowDependent(ExpressionTree)}) can be cached, i.e., it is computed from the refined types
-     * of its subexpressions that remain correct as long as {@link
-     * #canUseCachedFlowDependentType(ExpressionTree)} holds. This implementation, which performs no
-     * dataflow analysis, returns true.
+     * #isFlowDependent(ExpressionTree)}) can be cached, i.e., it is computed from refined types
+     * that remain correct as long as {@link #canUseCachedFlowDependentType(ExpressionTree)} holds.
+     * The type of a poly expression whose type arguments are inferred together with an enclosing
+     * invocation also depends on the other arguments of that invocation, not only on its own
+     * subexpressions. This implementation, which performs no dataflow analysis, returns true.
      *
      * @param tree a flow-dependent expression
      * @return true if the type of {@code tree} can be cached

@@ -31,4 +31,27 @@ public class FlowDependentLoop {
             i = 5;
         }
     }
+
+    static <T> T bar() {
+        throw new Error();
+    }
+
+    static <T> @PolyValue Object first(@PolyValue T a, T b) {
+        return a;
+    }
+
+    static @PolyValue Integer boxedId(@PolyValue Integer x) {
+        return x;
+    }
+
+    // Inferring the type arguments of bar() also types the later argument boxedId(i), whose node
+    // has not been visited yet in the current pass over the loop.
+    void inferredWithLaterArgument() {
+        Integer i = 0;
+        while (c()) {
+            // :: error: (assignment.type.incompatible)
+            @IntVal(0) Object o = first(bar(), boxedId(i));
+            i = 1;
+        }
+    }
 }

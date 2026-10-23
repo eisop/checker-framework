@@ -9,6 +9,7 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.UnaryTree;
@@ -86,6 +87,7 @@ import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesTreeAnnotator;
+import org.checkerframework.framework.util.typeinference8.DefaultTypeArgumentInference;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -1430,31 +1432,50 @@ public abstract class GenericAnnotatedTypeFactory<
      * <p>When no dataflow analysis is running, the refined types of the trees of all classes that
      * have been analyzed are final, and a class is analyzed before any of its trees are
      * type-checked; the cached types of the trees of a class that has not been analyzed yet are
-     * discarded when its analysis starts. While a class is analyzed, the type of a tree is cached
-     * only when the analysis computes the value of the tree's own node: then the refined types of
-     * its subexpressions are the current ones, and they do not change before the analysis visits
-     * the tree again, because the subexpressions are visited before the tree. The tree's own node
-     * recomputes its type at each visit.
+     * discarded when its analysis starts.
      *
-     * <p>This holds only because the subexpressions' nodes are visited before the tree's node and
-     * no node visited earlier queries the tree's type. A transfer function must not query the type
-     * of an expression whose own node has not been visited yet in the current analysis; a backward
-     * analysis would need another rule.
+     * <p>While a class is analyzed, a cached type is used only for a tree that is evaluated before
+     * the tree whose node the analysis is computing: a proper subexpression of that tree, or part
+     * of the receiver or of an earlier argument of an enclosing invocation. The node of such a tree
+     * was visited before the current node in the current pass, so its cached type is the current
+     * one (see {@link #canCacheFlowDependentType(ExpressionTree)}). The cached type of any other
+     * tree may be from an earlier pass over a loop: for example, inferring the type arguments of
+     * {@code bar()} in {@code foo(bar(), id(x))} also types the later argument {@code id(x)}, whose
+     * node has not been visited yet. A backward analysis would need another rule.
      */
     @Override
     protected boolean canUseCachedFlowDependentType(ExpressionTree tree) {
         if (useFlow != everUseFlow) {
             return false;
         }
-        return flowAnalysisDepth == 0 || !isAnalyzingNodeOf(tree);
+        return flowAnalysisDepth == 0 || isEvaluatedBeforeAnalyzedTree(tree);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>While a class is analyzed, the type of a tree is cached only when the analysis computes
+     * the value of the tree's own node and the tree is its own type argument inference problem,
+     * that is, not a poly expression whose type arguments are inferred together with an enclosing
+     * invocation. Then its type depends only on its subexpressions, whose nodes have been visited
+     * in the current pass, and the tree's own node recomputes its type at each visit. The type of
+     * {@code bar()} in {@code foo(bar(), id(x))} depends on the type of {@code id(x)}, whose node
+     * is visited after that of {@code bar()}.
+     */
     @Override
     protected boolean canCacheFlowDependentType(ExpressionTree tree) {
         if (useFlow != everUseFlow) {
             return false;
         }
-        return flowAnalysisDepth == 0 || isAnalyzingNodeOf(tree);
+        if (flowAnalysisDepth == 0) {
+            return true;
+        }
+        if (!isAnalyzingNodeOf(tree)) {
+            return false;
+        }
+        TreePath path = getPath(tree);
+        return path != null
+                && DefaultTypeArgumentInference.outerInference(tree, path.getParentPath()) == tree;
     }
 
     /**
@@ -1466,6 +1487,144 @@ public abstract class GenericAnnotatedTypeFactory<
     @SuppressWarnings("interning:not.interned") // Looking for exact tree.
     private boolean isAnalyzingNodeOf(ExpressionTree tree) {
         return analysis.isRunning() && analysis.getCurrentTree() == tree;
+    }
+
+    /**
+     * Returns true if {@code tree} is evaluated before the tree whose node the dataflow analysis is
+     * computing, which is {@code analysis.getCurrentTree()} or else the tree of {@code
+     * analysis.getCurrentNode()}: {@code tree} is a proper subexpression of that tree, or it is
+     * part of the receiver or of an earlier argument of an invocation that has that tree in a later
+     * argument. The search stops at an enclosing lambda, method, or class, whose body is another
+     * control flow graph.
+     *
+     * @param tree an expression tree
+     * @return true if {@code tree} is evaluated before the tree whose node the dataflow analysis is
+     *     computing
+     */
+    @SuppressWarnings("interning:not.interned") // Looking for exact trees.
+    private boolean isEvaluatedBeforeAnalyzedTree(ExpressionTree tree) {
+        if (!analysis.isRunning()) {
+            return false;
+        }
+        Tree current = analysis.getCurrentTree();
+        if (current == null) {
+            // The transfer function queries a type outside of getValueFromFactory.
+            Node currentNode = analysis.getCurrentNode();
+            current = currentNode == null ? null : currentNode.getTree();
+        }
+        if (current == null || current == tree) {
+            return false;
+        }
+        TreePath path = getPath(tree);
+        if (path == null) {
+            return false;
+        }
+        TreePath currentPath = null;
+        Tree child = tree;
+        for (TreePath p = path.getParentPath(); p != null; p = p.getParentPath()) {
+            Tree leaf = p.getLeaf();
+            if (leaf == current) {
+                return true;
+            }
+            if (isOtherControlFlowGraph(leaf)) {
+                return false;
+            }
+            int index = evaluationIndex(leaf, child);
+            if (index >= 0) {
+                if (currentPath == null) {
+                    currentPath = getPath(current);
+                    if (currentPath == null) {
+                        return false;
+                    }
+                }
+                Tree currentChild = childTowards(currentPath, leaf);
+                if (currentChild != null) {
+                    // leaf is the innermost invocation that contains both trees.
+                    return evaluationIndex(leaf, currentChild) > index;
+                }
+            }
+            child = leaf;
+        }
+        return false;
+    }
+
+    /**
+     * Returns true if {@code tree} has its own control flow graph or is outside of any.
+     *
+     * @param tree a tree
+     * @return true if {@code tree} is a lambda, method, or class
+     */
+    private static boolean isOtherControlFlowGraph(Tree tree) {
+        return tree instanceof LambdaExpressionTree
+                || tree instanceof MethodTree
+                || tree instanceof ClassTree;
+    }
+
+    /**
+     * Returns the position of {@code child} in the evaluation order of the receiver and the
+     * arguments of the invocation {@code parent}.
+     *
+     * @param parent a tree
+     * @param child a child of {@code parent}
+     * @return the position of {@code child} in the evaluation order of the receiver, the arguments,
+     *     and the artificial array of the variable arguments of {@code parent}, or -1 if {@code
+     *     parent} is not a method invocation or a new class expression, or {@code child} is neither
+     *     its receiver nor an argument
+     */
+    @SuppressWarnings("interning:not.interned") // Looking for exact trees.
+    private static int evaluationIndex(Tree parent, Tree child) {
+        List<? extends ExpressionTree> arguments;
+        if (parent instanceof MethodInvocationTree) {
+            MethodInvocationTree invocation = (MethodInvocationTree) parent;
+            if (invocation.getMethodSelect() == child) {
+                return 0;
+            }
+            arguments = invocation.getArguments();
+        } else if (parent instanceof NewClassTree) {
+            NewClassTree newClass = (NewClassTree) parent;
+            if (newClass.getEnclosingExpression() == child) {
+                return 0;
+            }
+            arguments = newClass.getArguments();
+        } else {
+            return -1;
+        }
+        for (int i = 0; i < arguments.size(); i++) {
+            if (arguments.get(i) == child) {
+                return i + 1;
+            }
+        }
+        if (child instanceof NewArrayTree) {
+            // The artificial array of the variable arguments, which the control flow graph
+            // creates after all arguments.
+            return arguments.size() + 1;
+        }
+        return -1;
+    }
+
+    /**
+     * Returns the child of {@code ancestor} on {@code path}, within the control flow graph of the
+     * leaf of {@code path}.
+     *
+     * @param path a path
+     * @param ancestor a tree
+     * @return the child of {@code ancestor} on {@code path}, or null if {@code ancestor} is not on
+     *     {@code path} within the same control flow graph
+     */
+    @SuppressWarnings("interning:not.interned") // Looking for exact trees.
+    private static @Nullable Tree childTowards(TreePath path, Tree ancestor) {
+        Tree child = path.getLeaf();
+        for (TreePath p = path.getParentPath(); p != null; p = p.getParentPath()) {
+            Tree leaf = p.getLeaf();
+            if (leaf == ancestor) {
+                return child;
+            }
+            if (isOtherControlFlowGraph(leaf)) {
+                return null;
+            }
+            child = leaf;
+        }
+        return null;
     }
 
     /**
