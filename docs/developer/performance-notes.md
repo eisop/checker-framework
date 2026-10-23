@@ -2326,16 +2326,23 @@ cached during dataflow, so one map replaced it.
 
 *Cost.* Without the own-node rule, method invocations were not cached during dataflow at all, which
 doubled their computations for the Index Checker on plume-util (21.8k to 47.0k) and took 39 s on
-`Issue2853` (master 2.7 s). With it: 27.9k computations, 2.0 s. JFR, Index Checker on plume-util,
-JDK 25 (`fromExpression` inclusive, `inferTypeArgs` inclusive, on-CPU samples): master 30.1%, 19.1%,
-1800; without the own-node rule 23.6%, 10.5%, 1701; with it 18.0%, 8.9%, 1602. Wall time, median of
-interleaved runs, master to the final rule (own node, evaluated-before reads, inference roots): Index on
-plume-util 20.7 to 19.6 s (8 runs), Index on javacutil 14.25 to 14.27 s (4 runs), Nullness on
-plume-util 11.9 to 11.3 s (5 runs), Value on plume-util 7.4 to 7.2 s (6 runs); diagnostic counts are
-unchanged. (The computation counts and JFR shares above were measured with the first version of the
-rule, which read more cached types, and were not repeated.) A temporary mode that recomputed the type at every cache use found
-no difference to the uncached type for the own-node rule on plume-util (Index, Nullness, Value; 813k
-uses). Diagnostics on plume-util and javacutil are unchanged.
+`Issue2853` (master 2.7 s). With the first version of the own-node rule: 27.9k computations, 2.0 s.
+JFR, Index Checker on plume-util, JDK 25, first version of the rule (`fromExpression` inclusive,
+`inferTypeArgs` inclusive, on-CPU samples): master 30.1%, 19.1%, 1800; without the own-node rule
+23.6%, 10.5%, 1701; with it 18.0%, 8.9%, 1602. The computation counts and JFR shares were not
+repeated for the final rule (own node, reads only of trees evaluated before the current tree, writes
+only at inference roots), whose read check walks the path of the tree for each cached read during
+analysis.
+
+Wall time was measured with the final rule: median of interleaved runs, JDK 25, against `master` at
+2539117c22 (the merge base), after a warm-up run per side: Index on plume-util 21.3 to 19.6 s (8
+runs), Nullness on plume-util 12.1 to 11.5 s (7 runs). With the first version of the rule, against
+an earlier master: Index on javacutil 14.6 to 14.3 s (4 runs), Value on plume-util 7.9 to 7.7 s (6
+runs); against the same earlier master the final rule gave Index on javacutil 14.25 to 14.27 s (4
+runs) and Value on plume-util 7.4 to 7.2 s (6 runs). Diagnostic counts on plume-util and javacutil
+are unchanged. `Issue2853` takes 1.8 s with the final rule. A temporary mode that recomputed the
+type at every cache use found no difference to the uncached type for the first version of the rule
+on plume-util (Index, Nullness, Value; 813k uses); it did not catch the sibling hazard below.
 
 *Sibling inference hazard.* The first version of the rule used a cached type for every tree except
 the current one. That was unsound with type argument inference: `outerInference` widens the problem
@@ -2347,9 +2354,9 @@ the type cached for `bar()` and into its dataflow value. With `static <T> List<T
 `argument.type.incompatible`; with a `@PolyNull` result, a `dereference.of.nullable` was missed. The
 Value Checker had the same hole with `@PolyValue`. Both parts of the fix are needed: the read rule
 keeps the later sibling from being read, and the write rule keeps `bar()`, whose type depends on
-the later sibling, from being cached. The recompute-at-every-use mode above did not catch this on
-plume-util. The cost numbers above are for the first version; with the fix, `Issue2853` takes
-1.8 s; plume-util was not measured again.
+the later sibling, from being cached. The recompute-at-every-use mode did not catch this on
+plume-util, because no such call shape occurs there; the loop corpus and the new tests in
+`Issue602.java` and the Value `FlowDependentLoop.java` do.
 
 *Clearing the whole map.* `performFlowAnalysisForClass` clears the map at every class analysis, which
 also drops the entries of trees that are not flow-dependent. A/B on generated files, Nullness
