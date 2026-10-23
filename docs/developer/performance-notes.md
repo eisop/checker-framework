@@ -2342,8 +2342,15 @@ workload and checker pairs, not on every checker.
 
 *Not done:* a flag on `TypeArgumentInference` instead of the `instanceof` check. A default method
 that returns false would let a custom inference use the cache, which is unsafe if it also types
-sub-expressions without inference. The Initialization Checker's type for `this` depends on
-`getStoreBefore` and differs even when both queries come after dataflow (eisop#2344).
+sub-expressions without inference. Identifiers and `C.this` are not classified as flow-dependent
+although the Initialization Checker's `getSelfType` reads `getStoreBefore(tree)`. *Hypothesis, not
+proved:* the set of initialized fields at a program point only grows along a path, and the store at
+the head of a loop is the intersection of the entry store and the back edge's, which is the entry
+store, so the type of `this` that an early fixpoint iteration caches is never more initialized than
+the final one. A probe with `this` passed as an `@UnderInitialization` argument before and after
+field assignments in `while` and `for` loops reported the same errors with and without
+`-AatfDoNotCache`. Independently, the cached type of `this` differs from a recomputed one even when
+both queries come after dataflow (eisop#2344).
 
 ---
 

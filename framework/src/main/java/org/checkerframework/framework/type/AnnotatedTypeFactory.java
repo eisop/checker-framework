@@ -2521,17 +2521,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * annotated types of its subexpressions or from type argument inference, which both depend on
      * the dataflow store and on whether type argument inference is running.
      *
-     * <p>Identifiers, and member selects of {@code C.this}, are not flow-dependent although {@link
-     * #getSelfType} of a factory can read the store (the Initialization Checker's reads {@code
-     * getStoreBefore(tree)}), so their types are cached in every phase. <b>Hypothesis, not
-     * proved:</b> the set of initialized fields at a program point only grows along a path, and the
-     * store at the head of a loop is the intersection of the entry store and the back edge's, which
-     * is the entry store. So the type of {@code this} that an early fixpoint iteration caches is
-     * never more initialized than the final one. A probe with {@code this} passed as an
-     * {@code @UnderInitialization} argument before and after field assignments in {@code while} and
-     * {@code for} loops reported the same errors with and without {@code -AatfDoNotCache}.
-     * Independently of this, the cached type of {@code this} was seen to differ from a recomputed
-     * one in the Initialization Checker even after dataflow (eisop#2344).
+     * <p>Identifiers and {@code C.this} are not flow-dependent, although {@link #getSelfType} of a
+     * factory may read the store. The justification and a probe are in {@code
+     * docs/developer/performance-notes.md}; eisop#2344 describes a difference after dataflow.
      *
      * @param tree an expression tree without enclosing parentheses
      * @return true if the type of {@code tree} that {@link #fromExpression} computes can depend on

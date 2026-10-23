@@ -1435,6 +1435,11 @@ public abstract class GenericAnnotatedTypeFactory<
      * its subexpressions are the current ones, and they do not change before the analysis visits
      * the tree again, because the subexpressions are visited before the tree. The tree's own node
      * recomputes its type at each visit.
+     *
+     * <p>This holds only because the subexpressions' nodes are visited before the tree's node and
+     * no node visited earlier queries the tree's type. A transfer function must not query the type
+     * of an expression whose own node has not been visited yet in the current analysis; a backward
+     * analysis would need another rule.
      */
     @Override
     protected boolean canUseCachedFlowDependentType(ExpressionTree tree) {
