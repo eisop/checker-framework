@@ -1463,6 +1463,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * is visited after that of {@code bar()}.
      */
     @Override
+    @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
     protected boolean canCacheFlowDependentType(ExpressionTree tree) {
         if (useFlow != everUseFlow) {
             return false;
