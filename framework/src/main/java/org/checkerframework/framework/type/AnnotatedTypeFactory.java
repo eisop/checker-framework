@@ -2504,6 +2504,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * annotated types of its subexpressions or from type argument inference, which both depend on
      * the dataflow store and on whether type argument inference is running.
      *
+     * <p>Identifiers, and member selects of {@code C.this}, are not flow-dependent although {@link
+     * #getSelfType} of a factory can read the store (the Initialization Checker's reads {@code
+     * getStoreBefore(tree)}), so their types are cached in every phase. <b>Hypothesis, not
+     * proved:</b> the set of initialized fields at a program point only grows along a path, and the
+     * store at the head of a loop is the intersection of the entry store and the back edge's, which
+     * is the entry store. So the type of {@code this} that an early fixpoint iteration caches is
+     * never more initialized than the final one. A probe with {@code this} passed as an
+     * {@code @UnderInitialization} argument before and after field assignments in {@code while} and
+     * {@code for} loops reported the same errors with and without {@code -AatfDoNotCache}.
+     * Independently of this, the cached type of {@code this} was seen to differ from a recomputed
+     * one in the Initialization Checker even after dataflow (eisop#2344).
+     *
      * @param tree an expression tree without enclosing parentheses
      * @return true if the type of {@code tree} that {@link #fromExpression} computes can depend on
      *     the dataflow store
@@ -2545,6 +2557,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Returns true if the dataflow results that the types of flow-dependent expressions depend on
      * are final. This implementation, which performs no dataflow analysis, returns true.
+     *
+     * <p>A factory that computes the types of expressions from another factory's dataflow results,
+     * such as the Initialization Checker's from the {@code InitializationFieldAccessSubchecker}'s,
+     * relies on the order of the checkers: the subchecker finishes the compilation unit before the
+     * parent checker's visitor runs. It may keep this default only as long as it is not queried
+     * earlier. A factory that can be queried earlier must override this method.
+     *
+     * <p>{@link #isAnonymousDiamondSupertypeFinal} has the same default for the same reason.
      *
      * @return true if the dataflow results are final
      */
@@ -4425,7 +4445,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * types of the arguments and of the context, which change during dataflow analysis of the
      * enclosing method.
      *
-     * <p>This implementation returns false. {@link GenericAnnotatedTypeFactory} returns true once
+     * <p>This implementation, which performs no dataflow analysis, returns true, like {@link
+     * #areFlowDependentTypesFinal()}. {@link GenericAnnotatedTypeFactory} returns true once
      * dataflow analysis of the anonymous class has started, which is after that of the enclosing
      * method. A factory that does not keep track of the analyzed classes itself must forward to the
      * factory that does.
@@ -4434,7 +4455,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return true if the inferred supertype of the anonymous class can no longer change
      */
     public boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
-        return false;
+        return true;
     }
 
     /**
