@@ -31,17 +31,18 @@ runs:
         # apt needs both the cache dir and its `partial/` subdir to exist.
         mkdir -p ~/.cache/apt-archives/partial
         # A mirror that stalls has hung this step for an hour.  Bound each apt-get run,
-        # and try it once more before failing.
+        # and try it again, up to three times, so that the worst case (3 x 4 min plus
+        # two 30 s pauses) stays below the 15-minute timeout of the calling step.
         apt_get() {
-          for attempt in 1 2; do
-            if timeout 10m sudo -E apt-get \
+          for attempt in 1 2 3; do
+            if timeout 4m sudo -E apt-get \
               -o Acquire::Retries=3 \
               -o Acquire::http::Timeout=30 \
               -o Acquire::https::Timeout=30 \
               "$@"; then
               return 0
             fi
-            [ "$attempt" = 2 ] && return 1
+            [ "$attempt" = 3 ] && return 1
             sleep 30
           done
         }
