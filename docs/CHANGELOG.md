@@ -240,7 +240,8 @@ are removed.
 the dataflow analysis overrides the new `performFlowAnalysisForClassImpl` instead. New hooks
 `AnnotatedTypeFactory#canUseCachedFlowDependentType` and `#canCacheFlowDependentType` decide when
 the type of a flow-dependent expression is cached; `AnnotatedTypeFactory#isAnonymousDiamondSupertypeFinal`
-now defaults to true, like them.
+now defaults to true, like them. New `AbstractAnalysis#getCurrentNode()` returns the node whose
+transfer function is running.
 
 Performance optimizations:
 
@@ -285,15 +286,19 @@ Performance optimizations:
   by their class instead of missing for each new instance of the same type.
 - The types of method invocations, new class, conditional, and other flow-dependent expressions are
   cached once the dataflow analysis of their class has finished, and during the analysis when it
-  computes the value of the expression's own node, instead of being recomputed, including type
-  argument inference, at every query; the types of new array expressions are always cached.
+  computes the value of the expression's own node and the expression is not inferred together with
+  an enclosing invocation, instead of being recomputed, including type argument inference, at every
+  query. During the analysis, a cached type is used only for an expression that is evaluated before
+  the one whose node is computed. The types of new array expressions are always cached.
 
 Other improvements and bug fixes:
 
 - The types of method invocations, field accesses, array accesses, and switch expressions are no
-  longer reused from an earlier fixpoint iteration while dataflow analysis is running. A type
-  cached in an early fixpoint iteration of a loop missed errors, e.g., for a polymorphic or generic method whose argument becomes
-  nullable later in the loop (typetools#602, eisop#2343).
+  longer reused from an earlier fixpoint iteration while dataflow analysis is running, including
+  for the arguments of an enclosing invocation that type argument inference types together with
+  an expression. A type cached in an early fixpoint iteration of a loop missed errors, e.g., for a
+  polymorphic or generic method whose argument becomes nullable later in the loop, or reported
+  false positives (typetools#602, eisop#2343).
 - Checker subclass inheritance: inherits `@StubFiles` from nearest annotated
   superclass (shared bidirectionally in compound checkers), combines
   `@RelevantJavaTypes` across superclasses, and accepts the default

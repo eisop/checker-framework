@@ -2301,19 +2301,28 @@ Other trees are cached in every phase. `canUseCachedFlowDependentType` and
 overrides both. Neither holds if flow refinement is temporarily disabled (`useFlow != everUseFlow`).
 After the analysis of the classes (no `performFlowAnalysisForClass` is active) both hold. While a
 class is analyzed, a type is cached only when the analysis computes the value of the tree's own node
-(`analysis.getCurrentTree() == tree`), and is used by every other query: then the refined types of
-the tree's subexpressions are the current ones, and they do not change before the analysis visits
-the tree again, because subexpressions are visited before the tree; the type cached at the last
-visit is the final one. This relies on the node visit order of a forward analysis, as all analyses
-here are; a backward analysis, or a transfer function that queries the type of a tree whose own
-node has not been visited yet, would need another rule. During a `DefaultTypeArgumentInference`
-problem nothing flow-dependent is cached (the expressions of the problem are typed without
-inferring their type arguments), but a type cached before can be used; not using it took 22 s
-instead of 2 s for the chain of generic calls with lambdas in jtreg `Issue2853`, as every level
-typed its receiver again. A checker with its own `TypeArgumentInference` never caches them. The map
-is cleared when a class analysis starts, which drops the entries cached for a class that was not
-analyzed yet. A second map for the previously excluded kinds only was tried; it left method
-invocations, switch expressions, and array accesses cached during dataflow, so one map replaced it.
+(`analysis.getCurrentTree() == tree`) and the tree is its own inference root
+(`DefaultTypeArgumentInference.outerInference(tree, parentPath) == tree`). A cached type is used
+only for a tree that is evaluated before the current tree: a proper subexpression of it, or part of
+the receiver or of an earlier argument of an enclosing invocation (the artificial varargs array
+counts as after all arguments). The current tree is `analysis.getCurrentTree()`, or the tree of
+`analysis.getCurrentNode()` when a transfer function queries a type outside `getValueFromFactory`,
+as `RLCCalledMethodsTransfer` does; without that fallback, `ReturnsReceiverPerformance` (a chain of
+29 `@This` calls) did not finish within minutes, as every level typed its receiver again. The nodes
+of those trees were visited before the current node in
+this pass, and a tree that is its own inference root depends only on its subexpressions, so the
+cached type is the current one. This relies on the node visit order of a forward analysis, as all
+analyses here are; a backward analysis would need another rule. During a
+`DefaultTypeArgumentInference` problem nothing flow-dependent is cached (the expressions of the
+problem are typed without inferring their type arguments), but a type cached before can be used
+under the same read rule; not using it took 22 s instead of 2 s for the chain of generic calls with
+lambdas in jtreg `Issue2853`, as every level typed its receiver again. The receivers there are read
+while the varargs array of `add` is the current tree, which is why that array is ordered after the
+arguments; with the proper-subexpression rule alone the test took 12 s. A checker with its own
+`TypeArgumentInference` never caches them. The map is cleared when a class analysis starts, which
+drops the entries cached for a class that was not analyzed yet. A second map for the previously
+excluded kinds only was tried; it left method invocations, switch expressions, and array accesses
+cached during dataflow, so one map replaced it.
 
 *Cost.* Without the own-node rule, method invocations were not cached during dataflow at all, which
 doubled their computations for the Index Checker on plume-util (21.8k to 47.0k) and took 39 s on
@@ -2325,6 +2334,20 @@ Index on javacutil 14.6 to 14.3 s (4 runs), Nullness on plume-util 12.3 to 12.1 
 plume-util 7.9 to 7.7 s (6 runs). A temporary mode that recomputed the type at every cache use found
 no difference to the uncached type for the own-node rule on plume-util (Index, Nullness, Value; 813k
 uses). Diagnostics on plume-util and javacutil are unchanged.
+
+*Sibling inference hazard.* The first version of the rule used a cached type for every tree except
+the current one. That was unsound with type argument inference: `outerInference` widens the problem
+of a poly expression to the enclosing invocation, so computing `bar()` at its own node in
+`first(bar(), pid(x))` inside a loop also typed the later argument `pid(x)`, whose node had not been
+visited in this pass; its entry from the previous iteration was read and the stale type flowed into
+the type cached for `bar()` and into its dataflow value. With `static <T> List<T> bar()` and
+`static <T> void foo(List<T> a, T b)`, `foo(bar(), pid(x)); x = y;` in a loop reported a false
+`argument.type.incompatible`; with a `@PolyNull` result, a `dereference.of.nullable` was missed. The
+Value Checker had the same hole with `@PolyValue`. Both parts of the fix are needed: the read rule
+keeps the later sibling from being read, and the write rule keeps `bar()`, whose type depends on
+the later sibling, from being cached. The recompute-at-every-use mode above did not catch this on
+plume-util. The cost numbers above are for the first version; with the fix, `Issue2853` takes
+1.8 s; plume-util was not measured again.
 
 *Clearing the whole map.* `performFlowAnalysisForClass` clears the map at every class analysis, which
 also drops the entries of trees that are not flow-dependent. A/B on generated files, Nullness
