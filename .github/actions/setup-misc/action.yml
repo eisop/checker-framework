@@ -38,24 +38,13 @@ runs:
           done
         }
         apt_get update
-        apt_get install -y --fix-missing \
+        apt_get install -y --fix-missing --no-install-recommends \
           -o Dir::Cache::Archives="$HOME/.cache/apt-archives" \
-          autoconf \
-          devscripts \
           dia \
           graphviz \
           hevea \
           latexmk \
-          libasound2-dev \
-          libcups2-dev \
-          libfontconfig1-dev \
           librsvg2-bin \
-          libx11-dev \
-          libxext-dev \
-          libxrandr-dev \
-          libxrender-dev \
-          libxt-dev \
-          libxtst-dev \
           pdf2svg \
           python3-pip \
           rsync \
