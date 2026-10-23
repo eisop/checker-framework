@@ -2324,6 +2324,35 @@ that returns false would let a custom inference use the cache, which is unsafe i
 sub-expressions without inference. The Initialization Checker's type for `this` depends on
 `getStoreBefore` and differs even when both queries come after dataflow; that is a separate issue.
 
+### Flow-dependent types during dataflow (October 2026, PR #NNNN)
+
+The rule of the previous section recomputes the type of a method invocation, new class, or other
+flow-dependent tree at every query while a class is analyzed. That is 2.2 times as many
+method-invocation computations as master for the Index Checker on plume-util (47.0k vs. 21.8k).
+
+While the analysis computes the value of a tree's own node, the refined types of the tree's
+subexpressions are the current ones, and they do not change before the analysis visits the tree
+again, because subexpressions are visited before the tree (all analyses here are forward). So
+`GenericAnnotatedTypeFactory` caches the type computed then, in the same map, and every other query
+during the analysis only reads it. The type cached at the last visit of the node is the final one.
+`AnnotatedTypeFactory.canCacheFlowDependentType` and `canUseCachedFlowDependentType` replace
+`areFlowDependentTypesFinal`; the defaults, for a factory without dataflow, return true.
+
+*How it was checked:* a temporary mode that recomputed the type at every cache use found no
+difference to the uncached type for this rule on plume-util (Index, Nullness, Value; 813k uses), and
+the regression tests for typetools#602 pass (`Issue602`, `EisopIssue2271Loop`, and the Value Checker
+loop case).
+
+Index Checker on plume-util, JDK 25: method-invocation computations 47.0k to 27.9k; `fromExpression`
+inclusive 23.6% to 18.0%, `inferTypeArgs` inclusive 10.5% to 8.9%, on-CPU samples 1701 to 1602.
+Wall time, median of interleaved runs, before to after: Index on plume-util 20.6 to 19.9 s (8
+runs), Index on javacutil 14.9 to 14.3 s (4 runs), Nullness on plume-util 12.3 to 12.1 s (5 runs),
+Value on plume-util 7.75 to 7.66 s (6 runs). Master was 21.6, 14.6, 12.3, and 7.9 s.
+
+*Risk:* the correctness argument relies on the order in which the analysis visits nodes. A
+backward analysis, or a checker that queries a tree's type from the transfer function of another
+node while its own node has not been visited yet, would need another rule.
+
 ---
 
 ## Tried and rejected

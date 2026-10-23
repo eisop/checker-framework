@@ -613,8 +613,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Mapping from an expression tree to its annotated type; before defaults are applied, just what
      * the programmer wrote. The type of a flow-dependent expression (see {@link
-     * #isFlowDependent(ExpressionTree)}) is only cached while {@link #canCacheFlowDependentTypes()}
-     * holds.
+     * #isFlowDependent(ExpressionTree)}) is only cached and used as {@link
+     * #canCacheFlowDependentType(ExpressionTree)} and {@link
+     * #canUseCachedFlowDependentType(ExpressionTree)} allow.
      *
      * <p>This field is intentionally not final; it should only be re-assigned by {@link
      * #setRoot(CompilationUnitTree)}.
@@ -2483,8 +2484,19 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // The type of a flow-dependent expression is computed from the refined types of its
         // subexpressions, so caching it while those can still change would cache incorrect
         // annotations (see Issue #602).
-        boolean useCache = shouldCache && (!isFlowDependent(tree) || canCacheFlowDependentTypes());
-        if (useCache) {
+        boolean read;
+        boolean write;
+        if (!shouldCache) {
+            read = write = false;
+        } else if (!isFlowDependent(tree)) {
+            read = write = true;
+        } else if (isInferring()) {
+            read = write = false;
+        } else {
+            read = canUseCachedFlowDependentType(tree);
+            write = canCacheFlowDependentType(tree);
+        }
+        if (read) {
             AnnotatedTypeMirror cached = fromExpressionTreeCache.get(tree);
             if (cached != null) {
                 return cached.deepCopy();
@@ -2493,7 +2505,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         AnnotatedTypeMirror result = TypeFromTree.fromExpression(this, tree);
 
-        if (useCache) {
+        if (write) {
             fromExpressionTreeCache.put(tree, frozenDeepCopy(result));
         }
         return result;
@@ -2528,27 +2540,41 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns true if the types of flow-dependent expressions (see {@link
-     * #isFlowDependent(ExpressionTree)}) can be cached: the dataflow results that they depend on
-     * are final, and no type argument inference is running. The expressions that are part of a
+     * Returns true if type argument inference may be running. The expressions that are part of a
      * running inference problem are typed without inferring their type arguments, so their types
      * must not be cached. A checker with its own {@link TypeArgumentInference} never caches them.
      *
-     * @return true if the types of expressions that depend on the dataflow store can be cached
+     * @return true if type argument inference may be running
      */
-    private boolean canCacheFlowDependentTypes() {
-        return areFlowDependentTypesFinal()
-                && typeArgumentInference instanceof DefaultTypeArgumentInference
-                && !((DefaultTypeArgumentInference) typeArgumentInference).isInferring();
+    private boolean isInferring() {
+        return !(typeArgumentInference instanceof DefaultTypeArgumentInference)
+                || ((DefaultTypeArgumentInference) typeArgumentInference).isInferring();
     }
 
     /**
-     * Returns true if the dataflow results that the types of flow-dependent expressions depend on
-     * are final. This implementation, which performs no dataflow analysis, returns true.
+     * Returns true if a cached type of the flow-dependent expression {@code tree} (see {@link
+     * #isFlowDependent(ExpressionTree)}) is still correct, i.e., the refined types of its
+     * subexpressions have not changed since it was cached. This implementation, which performs no
+     * dataflow analysis, returns true.
      *
-     * @return true if the dataflow results are final
+     * @param tree a flow-dependent expression
+     * @return true if a cached type of {@code tree} can be used
      */
-    protected boolean areFlowDependentTypesFinal() {
+    protected boolean canUseCachedFlowDependentType(ExpressionTree tree) {
+        return true;
+    }
+
+    /**
+     * Returns true if the type of the flow-dependent expression {@code tree} (see {@link
+     * #isFlowDependent(ExpressionTree)}) can be cached, i.e., it is computed from the refined types
+     * of its subexpressions that remain correct as long as {@link
+     * #canUseCachedFlowDependentType(ExpressionTree)} holds. This implementation, which performs no
+     * dataflow analysis, returns true.
+     *
+     * @param tree a flow-dependent expression
+     * @return true if the type of {@code tree} can be cached
+     */
+    protected boolean canCacheFlowDependentType(ExpressionTree tree) {
         return true;
     }
 

@@ -279,7 +279,11 @@ Performance optimizations:
   by their class instead of missing for each new instance of the same type.
 - The types of method invocations, new class, conditional, and other flow-dependent expressions are
   cached once the dataflow analysis of their class has finished, instead of being recomputed,
-  including type argument inference, at every query; the types of new array expressions are always cached.
+  including type argument inference, at every query; the types of new array expressions are
+  always cached.
+- The types of method invocations, new class, and other flow-dependent expressions are cached
+  during the dataflow analysis when the analysis computes the value of the expression's own node
+  (~3% of the Index Checker's time on plume-util).
 
 Other improvements and bug fixes:
 
