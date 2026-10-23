@@ -2324,7 +2324,7 @@ that returns false would let a custom inference use the cache, which is unsafe i
 sub-expressions without inference. The Initialization Checker's type for `this` depends on
 `getStoreBefore` and differs even when both queries come after dataflow; that is a separate issue.
 
-### Flow-dependent types during dataflow (October 2026, PR #NNNN)
+### Flow-dependent types during dataflow (October 2026, PR #2345)
 
 The rule of the previous section recomputes the type of a method invocation, new class, or other
 flow-dependent tree at every query while a class is analyzed. That is 2.2 times as many
