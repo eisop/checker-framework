@@ -19,10 +19,26 @@ runs:
     - name: Install apt packages
       shell: bash
       run: |
+        export DEBIAN_FRONTEND=noninteractive
         # apt needs both the cache dir and its `partial/` subdir to exist.
         mkdir -p ~/.cache/apt-archives/partial
-        sudo apt-get update
-        sudo apt-get install -y --fix-missing \
+        # A mirror that stalls has hung this step for an hour.  Bound each apt-get run,
+        # and try it once more before failing.
+        apt_get() {
+          for attempt in 1 2; do
+            if timeout 10m sudo -E apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              "$@"; then
+              return 0
+            fi
+            [ "$attempt" = 2 ] && return 1
+            sleep 30
+          done
+        }
+        apt_get update
+        apt_get install -y --fix-missing \
           -o Dir::Cache::Archives="$HOME/.cache/apt-archives" \
           autoconf \
           devscripts \
