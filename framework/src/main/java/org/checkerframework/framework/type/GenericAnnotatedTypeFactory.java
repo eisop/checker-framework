@@ -1463,7 +1463,6 @@ public abstract class GenericAnnotatedTypeFactory<
      * is visited after that of {@code bar()}.
      */
     @Override
-    @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
     protected boolean canCacheFlowDependentType(ExpressionTree tree) {
         if (useFlow != everUseFlow) {
             return false;
@@ -1475,8 +1474,13 @@ public abstract class GenericAnnotatedTypeFactory<
             return false;
         }
         TreePath path = getPath(tree);
-        return path != null
-                && DefaultTypeArgumentInference.outerInference(tree, path.getParentPath()) == tree;
+        if (path == null) {
+            return false;
+        }
+        @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+        boolean isInferenceRoot =
+                DefaultTypeArgumentInference.outerInference(tree, path.getParentPath()) == tree;
+        return isInferenceRoot;
     }
 
     /**
