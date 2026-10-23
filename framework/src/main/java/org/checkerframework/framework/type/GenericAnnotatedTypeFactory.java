@@ -1402,9 +1402,14 @@ public abstract class GenericAnnotatedTypeFactory<
      * Perform a org.checkerframework.dataflow analysis over a single class tree and its nested
      * classes.
      *
+     * <p>This method does the bookkeeping that {@link #areFlowDependentTypesFinal()} relies on: it
+     * counts the active analyses and discards the cached types of expressions that the analysis may
+     * refine. It is final so that no subclass can skip it; a subclass customizes the analysis by
+     * overriding {@link #performFlowAnalysisForClassImpl(ClassTree)}.
+     *
      * @param classTree the class to analyze
      */
-    protected void performFlowAnalysisForClass(ClassTree classTree) {
+    protected final void performFlowAnalysisForClass(ClassTree classTree) {
         flowAnalysisDepth++;
         try {
             if (fromExpressionTreeCache != null) {
@@ -1433,11 +1438,14 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * The implementation of {@link #performFlowAnalysisForClass}.
+     * Performs the dataflow analysis for {@link #performFlowAnalysisForClass}, which calls this
+     * method between its bookkeeping. A subclass that does not run its own analysis, or runs it
+     * only under some condition, overrides this method and not {@code performFlowAnalysisForClass},
+     * which it cannot override.
      *
      * @param classTree the class to analyze
      */
-    private void performFlowAnalysisForClassImpl(ClassTree classTree) {
+    protected void performFlowAnalysisForClassImpl(ClassTree classTree) {
         if (flowResult == null) {
             this.regularExitStores = new IdentityHashMap<>();
             this.exceptionalExitStores = new IdentityHashMap<>();
