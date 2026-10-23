@@ -52,6 +52,7 @@ runs:
           graphviz \
           hevea \
           latexmk \
+          lmodern \
           librsvg2-bin \
           pdf2svg \
           python3-pip \
