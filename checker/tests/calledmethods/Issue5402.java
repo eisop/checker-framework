@@ -37,6 +37,8 @@ class Issue5402_Ok2 {
     }
 }
 
+// The same as Issue5402_Ok2, with @Deterministic on bar().  Hypothesis: @Deterministic documents an
+// earlier workaround for the chaining problem; it no longer changes the outcome of this test.
 class Issue5402_Ok3 {
 
     @Deterministic
@@ -65,6 +67,7 @@ class Issue5402_Bad {
 
     public static void test() {
         final Issue5402_Bad foo = new Issue5402_Bad();
-        foo.bar().baz(); // Error
+        // No error: the receiver of baz() is translated to foo, which has called bar().
+        foo.bar().baz();
     }
 }
