@@ -33,7 +33,10 @@ public class UBOffsetWithError {
             int[] a,
             int[] b,
             // :: error: (expression.unparsable.type.invalid)
-            @LTLengthOf(value = {"#1", "#2"}, offset = {"1", "#$"}) int i) {
+            @LTLengthOf(
+                            value = {"#1", "#2"},
+                            offset = {"1", "#$"})
+                    int i) {
         int j = i;
     }
 }
