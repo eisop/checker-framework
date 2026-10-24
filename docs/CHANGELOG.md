@@ -293,6 +293,8 @@ Performance optimizations:
 
 Other improvements and bug fixes:
 
+- The Index Checker no longer crashes with a `NullPointerException` on an upper bound
+  annotation, such as `@LTLengthOf`, whose `offset` is an expression with an error.
 - The types of method invocations, field accesses, array accesses, and switch expressions are no
   longer reused from an earlier fixpoint iteration while dataflow analysis is running, including
   for the arguments of an enclosing invocation that type argument inference types together with
