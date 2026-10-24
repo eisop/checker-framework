@@ -320,6 +320,31 @@ public class TreePathCacherTest {
     }
 
     /**
+     * Checks that after {@link TreePathCacher#clear}, {@link TreePathCacher#useUnit} for the unit
+     * the cache was used for before clears the cache like for a fresh cache, instead of keeping the
+     * entries added after the clear.
+     *
+     * @throws Exception if parsing the test sources fails
+     */
+    @Test
+    public void useUnitAfterClearBehavesLikeAFreshCache() throws Exception {
+        CompilationUnitTree cu1 = parse("A", "class A { int f() { return 1; } }");
+        CompilationUnitTree cu2 = parse("B", "class B { int g() { return 2; } }");
+        List<Tree> cu2Trees = treesUnder(cu2);
+        // Stands in for an artificial tree: absent from cu1, so a scan of cu1 cannot find it.
+        Tree artificial = cu2Trees.get(cu2Trees.size() - 1);
+        TreePath artificialPath = new TreePath(new TreePath(cu1), artificial);
+
+        TreePathCacher cacher = new TreePathCacher();
+        cacher.useUnit(cu1);
+        cacher.clear();
+        cacher.addPath(artificial, artificialPath);
+
+        cacher.useUnit(cu1);
+        Assert.assertNull("cleared like a fresh cache", cacher.getPath(cu1, artificial));
+    }
+
+    /**
      * Checks that many lookups under the same leaf, enough for {@code TreePathCacher} to index the
      * leaf's subtree, match the JDK for targets under the leaf, outside it, and absent from the
      * compilation unit. The body declares {@code Integer a, b;}, whose declarators share a type

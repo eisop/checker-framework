@@ -365,9 +365,11 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
 
     /**
      * Clear the {@code foundPaths} and re-initialize with a new {@code IdentityHashMap}, and drop
-     * the subtree index.
+     * the subtree index. The cache is then for no compilation unit, so the next {@link #useUnit}
+     * clears it again.
      */
     public void clear() {
+        unit = null;
         foundPaths = new IdentityHashMap<>(32);
         lastMissLeaf = null;
         lastMissCount = 0;
