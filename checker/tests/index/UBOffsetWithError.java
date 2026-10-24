@@ -32,10 +32,10 @@ public class UBOffsetWithError {
     void mixed(
             int[] a,
             int[] b,
-            // :: error: (expression.unparsable.type.invalid)
             @LTLengthOf(
                             value = {"#1", "#2"},
                             offset = {"1", "#$"})
+                    // :: error: (expression.unparsable.type.invalid)
                     int i) {
         int j = i;
     }
