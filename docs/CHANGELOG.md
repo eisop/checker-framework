@@ -293,6 +293,8 @@ Performance optimizations:
 
 Other improvements and bug fixes:
 
+- A checker that packages its own `annotated-jdk` in its jar (such as the JSpecify
+  reference checker) now uses it, even when `checker.jar` is earlier on the processor path.
 - The Index Checker no longer crashes with a `NullPointerException` on an upper bound
   annotation, such as `@LTLengthOf`, whose `offset` is an expression with an error.
 - The types of method invocations, field accesses, array accesses, and switch expressions are no
