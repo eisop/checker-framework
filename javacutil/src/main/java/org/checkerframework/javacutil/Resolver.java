@@ -1,5 +1,10 @@
 package org.checkerframework.javacutil;
 
+import com.sun.source.tree.BlockTree;
+import com.sun.source.tree.ExpressionStatementTree;
+import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.MethodInvocationTree;
+import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
@@ -320,7 +325,9 @@ public class Resolver {
     }
 
     /**
-     * Determine the environment for the given path.
+     * Determine the environment for the given path. The environment is cached per leaf, and the
+     * expression statements of a run of expression statements share one environment (see {@link
+     * #pathWithSameScope}).
      *
      * <p>The leaf of {@code path} must be a tree of the compilation unit; for an artificial tree,
      * pass the path of the tree it was created for (see {@code StringToJavaExpression#atPath}).
@@ -334,9 +341,83 @@ public class Resolver {
         if (cached != null) {
             return cached;
         }
-        Env<AttrContext> result = computeEnvForPath(path);
+        TreePath scopePath = pathWithSameScope(path);
+        Env<AttrContext> result =
+                scopePath == path ? computeEnvForPath(path) : getEnvForPath(scopePath);
         envCache.put(leaf, result);
         return result;
+    }
+
+    /**
+     * Returns a path whose attribution environment is the same as that of {@code path}, and that is
+     * shared by as many other paths as possible, so that {@link #getEnvForPath} computes the
+     * environment once for all of them. Computing an environment re-attributes the method body up
+     * to the leaf, so computing it separately at each statement of a long method body is quadratic
+     * in the length of the body.
+     *
+     * <p>An expression statement adds nothing to the scope of the statements after it: unlike an
+     * {@code if} or a loop, it introduces no pattern binding into them. The exception is a {@code
+     * this(...)} or {@code super(...)} call, which ends a constructor prologue. So the environment
+     * at the expression of an expression statement in a block is the same as at the expression of
+     * the first statement of the run of such statements that the statement is in. If the leaf of
+     * {@code path} is such an expression, returns the path of the expression of that first
+     * statement. Otherwise, including for a statement directly in a {@code case}, or a path whose
+     * statement is not in the block, returns {@code path} itself.
+     *
+     * @param path the tree path to the local scope
+     * @return a path with the same attribution environment as {@code path}
+     */
+    private static TreePath pathWithSameScope(TreePath path) {
+        TreePath stmtPath = path.getParentPath();
+        if (stmtPath == null) {
+            return path;
+        }
+        TreePath blockPath = stmtPath.getParentPath();
+        if (blockPath == null
+                || !(stmtPath.getLeaf() instanceof ExpressionStatementTree)
+                || !(blockPath.getLeaf() instanceof BlockTree)) {
+            return path;
+        }
+        ExpressionStatementTree stmt = (ExpressionStatementTree) stmtPath.getLeaf();
+        if (stmt.getExpression() != path.getLeaf() || !isScopeTransparent(stmt)) {
+            return path;
+        }
+        ExpressionStatementTree runStart = null;
+        for (StatementTree s : ((BlockTree) blockPath.getLeaf()).getStatements()) {
+            if (s == stmt) {
+                return runStart == null
+                        ? path
+                        : new TreePath(new TreePath(blockPath, runStart), runStart.getExpression());
+            }
+            if (isScopeTransparent(s)) {
+                if (runStart == null) {
+                    runStart = (ExpressionStatementTree) s;
+                }
+            } else {
+                runStart = null;
+            }
+        }
+        // The block does not contain the statement, so the path is not a path in the source.
+        return path;
+    }
+
+    /**
+     * Returns true if the given statement adds nothing to the scope of the statements after it in
+     * its block: it is an expression statement that is not a {@code this(...)} or {@code
+     * super(...)} call.
+     *
+     * @param stmt a statement
+     * @return true if {@code stmt} is an expression statement that does not change the scope of the
+     *     statements after it
+     */
+    private static boolean isScopeTransparent(StatementTree stmt) {
+        if (!(stmt instanceof ExpressionStatementTree)) {
+            return false;
+        }
+        ExpressionTree expr = ((ExpressionStatementTree) stmt).getExpression();
+        return !(expr instanceof MethodInvocationTree)
+                || (!TreeUtils.isSuperConstructorCall((MethodInvocationTree) expr)
+                        && !TreeUtils.isThisConstructorCall((MethodInvocationTree) expr));
     }
 
     /**

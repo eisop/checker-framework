@@ -285,6 +285,9 @@ Performance optimizations:
 - `Resolver.getEnvForPath` caches the attribution environment per location, so that
   resolving the identifiers of Java expression strings does not re-attribute the enclosing
   method each time.
+- `Resolver.getEnvForPath` computes the attribution environment once for each run of expression
+  statements in a block, instead of re-attributing the method body up to each statement of the run.
+  The Index Checker on a method with 4000 compound assignments takes about 9 s instead of 61 s.
 - `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
   by their class instead of missing for each new instance of the same type.
 - The types of method invocations, new class, conditional, and other flow-dependent expressions are

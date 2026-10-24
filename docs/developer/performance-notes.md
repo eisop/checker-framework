@@ -2053,6 +2053,44 @@ The changelog's "about 6-16% faster" for the Resource Leak Checker is the range 
 these rounds, including a reviewer's 6.4%: the -15.7% above and the -10.9% of the re-measurement
 both lie in it.
 
+### Index Checker: quadratic in the statements of one method (October 2026, eisop#2357)
+
+Workload: one method `void m(int[] a) { int j = 0; <N times: j -= 1; j += 1;> }` under the Index
+Checker, `java -jar checker.jar -proc:only`, JDK 21. With PR #2360, N = 500/1000/2000/4000 took
+3.3/6.9/18.4/60.9 s (medians of 3 interleaved runs; master: 4.5/10.9/34.3/136 s on JDK 25).
+
+JFR at N = 2000 (1469 samples): 74% inclusive in `Resolver#computeEnvForPath` →
+`JavacTrees#getScope` → `Attr#attribStatToTree`, reached from
+`DependentTypesTreeAnnotator#visitTypeCast` through `StringToJavaExpression#atPath` and
+`Resolver#findLocalVariableOrParameter`. The type of `j - 1` is `@LessThan("j")`, so the artificial
+cast of each `j -= 1` parses `"j"` at that compound assignment. The leaf self-time under it is javac
+re-attributing the statements before the leaf (`Operators#resolveBinary` → `Types#unboxedType`
+52%, `StringNameTable#fromString` 20%): `getScope` attributes a copy of the method body up to the
+copy of the leaf, so each location costs time linear in its position, and there are N locations.
+The per-leaf `envCache` computes each location once; it cannot help across locations.
+
+Fix: `Resolver#pathWithSameScope` maps the expression of an expression statement in a block to the
+expression of the first statement of its run of expression statements, and `getEnvForPath` computes
+and caches the environment at that statement. An expression statement adds nothing to the scope of
+the statements after it (no pattern binding is in scope after an expression statement), except a
+`this(...)` or `super(...)` call, which ends a constructor prologue, so such calls end a run. The
+environment at the expression of a statement is the block's environment after the statements before
+it, which is the same for every statement of the run; `findVar` still gets the original leaf as its
+position. The repro now computes one environment instead of N: 2.5/3.3/5.1/8.7 s for N =
+500/1000/2000/4000. `ResolverTest#runOfExpressionStatements` and `#constructorCallEndsRun` check
+that a declaration and a `this(...)` call end a run, and which statements share an environment. Only
+statements directly in a block form runs, not those directly in a `case`. Statements separated by
+declarations still each cost a re-attribution; making that linear would need an environment computed
+incrementally along the block, which `Trees#getScope` does not offer. Finding the start of the run
+walks the block's statements, linear per query, about 1% of the samples at N = 4000.
+
+Index Checker and Resource Leak Checker diagnostics on plume-util with its `@SuppressWarnings`
+removed are unchanged (189 and 22 warnings), except for the element order of `@LTLengthOf(value=...,
+offset=...)` in a few messages (one to six, depending on the build). That order comes from the
+`HashMap` keyed by element symbols in `DependentTypesHelper#convertAnnotationMirror`, which iterates
+in identity-hash order, and the change allocates differently. With `-XX:hashCode=2` (constant
+identity hash codes) the messages of both versions are identical.
+
 ### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
 
 `CheckerFrameworkPerDirectoryTest` previously hardcoded `-AajavaChecks` across all directory tests.

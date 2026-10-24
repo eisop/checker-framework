@@ -52,6 +52,19 @@ public class ResolverTest {
                     "      default:",
                     "    }",
                     "  }",
+                    "  void n(int u) {",
+                    "    u++;",
+                    "    u--;",
+                    "    int x = u;",
+                    "    x++;",
+                    "    x--;",
+                    "  }",
+                    "  R(int k) {",
+                    "    this(k, k);",
+                    "    k++;",
+                    "    k--;",
+                    "  }",
+                    "  R(int i, int j) {}",
                     "}");
 
     /** The compilation unit of {@link #SOURCE}. */
@@ -170,6 +183,43 @@ public class ResolverTest {
     @Test
     public void treeInAnonymousClass() {
         assertScope(pathOf("g + p"), new String[] {"p", "a", "g", "h"}, "b", "q", "e");
+    }
+
+    /**
+     * The expression statements of a run of expression statements share the environment of the
+     * first, but a declaration ends the run: {@code x} is not in scope before its declaration, even
+     * after the scope at {@code u++} has been computed, and it is in scope after the declaration.
+     */
+    @Test
+    public void runOfExpressionStatements() {
+        assertScope(pathOf("u++"), new String[] {"u"}, "x");
+        assertScope(pathOf("u--"), new String[] {"u"}, "x");
+        assertScope(pathOf("x++"), new String[] {"u", "x"}, "p");
+        assertScope(pathOf("x--"), new String[] {"u", "x"}, "p");
+        Assert.assertSame(envAt("u++"), envAt("u--"));
+        Assert.assertSame(envAt("x++"), envAt("x--"));
+        Assert.assertNotSame(envAt("u++"), envAt("x++"));
+    }
+
+    /**
+     * A {@code this(...)} call ends a constructor prologue, so it is not part of the run of
+     * expression statements after it.
+     */
+    @Test
+    public void constructorCallEndsRun() {
+        Assert.assertSame(envAt("k++"), envAt("k--"));
+        Assert.assertNotSame(envAt("this(k, k)"), envAt("k++"));
+    }
+
+    /**
+     * Returns the attribution environment at the tree in {@link #cu} whose source text is {@code
+     * text}.
+     *
+     * @param text the source text of the tree
+     * @return the attribution environment at the tree whose source text is {@code text}
+     */
+    private Object envAt(String text) {
+        return resolver.getEnvForPath(pathOf(text));
     }
 
     /**
