@@ -52,6 +52,20 @@ really fired (a missed wakeup is possible; if it is late, look anyway).
 - A job that hits its time limit and is cancelled with no failed step is
   usually a hang or a runner problem. Re-run it once
   (`gh run rerun <run> --failed`) before investigating.
+- To wait for CI, use a scheduled wakeup or a `Monitor` until-loop; the
+  harness rejects a long `sleep` followed by a command.
+- A merged PR cannot be reopened. If one is merged or reverted by mistake,
+  open a new PR from the same branch, link the old one in the description,
+  and push only the new commits.
+
+## Filing an issue: reproduce it first
+
+Before filing an issue for a suspected bug, write a small reproduction, run it
+on `master`, and put the program and the exact output in the issue. Say
+whether the bug also happens without your change. An issue built from a
+reviewer's remark or from memory costs a round trip when the repro does not
+fail. For a performance issue, give a table of measured times for several
+input sizes, and mark the cause as a hypothesis unless a profile shows it.
 
 ## Check what is already pushed before amending or rebasing — and avoid force-pushes
 
