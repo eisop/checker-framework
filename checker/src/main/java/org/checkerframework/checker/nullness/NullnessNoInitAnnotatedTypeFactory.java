@@ -29,6 +29,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
+import org.checkerframework.checker.nullness.qual.ReadWriteDynamicNull;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.cfg.node.Node;
@@ -408,11 +409,12 @@ public class NullnessNoInitAnnotatedTypeFactory
     public NullnessNoInitAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
-        Set<Class<? extends Annotation>> tempNullnessAnnos = new LinkedHashSet<>(4);
+        Set<Class<? extends Annotation>> tempNullnessAnnos = new LinkedHashSet<>(5);
         tempNullnessAnnos.add(NonNull.class);
         tempNullnessAnnos.add(MonotonicNonNull.class);
         tempNullnessAnnos.add(Nullable.class);
         tempNullnessAnnos.add(PolyNull.class);
+        tempNullnessAnnos.add(ReadWriteDynamicNull.class);
         nullnessAnnos = Collections.unmodifiableSet(tempNullnessAnnos);
 
         NONNULL_ALIASES.forEach(annotation -> addAliasedTypeAnnotation(annotation, NONNULL));
@@ -567,7 +569,11 @@ public class NullnessNoInitAnnotatedTypeFactory
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
         return new LinkedHashSet<>(
                 Arrays.asList(
-                        Nullable.class, MonotonicNonNull.class, NonNull.class, PolyNull.class));
+                        Nullable.class,
+                        MonotonicNonNull.class,
+                        NonNull.class,
+                        PolyNull.class,
+                        ReadWriteDynamicNull.class));
     }
 
     /**
@@ -598,6 +604,28 @@ public class NullnessNoInitAnnotatedTypeFactory
                     lhsType.replaceAnnotation(NULLABLE);
                 }
             }
+        }
+    }
+
+    /**
+     * Replaces {@link ReadWriteDynamicNull} on the left-hand side of an assignment with {@link
+     * NonNull}: the field is written, so the value stored into it must not be null.
+     *
+     * <p>{@link ReadWriteDynamicNull} is only ever applied as an unchecked-code default, and those
+     * defaults are only applied to an element that conservative defaulting covers -- see {@code
+     * QualifierDefaults#applyConservativeDefaults}. Its presence therefore already means that
+     * conservative treatment was requested for this element, whether it came from source or from
+     * bytecode, so no command-line option needs to be consulted here.
+     *
+     * <p>Only a left-hand side can be dynamic: {@link NullnessPropagationTreeAnnotator} resolves
+     * every read of such a field to {@link Nullable}, so the qualifier never reaches the type of an
+     * expression that is not being assigned to.
+     *
+     * @param varType the left-hand side type; side-effected if it is dynamic
+     */
+    protected void resolveDynamicWrite(AnnotatedTypeMirror varType) {
+        if (varType.hasAnnotation(ReadWriteDynamicNull.class)) {
+            varType.replaceAnnotation(NONNULL);
         }
     }
 
@@ -785,6 +813,8 @@ public class NullnessNoInitAnnotatedTypeFactory
             Element elt = TreeUtils.elementFromUse(tree);
             assert elt != null;
 
+            resolveDynamicRead(type);
+
             // Make primitive variable @NonNull in case the Initialization Checker
             // considers it uninitialized.
             if (TypesUtils.isPrimitive(type.getUnderlyingType())) {
@@ -810,6 +840,8 @@ public class NullnessNoInitAnnotatedTypeFactory
             Element elt = TreeUtils.elementFromUse(tree);
             assert elt != null;
 
+            resolveDynamicRead(type);
+
             if (elt.getKind() == ElementKind.EXCEPTION_PARAMETER) {
                 // TODO: It's surprising that we have to do this in both visitVariable and
                 // visitIdentifier. This should already be handled by applying the defaults anyway.
@@ -824,6 +856,22 @@ public class NullnessNoInitAnnotatedTypeFactory
             }
 
             return null;
+        }
+
+        /**
+         * Replaces {@link ReadWriteDynamicNull} on a field access with {@link Nullable}, unless the
+         * access is being computed as the left-hand side of an assignment, where {@link
+         * #resolveDynamicWrite} replaces it with {@link NonNull} instead. Resolving a read here,
+         * rather than where it is assigned, covers every use of the value read: an assignment, a
+         * method argument, a branch of a conditional expression, and so on.
+         *
+         * @param type the type of a field access; side-effected if it is dynamic
+         */
+        private void resolveDynamicRead(AnnotatedTypeMirror type) {
+            if (!isComputingAnnotatedTypeMirrorOfLhs()
+                    && type.hasAnnotation(ReadWriteDynamicNull.class)) {
+                type.replaceAnnotation(NULLABLE);
+            }
         }
 
         // The result of a binary operation is always non-null.

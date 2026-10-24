@@ -657,25 +657,18 @@ all inputs and return values satisfying every requirement.  When enabled for sou
 they suppress warnings in unannotated code, like conservative defaults.  A kind of code
 (\code{source} or \code{bytecode}) cannot use both permissive and conservative defaults.
 
-Fields are the one location where neither choice is right, because a single default
-cannot suit both reads and writes.  The conservative top qualifier accepts every write
-to an unannotated field but reports its reads; the permissive bottom qualifier accepts
-every read but reports writes, so \<u.field = x> is rejected unless \<x> itself has the
-bottom qualifier.  Serving both would require defaulting a field differently for reads
-and for writes, which the Checker Framework does not yet do (see the discussion below).
-Until then, annotate the field (see Chapter~\ref{annotating-libraries}) or suppress the
-warning (see Chapter~\ref{suppressing-warnings}).
-
-There is no single possible default that is sound for fields.  In the rare
-circumstance that there is a mutable public field in an unannotated
-library, the Checker Framework may fail to warn about code that can
-misbehave at run time.
-
-%% TODO: The following rule is preferable to the current safe behavior.
-%% However, we have not yet figured out how to implement separate handling
-%% for field read vs. write.
-% For fields, use the bottom qualifier when writing to the field and the
-% top qualifier when reading from the field.
+Fields are the one location where neither top nor bottom is right, because a single
+default cannot suit both reads and writes.  The permissive bottom qualifier accepts every
+read but reports writes, so \<u.field = x> is rejected unless \<x> itself has the bottom
+qualifier.  Conservative defaults instead give an unannotated field the type system's
+\emph{read-write dynamic} qualifier, which means top where the field is read and bottom
+where it is written (see Section~\ref{qualifier-read-write-sensitivity}).  The Nullness
+Checker defines one.  In a type system that does not, the conservative default for a field
+is top, which reports reads but accepts every write; in the rare circumstance that there is
+a mutable public field in an unannotated library, the checker may then fail to warn about
+code that can misbehave at run time.  Annotate the field (see
+Chapter~\ref{annotating-libraries}) or suppress the warning (see
+Chapter~\ref{suppressing-warnings}).
 
 %% TODO: should give rules for other locations, such as type parameters
 %% (which should behave like fields), bounds, etc.

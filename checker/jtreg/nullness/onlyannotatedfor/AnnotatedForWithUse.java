@@ -27,8 +27,8 @@ public class AnnotatedForWithUse {
         void use(Unannotated u) {
             // 1: OK, 2: OK, 3: OK, 4: Err, 5: OK
             @NonNull Object obj = u.o;
-            // 1: Err, 2: Err, 3: Err, 4: OK (unsound), 5: Err
-            // Case 4 (conservative defaults) is unsound: protects reads, not writes.
+            // 1: Err, 2: Err, 3: Err, 4: Err, 5: Err
+            // Case 4 (conservative defaults) makes the field read-write dynamic, NonNull on writes.
             // Cases 3 and 5 (permissive defaults) default the field to NonNull, so writes fail.
             // See https://github.com/eisop/checker-framework/issues/1358 .
             u.o = null;
