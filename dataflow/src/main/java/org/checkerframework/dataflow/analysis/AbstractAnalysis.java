@@ -122,6 +122,15 @@ public abstract class AbstractAnalysis<
     }
 
     /**
+     * Returns the node whose transfer function is currently running.
+     *
+     * @return the node whose transfer function is currently running, or null if none is
+     */
+    public @Nullable Node getCurrentNode() {
+        return currentNode;
+    }
+
+    /**
      * Set the tree that is currently being looked at.
      *
      * @param currentTree the tree that should be currently looked at
