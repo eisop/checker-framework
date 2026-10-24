@@ -7,6 +7,7 @@ import org.checkerframework.framework.util.typeinference8.constraint.ConstraintS
 import org.checkerframework.framework.util.typeinference8.constraint.Typing;
 import org.checkerframework.framework.util.typeinference8.types.AbstractType;
 import org.checkerframework.framework.util.typeinference8.types.CaptureVariable;
+import org.checkerframework.framework.util.typeinference8.types.InferenceFactory;
 import org.checkerframework.framework.util.typeinference8.types.InferenceType;
 import org.checkerframework.framework.util.typeinference8.types.Variable;
 import org.checkerframework.framework.util.typeinference8.types.VariableBounds;
@@ -132,7 +133,8 @@ public class CaptureBound {
             }
         }
 
-        String source = "Captured constraint from method call: " + invocation;
+        String source =
+                "Captured constraint from method call: " + InferenceFactory.describe(invocation);
         ConstraintSet set =
                 new ConstraintSet(new Typing(source, lhs, target, Kind.TYPE_COMPATIBILITY));
         // Reduce and incorporate so that the capture variables bounds are set.
