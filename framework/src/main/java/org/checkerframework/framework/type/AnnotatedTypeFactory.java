@@ -5574,7 +5574,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param path the {@link TreePath} for the artificial tree
      */
     public final void setPathForArtificialTree(Tree tree, TreePath path) {
-        treePathCache.addPath(tree, path);
+        treePathCache.addArtificialPath(tree, path);
     }
 
     /**

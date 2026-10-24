@@ -9,8 +9,10 @@ import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 
 /**
  * TreePathCacher is a TreeScanner that creates and caches a TreePath for a target Tree.
@@ -79,6 +81,12 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
      */
     private final IdentityHashMap<Tree, Tree> parentInIndex = new IdentityHashMap<>();
 
+    /**
+     * The artificial trees whose paths were registered with {@link #addArtificialPath}. An
+     * artificial tree is one that the CFG builder created; see {@link #addArtificialPath}.
+     */
+    private final Set<Tree> artificialTrees = Collections.newSetFromMap(new IdentityHashMap<>());
+
     /** The compilation unit whose paths are cached. */
     private @Nullable CompilationUnitTree unit;
 
@@ -140,6 +148,32 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
      */
     public void addPath(Tree target, TreePath path) {
         foundPaths.put(target, path);
+    }
+
+    /**
+     * Adds the path of an artificial tree to the cache and records that the tree is artificial.
+     *
+     * <p>An artificial tree is one that the CFG builder created, such as the binary operation of a
+     * compound assignment. It is not in the compilation unit, so a scan cannot find it, and the
+     * path registered here is the only source of its path.
+     *
+     * @param tree the artificial tree
+     * @param path the path of {@code tree}
+     */
+    public void addArtificialPath(Tree tree, TreePath path) {
+        artificialTrees.add(tree);
+        addPath(tree, path);
+    }
+
+    /**
+     * Returns true if {@code tree} is an artificial tree, whose path was registered with {@link
+     * #addArtificialPath} for the current compilation unit.
+     *
+     * @param tree a tree
+     * @return true if {@code tree} is an artificial tree
+     */
+    public boolean isArtificial(@FindDistinct Tree tree) {
+        return artificialTrees.contains(tree);
     }
 
     /**
@@ -365,12 +399,13 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
 
     /**
      * Clear the {@code foundPaths} and re-initialize with a new {@code IdentityHashMap}, and drop
-     * the subtree index. The cache is then for no compilation unit, so the next {@link #useUnit}
-     * clears it again.
+     * the subtree index and the set of artificial trees. The cache is then for no compilation unit,
+     * so the next {@link #useUnit} clears it again.
      */
     public void clear() {
         unit = null;
         foundPaths = new IdentityHashMap<>(32);
+        artificialTrees.clear();
         lastMissLeaf = null;
         lastMissCount = 0;
         indexedLeaf = null;

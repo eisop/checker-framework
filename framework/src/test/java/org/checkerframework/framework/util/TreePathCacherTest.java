@@ -262,7 +262,7 @@ public class TreePathCacherTest {
 
         TreePathCacher cacher = new TreePathCacher();
         cacher.useUnit(cu1);
-        cacher.addPath(artificial, artificialPath);
+        cacher.addArtificialPath(artificial, artificialPath);
 
         cacher.useUnit(cu1);
         Assert.assertSame(
@@ -295,7 +295,7 @@ public class TreePathCacherTest {
         TreePathCacher cacher = new TreePathCacher();
         // The first subchecker builds the CFG and registers the path of an artificial tree.
         cacher.useUnit(cu1);
-        cacher.addPath(artificial, artificialPath);
+        cacher.addArtificialPath(artificial, artificialPath);
         TreePath realPath = cacher.getPath(cu1, real);
         Assert.assertNull("absent tree", cacher.getPath(cu1, absent));
 
@@ -311,12 +311,44 @@ public class TreePathCacherTest {
         Assert.assertFalse("registered path cleared", cacher.isCached(artificial));
         Assert.assertFalse("found path cleared", cacher.isCached(real));
         Assert.assertFalse("cached absence cleared", cacher.isCached(absent));
-        cacher.addPath(artificial, artificialPath);
+        cacher.addArtificialPath(artificial, artificialPath);
 
         cacher.useUnit(cu1);
         Assert.assertFalse("path from the previous unit cleared", cacher.isCached(artificial));
         assertSamePath(
                 "path after clearing", TreePath.getPath(cu1, real), cacher.getPath(cu1, real));
+    }
+
+    /**
+     * Checks that {@link TreePathCacher#addArtificialPath} marks the tree as artificial, that the
+     * mark survives {@link TreePathCacher#useUnit} for the same unit, and that {@link
+     * TreePathCacher#clear} drops it.
+     *
+     * @throws Exception if parsing the test sources fails
+     */
+    @Test
+    public void addArtificialPathMarksTheTree() throws Exception {
+        CompilationUnitTree cu1 = parse("A", "class A { int f() { return 1; } }");
+        CompilationUnitTree cu2 = parse("B", "class B { int g() { return 2; } }");
+        List<Tree> cu1Trees = treesUnder(cu1);
+        List<Tree> cu2Trees = treesUnder(cu2);
+        Tree real = cu1Trees.get(cu1Trees.size() - 1);
+        // Stands in for an artificial tree: absent from cu1, so a scan of cu1 cannot find it.
+        Tree artificial = cu2Trees.get(cu2Trees.size() - 1);
+        TreePath artificialPath = new TreePath(new TreePath(cu1), artificial);
+
+        TreePathCacher cacher = new TreePathCacher();
+        cacher.useUnit(cu1);
+        cacher.addArtificialPath(artificial, artificialPath);
+        cacher.addPath(real, TreePath.getPath(cu1, real));
+        Assert.assertTrue("registered as artificial", cacher.isArtificial(artificial));
+        Assert.assertFalse("registered with addPath", cacher.isArtificial(real));
+
+        cacher.useUnit(cu1);
+        Assert.assertTrue("same unit keeps the mark", cacher.isArtificial(artificial));
+
+        cacher.clear();
+        Assert.assertFalse("clear drops the mark", cacher.isArtificial(artificial));
     }
 
     /**
@@ -338,7 +370,7 @@ public class TreePathCacherTest {
         TreePathCacher cacher = new TreePathCacher();
         cacher.useUnit(cu1);
         cacher.clear();
-        cacher.addPath(artificial, artificialPath);
+        cacher.addArtificialPath(artificial, artificialPath);
 
         cacher.useUnit(cu1);
         Assert.assertNull("cleared like a fresh cache", cacher.getPath(cu1, artificial));
