@@ -35,7 +35,8 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
 
 /**
- * Unit test for {@link AnnotationFileElementTypes#buildSigIndex}.
+ * Unit test for {@link AnnotationFileElementTypes#buildSigIndex} and {@link
+ * AnnotationFileElementTypes#findAnnotatedJdk}.
  *
  * <p>Regression test for a crash: {@code TypesUtils.simpleTypeName} throws {@link
  * org.checkerframework.javacutil.BugInCF} (a {@link RuntimeException}) for a parameter whose type
@@ -229,6 +230,11 @@ public class AnnotationFileElementTypesTest {
         Assert.assertTrue(findIn(first, ownDir).contains("ownDir/annotated-jdk"));
         // The jar that holds the factory class has none: the first one on the class path is used.
         Assert.assertTrue(findIn(first, plain).contains("first.jar!/annotated-jdk"));
+        // A directory whose name starts with the name of the jar that holds the factory class is
+        // not that jar.
+        Path sibling = dir.resolve("plain.jar2");
+        Files.createDirectories(sibling.resolve("annotated-jdk"));
+        Assert.assertTrue(findIn(first, sibling, plain).contains("first.jar!/annotated-jdk"));
     }
 
     /**

@@ -2682,10 +2682,12 @@ public class AnnotationFileElementTypes {
                 }
                 String text = candidate.toExternalForm();
                 // A jar's location is "file:/x.jar" and its entries are "jar:file:/x.jar!/...";
-                // a directory's location "file:/x/" is a prefix of its entries.
+                // a directory's location "file:/x/" is a prefix of its entries.  Only a location
+                // that ends with "/" is a directory, so that "file:/x.jar" does not match
+                // "file:/x.jar2/...".
                 if (ownLocation != null
                         && (text.startsWith("jar:" + ownLocation + "!/")
-                                || text.startsWith(ownLocation))) {
+                                || (ownLocation.endsWith("/") && text.startsWith(ownLocation)))) {
                     return candidate;
                 }
             }
