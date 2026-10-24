@@ -1439,10 +1439,10 @@ public abstract class GenericAnnotatedTypeFactory<
      * of the receiver or of an earlier argument of an enclosing invocation. The node of such a tree
      * was visited before the current node in the current pass, so its cached type was computed in
      * the current pass and not in an earlier one (see {@link
-     * #canCacheFlowDependentType(ExpressionTree)}). The cached type of any other
-     * tree may be from an earlier pass over a loop: for example, inferring the type arguments of
-     * {@code bar()} in {@code foo(bar(), id(x))} also types the later argument {@code id(x)}, whose
-     * node has not been visited yet. A backward analysis would need another rule.
+     * #canCacheFlowDependentType(ExpressionTree)}). The cached type of any other tree may be from
+     * an earlier pass over a loop: for example, inferring the type arguments of {@code bar()} in
+     * {@code foo(bar(), id(x))} also types the later argument {@code id(x)}, whose node has not
+     * been visited yet. A backward analysis would need another rule.
      */
     @Override
     protected boolean canUseCachedFlowDependentType(ExpressionTree tree) {
