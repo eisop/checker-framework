@@ -113,6 +113,17 @@ don't run are only covered there. The short version:
   one issue per line while the release is unreleased, so two PRs adding a
   number do not conflict; see
   [`docs/developer/README-eisop.md`](docs/developer/README-eisop.md).
+- **Worktrees and PRs.** Name a worktree `wt-<PR number>` (or `wt-<topic>`
+  until the PR exists). `git worktree list` together with
+  `gh pr list --author @me --json number,headRefName` maps PRs to worktrees.
+  Use one worktree per branch and run builds from inside it: the shell's
+  working directory resets between commands, so `cd` in the same command.
+- **Before every commit:** `./gradlew spotlessApply`, then stage all files
+  it changed. `make style-check` does not cover the Java files under
+  `checker/tests/`. Re-run a test whose `// :: error:` comments may have
+  moved when spotless reformatted it.
+- **Pushing and CI:** push once per finished task, not after every commit,
+  and look at CI 10 minutes after the push; see the cf-patch-style skill.
 - **Branch naming for perf/correctness audits:**
   `review-<package>` or `perf-<package>` matches recent practice
   (e.g., `Review of common/basetype package (#1721)`).
