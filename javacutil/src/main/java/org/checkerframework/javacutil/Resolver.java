@@ -376,6 +376,14 @@ public class Resolver {
      * which costs no more than the copy that {@code getScope} makes, and the path is cut after the
      * deepest one found.
      *
+     * <p>Both checks rely on {@link TreeScanner} visiting every child of a tree. It does not visit
+     * the children of an {@link com.sun.source.tree.ErroneousTree}, so a path through one is cut
+     * above it and resolves in a wider scope. This is accepted: a compilation unit with errors is
+     * normally not type-checked, and the result is best effort for it. The other visit methods of
+     * {@code TreeScanner} that scan nothing are for trees without children and {@code visitOther},
+     * which visits javac-internal trees such as the {@code LetExpr} that lowering creates (checked
+     * for JDK 8, 11, 17, 21, 25, and 26).
+     *
      * @param path a tree path
      * @return {@code path}, or the longest prefix of it whose leaf is in the compilation unit
      */
@@ -399,6 +407,9 @@ public class Resolver {
         }
         return result;
     }
+
+    // This file imports javac's List, for the arguments of javac's resolution methods, so
+    // java.util.List is written fully qualified here; do not import it instead.
 
     /**
      * Returns the index of the tree that {@link Trees#getScope} copies and attributes for a path

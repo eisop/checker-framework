@@ -299,7 +299,9 @@ Other improvements and bug fixes:
 - An expression in a dependent type, such as `@LTLengthOf("a")` or `@LessThan("m")`, that names a
   local variable is found at a compound assignment, an increment or decrement, and the other
   operations for which dataflow analysis creates artificial trees. Before, the local variable was
-  not found, which gave false positives such as for `j -= 1` in the Index Checker.
+  not found, which gave false positives such as for `j -= 1` in the Index Checker. This affects
+  every checker with dependent types, such as the Lock, KeyFor, and Must Call Checkers, so they may
+  report changed diagnostics at such operations.
 - A checker that packages its own `annotated-jdk` in its jar (such as the JSpecify
   reference checker) now uses it, even when `checker.jar` is earlier on the processor path.
 - The Index Checker no longer crashes with a `NullPointerException` on an upper bound

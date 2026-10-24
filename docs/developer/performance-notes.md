@@ -2045,6 +2045,9 @@ path a search of the method body. Re-measured with this fix, same setup, against
 without it: Resource Leak Checker 10.32 s [9.91-10.62] and 10.15 s [9.96-10.33] (master 11.19 s
 [10.05-11.68] in the same rounds), Index Checker 21.37 s [21.13-21.71] and 21.68 s [21.30-21.74],
 Nullness Checker 12.52 s and 12.46 s: no cost beyond the noise.
+The changelog's "about 6-16% faster" for the Resource Leak Checker is the range over all of
+these rounds, including a reviewer's 6.4%: the -15.7% above and the about -9% of the re-measurement
+against master (10.15 s to 10.32 s against 11.19 s) both lie in it.
 
 ### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
 
