@@ -295,6 +295,10 @@ Performance optimizations:
 
 Other improvements and bug fixes:
 
+- An expression in a dependent type, such as `@LTLengthOf("a")` or `@LessThan("m")`, that names a
+  local variable is found at a compound assignment, an increment or decrement, and the other
+  operations for which dataflow analysis creates artificial trees. Before, the local variable was
+  not found, which gave false positives such as for `j -= 1` in the Index Checker.
 - The Index Checker no longer crashes with a `NullPointerException` on an upper bound
   annotation, such as `@LTLengthOf`, whose `offset` is an expression with an error.
 - The types of method invocations, field accesses, array accesses, and switch expressions are no
