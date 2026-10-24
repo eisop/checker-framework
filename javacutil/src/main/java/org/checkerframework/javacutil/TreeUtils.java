@@ -1004,6 +1004,18 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns true if {@code tree} creates an anonymous class and uses a diamond, as in {@code new
+     * C<>(args) {...}}. The type arguments of the anonymous class's supertype are then inferred
+     * (JLS 15.9.3).
+     *
+     * @param tree a new class tree
+     * @return true if {@code tree} creates an anonymous class and uses a diamond
+     */
+    public static boolean isAnonymousDiamondTree(NewClassTree tree) {
+        return tree.getClassBody() != null && isDiamondTree(tree);
+    }
+
+    /**
      * Returns the type arguments to the given new class tree.
      *
      * @param tree a new class tree
@@ -3258,6 +3270,15 @@ public final class TreeUtils {
     /**
      * Returns true if {@code expression} is a poly expression as defined in JLS 15.2.
      *
+     * <p>This is javac's answer. In particular, javac marks an anonymous class created with a
+     * diamond, as in {@code new C<>(args) {...}}, as standalone once it is attributed, although JLS
+     * 15.9.3 infers its type arguments as for {@code new C<>(args)}. {@code
+     * org.checkerframework.framework.util.typeinference8.types.InferenceFactory#isPolyExpression}
+     * treats such an expression as a poly expression for type argument inference, and {@code
+     * org.checkerframework.checker.initialization.InitializationParentAnnotatedTypeFactory} relies
+     * on the javac answer to select the constructor arguments that it checks. Do not change this
+     * method to treat it as a poly expression without checking that use.
+     *
      * @param expression expression
      * @return true if {@code expression} is a poly expression
      */
@@ -3267,6 +3288,9 @@ public final class TreeUtils {
 
     /**
      * Returns true if {@code expression} is a standalone expression as defined in JLS 15.2.
+     *
+     * <p>See {@link #isPolyExpression} for how an anonymous class created with a diamond is
+     * treated.
      *
      * @param expression expression
      * @return true if {@code expression} is a standalone expression
