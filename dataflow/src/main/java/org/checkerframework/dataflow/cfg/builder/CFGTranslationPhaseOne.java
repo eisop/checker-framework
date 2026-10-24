@@ -4400,6 +4400,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         result = new LocalVariableNode(resultExpr);
                         result.setInSource(false);
                         extendWithNode(result);
+                        // The value of the postfix expression is the value of this node, which
+                        // consumers of the expression use as their operand.  The assignment node
+                        // that has the postfix tree as its tree only holds the old value, and is
+                        // not an operand of any consumer.
+                        addToConvertedLookupMap(tree, result);
                     }
                     AssignmentNode unaryAssign =
                             createIncrementOrDecrementAssign(tree, expr, isIncrement, isPostfix);
