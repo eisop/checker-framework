@@ -261,7 +261,8 @@ public abstract class UBQualifier {
      * @param sequences non-empty list of sequences
      * @param offsets list of offset, if empty, an offset of 0 is used
      * @param extraOffset offset to add to each element of offsets; may be null
-     * @return an {@link UBQualifier} for the sequences with the given offsets
+     * @return an {@link UBQualifier} for the sequences with the given offsets, or UNKNOWN if an
+     *     offset is an expression with an error
      */
     public static UBQualifier createUBQualifier(
             List<String> sequences, List<String> offsets, @Nullable String extraOffset) {
@@ -473,11 +474,11 @@ public abstract class UBQualifier {
          *
          * @param sequences non-empty list of sequences
          * @param offsets list of offset, if empty, an offset of 0 is used
-         * @param extraEq offset to add to each element of offsets; may be null
+         * @param extraEq offset to add to each element of offsets
          * @return the map representation of a {@link UBQualifier}, or null if there is an error
          */
         private static @Nullable Map<String, Set<OffsetEquation>> sequencesAndOffsetsToMap(
-                List<String> sequences, List<String> offsets, @Nullable OffsetEquation extraEq) {
+                List<String> sequences, List<String> offsets, OffsetEquation extraEq) {
 
             Map<String, Set<OffsetEquation>> map = new HashMap<>(MapsP.mapCapacity(sequences));
             if (offsets.isEmpty()) {

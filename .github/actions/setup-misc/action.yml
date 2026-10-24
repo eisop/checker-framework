@@ -7,39 +7,54 @@ description: >-
 runs:
   using: composite
   steps:
+    # The downloaded .deb files are specific to the Ubuntu release, so it is part of the cache keys.
+    # With only `runner.os` in the key, a cache saved on Ubuntu 24.04 was restored on 26.04, where
+    # apt could use almost none of it, and, as a cache entry is never replaced, stayed that way.
+    - name: Identify the OS release
+      id: os-release
+      shell: bash
+      run: echo "release=$(. /etc/os-release && echo "${ID}-${VERSION_ID}")" >> "$GITHUB_OUTPUT"
+
     - name: Restore apt download cache
       uses: actions/cache@v6
       with:
         path: ~/.cache/apt-archives
         # Cache invalidates when this file (the package list) changes.
-        key: apt-misc-v1-${{ runner.os }}-${{ hashFiles('.github/actions/setup-misc/action.yml') }}
+        key: apt-misc-v1-${{ steps.os-release.outputs.release }}-${{ hashFiles('.github/actions/setup-misc/action.yml') }}
         restore-keys: |
-          apt-misc-v1-${{ runner.os }}-
+          apt-misc-v1-${{ steps.os-release.outputs.release }}-
 
     - name: Install apt packages
       shell: bash
       run: |
+        export DEBIAN_FRONTEND=noninteractive
         # apt needs both the cache dir and its `partial/` subdir to exist.
         mkdir -p ~/.cache/apt-archives/partial
-        sudo apt-get update
-        sudo apt-get install -y --fix-missing \
+        # A mirror that stalls has hung this step for an hour.  Bound each apt-get run,
+        # and try it again, up to three times, so that the worst case (3 x 4 min plus
+        # two 30 s pauses) stays below the 15-minute timeout of the calling step.
+        apt_get() {
+          for attempt in 1 2 3; do
+            if timeout 4m sudo -E apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              "$@"; then
+              return 0
+            fi
+            [ "$attempt" = 3 ] && return 1
+            sleep 30
+          done
+        }
+        apt_get update
+        apt_get install -y --fix-missing --no-install-recommends \
           -o Dir::Cache::Archives="$HOME/.cache/apt-archives" \
-          autoconf \
-          devscripts \
           dia \
           graphviz \
           hevea \
           latexmk \
-          libasound2-dev \
-          libcups2-dev \
-          libfontconfig1-dev \
+          lmodern \
           librsvg2-bin \
-          libx11-dev \
-          libxext-dev \
-          libxrandr-dev \
-          libxrender-dev \
-          libxt-dev \
-          libxtst-dev \
           pdf2svg \
           python3-pip \
           rsync \
@@ -59,9 +74,9 @@ runs:
       uses: actions/cache@v6
       with:
         path: ~/.cache/pip
-        key: pip-misc-v1-${{ runner.os }}-${{ hashFiles('.github/actions/setup-misc/action.yml') }}
+        key: pip-misc-v1-${{ steps.os-release.outputs.release }}-${{ hashFiles('.github/actions/setup-misc/action.yml') }}
         restore-keys: |
-          pip-misc-v1-${{ runner.os }}-
+          pip-misc-v1-${{ steps.os-release.outputs.release }}-
 
     - name: Install uv and html5validator
       shell: bash

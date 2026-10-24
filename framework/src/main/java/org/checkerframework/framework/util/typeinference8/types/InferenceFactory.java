@@ -171,8 +171,7 @@ public class InferenceFactory {
             case NEW_CLASS:
                 NewClassTree newClassTree = (NewClassTree) context;
                 AnnotatedExecutableType constructorType =
-                        factory.constructorFromUseWithoutTypeArgInference(newClassTree)
-                                .executableType;
+                        constructorTypeForInference(factory, newClassTree);
                 AnnotatedTypeMirror constATM =
                         assignedToExecutable(
                                 path, newClassTree, newClassTree.getArguments(), constructorType);
@@ -423,7 +422,12 @@ public class InferenceFactory {
         assert expressionTree instanceof NewClassTree
                 || expressionTree instanceof MethodInvocationTree;
 
-        ExecutableElement ele = (ExecutableElement) TreeUtils.elementFromUse(expressionTree);
+        ExecutableElement ele =
+                expressionTree instanceof NewClassTree
+                                && TreeUtils.isAnonymousDiamondTree((NewClassTree) expressionTree)
+                        // See constructorTypeForInference.
+                        ? TreeUtils.getSuperConstructor((NewClassTree) expressionTree)
+                        : (ExecutableElement) TreeUtils.elementFromUse(expressionTree);
         ExecutableType executableType = null;
         // First adapt to receiver
         if (!ElementUtils.isStatic(ele)) {
@@ -788,12 +792,62 @@ public class InferenceFactory {
                             .executableType;
             resolvePolyQualifiers((MethodInvocationTree) invocation, executableType);
         } else {
-            executableType =
-                    typeFactory.constructorFromUseWithoutTypeArgInference((NewClassTree) invocation)
-                            .executableType;
+            executableType = constructorTypeForInference(typeFactory, (NewClassTree) invocation);
         }
         ExecutableType javaType = getTypeOfMethodAdaptedToUse(invocation, context);
         return new InvocationType(executableType, javaType, invocation, context);
+    }
+
+    /**
+     * Returns a short description of {@code invocation} for the history of a constraint. Unlike
+     * {@code invocation.toString()}, it does not print an anonymous class body or a lambda
+     * argument, which can be large, and it is built eagerly for every constraint.
+     *
+     * @param invocation a method or constructor invocation
+     * @return a short description of {@code invocation}
+     */
+    public static String describe(ExpressionTree invocation) {
+        if (invocation instanceof MethodInvocationTree) {
+            return ((MethodInvocationTree) invocation).getMethodSelect() + "(...)";
+        } else if (invocation instanceof NewClassTree) {
+            return "new " + ((NewClassTree) invocation).getIdentifier() + "(...)";
+        }
+        return invocation.toString();
+    }
+
+    /**
+     * Returns true if {@code expression} is a poly expression (JLS 15.2). Unlike {@link
+     * TreeUtils#isPolyExpression(ExpressionTree)}, this is also true for an anonymous class created
+     * with a diamond, as in {@code new C<>(args) {...}}, which is a poly expression (JLS 15.9) that
+     * javac marks as standalone once it has attributed the anonymous class.
+     *
+     * @param expression an expression
+     * @return true if {@code expression} is a poly expression
+     */
+    public static boolean isPolyExpression(ExpressionTree expression) {
+        ExpressionTree e = TreeUtils.withoutParens(expression);
+        if (e instanceof NewClassTree && TreeUtils.isAnonymousDiamondTree((NewClassTree) e)) {
+            return true;
+        }
+        return TreeUtils.isPolyExpression(expression);
+    }
+
+    /**
+     * Returns the type of the constructor that {@code newClassTree} invokes, before type argument
+     * inference. For an anonymous class created with a diamond, {@code new C<>(args) {...}}, this
+     * is the type of the super constructor as a member of the generic superclass, because the type
+     * arguments of the superclass are inferred as for {@code new C<>(args)} (JLS 15.9.3).
+     *
+     * @param typeFactory the type factory
+     * @param newClassTree a constructor invocation
+     * @return the type of the invoked constructor, before type argument inference
+     */
+    private static AnnotatedExecutableType constructorTypeForInference(
+            AnnotatedTypeFactory typeFactory, NewClassTree newClassTree) {
+        if (TreeUtils.isAnonymousDiamondTree(newClassTree)) {
+            return typeFactory.getAnonymousDiamondSuperConstructor(newClassTree);
+        }
+        return typeFactory.constructorFromUseWithoutTypeArgInference(newClassTree).executableType;
     }
 
     /**
@@ -852,7 +906,7 @@ public class InferenceFactory {
                             ? params.get(Math.min(i, params.size() - 1))
                             : (i < params.size() ? params.get(i) : null);
             if (param != null
-                    && TreeUtils.isPolyExpression(args.get(i))
+                    && isPolyExpression(args.get(i))
                     && poly.hasPolymorphicQualifiers(param)) {
                 return;
             }
