@@ -1,4 +1,3 @@
-// @skip-test Test runs too fast on GitHub Actions.
 // @below-java14-jdk-skip-test
 
 import java.util.List;
