@@ -208,12 +208,11 @@ one example). Before opening an import PR:
 
 1. Run `checker/bin-devel/typetools-import-check.py --range FROM..TO` and
    `--api-diff TAG` (names from the divergence table, typetools-only API).
-2. Run `checker/bin-devel/typetools-import-check.py --hunks FROM..TO` (if it
-   exists on your checkout; see `docs/developer/README-eisop.md`). It reports
-   lines that typetools removed and this fork still has, lines that
-   typetools added and this fork lacks, and hunks whose code is not found.
-   It prompts for review; it is not an error. Open the files before judging
-   a finding.
+2. Run `checker/bin-devel/typetools-import-check.py --hunks FROM..TO` on the
+   import branch. It finds hunks that the import dropped because the code is
+   in another file here; what it reports is in
+   `docs/developer/README-eisop.md`. A finding prompts for review; it is not
+   an error. Open the files before judging it.
 3. Put the findings in the import PR description, each marked as adapted,
    already handled, or deliberately skipped. Adapt the real ones in the same
    PR or in an immediate second PR; do not leave a test-only half of a change.
