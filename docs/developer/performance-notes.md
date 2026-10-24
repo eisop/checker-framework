@@ -2019,13 +2019,30 @@ in `UBQualifier$LessThanLengthOf` — a null path yields an unparseable offset e
 layers from the cause. If this is revisited, the clear has to happen strictly before anything is
 cached for the new unit, and the Index Checker is the canary.
 
-*Update (October 2026).* This is now done: `TreePathCacher#useUnit` clears the cache only when the
-compilation unit changes, and every checker's `setRoot` calls it, so the paths that the CFG builder
-registered for artificial trees survive the parent checker's `setRoot`. It needed the fix for the
-upper bound offset with an error (a null path had hidden that Index Checker NPE). On plume-util the
-diagnostics are identical (Index, Resource Leak, Nullness, Interning, suppressions removed) and the
-Resource Leak Checker is not slower. A separate map of artificial trees was tried first and
-dropped: more code, and it kept the lossy null result.
+*Update (October 2026, PR #2339).* This is now done: `TreePathCacher#useUnit` clears the cache
+only when the compilation unit changes, and every checker's `setRoot` calls it, so the paths that
+the CFG builder registered for artificial trees survive the parent checker's `setRoot`. Wall time
+on plume-util with its `@SuppressWarnings` removed (JDK 25, 5 interleaved runs after a warm-up,
+median [min-max]): Resource Leak Checker 10.43 s [9.44-10.94] on master and 8.79 s [8.15-9.36] with
+the change (-15.7%); Nullness Checker 11.65 s and 11.09 s, Index Checker 20.06 s and 19.37 s,
+within the machine's noise of 3-5%. A likely cause of the Resource Leak Checker's gain, not
+profiled: `RLCCalledMethodsAnnotatedTypeFactory#analyze` calls `rlc.setRoot(getRoot())` after each
+CFG it analyzes, and the Resource Leak Checker, the ultimate parent, cleared the whole cache there.
+A separate map of artificial trees was tried first and dropped: more code, and it kept the lossy
+null result.
+
+The real paths of artificial trees exposed two older bugs. The Index Checker crashed on an upper
+bound offset with an error, which a null path had hidden (fixed in PR #2308). And
+`Resolver#getEnvForPath` resolved the names at an artificial tree in the scope of the whole method,
+without its local variables: `Trees#getScope` attributes a copy of the method body up to the copy
+of the leaf and never finds an artificial leaf. So `@LTLengthOf("b")` for a local `b` in the type
+of `j -= 1` gave a false positive; the Less Than Checker, which registers the paths itself, had
+this bug on master. `Resolver` now resolves at the deepest tree of the path that is in the
+compilation unit; a path whose trees form a chain of children costs one check per step, any other
+path a search of the method body. Re-measured with this fix, same setup, against the change
+without it: Resource Leak Checker 10.32 s [9.91-10.62] and 10.15 s [9.96-10.33] (master 11.19 s
+[10.05-11.68] in the same rounds), Index Checker 21.37 s [21.13-21.71] and 21.68 s [21.30-21.74],
+Nullness Checker 12.52 s and 12.46 s: no cost beyond the noise.
 
 ### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
 

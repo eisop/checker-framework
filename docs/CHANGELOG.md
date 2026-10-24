@@ -277,8 +277,9 @@ Performance optimizations:
 - New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
   replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
-- Compound checkers such as the Resource Leak Checker no longer scan the whole compilation unit
-  to find artificial trees (~5% of Resource Leak Checker samples on plume-util).
+- The checkers of a compound checker keep the shared tree path cache for the same compilation unit,
+  so they no longer scan the whole compilation unit for the trees that dataflow analysis creates
+  (Resource Leak Checker on plume-util 9-16% faster).
 - `ElementUtils.isElementFromSourceCode` caches its result per source file object instead
   of constructing a `URI` on every call.
 - `Resolver.getEnvForPath` caches the attribution environment per location, so that
