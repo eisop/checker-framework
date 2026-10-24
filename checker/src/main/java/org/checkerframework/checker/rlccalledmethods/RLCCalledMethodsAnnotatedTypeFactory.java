@@ -2,6 +2,8 @@ package org.checkerframework.checker.rlccalledmethods;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
@@ -32,16 +34,19 @@ import org.checkerframework.common.accumulation.AccumulationValue;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.cfg.ControlFlowGraph;
+import org.checkerframework.dataflow.cfg.UnderlyingAST;
 import org.checkerframework.dataflow.cfg.block.Block;
 import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
+import org.checkerframework.framework.flow.CFAbstractAnalysis.FieldInitialValue;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.Contract;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 
@@ -49,6 +54,7 @@ import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -130,6 +136,8 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
     @Override
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
         return getBundledTypeQualifiers(
+                // These annotations are in the Called Methods Checker, not the Resource Leak
+                // Checker.
                 CalledMethods.class, CalledMethodsBottom.class, CalledMethodsPredicate.class);
     }
 
@@ -144,8 +152,49 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
     }
 
     @Override
-    public void postAnalyze(ControlFlowGraph cfg) {
+    protected ControlFlowGraph analyze(
+            Queue<Pair<ClassTree, @Nullable AccumulationStore>> classQueue,
+            Queue<Pair<LambdaExpressionTree, @Nullable AccumulationStore>> lambdaQueue,
+            UnderlyingAST ast,
+            List<FieldInitialValue<AccumulationValue>> fieldValues,
+            @Nullable ControlFlowGraph cfg,
+            boolean isInitializationCode,
+            boolean updateInitializationStore,
+            boolean isStatic,
+            @Nullable AccumulationStore capturedStore) {
+        // This is a workaround for a bug that has no known fix; see
+        // checker/tests/resourceleak/RLLambda.java.
+        // This code really belongs in postAnalyze, but it only works correctly when it runs after
+        // a method is analyzed the first time and before any containing lambdas are analyzed.
+        // This workaround means there could be false positives when the type of a method invocation
+        // depends on dataflow in a lambda.
+
+        if (cfg != null) {
+            // The cfg is not null, so the analysis has been run before.  Don't rerun it.
+            return cfg;
+        }
+        ControlFlowGraph analyzedCfg =
+                super.analyze(
+                        classQueue,
+                        lambdaQueue,
+                        ast,
+                        fieldValues,
+                        cfg,
+                        isInitializationCode,
+                        updateInitializationStore,
+                        isStatic,
+                        capturedStore);
         rlc.setRoot(getRoot());
+        runWithBodyVisitorPath(analyzedCfg, () -> analyzeMustCall(analyzedCfg));
+        return analyzedCfg;
+    }
+
+    /**
+     * Checks the must-call obligations of an analyzed CFG, and infers annotations from it.
+     *
+     * @param cfg an analyzed CFG
+     */
+    private void analyzeMustCall(ControlFlowGraph cfg) {
         MustCallConsistencyAnalyzer mustCallConsistencyAnalyzer =
                 new MustCallConsistencyAnalyzer(rlc);
         mustCallConsistencyAnalyzer.analyze(cfg);
@@ -160,7 +209,6 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
         }
         */
 
-        super.postAnalyze(cfg);
         tempVarToTree.clear();
     }
 
@@ -195,7 +243,7 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
     }
 
     /**
-     * Returns whether the {@link MustCall#value} element/argument of the @MustCall annotation on
+     * Returns true if the {@link MustCall#value} element/argument of the @MustCall annotation on
      * the type of {@code tree} is definitely empty.
      *
      * <p>This method only considers the declared type: it does not consider flow-sensitive
@@ -216,7 +264,7 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
     }
 
     /**
-     * Returns whether the {@link MustCall#value} element/argument of the @MustCall annotation on
+     * Returns true if the {@link MustCall#value} element/argument of the @MustCall annotation on
      * the type of {@code element} is definitely empty.
      *
      * <p>This method only considers the declared type: it does not consider flow-sensitive
@@ -296,7 +344,7 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
     }
 
     /**
-     * Gets the tree for a temporary variable
+     * Gets the tree for a temporary variable.
      *
      * @param node a node for a temporary variable
      * @return the tree for {@code node}
@@ -332,7 +380,7 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
      * CFStore)}.
      *
      * @param tree a tree
-     * @return whether the tree has declared must-call obligations
+     * @return true if the tree has declared must-call obligations
      */
     public boolean declaredTypeHasMustCall(Tree tree) {
         assert tree instanceof MethodTree
@@ -450,7 +498,7 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
      * files loaded by this checker, not subcheckers).
      *
      * @param elt an element
-     * @return whether there is a NotOwning annotation on the given element
+     * @return true if there is a NotOwning annotation on the given element
      */
     public boolean hasNotOwning(Element elt) {
         MustCallAnnotatedTypeFactory mcatf = getTypeFactoryOfSubchecker(MustCallChecker.class);
@@ -465,7 +513,7 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
      * files loaded by this checker, not subcheckers).
      *
      * @param elt an element
-     * @return whether there is an Owning annotation on the given element
+     * @return true if there is an Owning annotation on the given element
      */
     public boolean hasOwning(Element elt) {
         MustCallAnnotatedTypeFactory mcatf = getTypeFactoryOfSubchecker(MustCallChecker.class);
@@ -522,7 +570,7 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
      * names this method.
      *
      * @param elt a method
-     * @return whether that method is one of the must-call methods for its enclosing class
+     * @return true if that method is one of the must-call methods for its enclosing class
      */
     private boolean isMustCallMethod(ExecutableElement elt) {
         TypeElement enclosingClass = ElementUtils.enclosingTypeElement(elt);

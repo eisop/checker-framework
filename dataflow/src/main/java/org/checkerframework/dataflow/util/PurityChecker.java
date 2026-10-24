@@ -45,6 +45,11 @@ import javax.lang.model.element.VariableElement;
  */
 public class PurityChecker {
 
+    /** Do not instantiate. */
+    private PurityChecker() {
+        throw new Error("Do not instantiate");
+    }
+
     /**
      * Compute whether the given statement is side-effect-free, deterministic, or both. Returns a
      * result that can be queried.
@@ -92,7 +97,7 @@ public class PurityChecker {
         protected EnumSet<Pure.Kind> kinds = EnumSet.allOf(Pure.Kind.class);
 
         /**
-         * Return the kinds of purity that the method has.
+         * Returns the kinds of purity that the method has.
          *
          * @return the kinds of purity that the method has
          */
@@ -111,7 +116,7 @@ public class PurityChecker {
         }
 
         /**
-         * Get the reasons why the method is not side-effect-free.
+         * Returns the reasons why the method is not side-effect-free.
          *
          * @return the reasons why the method is not side-effect-free
          */
@@ -131,7 +136,7 @@ public class PurityChecker {
         }
 
         /**
-         * Get the reasons why the method is not deterministic.
+         * Returns the reasons why the method is not deterministic.
          *
          * @return the reasons why the method is not deterministic
          */
@@ -151,7 +156,7 @@ public class PurityChecker {
         }
 
         /**
-         * Get the reasons why the method is not both side-effect-free and deterministic.
+         * Returns the reasons why the method is not both side-effect-free and deterministic.
          *
          * @return the reasons why the method is not both side-effect-free and deterministic
          */
@@ -358,7 +363,7 @@ public class PurityChecker {
         }
 
         /**
-         * Check whether {@code variable} is permitted on the left-hand-side of an assignment.
+         * Returns true if {@code variable} is permitted on the left-hand-side of an assignment.
          *
          * @param variable the lhs to check
          */

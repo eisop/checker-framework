@@ -11,7 +11,7 @@ name: Publish snapshot
 # Snapshots are unsigned (gradle-mvn-push.gradle signs releases only), so no
 # GPG key is needed here.
 
-on:
+on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '0 9 * * *'  # Daily at 09:00 UTC, after the 07:00 CI run.
   workflow_dispatch:
@@ -47,12 +47,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v6.0.1
+      - uses: actions/setup-java@v6.1.0
         with:
           distribution: 'zulu'
           java-version: '21'
 
-      - uses: gradle/actions/setup-gradle@v6.3.0
+      - uses: gradle/actions/setup-gradle@v6.4.0
 
       # Publishing a non-snapshot version from here would go to the release
       # repository and could not be undone, so refuse unless the version says

@@ -121,7 +121,7 @@ public class AnnotationFileUtil {
      * @param className fully qualified name of the type declaration to find
      * @param indexFile a StubUnit to search
      * @return the declaration in {@code indexFile} with {@code className} if it exists, null
-     *     otherwise.
+     *     otherwise
      */
     /*package-private*/ static @Nullable TypeDeclaration<?> findDeclaration(
             String className, StubUnit indexFile) {

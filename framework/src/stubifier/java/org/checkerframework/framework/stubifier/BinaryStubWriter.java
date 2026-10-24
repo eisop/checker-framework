@@ -113,9 +113,19 @@ public class BinaryStubWriter {
     /**
      * Format version of the binary stub file. This is the canonical definition; {@code
      * org.checkerframework.framework.stub.BinaryStubData#VERSION} references it. Increment whenever
-     * the binary format changes.
+     * the binary format changes, and add a line here.
+     *
+     * <p>Version history:
+     *
+     * <ul>
+     *   <li>1: the first format (#1853).
+     *   <li>2: records the length and SHA-256 digest of the source stub file, for the staleness
+     *       check of user-supplied {@code -Astubs} files (#1967).
+     *   <li>3: markers for plain wildcards {@code ?} ({@link #TYPE_ANNO_UNBOUNDED_WILDCARD}); the
+     *       annotations on a wildcard with a bound are written at the path of its other bound.
+     * </ul>
      */
-    public static final short VERSION = 2;
+    public static final short VERSION = 3;
 
     /**
      * Magic number identifying a binary stub <em>bundle</em>: a container of several per-file
@@ -219,6 +229,16 @@ public class BinaryStubWriter {
      * super bound.
      */
     public static final byte TYPE_PATH_WILDCARD_BOUND_SUPER = 1;
+
+    /**
+     * Annotation-pool index that makes a type annotation a <em>marker</em>: it carries no
+     * annotation, and its type path locates a plain wildcard {@code ?}, one without a bound or an
+     * annotation. The reader gives that wildcard the annotations of the bounds of its type
+     * variable's declaration, as the text parser does ({@code
+     * AnnotationFileParser.annotateUnannotatedUnboundedWildcard}). Negative, so it is never a pool
+     * index, and not {@code IGNORED}, which is never written.
+     */
+    public static final int TYPE_ANNO_UNBOUNDED_WILDCARD = -2;
 
     /**
      * Fully-qualified name of {@code org.checkerframework.framework.qual.CFComment}, which is never
@@ -549,7 +569,7 @@ public class BinaryStubWriter {
 
     /** Represents a TypeAnnotation with its path and annotation pool index. */
     private static class TypeAnno {
-        /** Index into the annotation pool. */
+        /** Index into the annotation pool, or {@link #TYPE_ANNO_UNBOUNDED_WILDCARD}. */
         int annoIndex;
 
         /** The path to the annotated type component. */
@@ -2289,6 +2309,8 @@ public class BinaryStubWriter {
      * BinaryStubDiffChecker} sees no difference. Implementing this would mean emitting and
      * resolving kind-1 path steps on both sides.
      *
+     * <p>A plain wildcard {@code ?} yields a marker ({@link #TYPE_ANNO_UNBOUNDED_WILDCARD}).
+     *
      * @param type the type to extract annotations from
      * @param currentPath the current type path, built during traversal
      * @param result the list to add the extracted type annotations to
@@ -2299,10 +2321,26 @@ public class BinaryStubWriter {
             throws IOException {
         if (type == null) return;
 
+        // As in AnnotationFileParser.annotate, the annotations on a wildcard with a bound apply to
+        // its other bound: "@A ? extends X" has the lower bound @A. Those on "@A ?" apply to the
+        // wildcard, that is, to both bounds.
+        List<TypePathStep> annoPath = currentPath;
+        if (type instanceof WildcardType) {
+            WildcardType wt = (WildcardType) type;
+            if (wt.getExtendedType().isPresent() || wt.getSuperType().isPresent()) {
+                annoPath = new ArrayList<>(currentPath);
+                annoPath.add(
+                        new TypePathStep(
+                                TYPE_PATH_KIND_WILDCARD,
+                                wt.getExtendedType().isPresent()
+                                        ? TYPE_PATH_WILDCARD_BOUND_SUPER
+                                        : TYPE_PATH_WILDCARD_BOUND_EXTENDS));
+            }
+        }
         for (AnnotationExpr ann : type.getAnnotations()) {
             int idx = annosPool.addAnnotation(ann, cu, this);
             if (idx != IGNORED) {
-                result.add(new TypeAnno(idx, currentPath));
+                result.add(new TypeAnno(idx, annoPath));
             }
         }
 
@@ -2332,6 +2370,12 @@ public class BinaryStubWriter {
             }
         } else if (type instanceof WildcardType) {
             WildcardType wt = (WildcardType) type;
+            if (!wt.getExtendedType().isPresent()
+                    && !wt.getSuperType().isPresent()
+                    && wt.getAnnotations().isEmpty()) {
+                // A plain "?": a marker; see TYPE_ANNO_UNBOUNDED_WILDCARD.
+                result.add(new TypeAnno(TYPE_ANNO_UNBOUNDED_WILDCARD, currentPath));
+            }
             if (wt.getExtendedType().isPresent()) {
                 // WILDCARD_BOUND. JVMS leaves argIndex unused (0) for this kind, since a real
                 // wildcard has only one structurally possible bound; CF's AnnotatedWildcardType,

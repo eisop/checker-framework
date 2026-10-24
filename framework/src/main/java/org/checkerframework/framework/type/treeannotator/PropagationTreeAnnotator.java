@@ -25,7 +25,7 @@ import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
-import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 
 import java.util.Map;
 import java.util.Set;
@@ -60,7 +60,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
     }
 
     /**
-     * Whether to use the assignment context when computing the type of a new array expression. This
+     * If true, use the assignment context when computing the type of a new array expression. This
      * is a hack to prevent infinite recursion if computing the type of the assignment context
      * includes computing the type of the right-hand side of the assignment. This happens when the
      * assignment is the pseudo-assignment of a method argument to a formal parameter.
@@ -76,7 +76,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      * infinite recursion and this cache is used to improve performance.
      */
     private final Map<MethodInvocationTree, AnnotatedExecutableType> methodInvocationToType =
-            CollectionsPlume.createLruCache(300);
+            MapsP.createLruCache(300);
 
     @Override
     public Void visitNewArray(NewArrayTree arrayTree, AnnotatedTypeMirror arrayType) {
@@ -379,7 +379,9 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      */
     private boolean hasPrimaryAnnotationInAllHierarchies(AnnotatedTypeMirror type) {
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-            if (type.getEffectiveAnnotationInHierarchy(top) == null) {
+            // Not the effective annotation: that of a type variable comes from its upper bound, so
+            // it would make every type variable look annotated and nothing would be propagated.
+            if (type.getAnnotationInHierarchy(top) == null) {
                 return false;
             }
         }

@@ -18,10 +18,10 @@ import java.util.Objects;
  * </pre>
  */
 public class NullChkNode extends Node {
-    /** The entire tree of the null check */
+    /** The entire tree of the null check. */
     protected final Tree tree;
 
-    /** The operand of the null check */
+    /** The operand of the null check. */
     protected final Node operand;
 
     /**

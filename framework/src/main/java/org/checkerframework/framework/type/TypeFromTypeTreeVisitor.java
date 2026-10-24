@@ -132,6 +132,18 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         AnnotatedTypeMirror result = f.type(tree); // use creator?
         AnnotatedTypeMirror atype = visit(tree.getType(), f);
         result.addAnnotations(atype.getAnnotationsField());
+        // For a qualified type such as Outer<@Anno String>.Inner<String>, f.type(tree) loses the
+        // annotations written on the type arguments of the enclosing type. The visit of
+        // tree.getType() restores them; see restoreWrittenEnclosingType.
+        if (tree.getType() instanceof MemberSelectTree
+                && result instanceof AnnotatedDeclaredType
+                && atype instanceof AnnotatedDeclaredType) {
+            AnnotatedDeclaredType writtenEnclosing =
+                    ((AnnotatedDeclaredType) atype).getEnclosingType();
+            if (writtenEnclosing != null) {
+                ((AnnotatedDeclaredType) result).setEnclosingType(writtenEnclosing);
+            }
+        }
         // new ArrayList<>() type is AnnotatedExecutableType for some reason
 
         // Don't initialize the type arguments if they are empty. The type arguments might be a
@@ -151,8 +163,8 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
      * <p>Sets each wildcard type argument's bound from typeArgs to the corresponding type parameter
      * from typeParams.
      *
-     * <p>If typeArgs.size() == 0 the method does nothing and returns. Otherwise, typeArgs.size()
-     * has to be equal to typeParams.size().
+     * <p>If typeArgs.isEmpty() the method does nothing and returns. Otherwise, typeArgs.size() has
+     * to be equal to typeParams.size().
      *
      * <p>For each wildcard type argument and corresponding type parameter, sets the
      * WildcardType.bound field to the corresponding type parameter, if and only if the owners of
@@ -268,7 +280,7 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
      * @param type type variable used to find declaration tree
      * @param f annotated type factory
      * @return the AnnotatedTypeVariable from the declaration of {@code type} or {@code type} if no
-     *     tree is found.
+     *     tree is found
      */
     private AnnotatedTypeVariable getTypeVariableFromDeclaration(
             AnnotatedTypeVariable type, AnnotatedTypeFactory f) {

@@ -27,12 +27,12 @@ import org.gradle.api.model.ObjectFactory
  *   }
  */
 interface InjectedFileOps {
-  @Inject
-  FileSystemOperations getFs()
+    @Inject
+    FileSystemOperations getFs()
 
-  @Inject
-  ObjectFactory getObjects()
+    @Inject
+    ObjectFactory getObjects()
 
-  @Inject
-  ArchiveOperations getArchives()
+    @Inject
+    ArchiveOperations getArchives()
 }

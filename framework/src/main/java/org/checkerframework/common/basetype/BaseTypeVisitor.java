@@ -38,7 +38,6 @@ import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
-import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
@@ -58,6 +57,7 @@ import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
+import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.JavaExpressionScanner;
 import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.qual.Deterministic;
@@ -93,6 +93,7 @@ import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.TypeHierarchy;
+import org.checkerframework.framework.type.TypeVariableSubstitutor;
 import org.checkerframework.framework.type.poly.QualifierPolymorphism;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
@@ -102,7 +103,6 @@ import org.checkerframework.framework.util.Contract.Postcondition;
 import org.checkerframework.framework.util.Contract.Precondition;
 import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.FieldInvariants;
-import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.JavaParserUtil;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.framework.util.typeinference8.InferenceResult;
@@ -155,10 +155,12 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
 
 /* NO-AFU
@@ -213,9 +215,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /** The Annotated Type Hierarchy. */
     protected final TypeHierarchy typeHierarchy;
-
-    /** For obtaining line numbers in {@code -Ashowchecks} debugging output. */
-    protected final SourcePositions positions;
 
     /** The element for java.util.Vector#copyInto. */
     private final ExecutableElement vectorCopyInto;
@@ -342,7 +341,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         this.atypeFactory = typeFactory == null ? createTypeFactory() : typeFactory;
         this.qualHierarchy = atypeFactory.getQualifierHierarchy();
         this.typeHierarchy = atypeFactory.getTypeHierarchy();
-        this.positions = trees.getSourcePositions();
         this.typeValidator = createTypeValidator();
         ProcessingEnvironment env = checker.getProcessingEnvironment();
         this.vectorCopyInto = TreeUtils.getMethod("java.util.Vector", "copyInto", 1, env);
@@ -510,7 +508,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * <p>Parse the current source file with JavaParser and check that the AST can be matched with
      * the Tree produced by javac. Crash if not.
      *
-     * <p>Subclasses may override this method to disable the test if even the option is provided.
+     * <p>Subclasses may override this method to disable the test even if the "ajavaChecks" option
+     * is provided.
      */
     protected void testJointJavacJavaParserVisitor() {
         if (root == null || !ajavaChecks) {
@@ -532,8 +531,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             expectedTreesVisitor.visitCompilationUnit(root, null);
             for (Tree expected : expectedTreesVisitor.getTrees()) {
                 if (!treePairs.containsKey(expected)) {
-                    @SuppressWarnings("removal") // TODO: encapsulate methods
-                    long startpos = positions.getStartPosition(root, expected);
+                    long startpos = TreeUtils.getStartPosition(expected);
                     throw new BugInCF(
                             "Javac tree not matched to JavaParser node: %s [%s @ %d], in file: %s",
                             expected,
@@ -688,10 +686,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 // No warning for extremely long source code.
                 // Use end-position - start-position as a cheap proxy for tree size, instead
                 // of materializing tree.toString().
-                @SuppressWarnings("removal") // TODO: encapsulate methods
-                long startPos = positions.getStartPosition(root, tree);
-                @SuppressWarnings("removal") // TODO: encapsulate methods
-                long endPos = positions.getEndPosition(root, tree);
+                long startPos = TreeUtils.getStartPosition(tree);
+                long endPos = TreeUtils.getEndPosition(root, tree);
                 if (startPos != javax.tools.Diagnostic.NOPOS
                         && endPos != javax.tools.Diagnostic.NOPOS
                         && (endPos - startPos) < 200000) {
@@ -1178,15 +1174,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * <ol>
      *   <!-- The item numbering is referred to in the body of the method.-->
      *   <li value="1">If the superclass of {@code classTree} has a field invariant, then the field
-     *       invariant for {@code classTree} must include all the fields in the superclass invariant
-     *       and those fields' annotations must be a subtype (or equal) to the annotations for those
-     *       fields in the superclass.
+     *                 invariant for {@code classTree} must include all the fields in the superclass
+     *                 invariant and those fields' annotations must be a subtype (or equal) to the
+     *                 annotations for those fields in the superclass.
      *   <li value="2">The fields in the invariant must be a.) final and b.) declared in a
-     *       superclass of {@code classTree}.
+     *                 superclass of {@code classTree}.
      *   <li value="3">The qualifier for each field must be a subtype of the annotation on the
-     *       declaration of that field.
+     *                 declaration of that field.
      *   <li value="4">The field invariant has an equal number of fields and qualifiers, or it has
-     *       one qualifier and at least one field.
+     *                 one qualifier and at least one field.
      * </ol>
      *
      * @param classTree class that might have a field invariant
@@ -1606,7 +1602,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /**
      * Reports errors found during purity checking.
      *
-     * @param result whether the method is deterministic and/or side-effect-free
+     * @param result true if the method is deterministic and/or side-effect-free
      * @param tree the method
      * @param expectedKinds the expected purity for the method
      */
@@ -1671,7 +1667,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param methodTree the method declaration
      * @param methodElement the method element
      * @param formalParamNames the formal parameter names
-     * @param abstractMethod whether the method is abstract
+     * @param abstractMethod true if the method is abstract
      */
     private void checkContractsAtMethodDeclaration(
             MethodTree methodTree,
@@ -1695,7 +1691,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             try {
                 exprJe = StringToJavaExpression.atMethodBody(expressionString, methodTree, checker);
             } catch (JavaExpressionParseException e) {
-                DiagMessage diagMessage = e.getDiagMessage();
+                DiagMessage diagMessage = new DiagMessage(e);
                 if (diagMessage.getMessageKey().equals("flowexpr.parse.error")) {
                     String s =
                             String.format(
@@ -1710,7 +1706,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     checker.reportError(
                             methodTree, "flowexpr.parse.error", s + diagMessage.getArgs()[0]);
                 } else {
-                    checker.report(methodTree, e.getDiagMessage());
+                    checker.report(methodTree, new DiagMessage(e));
                 }
                 continue;
             }
@@ -1818,21 +1814,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (exitStore == null) {
             // If there is no regular exitStore, then the method cannot reach the regular exit and
             // there is no need to check anything.
-        } else {
-            CFAbstractValue<?> value = exitStore.getValue(expression);
-            AnnotationMirror inferredAnno = null;
-            if (value != null) {
-                AnnotationMirrorSet annos = value.getAnnotations();
-                inferredAnno = qualHierarchy.findAnnotationInSameHierarchy(annos, annotation);
-            }
-            if (!checkContract(expression, annotation, inferredAnno, exitStore)) {
-                checker.reportError(
-                        methodTree,
-                        "contracts.postcondition.not.satisfied",
-                        methodTree.getName(),
-                        contractExpressionAndType(expression.toString(), inferredAnno),
-                        contractExpressionAndType(expression.toString(), annotation));
-            }
+            return;
+        }
+
+        CFAbstractValue<?> value = exitStore.getValue(expression);
+        AnnotationMirror inferredAnno = null;
+        if (value != null) {
+            AnnotationMirrorSet annos = value.getAnnotations();
+            inferredAnno = qualHierarchy.findAnnotationInSameHierarchy(annos, annotation);
+        }
+        if (!checkContract(expression, annotation, inferredAnno, exitStore)) {
+            checker.reportError(
+                    methodTree,
+                    "contracts.postcondition.not.satisfied",
+                    methodTree.getName(),
+                    contractExpressionAndType(expression.toString(), inferredAnno),
+                    contractExpressionAndType(expression.toString(), annotation));
         }
     }
 
@@ -2007,7 +2004,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         } else {
             // commonAssignmentCheck validates the type of `tree`,
-            // so only validate if commonAssignmentCheck wasn't called
+            // so only validate if commonAssignmentCheck wasn't called.
             validateTypeOf(tree);
         }
         typeValidator.validateVariableTargetLocation(variableType, tree);
@@ -2025,7 +2022,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * @param tree an AST node
      * @param type get the explicit annotation on this type and compare it with the default one for
-     *     this type and location.
+     *     this type and location
      */
     protected void warnRedundantAnnotations(Tree tree, AnnotatedTypeMirror type) {
         // Type variable uses don't have default annotations. So, any explicit annotation is not
@@ -2144,7 +2141,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Return true if the given annotation is a type annotation: that is, its definition is
+     * Returns true if the given annotation is a type annotation: that is, its definition is
      * meta-annotated with {@code @Target({TYPE_USE,....})}.
      */
     private boolean isTypeAnnotation(AnnotationTree anno) {
@@ -2416,7 +2413,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * @param tree a tree that requires type argument inference
      * @param methodType the type of the method before type argument substitution
-     * @return whether type argument inference succeeds
+     * @return true if type argument inference succeeds
      */
     private boolean checkTypeArgumentInference(
             ExpressionTree tree, AnnotatedExecutableType methodType) {
@@ -2676,7 +2673,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 exprJe = StringToJavaExpression.atMethodInvocation(expressionString, tree, checker);
             } catch (JavaExpressionParseException e) {
                 // report errors here
-                checker.report(tree, e.getDiagMessage());
+                checker.report(tree, new DiagMessage(e));
                 return;
             }
 
@@ -2718,8 +2715,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * Returns true if and only if {@code inferredAnnotation} is valid for a given expression to
      * match the {@code necessaryAnnotation}.
      *
-     * <p>By default, {@code inferredAnnotation} must be a subtype of {@code necessaryAnnotation},
-     * but subclasses might override this behavior.
+     * <p>By default, {@code inferredAnnotation} must be a subtype of (or equal to) {@code
+     * necessaryAnnotation}, but subclasses might override this behavior.
+     *
+     * @param expr an expression
+     * @param necessaryAnnotation the annotation that is required for the expression
+     * @param inferredAnnotation the annotation that is inferred for the expression
+     * @param store the store
+     * @return true if {@code inferredAnnotation} is a subtype of {@code necessaryAnnotation}
      */
     protected boolean checkContract(
             JavaExpression expr,
@@ -2805,7 +2808,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 atypeFactory.constructorFromUseWithoutTypeArgInference(tree);
         if (!preInference.executableType.getElement().getTypeParameters().isEmpty()
                 || TreeUtils.isDiamondTree(tree)) {
-            if (!checkTypeArgumentInference(tree, preInference.executableType)) {
+            // For an anonymous class, `new C<>(args) {...}`, the type arguments of C are inferred
+            // from the super constructor.
+            AnnotatedExecutableType inferenceType =
+                    TreeUtils.isAnonymousDiamondTree(tree)
+                            ? atypeFactory.getAnonymousDiamondSuperConstructor(tree)
+                            : preInference.executableType;
+            if (!checkTypeArgumentInference(tree, inferenceType)) {
                 return null;
             }
         }
@@ -2822,7 +2831,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         ExecutableElement constructor = constructorType.getElement();
         CharSequence constructorName = ElementUtils.getSimpleDescription(constructor);
 
-        checkArguments(params, passedArguments, constructorName, constructor.getParameters());
+        List<? extends VariableElement> constructorParams = constructor.getParameters();
+        if (TreeUtils.hasEnclosingInstanceParameter(constructor, tree)) {
+            // The first parameter is the enclosing instance, which is not among the arguments;
+            // see AnnotatedTypes#adaptParameters.
+            constructorParams = constructorParams.subList(1, constructorParams.size());
+        }
+        checkArguments(params, passedArguments, constructorName, constructorParams);
         checkVarargs(constructorType, tree);
 
         List<AnnotatedTypeParameterBounds> paramBounds =
@@ -3411,8 +3426,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Return whether casting the {@code exprType} to {@code castType}, a type with a qualifier
-     * parameter, is legal.
+     * Returns true if it is legal to cast the {@code exprType} to {@code castType}, a type with a
+     * qualifier parameter.
      *
      * <p>If {@code exprType} has qualifier parameter, the cast is legal if the qualifiers are
      * invariant. Otherwise, the cast is legal is if the qualifier on both types is bottom.
@@ -3421,8 +3436,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param exprType type of the expressions that is cast which may or may not have a qualifier
      *     parameter
      * @param top the top qualifier of the hierarchy to check
-     * @return whether casting the {@code exprType} to {@code castType}, a type with a qualifier
-     *     parameter, is legal.
+     * @return true if casting the {@code exprType} to {@code castType}, a type with a qualifier
+     *     parameter, is legal
      */
     private boolean isTypeCastSafeInvariant(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType, AnnotationMirror top) {
@@ -3758,12 +3773,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Returns a set of AnnotationMirrors that is a lower bound for exception parameters.
+     * Returns a set of AnnotationMirrors that is a lower bound for exception parameters. If a user
+     * writes a more specific (lower) annotation than this on an exception parameter, the Checker
+     * Framework issues a warning indicating that the written annotation cannot be verified.
      *
      * <p>This implementation returns top; subclasses can change this behavior.
-     *
-     * <p>Note: by default this method is called by {@link #getThrowUpperBoundAnnotations()}, so
-     * that this annotation is enforced.
      *
      * @return set of annotation mirrors, one per hierarchy, that form a lower bound of annotations
      *     that can be written on an exception parameter
@@ -3829,12 +3843,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Returns a set of AnnotationMirrors that is a upper bound for thrown exceptions.
+     * Returns a set of AnnotationMirrors that is an upper bound for thrown exceptions.
      *
-     * <p>Note: by default this method is returns by getExceptionParameterLowerBoundAnnotations(),
-     * so that this annotation is enforced.
+     * <p>Note: by default this method returns {@code getExceptionParameterLowerBoundAnnotations()},
+     * so that the same bound is enforced.
      *
-     * <p>(Default is top)
+     * <p>(Default is top.)
      *
      * @return set of annotation mirrors, one per hierarchy, that form an upper bound of thrown
      *     expressions
@@ -3934,7 +3948,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         "%s %s (at %s): actual tree = %s %s%n   expected: %s %s%n",
                         this.getClass().getSimpleName(),
                         "skipping test whether actual is a subtype of expected"
-                                + " because member reference and lambda expression are type checked separately",
+                                + " because member reference and lambda expression are type-checked separately",
                         fileAndLineNumber(valueExpTree),
                         valueExpTree.getKind(),
                         valueExpTree,
@@ -3959,7 +3973,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         "%s %s (at %s): actual tree = %s %s%n   expected: %s %s%n",
                         this.getClass().getSimpleName(),
                         "skipping test whether actual is a subtype of expected"
-                                + " because validateType() returned false",
+                                + " because validateTypeOf() returned false",
                         fileAndLineNumber(valueExpTree),
                         valueExpTree.getKind(),
                         valueExpTree,
@@ -4078,7 +4092,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * Prints a diagnostic about exiting {@code commonAssignmentCheck()}, if the showchecks option
      * was set.
      *
-     * @param success whether the check succeeded or failed
+     * @param success true if the check succeeded
      * @param extraMessage information about why the result is what it is; may be null
      * @param varType the annotated type of the variable
      * @param valueType the annotated type of the value
@@ -4145,8 +4159,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     private String fileAndLineNumber(Tree tree) {
         StringBuilder result = new StringBuilder();
         result.append(Paths.get(root.getSourceFile().getName()).getFileName().toString());
-        @SuppressWarnings("removal")
-        long valuePos = positions.getStartPosition(root, tree);
+        long valuePos = TreeUtils.getStartPosition(tree);
         LineMap lineMap = root.getLineMap();
         if (valuePos != -1 && lineMap != null) {
             result.append(":");
@@ -4285,8 +4298,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Return whether or not the verbose toString should be used when printing the two annotated
-     * types.
+     * Returns true if the verbose toString should be used when printing the two annotated types.
      *
      * @param atm1 the first AnnotatedTypeMirror
      * @param atm2 the second AnnotatedTypeMirror
@@ -4301,8 +4313,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Return whether or not the verbose toString should be used when printing the annotated type
-     * and the bounds it is not within.
+     * Returns true if the verbose toString should be used when printing the annotated type and the
+     * bounds it is not within.
      *
      * @param atm the type
      * @param bounds the bounds
@@ -4361,9 +4373,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                             false);
 
     /**
-     * Return true iff there are two annotated types (anywhere in any ATM) such that their toStrings
-     * are the same but their verbose toStrings differ. If so, the Checker Framework prints types
-     * verbosely.
+     * Returns true iff there are two annotated types (anywhere in any ATM) such that their
+     * toStrings are the same but their verbose toStrings differ. If so, the Checker Framework
+     * prints types verbosely.
      *
      * @param atms annotated type mirrors to compare
      * @return true iff there are two annotated types (anywhere in any ATM) such that their
@@ -4540,14 +4552,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Indicates whether to skip subtype checks on the receiver when checking method invocability. A
+     * Returns true if to skip subtype checks on the receiver when checking method invocability. A
      * visitor may, for example, allow a method to be invoked even if the receivers are siblings in
      * a hierarchy, provided that some other condition (implemented by the visitor) is satisfied.
      *
      * @param tree the method invocation tree
      * @param methodDefinitionReceiver the ATM of the receiver of the method definition
      * @param methodCallReceiver the ATM of the receiver of the method call
-     * @return whether to skip subtype checks on the receiver
+     * @return true if to skip subtype checks on the receiver
      */
     protected boolean skipReceiverSubtypeCheck(
             MethodInvocationTree tree,
@@ -5046,7 +5058,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedTypeMirror enclosingType;
         if (TreeUtils.isLikeDiamondMemberReference(memberReferenceTree)) {
             TypeElement typeElt = TypesUtils.getTypeElement(TreeUtils.typeOf(preColonTree));
-            enclosingType = atypeFactory.getAnnotatedType(typeElt);
+            // A use of the class, not its declaration.
+            enclosingType = atypeFactory.getAnnotatedType(typeElt).asUse();
         } else if (memberReferenceTree.getMode() == ReferenceMode.NEW
                 || memRefKind == MemberReferenceKind.UNBOUND
                 || memRefKind == MemberReferenceKind.STATIC) {
@@ -5156,6 +5169,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         /** True if {@link #overriderTree} is a MEMBER_REFERENCE. */
         protected final boolean isMethodReference;
 
+        /**
+         * The overridden method's type variables mapped to uses of the overriding method's type
+         * variables at the same position, as in JLS 8.4.4. Empty if there is nothing to adapt: for
+         * a method reference, or if the methods do not declare the same number of type parameters.
+         */
+        private final Map<TypeVariable, AnnotatedTypeMirror> typeVariableMapping;
+
         /** The type of the overriding method. */
         protected final AnnotatedExecutableType overrider;
 
@@ -5208,6 +5228,57 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             this.overriddenReturnType = overriddenReturnType;
 
             this.isMethodReference = overriderTree instanceof MemberReferenceTree;
+            this.typeVariableMapping = computeTypeVariableMapping();
+        }
+
+        /**
+         * Returns the overridden method's type variables mapped to uses of the overriding method's
+         * type variables at the same position, as in JLS 8.4.4, or an empty map if there is nothing
+         * to adapt: for a method reference, or if the methods do not declare the same number of
+         * type parameters.
+         *
+         * @return a map from the overridden method's type variables to uses of the overriding
+         *     method's
+         */
+        private Map<TypeVariable, AnnotatedTypeMirror> computeTypeVariableMapping() {
+            if (isMethodReference) {
+                return Collections.emptyMap();
+            }
+            List<AnnotatedTypeVariable> overriderTypeVars = overrider.getTypeVariables();
+            List<AnnotatedTypeVariable> overriddenTypeVars = overridden.getTypeVariables();
+            if (overriderTypeVars.isEmpty()
+                    || overriderTypeVars.size() != overriddenTypeVars.size()) {
+                return Collections.emptyMap();
+            }
+            Map<TypeVariable, AnnotatedTypeMirror> mapping = new HashMap<>();
+            for (int i = 0; i < overriddenTypeVars.size(); i++) {
+                mapping.put(
+                        overriddenTypeVars.get(i).getUnderlyingType(),
+                        overriderTypeVars.get(i).asUse());
+            }
+            return mapping;
+        }
+
+        /**
+         * Returns {@code type}, a type in the signature of the overridden method, with the
+         * overriding method's type variables substituted for the overridden method's, as in JLS
+         * 8.4.4. Then every occurrence of a type parameter, wherever it is nested, is the same type
+         * variable on both sides, and the qualifiers of the two declarations' bounds are compared
+         * only by {@link #checkTypeParameterBounds}. Returns {@code type} itself if there is
+         * nothing to substitute.
+         *
+         * <p>This renames type variables; it does not instantiate them. So it uses the default
+         * {@link TypeVariableSubstitutor}, not the checker's own, whose rules for the annotations
+         * of the substituted type may depend on the bound of the type variable being replaced.
+         *
+         * @param type a type in the signature of the overridden method
+         * @return {@code type} adapted to the type parameters of the overriding method
+         */
+        private AnnotatedTypeMirror adaptToOverrider(AnnotatedTypeMirror type) {
+            if (typeVariableMapping.isEmpty()) {
+                return type;
+            }
+            return new TypeVariableSubstitutor().substitute(typeVariableMapping, type);
         }
 
         /**
@@ -5458,20 +5529,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotatedDeclaredType overriddenReceiver = overridden.getReceiverType();
             // Check the receiver type.
             // isSubtype() requires its arguments to be actual subtypes with respect to the JLS, but
-            // an overrider receiver is not a subtype of the overridden receiver.  So, just check
-            // primary annotations.
-            // TODO: this will need to be improved for generic receivers.
-            if (!typeHierarchy.isSubtypeShallowEffective(overriddenReceiver, overriderReceiver)) {
-                AnnotationMirrorSet declaredAnnos =
-                        atypeFactory.getTypeDeclarationBounds(overriderType.getUnderlyingType());
-                if (typeHierarchy.isSubtypeShallowEffective(overriderReceiver, declaredAnnos)
-                        && typeHierarchy.isSubtypeShallowEffective(
-                                declaredAnnos, overriderReceiver)) {
-                    // All the type of an object must be no higher than its upper bound. So if the
-                    // receiver is annotated with the upper bound qualifiers, then the override is
-                    // safe.
-                    return true;
-                }
+            // an overrider receiver is not a subtype of the overridden receiver.  So, check the
+            // primary annotations and the type arguments separately.
+            if (!isReceiverPrimaryOverrideValid(overriderReceiver, overriddenReceiver)
+                    || !isReceiverTypeArgumentOverrideValid(
+                            overriderReceiver, overriddenReceiver)) {
                 FoundRequired pair = FoundRequired.of(overriderReceiver, overriddenReceiver);
                 checker.reportError(
                         overriderTree,
@@ -5487,6 +5549,170 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return true;
         }
 
+        /**
+         * Returns true if the primary annotations of the overrider's receiver accept every receiver
+         * that the overridden method's receiver accepts.
+         *
+         * @param overriderReceiver the receiver of the overrider
+         * @param overriddenReceiver the receiver of the overridden method
+         * @return true if the primary annotations of the overrider's receiver are valid
+         */
+        private boolean isReceiverPrimaryOverrideValid(
+                AnnotatedDeclaredType overriderReceiver, AnnotatedDeclaredType overriddenReceiver) {
+            if (typeHierarchy.isSubtypeShallowEffective(overriddenReceiver, overriderReceiver)) {
+                return true;
+            }
+            AnnotationMirrorSet declaredAnnos =
+                    atypeFactory.getTypeDeclarationBounds(overriderType.getUnderlyingType());
+            // All the type of an object must be no higher than its upper bound. So if the receiver
+            // is annotated with the upper bound qualifiers, then the override is safe.
+            return typeHierarchy.isSubtypeShallowEffective(overriderReceiver, declaredAnnos)
+                    && typeHierarchy.isSubtypeShallowEffective(declaredAnnos, overriderReceiver);
+        }
+
+        /**
+         * Returns true if the type arguments of the overrider's receiver accept every receiver that
+         * the overridden method's receiver accepts.
+         *
+         * <p>Each type argument of the overrider's receiver and of its enclosing types is valid if
+         * either
+         *
+         * <ol>
+         *   <li>it is the class's own type parameter without an annotation, as in {@code Child<E>
+         *       this} in {@code class Child<E>}; this is the type of {@code this} and accepts every
+         *       instance of the class, or
+         *   <li>it is equal to the overridden receiver's type argument at every position that pins
+         *       it, and at least one position does.
+         * </ol>
+         *
+         * A type parameter that nothing pins, such as {@code F} in {@code class Child<E, F> extends
+         * Parent<E>}, is fixed by nothing, so any annotation on it is a narrowing. Primary
+         * annotations are not compared here; {@link #isReceiverPrimaryOverrideValid} checks them.
+         *
+         * @param overriderReceiver the receiver of the overrider
+         * @param overriddenReceiver the receiver of the overridden method
+         * @return true if the type arguments of the overrider's receiver are valid
+         */
+        private boolean isReceiverTypeArgumentOverrideValid(
+                AnnotatedDeclaredType overriderReceiver, AnnotatedDeclaredType overriddenReceiver) {
+            // The overrider's class viewed as the overridden class, such as Parent<E>.
+            AnnotatedDeclaredType seen =
+                    AnnotatedTypes.asSuper(atypeFactory, overriderType, overriddenType);
+            boolean isReceiver = true;
+            for (AnnotatedDeclaredType type = overriderReceiver;
+                    type != null;
+                    type = type.getEnclosingType(), isReceiver = false) {
+                TypeElement typeElt = (TypeElement) type.getUnderlyingType().asElement();
+                List<? extends TypeParameterElement> params = typeElt.getTypeParameters();
+                List<? extends AnnotatedTypeMirror> args = type.getTypeArguments();
+                if (args.size() != params.size()) {
+                    return false;
+                }
+                AnnotatedDeclaredType pinning =
+                        isReceiver ? seen : enclosingTypeOf(overriddenReceiver, typeElt);
+                for (int i = 0; i < args.size(); i++) {
+                    AnnotatedTypeMirror arg = args.get(i);
+                    if (isOwnTypeParameter(arg, params.get(i))) {
+                        // The type of "this" accepts every instance of the class.
+                        continue;
+                    }
+                    if (pinning == null) {
+                        // Fixed by nothing: the overridden receiver has no counterpart.
+                        return false;
+                    }
+                    List<? extends AnnotatedTypeMirror> pinningArgs = pinning.getTypeArguments();
+                    List<? extends AnnotatedTypeMirror> overriddenArgs =
+                            overriddenReceiver.getTypeArguments();
+                    boolean pinned = false;
+                    for (int j = 0; j < pinningArgs.size(); j++) {
+                        boolean pinsHere =
+                                isReceiver
+                                        ? isTypeVariableFor(pinningArgs.get(j), params.get(i))
+                                        : j == i;
+                        if (pinsHere) {
+                            pinned = true;
+                            AnnotatedTypeMirror required =
+                                    isReceiver ? overriddenArgs.get(j) : pinningArgs.get(j);
+                            if (!isEqualType(arg, required)) {
+                                return false;
+                            }
+                        }
+                    }
+                    if (!pinned) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        /**
+         * Returns the enclosing type of {@code type}, at any depth, that is for the class {@code
+         * typeElt}, or null if there is none.
+         *
+         * @param type a declared type
+         * @param typeElt a class
+         * @return an enclosing type of {@code type} for {@code typeElt}, or null
+         */
+        private @Nullable AnnotatedDeclaredType enclosingTypeOf(
+                AnnotatedDeclaredType type, TypeElement typeElt) {
+            for (AnnotatedDeclaredType enclosing = type.getEnclosingType();
+                    enclosing != null;
+                    enclosing = enclosing.getEnclosingType()) {
+                if (enclosing.getUnderlyingType().asElement().equals(typeElt)) {
+                    return enclosing;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Returns true if the two types are subtypes of each other.
+         *
+         * @param type1 a type
+         * @param type2 a type
+         * @return true if the two types are equal
+         */
+        private boolean isEqualType(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
+            return typeHierarchy.isSubtype(type1, type2) && typeHierarchy.isSubtype(type2, type1);
+        }
+
+        /**
+         * Returns true if {@code typeArg} is the type variable for {@code param} without a primary
+         * annotation.
+         *
+         * @param typeArg a type argument
+         * @param param a type parameter of the class that {@code typeArg} is an argument for
+         * @return true if {@code typeArg} is the unannotated type variable for {@code param}
+         */
+        private boolean isOwnTypeParameter(
+                AnnotatedTypeMirror typeArg, TypeParameterElement param) {
+            return typeArg.getAnnotations().isEmpty() && isTypeVariableFor(typeArg, param);
+        }
+
+        /**
+         * Returns true if {@code typeArg} is the type variable for {@code param}, with or without a
+         * primary annotation.
+         *
+         * @param typeArg a type argument
+         * @param param a type parameter
+         * @return true if {@code typeArg} is a type variable for {@code param}
+         */
+        private boolean isTypeVariableFor(AnnotatedTypeMirror typeArg, TypeParameterElement param) {
+            return typeArg.getKind() == TypeKind.TYPEVAR
+                    && ((AnnotatedTypeVariable) typeArg)
+                            .getUnderlyingType()
+                            .asElement()
+                            .equals(param);
+        }
+
+        /**
+         * Checks that the overrider's parameter types are supertypes of the overridden method's
+         * parameter types, after the overridden parameter types are adapted to the overriding
+         * method's type parameters as in JLS 8.4.4.
+         *
+         * @return true if the overrider's parameter types are valid
+         */
         private boolean checkParameters() {
             List<AnnotatedTypeMirror> overriderParams = overrider.getParameterTypes();
             List<AnnotatedTypeMirror> overriddenParams = overridden.getParameterTypes();
@@ -5508,6 +5734,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                                     overrider, overriddenParams);
                 }
             }
+
+            List<AnnotatedTypeMirror> adaptedParams = new ArrayList<>(overriddenParams.size());
+            for (AnnotatedTypeMirror overriddenParam : overriddenParams) {
+                adaptedParams.add(adaptToOverrider(overriddenParam));
+            }
+            overriddenParams = adaptedParams;
 
             boolean result = true;
             for (int i = 0; i < overriderParams.size(); ++i) {
@@ -5636,6 +5868,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * not carry over. There is also no type-parameter tree to report on, which is why {@link
          * #checkTypeParameterBoundsMsg} can cast {@code overriderTree} to a {@code MethodTree}.
          *
+         * <p>As in JLS 8.4.4, the overridden signature is adapted to the overriding method's type
+         * parameters before it is compared: the overriding method's type variables are substituted
+         * for the overridden method's in the overridden bounds, as in {@link #checkParameters} and
+         * {@link #checkReturn} for the parameter and return types. An F-bound such as {@code <T
+         * extends Comparable<T>>}, or a bound that names another type parameter of the method,
+         * would otherwise compare two distinct type variables.
+         *
          * @return true if every type-parameter bound is compatible
          */
         private boolean checkTypeParameterBounds() {
@@ -5645,6 +5884,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             List<AnnotatedTypeVariable> overriderTypeVars = overrider.getTypeVariables();
             List<AnnotatedTypeVariable> overriddenTypeVars = overridden.getTypeVariables();
             int count = Math.min(overriderTypeVars.size(), overriddenTypeVars.size());
+            if (count == 0) {
+                return true;
+            }
+            List<AnnotatedTypeVariable> adaptedTypeVars =
+                    new ArrayList<>(overriddenTypeVars.size());
+            for (AnnotatedTypeVariable overriddenTypeVar : overriddenTypeVars) {
+                AnnotatedTypeVariable adapted = overriddenTypeVar.shallowCopy();
+                adapted.setUpperBound(adaptToOverrider(overriddenTypeVar.getUpperBound()));
+                adapted.setLowerBound(adaptToOverrider(overriddenTypeVar.getLowerBound()));
+                adaptedTypeVars.add(adapted);
+            }
+            overriddenTypeVars = adaptedTypeVars;
             boolean result = true;
             for (int i = 0; i < count; i++) {
                 boolean success =
@@ -5765,8 +6016,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
-         * Returns true if the return type of the overridden method is a subtype of the return type
-         * of the overriding method.
+         * Returns true if the return type of the overriding method is a subtype of the return type
+         * of the overridden method, after the overridden return type is adapted to the overriding
+         * method's type parameters as in JLS 8.4.4.
          *
          * @return true if the return type is correct
          */
@@ -5775,7 +6027,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 // Nothing to check.
                 return true;
             }
-            boolean success = isReturnOverrideValid(overriddenReturnType, overriderReturnType);
+            AnnotatedTypeMirror adaptedReturnType = adaptToOverrider(overriddenReturnType);
+            boolean success = isReturnOverrideValid(adaptedReturnType, overriderReturnType);
 
             // Sometimes the overridden return type of a method reference becomes a captured
             // type variable.  This leads to defaulting that often makes the overriding return type
@@ -5793,7 +6046,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 }
             }
 
-            checkReturnMsg(success);
+            checkReturnMsg(success, adaptedReturnType);
             return success;
         }
 
@@ -5830,9 +6083,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         /**
          * Issue an error message or log message about checking an overriding return type.
          *
-         * @param success whether the check succeeded or failed
+         * @param success true if the check succeeded
+         * @param adaptedReturnType the return type of the overridden method, adapted to the
+         *     overriding method's type parameters
          */
-        private void checkReturnMsg(boolean success) {
+        private void checkReturnMsg(boolean success, AnnotatedTypeMirror adaptedReturnType) {
             if (success && !showchecks) {
                 return;
             }
@@ -5862,10 +6117,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         overrider.getReturnType().toString(),
                         overridden,
                         overriddenType,
-                        overridden.getReturnType().toString());
+                        adaptedReturnType.toString());
             }
             if (!success) {
-                FoundRequired pair = FoundRequired.of(overriderReturnType, overriddenReturnType);
+                FoundRequired pair = FoundRequired.of(overriderReturnType, adaptedReturnType);
                 checker.reportError(
                         posTree,
                         msgKey,
@@ -6048,7 +6303,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 exprJe = stringToJavaExpr.toJavaExpression(expressionString);
             } catch (JavaExpressionParseException e) {
                 // report errors here
-                checker.report(methodTree, e.getDiagMessage());
+                checker.report(methodTree, new DiagMessage(e));
                 continue;
             }
             result.add(Pair.of(exprJe, annotation));
@@ -6243,9 +6498,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Tests whether the tree expressed by the passed type tree is a valid type, and emits an error
-     * if that is not the case (e.g. '@Mutable String'). If the tree is a method or constructor,
-     * check the return type.
+     * Returns true if the tree expressed by the passed type tree is a valid type, and emits an
+     * error if that is not the case (e.g. '@Mutable String'). If the tree is a method or
+     * constructor, check the return type.
      *
      * @param tree the AST type supplied by the user
      * @return true if the tree is a valid type
@@ -6286,7 +6541,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Tests whether the type and corresponding type tree is a valid type, and emits an error if
+     * Returns true if the type and corresponding type tree is a valid type, and emits an error if
      * that is not the case (e.g. '@Mutable String'). If the tree is a method or constructor, tests
      * the return type.
      *
@@ -6310,7 +6565,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     // **********************************************************************
 
     /**
-     * Tests whether the expression should not be checked because of the tree referring to
+     * Returns true if the expression should not be checked because of the tree referring to
      * unannotated classes, as specified in the {@code checker.skipUses} property.
      *
      * <p>It returns true if exprTree is a method invocation or a field access to a class whose

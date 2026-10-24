@@ -13,7 +13,7 @@ import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.plumelib.reflection.Signatures;
-import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 
 import java.io.File;
 import java.io.IOException;
@@ -160,7 +160,7 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             return Collections.emptySet();
         }
 
-        Set<String> result = new HashSet<>(CollectionsPlume.mapCapacity(propfiles));
+        Set<String> result = new HashSet<>(MapsP.mapCapacity(propfiles));
 
         for (String propfile : propfiles) {
             try {
@@ -217,7 +217,7 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             return Collections.emptySet();
         }
 
-        Set<String> result = new HashSet<>(CollectionsPlume.mapCapacity(bundleNames));
+        Set<String> result = new HashSet<>(MapsP.mapCapacity(bundleNames));
 
         for (String bundleName : bundleNames) {
             if (!Signatures.isBinaryName(bundleName)) {

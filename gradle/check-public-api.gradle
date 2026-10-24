@@ -5,11 +5,11 @@
  */
 
 ext.createCheckPublicApiNoRelocatedTypesTask = { Project targetProject, List jarTasks ->
-    targetProject.tasks.register('checkPublicApiNoRelocatedTypes') {
-        group = 'Verification'
-        description = 'Fails if a shaded jar exposes any relocated type in its public or protected API.'
+    targetProject.tasks.register("checkPublicApiNoRelocatedTypes") {
+        group = "Verification"
+        description = "Fails if a shaded jar exposes any relocated type in its public or protected API."
         FileCollection jars = targetProject.files(jarTasks)
-        inputs.files(jars).withPropertyName('shadedJars')
+        inputs.files(jars).withPropertyName("shadedJars")
         doLast {
             // Relocated package prefixes that should not appear in public/protected API
             def relocatedPattern = ~/(?:org\/checkerframework\/(?:org|com|io|nonapi)|org\/plumelib|com\/google|com\/github\/javaparser)\/[A-Za-z0-9_$]+/
@@ -17,11 +17,11 @@ ext.createCheckPublicApiNoRelocatedTypesTask = { Project targetProject, List jar
             // 1. Permanent domain-specific exceptions:
             // JavaParser AST types are domain objects manipulated by ajava and stubifier AST tools.
             def isJavaParserAllowed = { String className, String relocatedType ->
-                if (relocatedType.contains('javaparser')) {
-                    if (className.startsWith('org/checkerframework/framework/ajava/')
-                        || className.startsWith('org/checkerframework/framework/stubifier/')
-                        || className.startsWith('org/checkerframework/framework/util/JavaParserUtil')
-                        || className == 'org/checkerframework/framework/util/VoidVisitorWithDefaultAction') {
+                if (relocatedType.contains("javaparser")) {
+                    if (className.startsWith("org/checkerframework/framework/ajava/")
+                        || className.startsWith("org/checkerframework/framework/stubifier/")
+                        || className.startsWith("org/checkerframework/framework/util/JavaParserUtil")
+                        || className == "org/checkerframework/framework/util/VoidVisitorWithDefaultAction") {
                         return true
                     }
                 }
@@ -33,35 +33,35 @@ ext.createCheckPublicApiNoRelocatedTypesTask = { Project targetProject, List jar
             // standard JDK types or CF-internal types.
             def isTemporaryException = { String className, String memberName, String descriptorOrSig ->
                 // TODO: Follow-up issue: Replace Guava Splitter in SystemUtil with standard Java/helper methods
-                if (className == 'org/checkerframework/javacutil/SystemUtil'
-                    && ['DOT_SPLITTER', 'COMMA_SPLITTER', 'COLON_SPLITTER', 'PATH_SEPARATOR_SPLITTER'].contains(memberName)) {
+                if (className == "org/checkerframework/javacutil/SystemUtil"
+                    && ["DOT_SPLITTER", "COMMA_SPLITTER", "COLON_SPLITTER", "PATH_SEPARATOR_SPLITTER"].contains(memberName)) {
                     return true
                 }
                 // TODO: Follow-up issue: Replace Guava ImmutableSet in SetOfTypes with java.util.Set
-                if (className == 'org/checkerframework/checker/resourceleak/SetOfTypes'
-                    && memberName == 'anyOfTheseNames') {
+                if (className == "org/checkerframework/checker/resourceleak/SetOfTypes"
+                    && memberName == "anyOfTheseNames") {
                     return true
                 }
                 // TODO: Follow-up issue: Replace plume-util UnmodifiableIdentityHashMap with java.util.Map in ControlFlowGraph
-                if (className == 'org/checkerframework/dataflow/cfg/ControlFlowGraph'
-                    && ['getTreeLookup', 'getPostfixNodeLookup'].contains(memberName)) {
+                if (className == "org/checkerframework/dataflow/cfg/ControlFlowGraph"
+                    && ["getTreeLookup", "getPostfixNodeLookup"].contains(memberName)) {
                     return true
                 }
                 // TODO: Follow-up issue: Replace plume-util UniqueIdMap in TreeUtils.treeUids
-                if (className == 'org/checkerframework/javacutil/TreeUtils'
-                    && memberName == 'treeUids') {
+                if (className == "org/checkerframework/javacutil/TreeUtils"
+                    && memberName == "treeUids") {
                     return true
                 }
                 // TODO: Follow-up issue: Replace plume-util UniqueId interface implementation across CFG and Analysis types
-                if (descriptorOrSig != null && descriptorOrSig.contains('org/checkerframework/org/plumelib/util/UniqueId')) {
+                if (descriptorOrSig != null && descriptorOrSig.contains("org/checkerframework/org/plumelib/util/UniqueId")) {
                     if (className in [
-                        'org/checkerframework/framework/flow/CFAbstractStore',
-                        'org/checkerframework/dataflow/analysis/AnalysisResult',
-                        'org/checkerframework/dataflow/analysis/TransferInput',
-                        'org/checkerframework/dataflow/cfg/ControlFlowGraph',
-                        'org/checkerframework/dataflow/cfg/UnderlyingAST',
-                        'org/checkerframework/dataflow/cfg/block/Block',
-                        'org/checkerframework/dataflow/cfg/node/Node',
+                        "org/checkerframework/framework/flow/CFAbstractStore",
+                        "org/checkerframework/dataflow/analysis/AnalysisResult",
+                        "org/checkerframework/dataflow/analysis/TransferInput",
+                        "org/checkerframework/dataflow/cfg/ControlFlowGraph",
+                        "org/checkerframework/dataflow/cfg/UnderlyingAST",
+                        "org/checkerframework/dataflow/cfg/block/Block",
+                        "org/checkerframework/dataflow/cfg/node/Node",
                     ]) {
                         return true
                     }
@@ -70,7 +70,7 @@ ext.createCheckPublicApiNoRelocatedTypesTask = { Project targetProject, List jar
             }
 
             def isAllowed = { String className, String memberName, String descriptorOrSig ->
-                if (isJavaParserAllowed(className, descriptorOrSig ?: '')) {
+                if (isJavaParserAllowed(className, descriptorOrSig ?: "")) {
                     return true
                 }
                 if (isTemporaryException(className, memberName, descriptorOrSig)) {
@@ -97,21 +97,21 @@ ext.createCheckPublicApiNoRelocatedTypesTask = { Project targetProject, List jar
                 int len = stream.readUnsignedShort()
                 byte[] bytes = new byte[len]
                 stream.readFully(bytes)
-                return new String(bytes, 'UTF-8')
+                return new String(bytes, "UTF-8")
             }
 
             def problems = []
 
             jars.each { File jar ->
-                println "checkPublicApiNoRelocatedTypes scanning: " + jar
+                println("checkPublicApiNoRelocatedTypes scanning: " + jar)
                 new java.util.zip.ZipFile(jar).withCloseable { zf ->
                     for (entry in Collections.list(zf.entries())) {
-                        if (!entry.name.endsWith('.class')
-                            || entry.name.startsWith('org/checkerframework/com/')
-                            || entry.name.startsWith('org/checkerframework/org/')
-                            || entry.name.startsWith('org/checkerframework/io/')
-                            || entry.name.startsWith('org/checkerframework/nonapi/')
-                            || !entry.name.startsWith('org/checkerframework/')) {
+                        if (!entry.name.endsWith(".class")
+                            || entry.name.startsWith("org/checkerframework/com/")
+                            || entry.name.startsWith("org/checkerframework/org/")
+                            || entry.name.startsWith("org/checkerframework/io/")
+                            || entry.name.startsWith("org/checkerframework/nonapi/")
+                            || !entry.name.startsWith("org/checkerframework/")) {
                             continue
                         }
 
@@ -176,7 +176,7 @@ ext.createCheckPublicApiNoRelocatedTypesTask = { Project targetProject, List jar
                                     for (int a = 0; a < attrCount; a++) {
                                         String aName = cp[dis.readUnsignedShort()] as String
                                         int aLen = dis.readInt()
-                                        if (aName == 'Signature') {
+                                        if (aName == "Signature") {
                                             fSig = cp[dis.readUnsignedShort()] as String
                                         } else {
                                             skipBytesFully(dis, aLen)
@@ -196,7 +196,7 @@ ext.createCheckPublicApiNoRelocatedTypesTask = { Project targetProject, List jar
                                     for (int a = 0; a < attrCount; a++) {
                                         String aName = cp[dis.readUnsignedShort()] as String
                                         int aLen = dis.readInt()
-                                        if (aName == 'Signature') {
+                                        if (aName == "Signature") {
                                             mSig = cp[dis.readUnsignedShort()] as String
                                         } else {
                                             skipBytesFully(dis, aLen)
@@ -211,9 +211,9 @@ ext.createCheckPublicApiNoRelocatedTypesTask = { Project targetProject, List jar
                                 for (int a = 0; a < classAttrCount; a++) {
                                     String aName = cp[dis.readUnsignedShort()] as String
                                     int aLen = dis.readInt()
-                                    if (aName == 'Signature') {
+                                    if (aName == "Signature") {
                                         classSig = cp[dis.readUnsignedShort()] as String
-                                    } else if (aName == 'InnerClasses') {
+                                    } else if (aName == "InnerClasses") {
                                         int innerClassesCount = dis.readUnsignedShort()
                                         for (int ic = 0; ic < innerClassesCount; ic++) {
                                             int innerClassInfo = dis.readUnsignedShort()
@@ -283,7 +283,7 @@ ext.createCheckPublicApiNoRelocatedTypesTask = { Project targetProject, List jar
             if (!problems.isEmpty()) {
                 throw new GradleException(
                     "Found relocated types in public or protected API of shaded jar:\n"
-                    + problems.unique().join('\n'))
+                    + problems.unique().join("\n"))
             }
         }
     }

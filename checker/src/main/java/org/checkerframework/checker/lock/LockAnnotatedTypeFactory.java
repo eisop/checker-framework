@@ -5,6 +5,7 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 
+import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.lock.qual.EnsuresLockHeld;
 import org.checkerframework.checker.lock.qual.EnsuresLockHeldIf;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
@@ -104,8 +105,7 @@ public class LockAnnotatedTypeFactory
 
     /** The @{@link GuardedBy} annotation. */
     @SuppressWarnings("this-escape")
-    protected final AnnotationMirror GUARDEDBY =
-            createGuardedByAnnotationMirror(new ArrayList<String>());
+    protected final AnnotationMirror GUARDEDBY = createGuardedByAnnotationMirror(new ArrayList<>());
 
     /** The @{@link NewObject} annotation. */
     protected final AnnotationMirror NEWOBJECT =
@@ -210,7 +210,7 @@ public class LockAnnotatedTypeFactory
     }
 
     /**
-     * Returns whether or not the expression is effectively final.
+     * Returns true if the expression is effectively final.
      *
      * <p>This method returns true in the following cases when expr is:
      *
@@ -225,7 +225,7 @@ public class LockAnnotatedTypeFactory
      * <p>4. a this reference or a class literal
      *
      * @param expr expression
-     * @return whether or not the expression is effectively final
+     * @return true if the expression is effectively final
      */
     boolean isExpressionEffectivelyFinal(JavaExpression expr) {
         if (expr instanceof FieldAccess) {
@@ -455,7 +455,7 @@ public class LockAnnotatedTypeFactory
                 case MAYRELEASELOCKS:
                     break;
                 case RELEASESNOLOCKS:
-                    if (this == SideEffectAnnotation.MAYRELEASELOCKS) {
+                    if (this == MAYRELEASELOCKS) {
                         weaker = true;
                     }
                     break;
@@ -494,11 +494,17 @@ public class LockAnnotatedTypeFactory
             return weaker;
         }
 
+        /** The weakest side effect annotation. */
         static SideEffectAnnotation weakest = null;
 
+        /**
+         * Returns the weakest side effect annotation.
+         *
+         * @return the weakest side effect annotation
+         */
         public static SideEffectAnnotation weakest() {
             if (weakest == null) {
-                for (SideEffectAnnotation sea : SideEffectAnnotation.values()) {
+                for (SideEffectAnnotation sea : values()) {
                     if (weakest == null) {
                         weakest = sea;
                     }
@@ -522,7 +528,7 @@ public class LockAnnotatedTypeFactory
      * conservative default.
      *
      * @param methodElement the method element
-     * @param issueErrorIfMoreThanOnePresent whether to issue an error if more than one side effect
+     * @param issueErrorIfMoreThanOnePresent if true, issue an error if more than one side effect
      *     annotation is present on the method
      * @return the side effect annotation that is present on the given method
      */
@@ -667,14 +673,14 @@ public class LockAnnotatedTypeFactory
      * replaced with that in {@code annotationInGuardedByHierarchy}.
      *
      * @param methodReturnAtm the AnnotatedTypeMirror for the return type of a method that will
-     *     potentially have its annotation in the {@code @GuardedBy} hierarchy replaced.
+     *     potentially have its annotation in the {@code @GuardedBy} hierarchy replaced
      * @param atm an AnnotatedTypeMirror that may contain a {@code @GuardSatisfied} annotation. May
      *     be null.
      * @param matchingGuardSatisfiedIndex the {code @GuardSatisfied} index that the
      *     {@code @GuardSatisfied} annotation in {@code atm} must have in order for the replacement
-     *     to occur.
+     *     to occur
      * @param annotationInGuardedByHierarchy if the replacement occurs, the annotation in the
-     *     {@code @GuardedBy} hierarchy in this parameter will be used for the replacement.
+     *     {@code @GuardedBy} hierarchy in this parameter will be used for the replacement
      * @return true if the replacement occurred, false otherwise
      */
     private boolean replaceAnnotationInGuardedByHierarchyIfGuardSatisfiedIndexMatches(
@@ -784,7 +790,9 @@ public class LockAnnotatedTypeFactory
      * @param values a list of lock expressions
      * @return an AnnotationMirror corresponding to @GuardedBy(values)
      */
-    private AnnotationMirror createGuardedByAnnotationMirror(List<String> values) {
+    private AnnotationMirror createGuardedByAnnotationMirror(
+            @UnknownInitialization(GenericAnnotatedTypeFactory.class) LockAnnotatedTypeFactory this,
+            List<String> values) {
         AnnotationBuilder builder = new AnnotationBuilder(getProcessingEnv(), GuardedBy.class);
         builder.setValue("value", values.toArray());
 

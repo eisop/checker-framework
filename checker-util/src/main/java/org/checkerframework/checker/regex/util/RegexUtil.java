@@ -343,7 +343,7 @@ public final class RegexUtil {
     }
 
     /**
-     * Return the strings such that any one of the regexes matches it.
+     * Returns the strings such that any one of the regexes matches it.
      *
      * @param strings a collection of strings
      * @param regexes a collection of regular expressions
@@ -352,7 +352,7 @@ public final class RegexUtil {
     public static List<String> matchesSomeRegex(
             Collection<String> strings, Collection<@Regex String> regexes) {
         List<Pattern> patterns = mapList(Pattern::compile, regexes);
-        List<String> result = new ArrayList<String>(strings.size());
+        List<String> result = new ArrayList<>(strings.size());
         for (String s : strings) {
             for (Pattern p : patterns) {
                 if (p.matcher(s).matches()) {
@@ -365,7 +365,7 @@ public final class RegexUtil {
     }
 
     /**
-     * Return true if every string is matched by at least one regex.
+     * Returns true if every string is matched by at least one regex.
      *
      * @param strings a collection of strings
      * @param regexes a collection of regular expressions
@@ -387,7 +387,7 @@ public final class RegexUtil {
     }
 
     /**
-     * Return the strings that are matched by no regex.
+     * Returns the strings that are matched by no regex.
      *
      * @param strings a collection of strings
      * @param regexes a collection of regular expressions
@@ -396,7 +396,7 @@ public final class RegexUtil {
     public static List<String> matchesNoRegex(
             Collection<String> strings, Collection<@Regex String> regexes) {
         List<Pattern> patterns = mapList(Pattern::compile, regexes);
-        List<String> result = new ArrayList<String>(strings.size());
+        List<String> result = new ArrayList<>(strings.size());
         outer:
         for (String s : strings) {
             for (Pattern p : patterns) {
@@ -410,7 +410,7 @@ public final class RegexUtil {
     }
 
     /**
-     * Return true if no string is matched by any regex.
+     * Returns true if no string is matched by any regex.
      *
      * @param strings a collection of strings
      * @param regexes a collection of regular expressions

@@ -9,8 +9,10 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.util.typeinference8.bound.BoundSet;
 import org.checkerframework.framework.util.typeinference8.types.AbstractType;
+import org.checkerframework.framework.util.typeinference8.types.InferenceFactory;
 import org.checkerframework.framework.util.typeinference8.types.InferenceType;
 import org.checkerframework.framework.util.typeinference8.types.InvocationType;
 import org.checkerframework.framework.util.typeinference8.types.ProperType;
@@ -23,6 +25,7 @@ import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -89,7 +92,7 @@ public class Expression extends TypeConstraint {
         // See JLS 18.2.1
         if (getT().isProper()) {
             return reduceProperType();
-        } else if (TreeUtils.isStandaloneExpression(expression)) {
+        } else if (!InferenceFactory.isPolyExpression(expression)) {
             AbstractType s;
             if (!context.isLambdaParam(expression)) {
                 s = new ProperType(expression, context);
@@ -186,7 +189,7 @@ public class Expression extends TypeConstraint {
     }
 
     /**
-     * Reduce this constraint
+     * Reduce this constraint.
      *
      * @param context the context
      * @return the result of reducing this constraint
@@ -263,11 +266,16 @@ public class Expression extends TypeConstraint {
                 context.inferenceTypeFactory.createThetaForMethodReference(
                         memRef, compileTimeDecl, context);
         AbstractType compileTimeReturn = compileTimeDecl.getReturnType(map);
-        if (TreeUtils.needsTypeArgInference(memRef) && !compileTimeReturn.isProper()) {
-            BoundSet b2 =
+        BoundSet b2;
+        if (TreeUtils.needsTypeArgInference(memRef)) {
+            b2 =
                     context.inference.createB2MethodRef(
                             compileTimeDecl, T.getFunctionTypeParameterTypes(), map);
-            return context.inference.createB3(b2, memRef, compileTimeDecl, r, map);
+            if (!compileTimeReturn.isProper()) {
+                return context.inference.createB3(b2, memRef, compileTimeDecl, r, map);
+            }
+        } else {
+            b2 = new BoundSet(context);
         }
         if (!thetaWasCached) {
             // The variables in map are not part of this inference problem, but every cached map
@@ -291,11 +299,11 @@ public class Expression extends TypeConstraint {
                                 compileTimeReturn.capture(context),
                                 r,
                                 TypeConstraint.Kind.TYPE_COMPATIBILITY)),
-                new BoundSet(context));
+                b2);
     }
 
     /**
-     * Reduce this constraint
+     * Reduce this constraint.
      *
      * @param context the context
      * @return the result of reducing this constraint
@@ -310,9 +318,11 @@ public class Expression extends TypeConstraint {
         ConstraintSet constraintSet = new ConstraintSet();
 
         if (!TreeUtils.isImplicitlyTypedLambda(lambda)) {
-            // Explicitly typed lambda
+            // Explicitly typed lambda: G1, ..., Gn are the parameter types of the function type of
+            // the ground target type T', not of T.  T' and T are related by the constraint
+            // T' <: T below.
             List<? extends VariableTree> parameters = lambda.getParameters();
-            List<AbstractType> gs = T.getFunctionTypeParameterTypes();
+            List<AbstractType> gs = tPrime.getFunctionTypeParameterTypes();
             assert parameters.size() == gs.size();
 
             for (int i = 0; i < gs.size(); i++) {
@@ -433,10 +443,14 @@ public class Expression extends TypeConstraint {
 
         // Let Q1, ..., Qk be the parameter types of the function type of the type F<alpha1, ...,
         // alpham>, where alpha1, ..., alpham are fresh inference variables.
+        // The map's keys are the type parameters of F, so F<alpha1, ..., alpham> is created from
+        // the declared type of F, not from t, which does not mention them.
         Theta map = context.inferenceTypeFactory.createThetaForLambda(lambda, t);
         List<Variable> alphas = new ArrayList<>(map.values());
+        AnnotatedDeclaredType declaredF =
+                context.typeFactory.getAnnotatedType(TypesUtils.getTypeElement(t.getJavaType()));
         AbstractType tprime =
-                InferenceType.create(t.getAnnotatedType(), t.getJavaType(), map, context);
+                InferenceType.create(declaredF, declaredF.getUnderlyingType(), map, context);
 
         List<AbstractType> qs = tprime.getFunctionTypeParameterTypes();
         assert qs.size() == ps.size();

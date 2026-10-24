@@ -84,7 +84,7 @@ public class InferenceFactory {
     private final Java8InferenceContext context;
 
     /**
-     * Creates an inference factory
+     * Creates an inference factory.
      *
      * @param context the context
      */
@@ -96,9 +96,31 @@ public class InferenceFactory {
     /**
      * Gets the target type for the expression for which type arguments are being inferred.
      *
-     * @return target type for the expression for which type arguments are being inferred
+     * @return target type for the expression for which type arguments are being inferred, or null
+     *     if there is none
      */
     public @Nullable ProperType getTargetType() {
+        ProperType target = getTargetTypeOfContext();
+        if (target != null
+                && target.getAnnotatedType().getKind() == TypeKind.WILDCARD
+                && ((AnnotatedWildcardType) target.getAnnotatedType()).isTypeArgOfRawType()) {
+            // The expression is assigned to a type argument of a raw type, such as the return type
+            // of the function type of a raw Supplier.  Its Java target type is the erasure, so it
+            // constrains nothing, and the Checker Framework ignores type arguments of raw types
+            // in subtyping checks.  A wildcard is not a type that an expression can have, so
+            // using it as the target type makes inference fail.
+            return null;
+        }
+        return target;
+    }
+
+    /**
+     * Gets the type of the assignment context of the expression for which type arguments are being
+     * inferred.
+     *
+     * @return the type of the assignment context of the expression, or null if there is none
+     */
+    private @Nullable ProperType getTargetTypeOfContext() {
         GenericAnnotatedTypeFactory<?, ?, ?, ?> factory =
                 (GenericAnnotatedTypeFactory<?, ?, ?, ?>) context.typeFactory;
         TreePath path = context.pathToExpression;
@@ -149,8 +171,7 @@ public class InferenceFactory {
             case NEW_CLASS:
                 NewClassTree newClassTree = (NewClassTree) context;
                 AnnotatedExecutableType constructorType =
-                        factory.constructorFromUseWithoutTypeArgInference(newClassTree)
-                                .executableType;
+                        constructorTypeForInference(factory, newClassTree);
                 AnnotatedTypeMirror constATM =
                         assignedToExecutable(
                                 path, newClassTree, newClassTree.getArguments(), constructorType);
@@ -261,7 +282,7 @@ public class InferenceFactory {
     }
 
     /**
-     * Return the rhs of the assignment of an argument and its formal parameter.
+     * Returns the rhs of the assignment of an argument and its formal parameter.
      *
      * @param path path to the argument
      * @param invocation a method or constructor invocation
@@ -295,7 +316,7 @@ public class InferenceFactory {
     }
 
     /**
-     * Return the rhs of the assignment of an argument and its formal parameter.
+     * Returns the rhs of the assignment of an argument and its formal parameter.
      *
      * @param path path to the argument
      * @param invocation a method or constructor invocation
@@ -328,13 +349,13 @@ public class InferenceFactory {
     }
 
     /**
-     * Returns whether argumentTree is the tree at the leaf of path. If tree is a conditional
+     * Returns true if argumentTree is the tree at the leaf of path. If tree is a conditional
      * expression, isArgument is called recursively on the true and false expressions. If tree is a
      * switch expression isArgument is called recursively on all yielded expressions.
      *
      * @param path tree path might contain {@code argumentTree}
      * @param argumentTree an expression tree that might be in {@code path}
-     * @return whether argumentTree is the tree at the leaf of path
+     * @return true if argumentTree is the tree at the leaf of path
      */
     @SuppressWarnings("interning:not.interned") // Checking for exact object.
     private static boolean isArgument(TreePath path, ExpressionTree argumentTree) {
@@ -390,7 +411,7 @@ public class InferenceFactory {
     }
 
     /**
-     * Return ExecutableType of the method invocation or new class tree adapted to the call site.
+     * Returns ExecutableType of the method invocation or new class tree adapted to the call site.
      *
      * @param expressionTree a method invocation or new class tree
      * @param context the context
@@ -401,7 +422,12 @@ public class InferenceFactory {
         assert expressionTree instanceof NewClassTree
                 || expressionTree instanceof MethodInvocationTree;
 
-        ExecutableElement ele = (ExecutableElement) TreeUtils.elementFromUse(expressionTree);
+        ExecutableElement ele =
+                expressionTree instanceof NewClassTree
+                                && TreeUtils.isAnonymousDiamondTree((NewClassTree) expressionTree)
+                        // See constructorTypeForInference.
+                        ? TreeUtils.getSuperConstructor((NewClassTree) expressionTree)
+                        : (ExecutableElement) TreeUtils.elementFromUse(expressionTree);
         ExecutableType executableType = null;
         // First adapt to receiver
         if (!ElementUtils.isStatic(ele)) {
@@ -766,12 +792,62 @@ public class InferenceFactory {
                             .executableType;
             resolvePolyQualifiers((MethodInvocationTree) invocation, executableType);
         } else {
-            executableType =
-                    typeFactory.constructorFromUseWithoutTypeArgInference((NewClassTree) invocation)
-                            .executableType;
+            executableType = constructorTypeForInference(typeFactory, (NewClassTree) invocation);
         }
         ExecutableType javaType = getTypeOfMethodAdaptedToUse(invocation, context);
         return new InvocationType(executableType, javaType, invocation, context);
+    }
+
+    /**
+     * Returns a short description of {@code invocation} for the history of a constraint. Unlike
+     * {@code invocation.toString()}, it does not print an anonymous class body or a lambda
+     * argument, which can be large, and it is built eagerly for every constraint.
+     *
+     * @param invocation a method or constructor invocation
+     * @return a short description of {@code invocation}
+     */
+    public static String describe(ExpressionTree invocation) {
+        if (invocation instanceof MethodInvocationTree) {
+            return ((MethodInvocationTree) invocation).getMethodSelect() + "(...)";
+        } else if (invocation instanceof NewClassTree) {
+            return "new " + ((NewClassTree) invocation).getIdentifier() + "(...)";
+        }
+        return invocation.toString();
+    }
+
+    /**
+     * Returns true if {@code expression} is a poly expression (JLS 15.2). Unlike {@link
+     * TreeUtils#isPolyExpression(ExpressionTree)}, this is also true for an anonymous class created
+     * with a diamond, as in {@code new C<>(args) {...}}, which is a poly expression (JLS 15.9) that
+     * javac marks as standalone once it has attributed the anonymous class.
+     *
+     * @param expression an expression
+     * @return true if {@code expression} is a poly expression
+     */
+    public static boolean isPolyExpression(ExpressionTree expression) {
+        ExpressionTree e = TreeUtils.withoutParens(expression);
+        if (e instanceof NewClassTree && TreeUtils.isAnonymousDiamondTree((NewClassTree) e)) {
+            return true;
+        }
+        return TreeUtils.isPolyExpression(expression);
+    }
+
+    /**
+     * Returns the type of the constructor that {@code newClassTree} invokes, before type argument
+     * inference. For an anonymous class created with a diamond, {@code new C<>(args) {...}}, this
+     * is the type of the super constructor as a member of the generic superclass, because the type
+     * arguments of the superclass are inferred as for {@code new C<>(args)} (JLS 15.9.3).
+     *
+     * @param typeFactory the type factory
+     * @param newClassTree a constructor invocation
+     * @return the type of the invoked constructor, before type argument inference
+     */
+    private static AnnotatedExecutableType constructorTypeForInference(
+            AnnotatedTypeFactory typeFactory, NewClassTree newClassTree) {
+        if (TreeUtils.isAnonymousDiamondTree(newClassTree)) {
+            return typeFactory.getAnonymousDiamondSuperConstructor(newClassTree);
+        }
+        return typeFactory.constructorFromUseWithoutTypeArgInference(newClassTree).executableType;
     }
 
     /**
@@ -830,7 +906,7 @@ public class InferenceFactory {
                             ? params.get(Math.min(i, params.size() - 1))
                             : (i < params.size() ? params.get(i) : null);
             if (param != null
-                    && TreeUtils.isPolyExpression(args.get(i))
+                    && isPolyExpression(args.get(i))
                     && poly.hasPolymorphicQualifiers(param)) {
                 return;
             }
@@ -927,6 +1003,13 @@ public class InferenceFactory {
 
         if (target != null) {
             resolvePolyQualifiers(compileTimeType, target);
+        }
+
+        if (enclosingType.getKind() == TypeKind.DECLARED && memRefKind.isUnbound()) {
+            // If compileTimeDeclaration is declared in a super class, then the receiver type is
+            // changed to that super type. For method references, it should remain the given
+            // enclosing type.
+            compileTimeType.setReceiverType((AnnotatedDeclaredType) enclosingType);
         }
 
         return new InvocationType(
@@ -1026,7 +1109,7 @@ public class InferenceFactory {
     }
 
     /**
-     * Return the proper type for object.
+     * Returns the proper type for object.
      *
      * @return the proper type for object
      */
@@ -1041,7 +1124,7 @@ public class InferenceFactory {
     }
 
     /**
-     * Return the least upper bounds of {@code properTypes}.
+     * Returns the least upper bounds of {@code properTypes}.
      *
      * @param properTypes types to lub
      * @return the least upper bounds of {@code properTypes}
@@ -1143,7 +1226,7 @@ public class InferenceFactory {
     }
 
     /**
-     * Return the proper type for RuntimeException.
+     * Returns the proper type for RuntimeException.
      *
      * @return the proper type for RuntimeException
      */
@@ -1196,12 +1279,18 @@ public class InferenceFactory {
         List<? extends AnnotatedTypeMirror> thrownTypes;
         List<? extends TypeMirror> thrownTypeMirrors;
         if (expression instanceof LambdaExpressionTree) {
-            thrownTypeMirrors =
-                    CheckedExceptionsUtil.thrownCheckedExceptions(
-                            (LambdaExpressionTree) expression, context);
             thrownTypes =
                     CheckedExceptionsUtil.thrownCheckedExceptionsATM(
                             (LambdaExpressionTree) expression, context);
+            // Use the underlying types of thrownTypes, so that the two lists correspond. These are
+            // the thrown types after type argument inference, not the declared thrown types of a
+            // method invocation in the body: a thrown type variable may be checked as declared,
+            // but inferred to be RuntimeException.
+            List<TypeMirror> underlyingTypes = new ArrayList<>(thrownTypes.size());
+            for (AnnotatedTypeMirror thrownType : thrownTypes) {
+                underlyingTypes.add(thrownType.getUnderlyingType());
+            }
+            thrownTypeMirrors = underlyingTypes;
         } else {
             thrownTypeMirrors =
                     TypesUtils.findFunctionType(TreeUtils.typeOf(expression), context.env)
@@ -1230,6 +1319,7 @@ public class InferenceFactory {
 
         Iterator<? extends AnnotatedTypeMirror> iter2 = thrownTypes.iterator();
         for (TypeMirror xi : thrownTypeMirrors) {
+            AnnotatedTypeMirror xiAtm = iter2.next();
             boolean isSubtypeOfProper = false;
             for (ProperType properType : properTypes) {
                 if (context.env.getTypeUtils().isSubtype(xi, properType.getJavaType())) {
@@ -1241,7 +1331,7 @@ public class InferenceFactory {
                     constraintSet.add(
                             new Typing(
                                     "Exception constraint for %s" + expression,
-                                    new ProperType(iter2.next(), xi, context),
+                                    new ProperType(xiAtm, xi, context),
                                     ei,
                                     TypeConstraint.Kind.SUBTYPE));
                     ei.setHasThrowsBound(true);
@@ -1319,7 +1409,9 @@ public class InferenceFactory {
     }
 
     /**
-     * Returns the result of substituting {@code typeArg} for {@code typeVar} in {@code types}.
+     * Returns the result of substituting {@code typeArg} for {@code typeVar} in {@code types}. Each
+     * type argument is a fresh type variable; this substitution is also applied to its bounds, by
+     * side effect.
      *
      * @param typeVar type variables
      * @param typeArg type arguments
@@ -1328,37 +1420,16 @@ public class InferenceFactory {
      */
     public List<AbstractType> getSubsTypeArgs(
             List<TypeVariable> typeVar, List<AbstractType> typeArg, List<Variable> types) {
-        List<TypeMirror> javaTypeArgs = new ArrayList<>();
-        // Recursive types:
-        for (int i = 0; i < typeArg.size(); i++) {
-            Variable ai = types.get(i);
-            TypeMirror inst = typeArg.get(i).getJavaType();
-            TypeVariable typeVariableI = ai.getJavaType();
-            if (ContainsInferenceVariable.hasAnyTypeVariable(
-                    Collections.singleton(typeVariableI), inst)) {
-                // If the instantiation of ai includes a reference to ai,
-                // then substitute ai with an unbound wildcard.  This isn't quite right but I'm not
-                // sure how to make recursive types Java types.
-                // TODO: This causes problems when incorporating the bounds.
-                TypeMirror unbound = context.env.getTypeUtils().getWildcardType(null, null);
-                inst =
-                        TypesUtils.substitute(
-                                inst,
-                                Collections.singletonList(typeVariableI),
-                                Collections.singletonList(unbound),
-                                context.env);
-                javaTypeArgs.add(inst);
-            } else {
-                javaTypeArgs.add(inst);
-            }
+        List<TypeMirror> javaTypeArgs = new ArrayList<>(typeArg.size());
+        for (AbstractType inst : typeArg) {
+            javaTypeArgs.add(inst.getJavaType());
         }
-
-        for (int i = 0; i < typeVar.size(); i++) {
-            TypeMirror javaTypeArg = javaTypeArgs.get(i);
-            TypeMirror x = TypesUtils.substitute(javaTypeArg, typeVar, javaTypeArgs, context.env);
-            javaTypeArgs.remove(i);
-            javaTypeArgs.add(i, x);
-        }
+        // Each type argument is a fresh type variable whose bounds may refer to any of the type
+        // variables, including its own (an F-bound). Make those bounds refer to the fresh type
+        // variables instead, in place, so that the result is consistent with the annotated types
+        // below and, for example, a fresh type variable whose bound refers to another one is a
+        // subtype of it.
+        TypesUtils.substituteInBounds(javaTypeArgs, typeVar, context.env);
 
         Map<TypeVariable, AnnotatedTypeMirror> map = new HashMap<>();
 

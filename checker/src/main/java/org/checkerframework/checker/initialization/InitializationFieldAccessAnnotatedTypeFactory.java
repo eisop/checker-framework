@@ -26,11 +26,16 @@ public class InitializationFieldAccessAnnotatedTypeFactory
         return new InitializationAnalysis(checker, this);
     }
 
+    /**
+     * Runs the analysis only if initialization checking is turned on. This overrides the
+     * implementation method and not {@link #performFlowAnalysisForClass(ClassTree)}, which does the
+     * bookkeeping that every factory needs and is final.
+     */
     @Override
-    protected void performFlowAnalysis(ClassTree classTree) {
+    protected void performFlowAnalysisForClassImpl(ClassTree classTree) {
         // Only perform the analysis if initialization checking is turned on.
         if (!assumeInitialized) {
-            super.performFlowAnalysis(classTree);
+            super.performFlowAnalysisForClassImpl(classTree);
         }
     }
 
@@ -52,7 +57,7 @@ public class InitializationFieldAccessAnnotatedTypeFactory
      * </pre>
      *
      * Note that flowResult contains analysis results for Trees from multiple classes which are
-     * produced by multiple calls to performFlowAnalysis.
+     * produced by multiple calls to performFlowAnalysisForClass.
      *
      * @return the result of the flow analysis
      * @see #getAnalysis()

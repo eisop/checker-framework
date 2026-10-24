@@ -15,7 +15,7 @@ import javax.lang.model.element.AnnotationMirror;
 public class AccumulationVisitor extends BaseTypeVisitor<AccumulationAnnotatedTypeFactory> {
 
     /**
-     * Constructor matching super.
+     * Creates an AccumulationVisitor.
      *
      * @param checker the checker
      */

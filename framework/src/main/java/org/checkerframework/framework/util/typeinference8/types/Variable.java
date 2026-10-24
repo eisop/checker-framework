@@ -107,7 +107,7 @@ import javax.lang.model.type.TypeVariable;
     }
 
     /**
-     * Return this variable's current bounds.
+     * Returns this variable's current bounds.
      *
      * @return this variable's current bounds
      */
@@ -236,9 +236,9 @@ import javax.lang.model.type.TypeVariable;
     }
 
     /**
-     * Returns whether this variable was created for a capture bound.
+     * Returns true if this variable was created for a capture bound.
      *
-     * @return whether this variable was created for a capture bound
+     * @return true if this variable was created for a capture bound
      */
     public boolean isCaptureVariable() {
         return false;

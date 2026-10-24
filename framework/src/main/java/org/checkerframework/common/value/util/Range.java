@@ -132,8 +132,12 @@ public class Range {
         long max = min;
         for (Number value : values) {
             long current = value.longValue();
-            if (min > current) min = current;
-            if (max < current) max = current;
+            if (min > current) {
+                min = current;
+            }
+            if (max < current) {
+                max = current;
+            }
         }
         return create(min, max);
     }
@@ -212,13 +216,15 @@ public class Range {
 
     /**
      * Returns a range with its bounds specified by two parameters, {@code from} and {@code to}. If
-     * {@code from} is greater than {@code to}, returns {@link #NOTHING}.
+     * {@code from > to}, returns {@link #NOTHING}.
+     *
+     * <p>Usually, you should use {@link #create(long,long)} rather than this method.
      *
      * @param from the lower bound (inclusive)
      * @param to the upper bound (inclusive)
      * @return newly-created Range or NOTHING
      */
-    private static Range createOrNothing(long from, long to) {
+    public static Range createOrNothing(long from, long to) {
         return createOrElse(from, to, NOTHING);
     }
 
@@ -428,7 +434,7 @@ public class Range {
     }
 
     /**
-     * Return x clipped to the given range; out-of-range values become extremal values. Appropriate
+     * Returns x clipped to the given range; out-of-range values become extremal values. Appropriate
      * only when {@link #ignoreOverflow} is true.
      *
      * @param x a value

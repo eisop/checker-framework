@@ -75,6 +75,15 @@ public class ElementUtils {
     private static final Map<Element, @CanonicalName @Interned String> qualifiedNameCache =
             Collections.synchronizedMap(new WeakHashMap<>());
 
+    /**
+     * Cache mapping a class's source file object to whether it is a source file being compiled. See
+     * {@link #isElementFromSourceCodeImpl}: the answer depends only on the file object, and
+     * computing it constructs a {@link java.net.URI}, which is expensive relative to the frequent
+     * calls.
+     */
+    private static final Map<JavaFileObject, Boolean> isCompiledSourceFileCache =
+            Collections.synchronizedMap(new WeakHashMap<>());
+
     /** The value of Flags.COMPACT_RECORD_CONSTRUCTOR which does not exist in Java 9 or 11. */
     private static final long Flags_COMPACT_RECORD_CONSTRUCTOR = 1L << 51;
 
@@ -368,37 +377,28 @@ public class ElementUtils {
     }
 
     /**
-     * Returns a user-friendly name for the given method. Does not return {@code "<init>"} or {@code
-     * "<clinit>"} as ExecutableElement.getSimpleName() does.
-     *
-     * @param element a method declaration
-     * @return a user-friendly name for the method
-     * @deprecated use {@link #getSimpleDescription}
-     */
-    @Deprecated // 2023-06-01
-    public static CharSequence getSimpleNameOrDescription(ExecutableElement element) {
-        Name result = element.getSimpleName();
-        switch (result.toString()) {
-            case "<init>":
-                return element.getEnclosingElement().getSimpleName();
-            case "<clinit>":
-                return "class initializer";
-            default:
-                return result;
-        }
-    }
-
-    /**
      * Returns a user-friendly name for the given method, which includes the name of the enclosing
      * type. Does not return {@code "<init>"} or {@code "<clinit>"} as
-     * ExecutableElement.getSimpleName() does.
+     * ExecutableElement.getSimpleName() does. For a member of an anonymous class, which has no
+     * name, the enclosing type is described as {@code "anonymous "} followed by the simple name of
+     * its supertype.
      *
      * @param element a method declaration
      * @return a user-friendly name for the method
      */
     public static CharSequence getSimpleDescription(ExecutableElement element) {
-        String enclosingTypeName =
-                ((TypeElement) element.getEnclosingElement()).getSimpleName().toString();
+        TypeElement enclosingType = (TypeElement) element.getEnclosingElement();
+        String enclosingTypeName = enclosingType.getSimpleName().toString();
+        if (enclosingTypeName.isEmpty()) {
+            List<? extends TypeMirror> interfaces = enclosingType.getInterfaces();
+            TypeMirror supertype =
+                    interfaces.isEmpty() ? enclosingType.getSuperclass() : interfaces.get(0);
+            enclosingTypeName =
+                    "anonymous "
+                            + (supertype.getKind() == TypeKind.DECLARED
+                                    ? ((DeclaredType) supertype).asElement().getSimpleName()
+                                    : supertype);
+        }
         Name methodName = element.getSimpleName();
         switch (methodName.toString()) {
             case "<init>":
@@ -444,7 +444,7 @@ public class ElementUtils {
     }
 
     /**
-     * Checks whether a given element came from a source file.
+     * Returns true if a given element came from a source file.
      *
      * <p>By contrast, {@link ElementUtils#isElementFromByteCode(Element)} returns true if there is
      * a classfile for the given element, even if there is also a source file.
@@ -468,7 +468,7 @@ public class ElementUtils {
     }
 
     /**
-     * Checks whether a given ClassSymbol came from a source file.
+     * Returns true if a given ClassSymbol came from a source file.
      *
      * <p>By contrast, {@link ElementUtils#isElementFromByteCode(Element)} returns true if there is
      * a classfile for the given element, even if there is also a source file.
@@ -480,9 +480,19 @@ public class ElementUtils {
         // This is a bit of a hack to avoid treating JDK as source files. JDK files' toUri() method
         // returns just the name of the file (e.g. "Object.java"), but any file actually being
         // compiled returns a file URI to the source file.
-        return symbol.sourcefile != null
-                && symbol.sourcefile.getKind() == JavaFileObject.Kind.SOURCE
-                && symbol.sourcefile.toUri().toString().startsWith("file:");
+        JavaFileObject sourcefile = symbol.sourcefile;
+        if (sourcefile == null) {
+            return false;
+        }
+        Boolean cached = isCompiledSourceFileCache.get(sourcefile);
+        if (cached != null) {
+            return cached;
+        }
+        boolean result =
+                sourcefile.getKind() == JavaFileObject.Kind.SOURCE
+                        && sourcefile.toUri().toString().startsWith("file:");
+        isCompiledSourceFileCache.put(sourcefile, result);
+        return result;
     }
 
     /**
@@ -581,7 +591,7 @@ public class ElementUtils {
      * @param names simple names of fields that might be declared in {@code type} or a supertype.
      *     Names that are found are removed from this list.
      * @return the {@code VariableElement}s for non-private fields that are declared in {@code type}
-     *     whose simple names were in {@code names} when the method was called.
+     *     whose simple names were in {@code names} when the method was called
      */
     public static Set<VariableElement> findFieldsInTypeOrSuperType(
             TypeMirror type, Collection<String> names) {
@@ -643,7 +653,7 @@ public class ElementUtils {
      * variable does not require a receiver.
      *
      * @param element the element to test
-     * @return whether the element requires a receiver for accesses
+     * @return true if the element requires a receiver for accesses
      */
     public static boolean hasReceiver(Element element) {
         if (element.getKind() == ElementKind.CONSTRUCTOR) {
@@ -771,7 +781,7 @@ public class ElementUtils {
     }
 
     /**
-     * Return all fields declared in the given type or any superclass/interface.
+     * Returns all fields declared in the given type or any superclass/interface.
      *
      * <p>TODO: should this use javax.lang.model.util.Elements.getAllMembers(TypeElement) instead of
      * our own getSuperTypes?
@@ -808,7 +818,7 @@ public class ElementUtils {
     }
 
     /**
-     * Return all methods declared in the given type or any superclass/interface. Note that no
+     * Returns all methods declared in the given type or any superclass/interface. Note that no
      * constructors will be returned.
      *
      * <p>TODO: should this use javax.lang.model.util.Elements.getAllMembers(TypeElement) instead of
@@ -830,7 +840,7 @@ public class ElementUtils {
     }
 
     /**
-     * Return all nested/inner classes/interfaces declared in the given type.
+     * Returns all nested/inner classes/interfaces declared in the given type.
      *
      * @param type a type
      * @return all nested/inner classes/interfaces declared in {@code type}
@@ -852,7 +862,7 @@ public class ElementUtils {
     }
 
     /**
-     * Return the set of kinds that represent classes.
+     * Returns the set of kinds that represent classes.
      *
      * @return the set of kinds that represent classes
      */
@@ -945,7 +955,7 @@ public class ElementUtils {
                     ElementKind.EXCEPTION_PARAMETER);
 
     /**
-     * Return true if the element is a local variable.
+     * Returns true if the element is a local variable.
      *
      * @param elt the element to test
      * @return true if the argument is a local variable
@@ -955,7 +965,7 @@ public class ElementUtils {
     }
 
     /**
-     * Return true if the element is a binding variable.
+     * Returns true if the element is a binding variable.
      *
      * <p>This implementation compiles and runs under JDK 8 and 11 as well as versions that contain
      * {@code ElementKind.BINDING_VARIABLE}.
@@ -1106,8 +1116,8 @@ public class ElementUtils {
     }
 
     /**
-     * Get all the supertypes of a given type, including the type itself. The result includes both
-     * superclasses and implemented interfaces.
+     * Returns all the supertypes of a given type, including the type itself. The result includes
+     * both superclasses and implemented interfaces.
      *
      * @param type a type
      * @param env the processing environment

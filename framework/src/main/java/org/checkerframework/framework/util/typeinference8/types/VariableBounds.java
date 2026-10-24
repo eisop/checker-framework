@@ -1,5 +1,6 @@
 package org.checkerframework.framework.util.typeinference8.types;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.util.typeinference8.constraint.Constraint;
 import org.checkerframework.framework.util.typeinference8.constraint.Constraint.Kind;
 import org.checkerframework.framework.util.typeinference8.constraint.ConstraintSet;
@@ -95,7 +96,7 @@ public class VariableBounds {
     /** Constraints implied by complementary pairs of bounds found during incorporation. */
     public final ConstraintSet constraints = new ConstraintSet();
 
-    /** Whether this variable has a throws bounds. */
+    /** True if this variable has a throws bounds. */
     public boolean hasThrowsBound = false;
 
     /** Saved bounds used in the event the first attempt at resolution fails. */
@@ -103,6 +104,12 @@ public class VariableBounds {
 
     /** Saved qualifier bounds used in the event the first attempt at resolution fails. */
     public EnumMap<BoundKind, LinkedHashSet<AbstractQualifier>> savedQualifierBounds = null;
+
+    /**
+     * The constraints in {@link #constraints} when the bounds were saved, used in the event the
+     * first attempt at resolution fails.
+     */
+    private @Nullable Set<Constraint> savedConstraints = null;
 
     /**
      * Creates bounds for {@code variable}.
@@ -124,6 +131,7 @@ public class VariableBounds {
 
     /** Save the current bounds in case the first attempt at resolution fails. */
     public void save() {
+        savedConstraints = constraints.identitySnapshot();
         savedBounds = new EnumMap<>(BoundKind.class);
         savedBounds.put(BoundKind.EQUAL, new LinkedHashSet<>(bounds.get(BoundKind.EQUAL)));
         savedBounds.put(BoundKind.UPPER, new LinkedHashSet<>(bounds.get(BoundKind.UPPER)));
@@ -144,6 +152,13 @@ public class VariableBounds {
      */
     public void restore() {
         assert savedBounds != null;
+        assert savedConstraints != null;
+        // Drop the constraints that incorporating the failed attempt added and left unreduced:
+        // they apply its instantiations, which no longer hold. This is not a full restore: a saved
+        // constraint that the failed attempt removed is not added back, and a saved constraint that
+        // is still here is the same instance, which the attempt may have changed by applying its
+        // instantiations.
+        constraints.retainOnly(savedConstraints);
         instantiation = null;
         bounds.clear();
         bounds.put(BoundKind.EQUAL, new LinkedHashSet<>(savedBounds.get(BoundKind.EQUAL)));
@@ -169,7 +184,7 @@ public class VariableBounds {
     }
 
     /**
-     * Return true if this has a throws bound.
+     * Returns true if this has a throws bound.
      *
      * @return true if this has a throws bound
      */
@@ -178,7 +193,7 @@ public class VariableBounds {
     }
 
     /**
-     * Set has throws bound
+     * Set has throws bound.
      *
      * @param b has thrown bound
      */
@@ -470,9 +485,9 @@ public class VariableBounds {
     }
 
     /**
-     * Returns whether this variable only has bounds against proper types.
+     * Returns true if this variable only has bounds against proper types.
      *
-     * @return whether this variable only has bounds against proper types
+     * @return true if this variable only has bounds against proper types
      */
     public boolean onlyProperBounds() {
         for (BoundKind k : BoundKind.values()) {
@@ -486,7 +501,7 @@ public class VariableBounds {
     }
 
     /**
-     * Return all lower bounds that are proper types.
+     * Returns all lower bounds that are proper types.
      *
      * @return all lower bounds that are proper types
      */
@@ -516,24 +531,18 @@ public class VariableBounds {
     }
 
     /**
-     * Returns all upper bounds.
+     * Returns all upper bounds, including those that are another inference variable.
      *
      * @return all upper bounds
      */
     public Set<AbstractType> upperBounds() {
-        LinkedHashSet<AbstractType> set = new LinkedHashSet<>();
-        for (AbstractType bound : bounds.get(BoundKind.UPPER)) {
-            if (!bound.isUseOfVariable()) {
-                set.add(bound);
-            }
-        }
-        return set;
+        return new LinkedHashSet<>(bounds.get(BoundKind.UPPER));
     }
 
     /**
      * Apply instantiations to all bounds and constraints of this variable.
      *
-     * @return whether any of the bounds changed
+     * @return true if any of the bounds changed
      */
     public boolean applyInstantiationsToBounds() {
         // Incorporation worklist: a clean variable's bounds and constraints cannot have changed
@@ -689,7 +698,7 @@ public class VariableBounds {
     }
 
     /**
-     * Return true if this has an instantiation.
+     * Returns true if this has an instantiation.
      *
      * @return true if this has an instantiation
      */
@@ -739,7 +748,7 @@ public class VariableBounds {
      * where S1 and S2 have supertypes that are two different parameterizations of the same generic
      * class or interface?
      *
-     * @return whether this bound set contain two bounds of the forms {@code S1 <: var} and {@code
+     * @return true if this bound set contain two bounds of the forms {@code S1 <: var} and {@code
      *     S2 <: var}, where S1 and S2 have supertypes that are two different parameterizations of
      *     the same generic class or interface
      */
@@ -780,7 +789,7 @@ public class VariableBounds {
      * @return true if there exists an equal or lower bound against a type, S, such that S is not a
      *     subtype of {@code G<...>}, but S is a subtype of the raw type {@code |G<...>|}, where
      *     {@code G} a generic class or interface for which the parameter of this method, {@code t},
-     *     is a parameterization.
+     *     is a parameterization
      */
     public boolean hasRawTypeLowerOrEqualBound(AbstractType t) {
         for (AbstractType type : bounds.get(BoundKind.LOWER)) {

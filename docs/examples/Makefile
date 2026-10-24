@@ -20,6 +20,10 @@ compile:
 	$(MAKE) -C eisop-errorprone
 	$(MAKE) -C typetools-checker-qual
 
+# afu-consumer is not built here: it needs the afuVersion of a locally published
+# annotation-file-utilities artifact.  checker/bin-devel/test-release.sh publishes it and builds
+# the example.
+
 # TODO: type check the different files with the right checker;
 #   some tests expect errors, compare against expected errors.
 

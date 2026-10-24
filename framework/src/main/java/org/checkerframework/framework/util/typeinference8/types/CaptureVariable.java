@@ -14,7 +14,7 @@ import javax.lang.model.type.TypeVariable;
 @Interned public class CaptureVariable extends Variable {
 
     /**
-     * Creates a captured variable
+     * Creates a captured variable.
      *
      * @param type the annotated type variable that is captured
      * @param typeVariableJava the type variable that is captured

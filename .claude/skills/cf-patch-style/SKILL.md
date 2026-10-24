@@ -392,7 +392,7 @@ grep -n -r --exclude-dir=build --exclude-dir=examples --exclude-dir=jtreg \
   --exclude-dir=tests --exclude="*.astub" --exclude="*.tex" \
   '^\(import static \|import .*\*;$\)'
 ./gradlew requireJavadoc javadocDoclintAll spotlessCheck --continue
-make style-check          # shell + Python only; skip if no .sh/.py changed
+make style-check DOCKER_EXISTS=no   # HTML, Markdown, Python, shell, and YAML; needs uv
 ```
 
 **`--continue` is not optional.** `requireJavadoc` fails on this repo

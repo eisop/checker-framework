@@ -187,12 +187,12 @@ plugin'' as synonyms.
 This section describes how to install the Checker Framework.
 \begin{itemize}
 \item
-If you use a build system that automatically downloads dependencies,
+If you use a \textbf{build system} that automatically downloads dependencies,
 such as Gradle or Maven, \textbf{no installation is necessary}; just see
 \chapterpageref{external-tools}.
 \item
 If you wish to try the Checker Framework without installing it, use the
-\href{http://eisop.uwaterloo.ca/live/}{Checker Framework Live Demo} webpage.
+\href{https://eisop.uwaterloo.ca/live/}{Checker Framework Live Demo} webpage.
 \item
 This section describes how to install the Checker Framework from its
 distribution.  The Checker Framework release contains everything that you
@@ -215,10 +215,14 @@ optional step.
   %BEGIN LATEX
   \\
   %END LATEX
-  \url{https://eisop.github.io/cf/checker-framework-3.49.5-eisop1.zip}
+  \url{https://eisop.github.io/cf/checker-framework-\ReleaseVersion{}.zip}
+
+  For example, on Unix you can run: \<wget https://eisop.github.io/cf/checker-framework-\ReleaseVersion{}.zip>
 
 \item
   Unzip it to create a \code{checker-framework-\ReleaseVersion{}} directory.
+
+  For example, on Unix you can run: \<unzip checker-framework-\ReleaseVersion{}.zip>
 
 \item
   \label{installation-configure-step}%
@@ -518,16 +522,16 @@ then update your buildfile to use the \<org.checkerframework.annotatedlib>
 group.  For example, in \<build.gradle>, change
 
 \begin{Verbatim}
-  api group: 'org.apache.bcel', name: 'bcel', version: '6.3.1'
-  api group: 'commons-io', name: 'commons-io', version: '2.8'
+  api("org.apache.bcel:bcel:6.3.1")
+  api("commons-io:commons-io:2.8")
 \end{Verbatim}
 
 \noindent
 to
 
 \begin{Verbatim}
-  api group: 'org.checkerframework.annotatedlib', name: 'bcel', version: '6.3.1'
-  api group: 'org.checkerframework.annotatedlib', name: 'commons-io', version: '2.8.0.1'
+  api("org.checkerframework.annotatedlib:bcel:6.3.1")
+  api("org.checkerframework.annotatedlib:commons-io:2.8.0.1")
 \end{Verbatim}
 
 \noindent
@@ -749,6 +753,12 @@ Type-checking modes:  enable/disable functionality
   Using \<-Ainfer=stubs> produces \<.astub> files.
   Using \<-Ainfer=ajava> produces \<.ajava> files.
   You must also supply \<-Awarns>, or the inference output may be incomplete.
+\item \<-AinferOutputDirectory>
+  The directory into which to write inference output (e.g., \<.ajava>
+  files).  It defaults to \<build/whole-program-inference>.  When using
+  a build system (e.g., Gradle), the default may be interpreted relative to
+  a build system directory (e.g., \<\$HOME/.gradle/workers>) rather than the
+  project root directory, so you may need to provide an absolute path.
 \item \<-AinferOutputOriginal>
   When outputting \<.ajava> files when running with \<-Ainfer=ajava>,
   also output a copy of the original file with no inferred annotations,
@@ -826,6 +836,11 @@ Partially-annotated libraries
   % note to maintainers: GLB of the two types was chosen to support
   % using this flag in combination with \<-Ainfer=stubs>.
 
+\item \<-AstoreInBytecode=false>
+  Write only source-code annotations into the \<.class> file, not the
+  qualifiers that come from defaulting, ajava files, or merged stub files;
+  see Section~\ref{AstoreInBytecode}.
+
 % This item is repeated above:
 \item \<-AuseConservativeDefaultsForUncheckedCode=source>
   Outside the scope of any relevant
@@ -841,7 +856,8 @@ Debugging
  \<-AprintAllQualifiers>,
  \<-AprintVerboseGenerics>,
  \<-Anomsgtext>,
- \<-AdumpOnErrors>
+ \<-Aonelinemsg>,
+ \<-AdumpOnErrors>,
  \<-AexceptionLineSeparator>
 Amount of detail in messages; see Section~\ref{creating-debugging-options-detail}.
 
@@ -965,7 +981,7 @@ checker is an ``annotation processor''.
 \item \<-implicit:class> Suppresses warnings about implicitly compiled files
   (not named on the command line); see Section~\ref{ant-task}
 \item \<-J> Supply an argument to the JVM that is running javac;
-  for example, \<-J-Xmx2500m> to increase its maximum heap size
+  for example, \<-J-Xmx4g> to increase its maximum heap size.
 \item \<-doe> To ``dump on error'', that is, output a stack trace
   whenever a compiler warning/error is produced. Useful when debugging
   the compiler or a checker.
@@ -1782,7 +1798,7 @@ or suppress warnings.
 % LocalWords:  Djsr qual Alint javac's dotequals nullable supertype JLS Papi
 % LocalWords:  deserialization Mahmood Telmo Correa changelog txt nullness ESC
 % LocalWords:  Nullness unselect checkbox unsetting PolyNull typedefs arg
-% LocalWords:  bashrc IDE xml buildfile enum API elts INF sql WPI
+% LocalWords:  bashrc IDE xml buildfile enum API elts INF sql WPI wget
 % LocalWords:  type-checker proc discoverable Xlint util QualifierDefaults Foo
 % LocalWords:  DefaultQualifier SoyLatte GetStarted Formatter bcel csv sbt
 % LocalWords:  Dcheckers Warski MyClass ProcessorName compareTo toString myDate
@@ -1802,7 +1818,7 @@ or suppress warnings.
 % LocalWords:  AinvariantArrays AcheckCastElementType formatter pathname
 % LocalWords:  typedef guieffect Gradle jdk8 javadoc MyFile argfiles tz1
 % LocalWords:  AshowSuppressWarningsStrings AoutputArgsToFile RegexChecker
-% LocalWords:  NullnessChecker commandlineargfile AnnotatedFor Xmx2500m
+% LocalWords:  NullnessChecker commandlineargfile AnnotatedFor Xmx4g
 % LocalWords:  AsafeDefaultsForUnannotatedBytecode Signedness Werror jaif
 % LocalWords:  AuseSafeDefaultsForUnannotatedSourceCode beingConstructed
 % LocalWords:  AuseConservativeDefaultsForUncheckedCode AresolveReflection Ainfer
@@ -1823,4 +1839,5 @@ or suppress warnings.
 % LocalWords:  AwarnRedundantAnnotations AinferOutputOriginal
 % LocalWords:  AshowPrefixInWarningMessages AstubNoWarnIfNotFound
 % LocalWords:  AshowWpiFailedInferences AassumePureGetters AonlyFiles AskipFiles
-% LocalWords:  AexceptionLineSeparator
+% LocalWords:  AexceptionLineSeparator AslowTypecheckingSeconds
+% LocalWords:  AinferOutputDirectory

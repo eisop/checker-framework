@@ -76,6 +76,9 @@ public class Java8InferenceContext {
     /** TypeMirror for java.lang.RuntimeException. */
     public final TypeMirror runtimeEx;
 
+    /** TypeMirror for java.lang.Error. */
+    public final TypeMirror error;
+
     /** The inference factory. */
     public final InferenceFactory inferenceTypeFactory;
 
@@ -130,7 +133,7 @@ public class Java8InferenceContext {
     private int incorporationWork = 0;
 
     /**
-     * Creates a context
+     * Creates a context.
      *
      * @param factory type factory
      * @param pathToExpression path to the expression whose type arguments are inferred
@@ -155,6 +158,8 @@ public class Java8InferenceContext {
         this.runtimeEx =
                 TypesUtils.typeFromClass(
                         RuntimeException.class, env.getTypeUtils(), env.getElementUtils());
+        this.error =
+                TypesUtils.typeFromClass(Error.class, env.getTypeUtils(), env.getElementUtils());
         this.inferenceTypeFactory = new InferenceFactory(this);
         this.object = inferenceTypeFactory.getObject();
     }
@@ -240,7 +245,7 @@ public class Java8InferenceContext {
     }
 
     /**
-     * Return the next number to use as the id for a capture variable. This id is only unique for
+     * Returns the next number to use as the id for a capture variable. This id is only unique for
      * this inference problem.
      *
      * @return the next number to use as the id for a capture variable
@@ -273,10 +278,10 @@ public class Java8InferenceContext {
     }
 
     /**
-     * Return whether the {@code expression} is a lambda parameter.
+     * Returns true if the {@code expression} is a lambda parameter.
      *
      * @param expression an expression
-     * @return whether the {@code expression} is a lambda parameter
+     * @return true if the {@code expression} is a lambda parameter
      */
     public boolean isLambdaParam(ExpressionTree expression) {
         Element element = TreeUtils.elementFromTree(expression);

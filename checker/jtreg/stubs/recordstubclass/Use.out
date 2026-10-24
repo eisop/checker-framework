@@ -1,0 +1,4 @@
+- compiler.warn.proc.messager: Outer.astub:(line 9,col 35): field missing not found in type recordstubclass.Outer.Inner
+Use.java:16:34: compiler.err.proc.messager: (assignment.type.incompatible)
+1 error
+1 warning

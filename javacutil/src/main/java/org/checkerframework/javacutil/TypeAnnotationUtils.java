@@ -46,7 +46,7 @@ public class TypeAnnotationUtils {
     }
 
     /**
-     * Check whether a TypeCompound is contained in a list of TypeCompounds.
+     * Returns true if a TypeCompound is contained in a list of TypeCompounds.
      *
      * @param list the input list of TypeCompounds
      * @param tc the TypeCompound to find

@@ -2,6 +2,7 @@ package org.checkerframework.framework.source;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -96,6 +97,15 @@ public class DiagMessage {
         this.messageKey = messageKey;
         this.args = args;
         this.fixes = Collections.unmodifiableList(fixes);
+    }
+
+    /**
+     * Creates a DiagMessage corresponding to the given Java Expression parse exception.
+     *
+     * @param jppe a Java Expression parse exception
+     */
+    public DiagMessage(JavaExpressionParseException jppe) {
+        this(Diagnostic.Kind.ERROR, jppe.getErrorKey(), jppe.getArgs());
     }
 
     /**

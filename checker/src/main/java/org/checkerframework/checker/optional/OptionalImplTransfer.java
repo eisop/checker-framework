@@ -191,11 +191,7 @@ public class OptionalImplTransfer extends CFTransfer {
             if (isReceiverParameterNonEmpty(methodInvok)) {
                 // The receiver is @Non-Empty, therefore the result is @Present.
                 JavaExpression methodInvokJE = JavaExpression.fromNode(methodInvok);
-                if (assumeDeterministic) {
-                    insertIntoStoresPermitNonDeterministic(result, methodInvokJE, PRESENT);
-                } else {
-                    insertIntoStores(result, methodInvokJE, PRESENT);
-                }
+                insertIntoStores(result, methodInvokJE, PRESENT);
                 CFValue value =
                         analysis.createSingleAnnotationValue(PRESENT, methodInvok.getType());
 

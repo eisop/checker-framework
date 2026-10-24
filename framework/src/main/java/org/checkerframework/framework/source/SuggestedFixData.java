@@ -2,9 +2,9 @@ package org.checkerframework.framework.source;
 
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.util.SourcePositions;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.javacutil.TreeUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -101,21 +101,18 @@ public final class SuggestedFixData {
     }
 
     /**
-     * Returns a fix that replaces the source range of {@code tree} with {@code text}, using javac's
-     * {@link SourcePositions} to locate the tree. All arguments are JDK types, so a checker can
-     * build a fix without referencing any host framework.
+     * Returns a fix that replaces the source range of {@code tree} with {@code text}. All arguments
+     * are JDK types, so a checker can build a fix without referencing any host framework.
      *
-     * @param sourcePositions javac source positions (e.g. from {@code trees.getSourcePositions()})
      * @param root the compilation unit containing {@code tree}
      * @param tree the tree whose source range to replace
      * @param text the replacement text (empty to delete)
      * @return the fix, or {@code null} if {@code tree}'s source position is unavailable
      */
-    @SuppressWarnings("removal") // SourcePositions#getStartPosition/getEndPosition
     public static @Nullable SuggestedFixData replaceTree(
-            SourcePositions sourcePositions, CompilationUnitTree root, Tree tree, String text) {
-        long start = sourcePositions.getStartPosition(root, tree);
-        long end = sourcePositions.getEndPosition(root, tree);
+            CompilationUnitTree root, Tree tree, String text) {
+        long start = TreeUtils.getStartPosition(tree);
+        long end = TreeUtils.getEndPosition(root, tree);
         if (start == Diagnostic.NOPOS || end == Diagnostic.NOPOS) {
             return null;
         }
@@ -126,20 +123,17 @@ public final class SuggestedFixData {
      * Returns a fix that deletes {@code tree} along with any whitespace immediately following it.
      * Deleting the trailing whitespace avoids leaving a stray space behind: for example, deleting
      * the {@code @Nullable} annotation from {@code @Nullable int x} leaves {@code int x} rather
-     * than a leading space before {@code int}. Uses javac's {@link SourcePositions} and the
-     * compilation unit's source text; all arguments are JDK types. If the source text is
-     * unavailable, only {@code tree}'s own source range is deleted.
+     * than a leading space before {@code int}. Uses the compilation unit's source text; all
+     * arguments are JDK types. If the source text is unavailable, only {@code tree}'s own source
+     * range is deleted.
      *
-     * @param sourcePositions javac source positions (e.g. from {@code trees.getSourcePositions()})
      * @param root the compilation unit containing {@code tree}
      * @param tree the tree to delete
      * @return the fix, or {@code null} if {@code tree}'s source position is unavailable
      */
-    @SuppressWarnings("removal") // SourcePositions#getStartPosition/getEndPosition
-    public static @Nullable SuggestedFixData deleteTree(
-            SourcePositions sourcePositions, CompilationUnitTree root, Tree tree) {
-        long start = sourcePositions.getStartPosition(root, tree);
-        long end = sourcePositions.getEndPosition(root, tree);
+    public static @Nullable SuggestedFixData deleteTree(CompilationUnitTree root, Tree tree) {
+        long start = TreeUtils.getStartPosition(tree);
+        long end = TreeUtils.getEndPosition(root, tree);
         if (start == Diagnostic.NOPOS || end == Diagnostic.NOPOS) {
             return null;
         }

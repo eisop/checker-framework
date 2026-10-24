@@ -70,8 +70,8 @@ public class UnaryOperation extends JavaExpression {
     }
 
     @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
-        return operand.isDeterministic(provider);
+    public boolean isPure(AnnotationProvider provider) {
+        return operand.isPure(provider);
     }
 
     @Override

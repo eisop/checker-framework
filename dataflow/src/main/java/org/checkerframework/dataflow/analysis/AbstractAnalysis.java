@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
@@ -121,6 +122,15 @@ public abstract class AbstractAnalysis<
     }
 
     /**
+     * Returns the node whose transfer function is currently running.
+     *
+     * @return the node whose transfer function is currently running, or null if none is
+     */
+    public @Nullable Node getCurrentNode() {
+        return currentNode;
+    }
+
+    /**
      * Set the tree that is currently being looked at.
      *
      * @param currentTree the tree that should be currently looked at
@@ -161,7 +171,7 @@ public abstract class AbstractAnalysis<
      * @param node the node of the target block
      * @param currentInput the current transfer input
      * @param flowRule the flow rule being used
-     * @param addToWorklistAgain whether the block should be added to {@link #worklist} again
+     * @param addToWorklistAgain true if the block should be added to {@link #worklist} again
      */
     protected abstract void propagateStoresTo(
             Block nextBlock,
@@ -257,6 +267,145 @@ public abstract class AbstractAnalysis<
     }
 
     /**
+     * Computes and returns a merged store valid immediately before the nodes corresponding to a
+     * given {@link Tree}. If multiple nodes correspond to the tree, this method aggregates their
+     * pre-stores using {@link Store#leastUpperBound}. Only intended for use while the analysis is
+     * running.
+     *
+     * @param tree a tree
+     * @param analysisCaches caches of analysis results. If it is not null, this method uses and
+     *     updates it. It is a map from a TransferInput for a Block to an inner map. The inner map
+     *     is from a node within the block to a TransferResult.
+     * @return the store immediately before a given {@link Tree}, or null if the tree does not
+     *     correspond to any nodes
+     */
+    public @Nullable S getStoreBefore(
+            Tree tree,
+            @Nullable Map<TransferInput<V, S>, IdentityHashMap<Node, TransferResult<V, S>>>
+                    analysisCaches) {
+        if (!isRunning()) {
+            throw new BugInCF(
+                    "AbstractAnalysis::getStoreBefore() should only be called when the analysis is running.");
+        }
+        Set<Node> nodes = getNodesForTree(tree);
+        if (nodes == null) {
+            return null;
+        }
+        S merge = null;
+        for (Node aNode : nodes) {
+            S s = getStoreBefore(aNode, analysisCaches);
+            if (merge == null) {
+                merge = s;
+            } else if (s != null) {
+                merge = merge.leastUpperBound(s);
+            }
+        }
+        return merge;
+    }
+
+    /**
+     * Returns the store immediately before a given {@link Node}. Only intended for use while the
+     * analysis is running.
+     *
+     * @param node a node whose pre-store to return
+     * @param analysisCaches caches of analysis results. If it is not null, this method uses and
+     *     updates it. It is a map from a TransferInput for a Block to an inner map. The inner map
+     *     is from a node within the block to a TransferResult.
+     * @return the store immediately before {@code node}, or null if the node is not in a block
+     */
+    public @Nullable S getStoreBefore(
+            Node node,
+            @Nullable Map<TransferInput<V, S>, IdentityHashMap<Node, TransferResult<V, S>>>
+                    analysisCaches) {
+        if (!isRunning()) {
+            throw new BugInCF(
+                    "AbstractAnalysis::getStoreBefore() should only be called when the analysis is running.");
+        }
+        Block block = node.getBlock();
+        if (block == null) {
+            return null;
+        }
+        TransferInput<V, S> transferInput = getInput(block);
+        if (transferInput == null) {
+            return null;
+        }
+        return runAnalysisFor(
+                node,
+                Analysis.BeforeOrAfter.BEFORE,
+                transferInput,
+                getNodeValues(),
+                analysisCaches);
+    }
+
+    /**
+     * Computes and returns a merged store valid immediately after the nodes corresponding to a
+     * given {@link Tree}. If multiple nodes correspond to the tree, this method aggregates their
+     * post-stores using {@link Store#leastUpperBound}. Only intended for use while the analysis is
+     * running.
+     *
+     * @param tree a tree
+     * @param analysisCaches caches of analysis results. If it is not null, this method uses and
+     *     updates it. It is a map from a TransferInput for a Block to a map. The inner map is from
+     *     a node within the block to a TransferResult.
+     * @return the store immediately after a given tree, or null if the tree does not correspond to
+     *     any nodes
+     */
+    public @Nullable S getStoreAfter(
+            Tree tree,
+            @Nullable Map<TransferInput<V, S>, IdentityHashMap<Node, TransferResult<V, S>>>
+                    analysisCaches) {
+        if (!isRunning()) {
+            throw new BugInCF(
+                    "AbstractAnalysis::getStoreAfter() should only be called when the analysis is running.");
+        }
+        Set<Node> nodes = getNodesForTree(tree);
+        if (nodes == null) {
+            return null;
+        }
+        S merge = null;
+        for (Node node : nodes) {
+            S s = getStoreAfter(node, analysisCaches);
+            if (merge == null) {
+                merge = s;
+            } else if (s != null) {
+                merge = merge.leastUpperBound(s);
+            }
+        }
+        return merge;
+    }
+
+    /**
+     * Returns the store immediately after a given {@link Node}. Only intended for use while the
+     * analysis is running.
+     *
+     * @param node node after which the store is returned
+     * @param analysisCaches caches of analysis results. If it is not null, this method uses and
+     *     updates it. It is a map from a TransferInput for a Block to a map. The inner map is from
+     *     a node within the block to a TransferResult.
+     * @return the store immediately after a given {@link Node}, or null if the node is not in a
+     *     block
+     */
+    public @Nullable S getStoreAfter(
+            Node node,
+            @Nullable Map<TransferInput<V, S>, IdentityHashMap<Node, TransferResult<V, S>>>
+                    analysisCaches) {
+        if (!isRunning()) {
+            throw new BugInCF(
+                    "AbstractAnalysis::getStoreAfter() should only be called when the analysis is running.");
+        }
+        Block block = node.getBlock();
+        if (block == null) {
+            return null;
+        }
+        TransferInput<V, S> transferInput = getInput(block);
+        if (transferInput == null) {
+            return null;
+        }
+        return runAnalysisFor(
+                node, Analysis.BeforeOrAfter.AFTER, transferInput, getNodeValues(), analysisCaches);
+    }
+
+    /**
      * Returns all current node values.
      *
      * @return {@link #nodeValues}
@@ -314,7 +463,7 @@ public abstract class AbstractAnalysis<
     }
 
     /**
-     * Get the set of {@link Node}s for a given {@link Tree}. Returns null for trees that don't
+     * Returns the set of {@link Node}s for a given {@link Tree}. Returns null for trees that don't
      * produce a value.
      *
      * @param t the given tree
@@ -385,8 +534,8 @@ public abstract class AbstractAnalysis<
     }
 
     /**
-     * Get the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a {@link
-     * Node} in the CFG or {@code null} otherwise.
+     * Returns the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a
+     * {@link Node} in the CFG or {@code null} otherwise.
      *
      * @param t the given tree
      * @return the contained method tree of the given tree
@@ -398,8 +547,8 @@ public abstract class AbstractAnalysis<
     }
 
     /**
-     * Get the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a {@link
-     * Node} in the CFG or {@code null} otherwise.
+     * Returns the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a
+     * {@link Node} in the CFG or {@code null} otherwise.
      *
      * @param t the given tree
      * @return the contained method tree of the given tree
@@ -412,8 +561,8 @@ public abstract class AbstractAnalysis<
     }
 
     /**
-     * Get the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a {@link
-     * Node} in the CFG or {@code null} otherwise.
+     * Returns the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a
+     * {@link Node} in the CFG or {@code null} otherwise.
      *
      * @param t the given tree
      * @return the contained class tree of the given tree
@@ -425,8 +574,8 @@ public abstract class AbstractAnalysis<
     }
 
     /**
-     * Get the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a {@link
-     * Node} in the CFG or {@code null} otherwise.
+     * Returns the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a
+     * {@link Node} in the CFG or {@code null} otherwise.
      *
      * @param t the given tree
      * @return the contained class tree of the given tree
@@ -660,7 +809,7 @@ public abstract class AbstractAnalysis<
          * See {@link PriorityQueue#isEmpty}.
          *
          * @see PriorityQueue#isEmpty
-         * @return true if {@link #queue} is empty else false
+         * @return true if this Worklist is empty
          */
         @Pure
         @EnsuresNonNullIf(result = false, expression = "poll()")
@@ -671,20 +820,20 @@ public abstract class AbstractAnalysis<
         }
 
         /**
-         * Check if {@link #queue} contains the block which is passed as the argument.
+         * Returns true if this Worklist contains the given block.
          *
          * @param block the given block to check
-         * @return true if {@link #queue} contains the given block
+         * @return true if this Worklist contains the given block
          */
         public boolean contains(Block block) {
             return queueSet.contains(block);
         }
 
         /**
-         * Add the given block to {@link #queue}. Adds unconditionally: does not check containment
+         * Add the given block to this Worklist. Adds unconditionally: does not check containment
          * first.
          *
-         * @param block the block to add to {@link #queue}
+         * @param block the block to add to this Worklist
          */
         public void add(Block block) {
             queue.add(block);
@@ -692,10 +841,10 @@ public abstract class AbstractAnalysis<
         }
 
         /**
-         * See {@link PriorityQueue#poll}.
+         * Returns the head of this Worklist.
          *
          * @see PriorityQueue#poll
-         * @return the head of {@link #queue}
+         * @return the head of this Worklist
          */
         @Pure
         public @Nullable Block poll() {
@@ -703,6 +852,19 @@ public abstract class AbstractAnalysis<
             if (result != null) {
                 queueSet.remove(result);
             }
+            return result;
+        }
+
+        /**
+         * Returns the head of this Worklist.
+         *
+         * @see PriorityQueue#remove
+         * @return the head of this Worklist
+         */
+        @Pure
+        public Block remove() {
+            Block result = queue.remove();
+            queueSet.remove(result);
             return result;
         }
 

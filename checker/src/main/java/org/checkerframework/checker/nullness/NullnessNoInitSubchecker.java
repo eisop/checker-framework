@@ -51,8 +51,6 @@ import java.util.Set;
     // learn what advice to give programmers about avoid false positive warnings.
     // See issue #986: https://github.com/typetools/checker-framework/issues/986
     "soundArrayCreationNullness",
-    // Old name for soundArrayCreationNullness, for backward compatibility; remove in January 2021.
-    "forbidnonnullarraycomponents",
     NullnessChecker.LINT_TRUSTARRAYLENZERO,
     NullnessChecker.LINT_PERMITCLEARPROPERTY,
     NullnessChecker.LINT_MONOTONICNONNULLONSTATIC,
@@ -64,7 +62,7 @@ import java.util.Set;
     "conservativeArgumentNullnessAfterInvocation"
 })
 @SupportedModes(NullnessChecker.MODE_JSPECIFY)
-@StubFiles({"junit-assertions.astub", "log4j.astub", "spring.astub"})
+@StubFiles({"java-lang-classfile.astub", "junit-assertions.astub", "log4j.astub", "spring.astub"})
 public class NullnessNoInitSubchecker extends BaseTypeChecker {
 
     /** Default constructor for NonNullChecker. */
@@ -79,8 +77,17 @@ public class NullnessNoInitSubchecker extends BaseTypeChecker {
                 // Already the default; named here so the mode states the behavior it relies on.
                 activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
                 activeOptions.putIfAbsent("assumeKeyFor", null);
+                // The mode also sets this on InitializationFieldAccessSubchecker, which then does
+                // no analysis; NullnessNoInitSubchecker must agree, else its field-access
+                // annotator queries the stores of that unanalyzed subchecker.
+                activeOptions.putIfAbsent("assumeInitialized", null);
                 activeOptions.putIfAbsent("jspecifyUnrecognizedLocations", null);
                 activeOptions.putIfAbsent("assumePure", null);
+                // Not putIfAbsent: a bare -AstoreInBytecode maps to null, which putIfAbsent would
+                // overwrite, turning storage off where the flag means to leave it on.
+                if (!activeOptions.containsKey("storeInBytecode")) {
+                    activeOptions.put("storeInBytecode", "false");
+                }
                 activeOptions.putIfAbsent("assumeAssertions", "enabled");
                 // Conservative defaults written on the command line replace the mode's permissive
                 // ones, which would otherwise conflict with them.

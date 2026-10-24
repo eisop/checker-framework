@@ -8,7 +8,6 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
-import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Source;
@@ -50,7 +49,7 @@ import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.ArraySet;
-import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 import org.plumelib.util.SystemPlume;
 import org.plumelib.util.UtilPlume;
 
@@ -141,7 +140,6 @@ import javax.tools.Diagnostic;
     "onlyDefs",
     "skipFiles",
     "onlyFiles",
-    "skipDirs", // Obsolete as of 2024-03-15, replaced by "skipFiles".
 
     // Suppress all errors and warnings for code outside the scope of a corresponding
     // `@AnnotatedFor` annotation.
@@ -278,6 +276,9 @@ import javax.tools.Diagnostic;
     // "-Ainfer=stubs" or "-Ainfer=jaifs".
     "infer",
 
+    // The directory into which to write whole-program inference results.
+    "inferOutputDirectory",
+
     // Whether to output a copy of each file for which annotations were inferred, formatted
     // as an ajava file. Can only be used with -Ainfer=ajava
     "inferOutputOriginal",
@@ -363,6 +364,12 @@ import javax.tools.Diagnostic;
     // stub files will be glb'd with those in the source code before local inference begins.
     "mergeStubsWithSource",
 
+    // Whether to write into the .class file the qualifiers that the checker computed but that do
+    // not appear in the source code: those inferred by defaulting, and those supplied by -Aajava
+    // files or by stub files under -AmergeStubsWithSource. Defaults to true.
+    // org.checkerframework.framework.type.AnnotatedTypeFactory.postProcessClassTree
+    "storeInBytecode",
+
     // Already listed above, but worth noting again in this section:
     // "useConservativeDefaultsForUncheckedCode"
 
@@ -405,6 +412,10 @@ import javax.tools.Diagnostic;
     // Only output error code, useful for testing framework.
     // org.checkerframework.framework.source.SourceChecker.message(Kind, Object, String, Object...)
     "nomsgtext",
+
+    // Convert newlines to " / ", so error messages fit on one line.
+    // org.checkerframework.framework.source.SourceChecker.message(Kind, Object, String, Object...)
+    "onelinemsg",
 
     // Do not perform a JRE version check.
     "noJreVersionCheck",
@@ -1171,8 +1182,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Return a list of stub files to be treated as if they had been written in a {@code @StubFiles}
-     * annotation.
+     * Returns a list of stub files to be treated as if they had been written in a
+     * {@code @StubFiles} annotation.
      *
      * @return stub files to be treated as if they had been written in a {@code @StubFiles}
      *     annotation
@@ -1291,7 +1302,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Return the given skip pattern if supplied by the user, or else a pattern that matches
+     * Returns the given skip pattern if supplied by the user, or else a pattern that matches
      * nothing.
      *
      * @param patternName "skipUses" or "skipDefs"
@@ -1306,7 +1317,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Return the given only pattern if supplied by the user, or else a pattern that matches
+     * Returns the given only pattern if supplied by the user, or else a pattern that matches
      * everything.
      *
      * @param patternName "onlyUses" or "onlyDefs"
@@ -1619,7 +1630,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Get the list of all subcheckers (if any). This list is only non-empty for the one checker
+     * Returns the list of all subcheckers (if any). This list is only non-empty for the one checker
      * that runs all other subcheckers. These are recursively instantiated via
      * instantiateSubcheckers() the first time this method is called if field {@code subcheckers} is
      * null. Assumes all checkers run on the same thread.
@@ -1640,7 +1651,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Get the shared TreePathCacher instance.
+     * Returns the shared TreePathCacher instance.
      *
      * @return the shared TreePathCacher instance
      */
@@ -1994,12 +2005,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             messageText = prefix + (fmtString == null ? "" : String.format(fmtString, args));
         } catch (Exception e) {
             throw new BugInCF(
-                    "Invalid format string: \"" + fmtString + "\" args: " + Arrays.toString(args),
+                    String.format(
+                            "Invalid format string or number of args for %s: \"%s\" args: %s",
+                            messageKey, fmtString, Arrays.toString(args)),
                     e);
         }
 
         if (kind == Diagnostic.Kind.ERROR && warns) {
             kind = Diagnostic.Kind.MANDATORY_WARNING;
+        }
+
+        if (hasOption("onelinemsg")) {
+            // Use a virgule (/), as indicates a line break in poetry.
+            messageText = messageText.replace(System.lineSeparator(), " / ");
         }
 
         if (preciseSource == null) {
@@ -2385,11 +2403,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return "";
         }
 
-        SourcePositions sourcePositions = trees.getSourcePositions();
-        @SuppressWarnings("removal") // TODO: encapsulate methods
-        long start = sourcePositions.getStartPosition(currentRoot, tree);
-        @SuppressWarnings("removal")
-        long end = sourcePositions.getEndPosition(currentRoot, tree);
+        long start = TreeUtils.getStartPosition(tree);
+        long end = TreeUtils.getEndPosition(currentRoot, tree);
 
         return "( " + start + ", " + end + " )";
     }
@@ -2616,7 +2631,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         // This must return a modifiable set because clients modify it.
         // Most checkers have 1 or fewer subcheckers.
         LinkedHashSet<Class<? extends SourceChecker>> result =
-                new LinkedHashSet<>(CollectionsPlume.mapCapacity(2));
+                new LinkedHashSet<>(MapsP.mapCapacity(2));
         if (shouldResolveReflection()) {
             result.add(MethodValChecker.class);
         }
@@ -2780,8 +2795,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return new HashMap<>();
         }
 
-        Map<String, String> activeOpts = new HashMap<>(CollectionsPlume.mapCapacity(options));
-        Map<String, Integer> optPriority = new HashMap<>(CollectionsPlume.mapCapacity(options));
+        Map<String, String> activeOpts = new HashMap<>(MapsP.mapCapacity(options));
+        Map<String, Integer> optPriority = new HashMap<>(MapsP.mapCapacity(options));
 
         final int PRIORITY_UNPREFIXED = 1;
         final int PRIORITY_THIS_CHECKER = 1000;
@@ -3309,8 +3324,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected Collection<String> expandCFOptions(
             List<? extends Class<?>> clazzPrefixes, Collection<String> options) {
         Set<String> res =
-                new HashSet<>(
-                        CollectionsPlume.mapCapacity(options.size() * (1 + clazzPrefixes.size())));
+                new HashSet<>(MapsP.mapCapacity(options.size() * (1 + clazzPrefixes.size())));
         for (String option : options) {
             res.add(option);
             for (Class<?> clazz : clazzPrefixes) {
@@ -3439,11 +3453,22 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         Set<String> prefixes = new HashSet<>(getSuppressWarningsPrefixes());
         Set<String> errorKeys = new HashSet<>(messagesProperties.stringPropertyNames());
+        // Normally, the visitors of this checker and of its subcheckers collect the same trees.
+        // But this checker's visitor may skip the compilation unit, as the Initialization
+        // Checker's visitor does under -AassumeInitialized, so also use the subcheckers' trees.
+        List<Tree> treesWithSuppressWarnings = getVisitor().treesWithSuppressWarnings;
+        Set<Tree> knownTrees = Collections.newSetFromMap(new IdentityHashMap<>());
+        knownTrees.addAll(treesWithSuppressWarnings);
         for (SourceChecker subChecker : subcheckers) {
             allElementsWithSuppressedWarnings.addAll(subChecker.elementsWithSuppressedWarnings);
             subChecker.elementsWithSuppressedWarnings.clear();
             prefixes.addAll(subChecker.getSuppressWarningsPrefixes());
             errorKeys.addAll(subChecker.messagesProperties.stringPropertyNames());
+            for (Tree tree : subChecker.getVisitor().treesWithSuppressWarnings) {
+                if (knownTrees.add(tree)) {
+                    treesWithSuppressWarnings.add(tree);
+                }
+            }
             subChecker.getVisitor().treesWithSuppressWarnings.clear();
         }
         warnUnneededSuppressions(allElementsWithSuppressedWarnings, prefixes, errorKeys);
@@ -3484,7 +3509,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     if (suppressWarningsString.equals(prefix)
                             || (suppressWarningsString.startsWith(prefix + ":")
                                     && !suppressWarningsString.equals(
-                                            prefix + ":unneeded.suppression"))) {
+                                            prefix + ":" + UNNEEDED_SUPPRESSION_KEY))) {
                         reportUnneededSuppression(tree, suppressWarningsString);
                         break; // Don't report the same warning string more than once.
                     }
@@ -3704,7 +3729,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * indicated by the command line arguments.
      *
      * @param kindOfCode source or bytecode
-     * @return whether conservative defaults should be used
+     * @return true if conservative defaults should be used
      */
     public boolean useConservativeDefault(String kindOfCode) {
         return useUncheckedDefault("useConservativeDefaultsForUncheckedCode", kindOfCode);
@@ -3924,7 +3949,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         for (String currentSuppressWarningsInEffect : suppressWarningsInEffect) {
-            int colonPos = currentSuppressWarningsInEffect.indexOf(":");
+            int colonPos = currentSuppressWarningsInEffect.indexOf(':');
             String messageKeyInSuppressWarningsString;
             if (colonPos == -1) {
                 // The SuppressWarnings string has no colon, so it is not of the form
@@ -4194,9 +4219,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Tests whether the class owner of the passed type matches the pattern specified in the {@code
-     * checker.skipUses} property. In contrast to {@link #shouldSkipUses(Element)} this version can
-     * also be used from primitive types, which don't have an element.
+     * Returns true if the class owner of the passed type matches the pattern specified in the
+     * {@code checker.skipUses} property. In contrast to {@link #shouldSkipUses(Element)} this
+     * version can also be used from primitive types, which don't have an element.
      *
      * <p>Checkers that require their annotations not to be checked on certain JDK classes may
      * override this method to skip them. They shall call {@code super.shouldSkipUses(typeName)} to
@@ -4229,7 +4254,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Tests whether the class definition should not be checked because it matches the {@code
+     * Returns true if the class definition should not be checked because it matches the {@code
      * checker.skipDefs} property.
      *
      * @param tree class to potentially skip
@@ -4256,7 +4281,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Tests whether the method definition should not be checked because it matches the {@code
+     * Returns true if the method definition should not be checked because it matches the {@code
      * checker.skipDefs} property.
      *
      * @param tree method to potentially skip
@@ -4267,7 +4292,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Tests whether the method definition should not be checked because it matches the {@code
+     * Returns true if the method definition should not be checked because it matches the {@code
      * checker.skipDefs} property.
      *
      * @param cls class to potentially skip
@@ -4283,8 +4308,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     //
 
     /**
-     * Tests whether the enclosing file path of the passed tree matches the pattern specified in the
-     * {@code checker.skipFiles} property.
+     * Returns true if the enclosing file path of the passed tree matches the pattern specified in
+     * the {@code checker.skipFiles} property.
      *
      * @param tree a tree
      * @return true iff the enclosing directory of the tree should be skipped
@@ -4302,7 +4327,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Tests whether the file at the file path should be not be checked because it matches the
+     * Returns true if the file at the file path should be not be checked because it matches the
      * {@code checker.skipFiles} property.
      *
      * @param path the path to the file to potentially skip
@@ -4512,7 +4537,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     //
 
     /**
-     * Return true to indicate that method {@link #shutdownHook} should be added as a shutdownHook
+     * Returns true to indicate that method {@link #shutdownHook} should be added as a shutdownHook
      * of the JVM.
      *
      * @return true to add {@link #shutdownHook} as a shutdown hook of the JVM
@@ -4725,7 +4750,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Return the path to the current compilation unit.
+     * Returns the path to the current compilation unit.
      *
      * @return path to the current compilation unit
      */

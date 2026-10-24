@@ -143,7 +143,7 @@ public class Precondition {
     }
 
     @RequiresQualifier.List({
-        @RequiresQualifier(expression = "--", qualifier = ValueTypeAnno.class)
+        @RequiresQualifier(expression = "---", qualifier = ValueTypeAnno.class)
     })
     // :: error: (flowexpr.parse.error)
     void error2() {}

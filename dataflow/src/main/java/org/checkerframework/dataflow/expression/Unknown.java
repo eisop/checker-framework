@@ -80,7 +80,7 @@ public class Unknown extends JavaExpression {
     }
 
     @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
+    public boolean isPure(AnnotationProvider provider) {
         return false;
     }
 

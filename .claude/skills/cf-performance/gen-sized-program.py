@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a single-class Java program with N methods, for perf size sweeps.
+r"""Generate a single-class Java program with N methods, for perf size sweeps.
 
 Some costs are super-linear in a per-compilation-unit dimension (e.g. the per-body
 `Trees.getPath` search in CFG construction was quadratic in methods-per-file) and are
@@ -29,7 +29,7 @@ Usage:
     done
 
 Then A/B each side with the deterministic allocation reader (or ab-measure.sh):
-    checker/bin/javac -J-XX:StartFlightRecording=settings=profile,filename=r.jfr,dumponexit=true \\
+    checker/bin/javac -J-XX:StartFlightRecording=settings=profile,filename=r.jfr,dumponexit=true \
         -processor nullness -d /tmp/out Big$n.java
     java .claude/skills/cf-performance/alloc-total.java r.jfr
 """
@@ -39,6 +39,14 @@ import sys
 
 
 def generic(n: int) -> str:
+    """Return a program of n methods that each make generic calls and branch.
+
+    Args:
+        n: the number of methods (or fields)
+
+    Returns:
+        the Java source text
+    """
     lines = ["class Big {", "    static <T> T id(T x) { return x; }"]
     for i in range(n):
         lines += [
@@ -54,6 +62,14 @@ def generic(n: int) -> str:
 
 
 def vararg(n: int) -> str:
+    """Return a program of n methods that each call JDK vararg methods.
+
+    Args:
+        n: the number of methods (or fields)
+
+    Returns:
+        the Java source text
+    """
     # Calls to JDK vararg methods: their executable types are cached and re-defaulted,
     # and deep-copied per use, so this stresses AnnotatedExecutableType copying and the
     # vararg-type subtree.
@@ -79,6 +95,14 @@ def vararg(n: int) -> str:
 
 
 def deep_nesting(n: int) -> str:
+    """Return a program of n methods that each return a deeply nested expression.
+
+    Args:
+        n: the number of methods (or fields)
+
+    Returns:
+        the Java source text
+    """
     lines = ["class Big {", "    static <T> T id(T x) { return x; }"]
     for i in range(n):
         # A single deeply nested generic-call expression.
@@ -95,9 +119,16 @@ def deep_nesting(n: int) -> str:
 
 
 def many_fields(n: int) -> str:
+    """Return a program with n fields and no methods.
+
+    Args:
+        n: the number of methods (or fields)
+
+    Returns:
+        the Java source text
+    """
     lines = ["import java.util.List;", "class Big {"]
-    for i in range(n):
-        lines.append(f"    List<String> f{i};")
+    lines.extend(f"    List<String> f{i};" for i in range(n))
     lines.append("}")
     return "\n".join(lines) + "\n"
 
@@ -111,12 +142,8 @@ SHAPES = {
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Generate a sized Java program for perf sweeps."
-    )
-    parser.add_argument(
-        "n", type=int, help="number of methods (or fields, for many-fields)"
-    )
+    parser = argparse.ArgumentParser(description="Generate a sized Java program for perf sweeps.")
+    parser.add_argument("n", type=int, help="number of methods (or fields, for many-fields)")
     parser.add_argument(
         "--shape",
         choices=sorted(SHAPES),

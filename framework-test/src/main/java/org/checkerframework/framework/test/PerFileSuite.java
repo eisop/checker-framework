@@ -37,7 +37,7 @@ import java.util.StringJoiner;
  */
 public class PerFileSuite extends RootedSuite {
 
-    /** Name */
+    /** Name. */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
     public @interface Name {}

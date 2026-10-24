@@ -21,6 +21,11 @@ import javax.tools.JavaFileObject;
 /** A set of utilities and factory methods useful for working with TestDiagnostics. */
 public class TestDiagnosticUtils {
 
+    /** Do not instantiate. */
+    private TestDiagnosticUtils() {
+        throw new Error("Do not instantiate");
+    }
+
     /** How the diagnostics appear in Java source files. */
     public static final String DIAGNOSTIC_IN_JAVA_REGEX =
             "\\s*(?<kind>error|fixable-error|warning|fixable-warning|Note|other):\\s*(?<message>[\\s\\S]*)";
@@ -117,7 +122,7 @@ public class TestDiagnosticUtils {
         // Since we want to match the error messages reported by javac exactly, we must parse.
         // diagnostic.getCode() returns "compiler.warn.prob.found.req" for "[unchecked]" messages,
         // but not clear how to map from one to the other.
-        Pair<String, Path> trimmed = formatJavaxToolString(diagnosticString);
+        Pair<String, Path> trimmed = messageAndFilename(diagnosticString);
         return fromPatternMatching(
                 DIAGNOSTIC_PATTERN,
                 DIAGNOSTIC_WARNING_PATTERN,
@@ -155,7 +160,7 @@ public class TestDiagnosticUtils {
         Matcher diagnosticMatcher = diagnosticPattern.matcher(diagnosticString);
         if (diagnosticMatcher.matches()) {
             Pair<DiagnosticKind, Boolean> categoryToFixable =
-                    parseCategoryString(diagnosticMatcher.group("kind"));
+                    categoryAndFixable(diagnosticMatcher.group("kind"));
             kind = categoryToFixable.first;
             isFixable = categoryToFixable.second;
             message = diagnosticMatcher.group("message").trim();
@@ -268,7 +273,7 @@ public class TestDiagnosticUtils {
      * @param original a javax diagnostic
      * @return the diagnostic, split into message and file
      */
-    public static Pair<String, Path> formatJavaxToolString(String original) {
+    public static Pair<String, Path> messageAndFilename(String original) {
         String firstline;
         // In TestDiagnostic we manually check for "\r\n" and "\n". Here, we only use
         // `firstline` to find the file name. Using the system line separator is not
@@ -304,7 +309,7 @@ public class TestDiagnosticUtils {
      * @param category a category string
      * @return the corresponding diagnostic kind and whether it is fixable
      */
-    private static Pair<DiagnosticKind, Boolean> parseCategoryString(String category) {
+    private static Pair<DiagnosticKind, Boolean> categoryAndFixable(String category) {
         String fixable = "fixable-";
         boolean isFixable = category.startsWith(fixable);
         if (isFixable) {
@@ -319,7 +324,7 @@ public class TestDiagnosticUtils {
     }
 
     /**
-     * Return true if this line in a Java file indicates an expected diagnostic that might be
+     * Returns true if this line in a Java file indicates an expected diagnostic that might be
      * continued on the next line.
      *
      * @param originalLine the input line
@@ -367,7 +372,7 @@ public class TestDiagnosticUtils {
     }
 
     /**
-     * Return the continuation part. The argument is such that {@link
+     * Returns the continuation part. The argument is such that {@link
      * #isJavaDiagnosticLineContinuation} returns true.
      */
     public static String continuationPart(String originalLine) {

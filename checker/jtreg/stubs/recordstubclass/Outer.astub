@@ -1,0 +1,13 @@
+package recordstubclass;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+public class Outer {
+    // The class is a record here but a plain class in the library, as when the annotated JDK
+    // (written for a newer JDK) declares a record that the JDK running the checker has as a class.
+    // Component "missing" has no field in the library.
+    public record Inner(Object f, Object missing) {}
+
+    // Declared after the record: it was lost when the record aborted the processing of Outer.
+    public @Nullable Object get();
+}

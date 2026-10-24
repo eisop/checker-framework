@@ -23,6 +23,9 @@ import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.ImmutableTypes;
 import org.plumelib.util.StringsPlume;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -331,7 +334,7 @@ public final class TypesUtils {
      *
      * @param left a type
      * @param right a type
-     * @return whether the arguments are the same primitive type
+     * @return true if the arguments are the same primitive type
      */
     public static boolean areSamePrimitiveTypes(TypeMirror left, TypeMirror right) {
         if (!isPrimitive(left) || !isPrimitive(right)) {
@@ -522,14 +525,14 @@ public final class TypesUtils {
      * Returns true iff the argument is an integral primitive type.
      *
      * @param type a type
-     * @return whether the argument is an integral primitive type
+     * @return true if the argument is an integral primitive type
      */
     public static boolean isIntegralPrimitive(TypeMirror type) {
         return TypeKindUtils.isIntegral(type.getKind());
     }
 
     /**
-     * Return true if the argument TypeMirror is a (possibly boxed) integral type.
+     * Returns true if the argument TypeMirror is a (possibly boxed) integral type.
      *
      * @param type the type to inspect
      * @return true if type is an integral type
@@ -543,14 +546,14 @@ public final class TypesUtils {
      * Returns true iff the argument is an integral primitive type.
      *
      * @param type a type
-     * @return whether the argument is an integral primitive type
+     * @return true if the argument is an integral primitive type
      */
     public static boolean isIntegralNumericPrimitive(TypeMirror type) {
         return TypeKindUtils.isIntegralNumeric(type.getKind());
     }
 
     /**
-     * Return true if the argument TypeMirror is a (possibly boxed) integral type, excluding char
+     * Returns true if the argument TypeMirror is a (possibly boxed) integral type, excluding char
      * and Character which do not print as numbers.
      *
      * @param type the type to inspect
@@ -578,7 +581,7 @@ public final class TypesUtils {
      * Returns true iff the argument is a boxed floating point type.
      *
      * @param type type to test
-     * @return whether the argument is a boxed floating point type
+     * @return true if the argument is a boxed floating point type
      */
     public static boolean isBoxedFloating(TypeMirror type) {
         TypeKind boxedPrimitiveKind = TypeKindUtils.boxedToTypeKind(type);
@@ -589,14 +592,14 @@ public final class TypesUtils {
      * Returns true iff the argument is a primitive floating point type.
      *
      * @param type type mirror
-     * @return whether the argument is a primitive floating point type
+     * @return true if the argument is a primitive floating point type
      */
     public static boolean isFloatingPrimitive(TypeMirror type) {
         return TypeKindUtils.isFloatingPoint(type.getKind());
     }
 
     /**
-     * Return true if the argument TypeMirror is a (possibly boxed) floating point type.
+     * Returns true if the argument TypeMirror is a (possibly boxed) floating point type.
      *
      * @param type the type to inspect
      * @return true if type is a floating point type
@@ -607,7 +610,7 @@ public final class TypesUtils {
     }
 
     /**
-     * Returns whether a TypeMirror represents a class type.
+     * Returns true if a TypeMirror represents a class type.
      *
      * @param type a type that might be a class type
      * @return true if {@code} is a class type
@@ -617,11 +620,11 @@ public final class TypesUtils {
     }
 
     /**
-     * Returns whether or not {@code type} is a functional interface type (as defined in JLS 9.8).
+     * Returns true if {@code type} is a functional interface type (as defined in JLS 9.8).
      *
      * @param type possible functional interface type
      * @param env the processing environment
-     * @return whether or not {@code type} is a functional interface type (as defined in JLS 9.8)
+     * @return true if {@code type} is a functional interface type (as defined in JLS 9.8)
      */
     public static boolean isFunctionalInterface(TypeMirror type, ProcessingEnvironment env) {
         Context ctx = ((JavacProcessingEnvironment) env).getContext();
@@ -699,8 +702,8 @@ public final class TypesUtils {
     }
 
     /**
-     * Get the type parameter for this wildcard from the underlying type's bound field. This field
-     * is sometimes null, in that case this method will return null.
+     * Returns the type parameter for this wildcard from the underlying type's bound field. This
+     * field is sometimes null, in that case this method will return null.
      *
      * @param wildcard wildcard type
      * @return the TypeParameterElement the wildcard is an argument to, {@code null} otherwise
@@ -710,8 +713,8 @@ public final class TypesUtils {
     }
 
     /**
-     * Get the type parameter for this wildcard from the underlying type's bound field. This field
-     * is sometimes null, in that case this method will return null.
+     * Returns the type parameter for this wildcard from the underlying type's bound field. This
+     * field is sometimes null, in that case this method will return null.
      *
      * @param wildcard wildcard type
      * @return the TypeParameterElement the wildcard is an argument to, {@code null} otherwise
@@ -1300,6 +1303,80 @@ public final class TypesUtils {
                 (Type.WildcardType) wildcardType);
     }
 
+    /** The {@code TypeVar.setUpperBound(Type)} method, which does not exist before JDK 9. */
+    private static final @Nullable Method TYPEVAR_SETUPPERBOUND;
+
+    /** The {@code TypeVar.bound} field, which holds the upper bound before JDK 9. */
+    private static final @Nullable Field TYPEVAR_BOUND;
+
+    static {
+        try {
+            if (SystemUtil.jreVersion >= 9) {
+                TYPEVAR_SETUPPERBOUND = Type.TypeVar.class.getMethod("setUpperBound", Type.class);
+                TYPEVAR_BOUND = null;
+            } else {
+                TYPEVAR_SETUPPERBOUND = null;
+                TYPEVAR_BOUND = Type.TypeVar.class.getField("bound");
+            }
+        } catch (NoSuchMethodException | NoSuchFieldException e) {
+            throw new BugInCF("Cannot access the upper bound of TypeVar", e);
+        }
+    }
+
+    /**
+     * Substitutes {@code freshTypeVariables} for {@code typeVariables} in the bounds of each type
+     * variable in {@code freshTypeVariables}, by side effect. Afterward, a bound that referred to
+     * the type variable at index i refers to the fresh type variable at index i instead, which may
+     * be the bounded type variable itself or another one in the list. {@link #substitute} cannot do
+     * this: it does not substitute in the bounds of a type variable, and a bound that refers to its
+     * own type variable cannot be built before that type variable exists.
+     *
+     * @param freshTypeVariables fresh type variables, such as created by {@link
+     *     #freshTypeVariable(TypeMirror, TypeMirror, ProcessingEnvironment)}, that are not used
+     *     anywhere else yet; their bounds are side-effected
+     * @param typeVariables the type variables to replace, at the same indices as {@code
+     *     freshTypeVariables}
+     * @param env processing environment
+     */
+    public static void substituteInBounds(
+            List<? extends TypeMirror> freshTypeVariables,
+            List<? extends TypeVariable> typeVariables,
+            ProcessingEnvironment env) {
+        for (TypeMirror fresh : freshTypeVariables) {
+            if (!(fresh instanceof Type.TypeVar)) {
+                throw new BugInCF("Not a type variable: %s [%s]", fresh, fresh.getClass());
+            }
+        }
+        // Compute every new bound before setting any, so that each substitution sees the original
+        // bounds. For a captured type variable, the wildcard field is not updated: javac only
+        // compares it by identity, in isCaptureOf.
+        List<TypeMirror> uppers = new ArrayList<>(freshTypeVariables.size());
+        List<TypeMirror> lowers = new ArrayList<>(freshTypeVariables.size());
+        for (TypeMirror fresh : freshTypeVariables) {
+            Type.TypeVar typeVar = (Type.TypeVar) fresh;
+            uppers.add(substitute(typeVar.getUpperBound(), typeVariables, freshTypeVariables, env));
+            lowers.add(substitute(typeVar.getLowerBound(), typeVariables, freshTypeVariables, env));
+        }
+        for (int i = 0; i < freshTypeVariables.size(); i++) {
+            Type.TypeVar typeVar = (Type.TypeVar) freshTypeVariables.get(i);
+            try {
+                if (TYPEVAR_SETUPPERBOUND != null) {
+                    TYPEVAR_SETUPPERBOUND.invoke(typeVar, uppers.get(i));
+                } else {
+                    assert TYPEVAR_BOUND != null
+                            : "@AssumeAssertion(nullness): TYPEVAR_BOUND is set before JDK 9";
+                    @SuppressWarnings(
+                            "interning:assignment") // Field.set requires an @Interned Object
+                    @Interned Object upper = uppers.get(i);
+                    TYPEVAR_BOUND.set(typeVar, upper);
+                }
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                throw new BugInCF("Cannot set the upper bound of " + typeVar, e);
+            }
+            typeVar.lower = (Type) lowers.get(i);
+        }
+    }
+
     /**
      * Returns the list of type variables such that a type variable in the list only references type
      * variables at a lower index than itself.
@@ -1378,10 +1455,10 @@ public final class TypesUtils {
     }
 
     /**
-     * Return whether or not {@code type} is raw.
+     * Returns true if {@code type} is raw.
      *
      * @param type the type to check
-     * @return whether or not {@code type} is raw
+     * @return true if {@code type} is raw
      */
     public static boolean isRaw(TypeMirror type) {
         if (type.getKind() != TypeKind.DECLARED) {
@@ -1430,8 +1507,8 @@ public final class TypesUtils {
     }
 
     /**
-     * Return true if {@code typeMirror} is a declared type that has at least one wildcard as a type
-     * argument.
+     * Returns true if {@code typeMirror} is a declared type that has at least one wildcard as a
+     * type argument.
      *
      * @param typeMirror type to check
      * @return true if {@code typeMirror} is a declared type that has at least one wildcard as a

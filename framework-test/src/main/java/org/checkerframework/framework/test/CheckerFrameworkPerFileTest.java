@@ -28,7 +28,7 @@ import javax.annotation.processing.AbstractProcessor;
  *             <p>getTestDir must return an array of directories that exist in the test folder, e.g.
  *             <pre>  @Parameters
  *   public static String [] getTestDirs() {
- *      return new String[]{"all-systems", "flow"};
+ *      return new String[] {"all-systems", "flow"};
  *   }</pre>
  *             The directories can contain more path information (e.g., "myTestDir/moreTests") but
  *             note, the test suite will find all of the Java test files that exists below the

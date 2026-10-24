@@ -2,6 +2,7 @@ package org.checkerframework.checker.initialization;
 
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
@@ -40,6 +41,7 @@ import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.VariableElement;
+import javax.tools.Diagnostic;
 
 /**
  * The annotated type factory for the freedom-before-commitment type system. When using the
@@ -56,6 +58,14 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
     @SuppressWarnings("this-escape")
     public InitializationAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
+        if (POLY_INITIALIZED == null) {
+            // Reported here rather than in the superclass, which the
+            // InitializationFieldAccessSubchecker's factory shares, so that it appears once.
+            checker.message(
+                    Diagnostic.Kind.NOTE,
+                    "@PolyInitialized is not on the classpath, so the Initialization Checker runs"
+                            + " without it. Use the EISOP checker-qual artifact to enable it.");
+        }
         postInit();
     }
 
@@ -78,7 +88,7 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
      * @return the factory of the {@link InitializationFieldAccessSubchecker}, or {@code null} if
      *     not yet initialized
      * @see #createFlowAnalysis()
-     * @see #performFlowAnalysis(ClassTree)
+     * @see #performFlowAnalysisForClass(ClassTree)
      * @see #getRegularExitStore(Tree)
      * @see #getExceptionalExitStore(Tree)
      * @see #getReturnStatementStores(MethodTree)
@@ -95,9 +105,22 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
         return getFieldAccessFactory().getAnalysis();
     }
 
+    /**
+     * Runs no analysis of its own: the flow result is the one of the {@link
+     * InitializationFieldAccessAnnotatedTypeFactory}, which analyzes the class before this factory
+     * is queried for it. This overrides the implementation method and not {@link
+     * #performFlowAnalysisForClass(ClassTree)}, which does the bookkeeping that every factory needs
+     * and is final.
+     */
     @Override
-    protected void performFlowAnalysis(ClassTree classTree) {
+    protected void performFlowAnalysisForClassImpl(ClassTree classTree) {
         flowResult = getFieldAccessFactory().getFlowResult();
+    }
+
+    @Override
+    public boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
+        // This factory does not keep track of the classes that were analyzed.
+        return getFieldAccessFactory().isAnonymousDiamondSupertypeFinal(creation);
     }
 
     @Override
@@ -187,7 +210,7 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
      * @param initStore a store for the initialization checker
      * @param targetStore a store for the target checker corresponding to initStore
      * @param path the current path, used to determine the current class
-     * @param isStatic whether to report static fields or instance fields
+     * @param isStatic if true, report static fields; if false, report instance fields
      * @param receiverAnnotations the annotations on the receiver
      * @return the fields that are not yet initialized in a given store
      */

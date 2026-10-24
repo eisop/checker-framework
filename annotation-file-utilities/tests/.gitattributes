@@ -1,0 +1,6 @@
+# The annotator tests compare character positions and exact output, so check out the
+# test inputs and expected outputs with LF line endings on all platforms.
+*.java text eol=lf
+*.goal text eol=lf
+*.jaif text eol=lf
+*.diff text eol=lf

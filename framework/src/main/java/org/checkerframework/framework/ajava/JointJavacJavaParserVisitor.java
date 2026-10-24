@@ -376,7 +376,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
     }
 
     /**
-     * Returns whether a javac statement represents a method call {@code super()}.
+     * Returns true if a javac statement represents a method call {@code super()}.
      *
      * @param statement the javac statement to check
      * @return true if statement is a method invocation named "super" with no arguments, false
@@ -406,7 +406,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
     }
 
     /**
-     * Returns whether a JavaParser statement represents a method call {@code super()}.
+     * Returns true if a JavaParser statement represents a method call {@code super()}.
      *
      * @param statement the JavaParser statement to check
      * @return true if statement is an explicit super constructor invocation with no arguments
@@ -426,6 +426,27 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
     public Void visitBreak(BreakTree javacTree, Node javaParserNode) {
         BreakStmt node = castNode(BreakStmt.class, javaParserNode, javacTree);
         processBreak(javacTree, node);
+        return null;
+    }
+
+    /**
+     * Visit a switch expression.
+     *
+     * @param javacTree switch expression tree
+     * @param javaParserNode a JavaParser node
+     * @return null
+     */
+    public Void visitSwitchExpression17(Tree javacTree, Node javaParserNode) {
+        SwitchExpr node = castNode(SwitchExpr.class, javaParserNode, javacTree);
+        processSwitchExpression(javacTree, node);
+
+        // Switch expressions are always parenthesized in javac but never in JavaParser.
+        ExpressionTree expression =
+                ((ParenthesizedTree) SwitchExpressionUtils.getExpression(javacTree))
+                        .getExpression();
+        expression.accept(this, node.getSelector());
+
+        visitLists(SwitchExpressionUtils.getCases(javacTree), node.getEntries());
         return null;
     }
 
@@ -662,7 +683,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
     }
 
     /**
-     * Returns whether {@code member} is a javac constructor declaration that takes no arguments.
+     * Returns true if {@code member} is a javac constructor declaration that takes no arguments.
      *
      * @param member the javac tree to check
      * @return true if {@code member} is a method declaration with name {@code <init>} that takes no
@@ -679,7 +700,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
     }
 
     /**
-     * Returns whether {@code member} is a JavaParser constructor declaration that takes no
+     * Returns true if {@code member} is a JavaParser constructor declaration that takes no
      * arguments.
      *
      * @param member the JavaParser body declaration to check
@@ -1218,6 +1239,17 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
                 visitLists(javacTree.getTypeArguments(), node.getTypeArguments().get());
             }
 
+            // In a qualified superclass constructor invocation such as "o.super()", javac stores
+            // the enclosing instance in a member select, but JavaParser stores it as the
+            // expression of the statement.
+            ExpressionTree methodSelect = javacTree.getMethodSelect();
+            if (methodSelect instanceof MemberSelectTree) {
+                assert node.getExpression().isPresent();
+                ((MemberSelectTree) methodSelect)
+                        .getExpression()
+                        .accept(this, node.getExpression().get());
+            }
+
             visitLists(javacTree.getArguments(), node.getArguments());
         } else {
             throwUnexpectedNodeType(javacTree, javaParserNode);
@@ -1252,7 +1284,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
         // - When there are no initializers, both systems use similar representations. The
         // dimensions line up.
         // - When there is an initializer, they differ greatly for multi-dimensional arrays. Javac
-        // turns an expression like new int[][]{{1, 2}, {3, 4}} into a single NewArray tree with
+        // turns an expression like "new int[][] {{1, 2}, {3, 4}}" into a single NewArray tree with
         // type int[] and two initializer elements {1, 2} and {3, 4}. However, for each of the
         // sub-initializers, it creates an implicit NewArray tree with a null component type.
         // JavaParser keeps the whole expression as one ArrayCreationExpr with multiple dimensions
@@ -1393,27 +1425,6 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
         ExpressionTree expression = ((ParenthesizedTree) javacTree.getExpression()).getExpression();
         expression.accept(this, node.getSelector());
         visitLists(javacTree.getCases(), node.getEntries());
-        return null;
-    }
-
-    /**
-     * Visit a switch expression.
-     *
-     * @param javacTree switch expression tree
-     * @param javaParserNode a JavaParser node
-     * @return null
-     */
-    public Void visitSwitchExpression17(Tree javacTree, Node javaParserNode) {
-        SwitchExpr node = castNode(SwitchExpr.class, javaParserNode, javacTree);
-        processSwitchExpression(javacTree, node);
-
-        // Switch expressions are always parenthesized in javac but never in JavaParser.
-        ExpressionTree expression =
-                ((ParenthesizedTree) SwitchExpressionUtils.getExpression(javacTree))
-                        .getExpression();
-        expression.accept(this, node.getSelector());
-
-        visitLists(SwitchExpressionUtils.getCases(javacTree), node.getEntries());
         return null;
     }
 
@@ -1629,27 +1640,6 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
                 throw new BugInCF("Unexpected wildcard kind: %s", javacTree);
         }
 
-        return null;
-    }
-
-    /**
-     * Visit a YieldTree
-     *
-     * @param tree a YieldTree, typed as Tree to be backward-compatible
-     * @param node a YieldStmt, typed as Node to be backward-compatible
-     * @return nothing
-     */
-    public Void visitYield17(Tree tree, Node node) {
-        if (node instanceof YieldStmt) {
-            YieldStmt yieldStmt = castNode(YieldStmt.class, node, tree);
-            processYield(tree, yieldStmt);
-
-            YieldUtils.getValue(tree).accept(this, yieldStmt.getExpression());
-            return null;
-        }
-        // JavaParser does not parse yields correctly:
-        // https://github.com/javaparser/javaparser/issues/3364
-        // So skip yields that aren't matched with a YieldStmt.
         return null;
     }
 
@@ -2517,5 +2507,26 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
         }
 
         return super.defaultAction(tree, node);
+    }
+
+    /**
+     * Visit a YieldTree.
+     *
+     * @param tree a YieldTree, typed as Tree to be backward-compatible
+     * @param node a YieldStmt, typed as Node to be backward-compatible
+     * @return nothing
+     */
+    public Void visitYield17(Tree tree, Node node) {
+        if (node instanceof YieldStmt) {
+            YieldStmt yieldStmt = castNode(YieldStmt.class, node, tree);
+            processYield(tree, yieldStmt);
+
+            YieldUtils.getValue(tree).accept(this, yieldStmt.getExpression());
+            return null;
+        }
+        // JavaParser does not parse yields correctly:
+        // https://github.com/javaparser/javaparser/issues/3364
+        // So skip yields that aren't matched with a YieldStmt.
+        return null;
     }
 }

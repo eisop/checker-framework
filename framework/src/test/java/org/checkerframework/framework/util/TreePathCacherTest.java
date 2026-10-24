@@ -242,4 +242,49 @@ public class TreePathCacherTest {
         Assert.assertTrue("null is cached", cacher.isCached(fromCu2));
         Assert.assertNull("absent tree, cached", cacher.getPath(cu1, fromCu2));
     }
+
+    /**
+     * Checks that many lookups under the same leaf, enough for {@code TreePathCacher} to index the
+     * leaf's subtree, match the JDK for targets under the leaf, outside it, and absent from the
+     * compilation unit. The body declares {@code Integer a, b;}, whose declarators share a type
+     * tree.
+     *
+     * @throws Exception if parsing the test sources fails
+     */
+    @Test
+    public void manyLookupsUnderOneLeafMatchJdk() throws Exception {
+        StringBuilder sb = new StringBuilder("class Long {\n  int other() { return 1; }\n");
+        sb.append("  void body(java.util.Map<String, Integer> map) {\n    Integer a, b;\n");
+        for (int i = 0; i < 100; i++) {
+            sb.append("    map.put(\"k").append(i).append("\", ").append(i).append(");\n");
+        }
+        sb.append("  }\n}\n");
+        CompilationUnitTree cu = parse("Long", sb.toString());
+        CompilationUnitTree otherCu = parse("B", "class B { int g() { return 2; } }");
+        MethodTree body = method(cu, "body");
+        TreePath bodyPath = TreePath.getPath(cu, body.getBody());
+
+        List<Tree> targets = new ArrayList<>(treesUnder(cu));
+        targets.addAll(treesUnder(otherCu));
+        for (boolean reverse : new boolean[] {false, true}) {
+            List<Tree> ordered = new ArrayList<>(targets);
+            if (reverse) {
+                Collections.reverse(ordered);
+            }
+            TreePathCacher cacher = new TreePathCacher();
+            for (Tree target : ordered) {
+                assertSamePath(
+                        "getPath(bodyPath, t)",
+                        TreePath.getPath(cu, target),
+                        cacher.getPath(bodyPath, target));
+            }
+            // Second pass: everything is cached now; results must still match.
+            for (Tree target : ordered) {
+                assertSamePath(
+                        "cached getPath(bodyPath, t)",
+                        TreePath.getPath(cu, target),
+                        cacher.getPath(bodyPath, target));
+            }
+        }
+    }
 }

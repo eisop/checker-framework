@@ -56,7 +56,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
-import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
@@ -562,9 +561,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 && !isNewArrayAllZeroDims(tree)
                 && !isNewArrayInToArray(tree)
                 && !TypesUtils.isPrimitive(componentType.getUnderlyingType())
-                && (checker.getLintOption("soundArrayCreationNullness", false)
-                        // temporary, for backward compatibility
-                        || checker.getLintOption("forbidnonnullarraycomponents", false))) {
+                && checker.getLintOption("soundArrayCreationNullness", false)) {
             checker.reportError(
                     tree,
                     "new.array.type.invalid",
@@ -671,15 +668,22 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         // See also
         // org.checkerframework.dataflow.cfg.builder.CFGBuilder.CFGTranslationPhaseOne.visitAssert
 
+        // If the assertion contains "@AssumeAssertion", then this visitor skips over the assertion
+        // (never issues a warning about it), but the refinement (which was established when the CFG
+        // was built) still takes effect.
+
         // In cases where neither assumption is made about assertions and @AssumeAssertions is not
         // used, checkForNullability is still called since the CFGBuilder will have generated one
         // branch for which asserts are assumed to be enabled.
 
+        boolean assumeAssertionActivated =
+                CFCFGBuilder.assumeAssertionsActivatedForAssertTree(checker, tree);
         boolean doVisitAssert =
-                assumeAssertions != AssumeAssertions.DISABLED
-                        || CFCFGBuilder.assumeAssertionsActivatedForAssertTree(checker, tree);
+                assumeAssertions != AssumeAssertions.DISABLED || assumeAssertionActivated;
 
         if (doVisitAssert) {
+            // TODO: If assumeAssertionActivated and the condition is non-null, issue
+            // "unneeded.suppression" instead.
             checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
             return super.visitAssert(tree, p);
         }
@@ -746,7 +750,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
             // Don't call super for non-pattern instanceof because it will issue an incorrect
             // instanceof.unsafe warning when testing a @Nullable expression against a @NonNull
-            // type.
+            // type.  Instead, just scan the part before "instanceof".
+            super.scan(tree.getExpression(), p);
             return null;
         }
     }
@@ -1052,7 +1057,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      */
     /*package-private*/ static @Nullable String literalFirstArgument(MethodInvocationTree tree) {
         List<? extends ExpressionTree> args = tree.getArguments();
-        assert args.size() > 0;
+        assert !args.isEmpty();
         ExpressionTree arg = args.get(0);
         if (arg.getKind() == Tree.Kind.STRING_LITERAL) {
             String literal = (String) ((LiteralTree) arg).getValue();
@@ -1149,15 +1154,19 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             // method.getElement().getKind() != ElementKind.CONSTRUCTOR) {
             AnnotatedTypeMirror rcv =
                     receiverType != null ? receiverType : atypeFactory.getReceiverType(tree);
-            AnnotationMirrorSet receiverAnnos = rcv.getAnnotations();
-            AnnotatedTypeMirror methodReceiver = methodReceiverType.getErased();
-            AnnotatedTypeMirror treeReceiver = methodReceiver.shallowCopy(false);
-            treeReceiver.addAnnotations(rcv.getEffectiveAnnotations());
-            // If receiver is Nullable, then we don't want to issue a warning about method
-            // invocability (we'd rather have only the "dereference.of.nullable" message).
-            if (treeReceiver.hasAnnotation(NULLABLE)
-                    || receiverAnnos.contains(MONOTONIC_NONNULL)
-                    || treeReceiver.hasAnnotation(POLYNULL)) {
+            // If the receiver may be null, then do not check whether the method can be invoked on
+            // it: visitMemberSelect already issues "dereference.of.nullable", and a second
+            // diagnostic about the receiver would only repeat that one.
+            //
+            // The test is the one of checkForNullability, which issues "dereference.of.nullable":
+            // the receiver does not have the effective annotation @NonNull.  That covers
+            // @Nullable, @MonotonicNonNull, and @PolyNull, and any qualifier that the hierarchy
+            // may gain.  Testing for those three, instead, could skip this check for a receiver
+            // for which no "dereference.of.nullable" is issued, and so lose an error.  Here, every
+            // receiver that is skipped does get "dereference.of.nullable": a non-static method
+            // that is not invoked on this or super is called through a member select, which
+            // visitMemberSelect checks.
+            if (!rcv.hasEffectiveAnnotation(NONNULL)) {
                 return;
             }
         }
@@ -1397,8 +1406,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * {@code @Nullable int x} becomes {@code int x}).
      *
      * <p>The fixes are expressed in the framework-agnostic {@link SuggestedFixData} representation
-     * (source-offset edits computed with javac's {@link com.sun.source.util.SourcePositions}), so a
-     * host such as the Error Prone plugin can offer them; standalone javac ignores them.
+     * (source-offset edits), so a host such as the Error Prone plugin can offer them; standalone
+     * javac ignores them.
      *
      * <p>The returned fixes are alternatives, so in the rare case that a primitive type carries
      * more than one nullness annotation, applying a single fix does not by itself resolve the
@@ -1419,7 +1428,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             // which decides when the nullness.on.primitive error fires: offer a removal fix for
             // exactly the annotations that triggered the error.
             if (atypeFactory.isNullnessAnnotation(am) && AnnotationUtils.isTypeUseAnnotation(am)) {
-                SuggestedFixData fix = SuggestedFixData.deleteTree(positions, root, annoTree);
+                SuggestedFixData fix = SuggestedFixData.deleteTree(root, annoTree);
                 if (fix != null) {
                     fixes.add(fix);
                 }

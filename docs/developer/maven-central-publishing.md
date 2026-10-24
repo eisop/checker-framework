@@ -20,7 +20,11 @@ A release is made with
 ./gradlew publish -Prelease=true --no-parallel
 ````
 
-which uploads to a staging repository. The release is **not** live until a human
+`-Prelease=true` also selects the release version: without it, the version is
+`releaseVersion` (in [`release.gradle`](../../release.gradle)) followed by
+`-SNAPSHOT`.
+
+The command uploads to a staging repository. The release is **not** live until a human
 opens <https://central.sonatype.com/publishing/deployments> and clicks Publish.
 
 Snapshots need no publishing configuration of their own: the snapshot URL is
@@ -71,7 +75,7 @@ Portal for a human to release.
 The compatibility service has its own API for that last step, so the click is
 avoidable without changing how the build uploads anything:
 
-````
+````text
 POST https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.eisop?publishing_type=automatic
 Authorization: Bearer <base64 of user-token-name:user-token-password>
 ````
@@ -165,6 +169,12 @@ artifacts the build *would* publish, not that what reached Central is what the
 build produced. Once nightly snapshots exist, pointing the same smoke test at
 the published snapshot repository would close that gap, and would fail on the
 day a publication breaks rather than at the next release.
+
+The `annotation-file-utilities` artifact has a check of its own in
+`checker/bin-devel/test-release.sh` (the `release` CI job): its POM and jar
+contents, and a run of the annotator from the locally published artifact by the
+consumer project `docs/examples/afu-consumer/`. It has the same limitation: it
+runs against `publishToMavenLocal` output.
 
 **Nothing publishes the website automatically.** `EisopSiteGenerator` is run by
 hand against a `gh-pages` checkout, as its README in the `eisop.github.io`

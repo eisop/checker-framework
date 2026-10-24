@@ -214,6 +214,79 @@ public class BinaryStubReader {
     }
 
     /**
+     * Stores the class's type parameter declarations from {@code cr} in {@code target}, unless
+     * {@code target} already has them, as {@link #applyClassRecord} would. Callers apply this to
+     * every class record of a stub file, or of an annotated JDK source file, before applying any
+     * record in full, because a plain {@code ?} takes the bounds of its type variable's declaration
+     * ({@link AnnotationFileParser#annotateUnannotatedUnboundedWildcard}), which can be in a class
+     * whose record comes later, such as a nested class. The text parser processes a file in order,
+     * so it gets the stub's bounds only for a declaration that precedes the {@code ?}.
+     *
+     * @param cr the class record from the binary stub data
+     * @param className the fully-qualified name of the class
+     * @param atypeFactory the factory used to create types and parse annotations
+     * @param elementTypes per-factory state, including the annotation-mirror cache
+     * @param data the complete binary stub data
+     * @param target the annotation container to store the results in
+     * @param fromStubFileAnno the {@code @FromStubFile} mirror for a stub file, or {@code null} for
+     *     the annotated JDK
+     */
+    public static void applyClassTypeParamRecords(
+            BinaryStubData.ClassRecord cr,
+            String className,
+            AnnotatedTypeFactory atypeFactory,
+            AnnotationFileElementTypes elementTypes,
+            BinaryStubData data,
+            AnnotationFileAnnotations target,
+            @Nullable AnnotationMirror fromStubFileAnno) {
+        if (cr.typeParams.length == 0) {
+            return;
+        }
+        @SuppressWarnings("signature:argument.type.incompatible") // see applyClassRecord
+        TypeElement typeElt =
+                atypeFactory.getProcessingEnv().getElementUtils().getTypeElement(className);
+        if (typeElt == null
+                || classRecordKind(typeElt.getKind()) != cr.kind
+                || typeElt.getTypeParameters().size() != cr.typeParams.length) {
+            return;
+        }
+        if (fromStubFileAnno == null) {
+            boolean anyAnnotated = false;
+            for (BinaryStubData.TypeParamRecord tp : cr.typeParams) {
+                anyAnnotated |= typeParamRecordHasAnnos(tp);
+            }
+            if (!anyAnnotated) {
+                return;
+            }
+        } else if (!isAnnotatedForThisChecker(
+                parseDeclAnnos(cr.declAnnos, className, data, atypeFactory, elementTypes),
+                atypeFactory)) {
+            return;
+        }
+        List<? extends TypeParameterElement> typeParamElts = typeElt.getTypeParameters();
+        for (int i = 0; i < cr.typeParams.length; i++) {
+            TypeParameterElement tpElt = typeParamElts.get(i);
+            if (target.atypes.containsKey(tpElt)) {
+                continue;
+            }
+            AnnotatedTypeMirror atm =
+                    AnnotatedTypeMirror.createType(tpElt.asType(), atypeFactory, false);
+            if (!(atm instanceof AnnotatedTypeVariable)) {
+                continue;
+            }
+            applyTypeParamRecord(
+                    cr.typeParams[i],
+                    (AnnotatedTypeVariable) atm,
+                    fromStubFileAnno == null ? null : tpElt,
+                    className,
+                    data,
+                    atypeFactory,
+                    elementTypes);
+            target.atypes.put(tpElt, atm);
+        }
+    }
+
+    /**
      * Applies the annotations from a {@link BinaryStubData.ClassRecord} to the given class and its
      * members. The annotations are converted to {@link AnnotationMirror}s and stored in {@code
      * target}, which is usually {@code elementTypes.annotationFileAnnos} but may be a scratch
@@ -336,14 +409,18 @@ public class BinaryStubReader {
         // source tree when none of its type parameters carry an annotation. If this is skipped, the
         // class-level-annotation code below still creates the stored type on demand (see its
         // "cr.typeParams was empty" comment, which also covers this case).
-        boolean anyTypeParamAnnotated = false;
+        // Every stub file but the annotated JDK stores the type even if no type parameter is
+        // annotated, as the text parser does: a stored type replaces the class file's, so the
+        // class file's annotations must not survive where the stub writes none. The annotated
+        // JDK's class files carry no qualifiers.
+        boolean applyTypeParams = fromStubFileAnno != null && cr.typeParams.length > 0;
         for (BinaryStubData.TypeParamRecord tp : cr.typeParams) {
             if (typeParamRecordHasAnnos(tp)) {
-                anyTypeParamAnnotated = true;
+                applyTypeParams = true;
                 break;
             }
         }
-        if (anyTypeParamAnnotated) {
+        if (applyTypeParams) {
             applyClassTypeParams(
                     cr,
                     className,
@@ -374,7 +451,7 @@ public class BinaryStubReader {
             if (!typeAlreadyPresent) {
                 AnnotatedTypeMirror storedType = target.atypes.get(typeElt);
                 if (storedType == null) {
-                    // anyTypeParamAnnotated was false, so applyClassTypeParams did not run; create
+                    // applyTypeParams was false, so applyClassTypeParams did not run; create
                     // one now.
                     storedType =
                             AnnotatedTypeMirror.createType(typeElt.asType(), atypeFactory, false);
@@ -646,7 +723,9 @@ public class BinaryStubReader {
                         fieldDeclAnnos,
                         fromStubFileAnno == null);
             }
-            if (fr.typeAnnos.length > 0) {
+            // Store the type even without annotations, except for the annotated JDK; see
+            // applyClassRecord's comment on applyTypeParams.
+            if (fr.typeAnnos.length > 0 || fromStubFileAnno != null) {
                 // Skip building the type at all when storeOrMerge would discard it: an entry
                 // exists and this content is from the lazily-loaded JDK.
                 if (!target.atypes.containsKey(ve) || fromStubFileAnno != null) {
@@ -732,7 +811,9 @@ public class BinaryStubReader {
                         fromStubFileAnno == null);
             }
 
-            if (!hasTypeInfo(mr)) {
+            // Store the type even without annotations, except for the annotated JDK; see
+            // applyClassRecord's comment on applyTypeParams.
+            if (!hasTypeInfo(mr) && fromStubFileAnno == null) {
                 continue;
             }
             // If an entry already exists and this content is from the lazily-loaded JDK, back
@@ -1268,7 +1349,13 @@ public class BinaryStubReader {
             }
             AnnotatedTypeVariable atv = (AnnotatedTypeVariable) typeArgs.get(i);
             applyTypeParamRecord(
-                    cr.typeParams[i], atv, className, data, atypeFactory, elementTypes);
+                    cr.typeParams[i],
+                    atv,
+                    fromStubFileAnno == null ? null : typeParamElts.get(i),
+                    className,
+                    data,
+                    atypeFactory,
+                    elementTypes);
             // Store keyed by TypeParameterElement — this is what
             // fromElement(TypeParameterElement) reads via stubTypes.getAnnotatedTypeMirror(tpe).
             // The same object is a type argument of declType, matching the text parser.
@@ -1320,7 +1407,16 @@ public class BinaryStubReader {
                 continue;
             }
             AnnotatedTypeVariable atv = (AnnotatedTypeVariable) typeVars.get(i);
-            applyTypeParamRecord(typeParams[i], atv, className, data, atypeFactory, elementTypes);
+            applyTypeParamRecord(
+                    typeParams[i],
+                    atv,
+                    fromStubFileAnno == null || i >= typeParamElts.size()
+                            ? null
+                            : typeParamElts.get(i),
+                    className,
+                    data,
+                    atypeFactory,
+                    elementTypes);
             if (i < typeParamElts.size()) {
                 storeOrMerge(target, typeParamElts.get(i), atv, atypeFactory, fromStubFileAnno);
             }
@@ -1333,16 +1429,21 @@ public class BinaryStubReader {
      *
      * <ul>
      *   <li>If the type parameter declares no bounds (e.g. {@code <@X T>}), annotations on the type
-     *       variable itself become its primary annotation, covering both bounds.
+     *       variable itself become its primary annotation, covering both bounds. The bounds are
+     *       otherwise the class file's (see {@code classFileElt}).
      *   <li>Otherwise, annotations on the type variable apply to the lower bound, and if exactly
-     *       one declared bound carries annotations, those are applied to the upper bound after
-     *       clearing its existing annotations (matching {@code clearAnnotations} in the text
-     *       parser's {@code annotate}). If more than one bound carries annotations, none are
-     *       applied — the text parser has the same (unimplemented) intersection-bound limitation.
+     *       one declared bound carries annotations (for a sole bound, a marker is enough), those
+     *       are applied to the upper bound after clearing its existing annotations (matching {@code
+     *       clearAnnotations} in the text parser's {@code annotate}). If more than one bound
+     *       carries annotations, none are applied — the text parser has the same (unimplemented)
+     *       intersection-bound limitation.
      * </ul>
      *
      * @param tp the type-parameter record to apply
      * @param atv the annotated type variable to annotate, modified in place
+     * @param classFileElt the type parameter's element, whose class-file bounds a type parameter
+     *     that the stub declares without a bound keeps; null for the annotated JDK, whose class
+     *     files carry no qualifiers
      * @param className the fully-qualified name of the enclosing class
      * @param data the complete binary stub data
      * @param atypeFactory the factory used to create types and parse annotations
@@ -1351,11 +1452,19 @@ public class BinaryStubReader {
     private static void applyTypeParamRecord(
             BinaryStubData.TypeParamRecord tp,
             AnnotatedTypeVariable atv,
+            @Nullable TypeParameterElement classFileElt,
             String className,
             BinaryStubData data,
             AnnotatedTypeFactory atypeFactory,
             AnnotationFileElementTypes elementTypes) {
         boolean hasDeclaredBounds = tp.boundAnnos.length > 0;
+        if (!hasDeclaredBounds && classFileElt != null) {
+            // The text parser keeps the class file's bounds where the stub declares none.
+            AnnotatedTypeVariable classFileAtv =
+                    (AnnotatedTypeVariable) atypeFactory.fromElement(classFileElt);
+            atv.getUpperBound().replaceAnnotations(classFileAtv.getUpperBound().getAnnotations());
+            atv.getLowerBound().replaceAnnotations(classFileAtv.getLowerBound().getAnnotations());
+        }
         for (int idx : tp.typeVarAnnos) {
             AnnotationMirror am =
                     annotationFromPool(idx, className, data, atypeFactory, elementTypes);
@@ -1368,10 +1477,13 @@ public class BinaryStubReader {
             }
         }
 
-        // Find the single bound that carries annotations, if any.
+        // Find the single bound that carries annotations, if any. The text parser annotates a sole
+        // bound unconditionally, so a marker is enough there; of several bounds, it considers only
+        // those with annotations.
+        boolean soleBound = tp.boundAnnos.length == 1;
         int annotatedBound = -1;
         for (int b = 0; b < tp.boundAnnos.length; b++) {
-            if (tp.boundAnnos[b].length > 0) {
+            if (soleBound ? tp.boundAnnos[b].length > 0 : hasAnnotation(tp.boundAnnos[b])) {
                 if (annotatedBound >= 0) {
                     // More than one annotated bound: not supported, matching the text parser.
                     return;
@@ -1389,6 +1501,22 @@ public class BinaryStubReader {
                     atypeFactory,
                     elementTypes);
         }
+    }
+
+    /**
+     * Returns true if {@code annos} contains an annotation, not only markers.
+     *
+     * @param annos type annotations
+     * @return true if some element of {@code annos} is not {@linkplain
+     *     BinaryStubData.TypeAnno#isUnboundedWildcard a marker}
+     */
+    private static boolean hasAnnotation(BinaryStubData.TypeAnno[] annos) {
+        for (BinaryStubData.TypeAnno ta : annos) {
+            if (!ta.isUnboundedWildcard()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -1513,10 +1641,13 @@ public class BinaryStubReader {
      * existing annotation from the same hierarchy is replaced rather than duplicated, and
      * annotations that are not supported qualifiers of the current checker are filtered out.
      *
-     * <p>Unlike the text parser, this does not copy type-variable bound annotations into implicit
-     * (unbounded, unannotated) wildcards: the text parser bakes the result of a parse-time {@code
-     * getAnnotatedType} call into the stored type, which is derived (and order-dependent) state
-     * that {@code mergeAnnotationFileAnnosIntoType}'s target recomputes at lookup time anyway.
+     * <p>A {@linkplain BinaryStubData.TypeAnno#isUnboundedWildcard marker} gives the wildcard at
+     * its path the annotations of the bounds of its type variable's declaration, by the method the
+     * text parser uses ({@link AnnotationFileParser#annotateUnannotatedUnboundedWildcard}). Without
+     * it, a plain {@code ?} over a class-file wildcard with a bound, such as the {@code ? extends
+     * Object} of {@code Provider.compute}'s {@code BiFunction} parameter, would keep an unannotated
+     * bound, which gets the default rather than the {@code @Nullable} bound of {@code BiFunction}'s
+     * {@code R}.
      *
      * @param atm the annotated type mirror to annotate
      * @param annos the type annotations to apply
@@ -1535,6 +1666,15 @@ public class BinaryStubReader {
         for (BinaryStubData.TypeAnno ta : annos) {
             AnnotatedTypeMirror component = resolvePath(atm, ta.path);
             if (component == null) {
+                continue;
+            }
+            if (ta.isUnboundedWildcard()) {
+                // A component that is not a wildcard means the stub does not match the class
+                // file; the text parser warns and skips it.
+                if (component instanceof AnnotatedWildcardType) {
+                    AnnotationFileParser.annotateUnannotatedUnboundedWildcard(
+                            (AnnotatedWildcardType) component, atypeFactory);
+                }
                 continue;
             }
             AnnotationMirror am =

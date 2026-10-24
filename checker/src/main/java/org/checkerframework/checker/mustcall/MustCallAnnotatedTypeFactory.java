@@ -251,12 +251,11 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         protected void replace(
                 AnnotatedTypeMirror type, AnnotationMirrorMap<AnnotationMirror> replacements) {
             AnnotationMirrorMap<AnnotationMirror> realReplacements = replacements;
-            AnnotationMirror extantPolyAnnoReplacement = null;
             TypeElement typeElement = TypesUtils.getTypeElement(type.getUnderlyingType());
             // only customize replacement for type elements
             if (typeElement != null) {
                 assert replacements.size() == 1 && replacements.containsKey(POLY);
-                extantPolyAnnoReplacement = replacements.get(POLY);
+                AnnotationMirror extantPolyAnnoReplacement = replacements.get(POLY);
                 if (AnnotationUtils.areSameByName(
                         extantPolyAnnoReplacement, MustCall.class.getCanonicalName())) {
                     List<String> extentReplacementVals =
@@ -465,19 +464,21 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
     }
 
     /**
-     * Fetches the store from the results of dataflow for {@code first}. If {@code afterFirstStore}
-     * is true, then the store after {@code first} is returned; if {@code afterFirstStore} is false,
-     * the store before {@code succ} is returned.
+     * Fetches the store from the results of dataflow for {@code firstBlock}. If {@code
+     * afterFirstStore} is true, then the store after {@code firstBlock} is returned; if {@code
+     * afterFirstStore} is false, the store before {@code succBlock} is returned.
      *
-     * @param afterFirstStore whether to use the store after the first block or the store before its
-     *     successor, succ
-     * @param first a block
-     * @param succ first's successor
+     * @param afterFirstStore if true, use the store after {@code firstBlock}; if false, use the
+     *     store before its successor, {@code succBlock}
+     * @param firstBlock a CFG block
+     * @param succBlock {@code firstBlock}'s successor
      * @return the appropriate CFStore, populated with MustCall annotations, from the results of
      *     running dataflow
      */
-    public CFStore getStoreForBlock(boolean afterFirstStore, Block first, Block succ) {
-        return afterFirstStore ? flowResult.getStoreAfter(first) : flowResult.getStoreBefore(succ);
+    public CFStore getStoreForBlock(boolean afterFirstStore, Block firstBlock, Block succBlock) {
+        return afterFirstStore
+                ? flowResult.getStoreAfter(firstBlock)
+                : flowResult.getStoreBefore(succBlock);
     }
 
     /**
@@ -546,7 +547,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
     }
 
     /**
-     * Return the temporary variable for node, if it exists. See {@code #tempVars}.
+     * Returns the temporary variable for node, if it exists. See {@code #tempVars}.
      *
      * @param node a CFG node
      * @return the corresponding temporary variable, or null if there is not one
