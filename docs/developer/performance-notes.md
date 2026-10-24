@@ -2384,6 +2384,42 @@ field assignments in `while` and `for` loops reported the same errors with and w
 `-AatfDoNotCache`. Independently, the cached type of `this` differs from a recomputed one even when
 both queries come after dataflow (eisop#2344).
 
+### Type caches for constructor arguments in the Initialization Checker (October 2026, PR #2309)
+
+`InitializationParentAnnotatedTypeFactory.CommitmentTreeAnnotator.visitNewClass` typed the standalone
+arguments of a `new` expression with `shouldCache` turned off, which disabled every type factory
+cache for the argument and all of its subexpressions. The annotator runs at every query for the
+type of a `new` expression. The toggle came in with the rewrite of type argument inference; its
+commit message gives no reason. The change removes it, as typetools did (the same removal is part of
+typetools 3.51.1; the EISOP import of that release took only the test change).
+
+*Measured* (Nullness, JDK 25, wall time, median of 6 interleaved runs after a warm-up, master
+85e069f50d against the branch): plume-util 12.09 s to 11.73 s (-3.0%, faster in 6 of 6 pairs, at the
+edge of the +-3-5% run-to-run spread); framework sources, 1142 warnings, 43.89 s to 43.81 s (no
+measurable change). An earlier measurement of -4.5% on the framework sources, taken on top of other
+open perf PRs, did not reproduce. The harness's old framework snapshot has three javac errors, after
+which `SourceChecker` skips every later class, so that workload checks only a prefix and must not
+be used for this.
+
+*Where it matters:* nested constructor calls inside lambdas, the pattern of the `Issue6623` test,
+where the toggle made the time grow exponentially. `Issue6623.java` takes 5.5-6.3 s on master and
+1.8-2.1 s with the change; a three-level variant 20.0 s and 3.1 s; a four-level variant 87.4 s and
+6.9 s. With `-AatfDoNotCache` both take the same time (36.4 s on the three-level variant), so the
+whole gain comes from the caches. The earlier JFR figure (4.6% inclusive for `visitNewClass`,
+0.7% after) was measured on a different base and has not been repeated. The test is no longer
+skipped: the timing-based `slow.typechecking` expectation that made it too fast to run on GitHub
+Actions is gone.
+
+*Why it is sound, as far as tried:* `getAnnotatedType` caches only the `fromExpression` result. The
+tree annotators, the defaults and the flow refinement are not cached, so `visitNewClass` and its
+`isInitialized` and `isFbcBottom` checks run again at every query; the argument's cached type passes
+through the guards of the previous section. Inputs with an under-initialization `this` passed to
+constructors before, between and after field assignments, nested `new`, `this(...)` and `super(...)`,
+anonymous classes, lambdas, field initializers, and loops that change the initialization state of an
+argument gave identical output on master and on the branch, with and without `-AatfDoNotCache`, as
+did the `nullness`, `nullness-initialization`, `initialization` and `all-systems` test directories.
+No input was found on which the toggle changes a diagnostic.
+
 ---
 
 ## Tried and rejected
