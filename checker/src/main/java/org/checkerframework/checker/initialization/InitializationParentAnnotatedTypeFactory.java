@@ -1030,10 +1030,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
                 if (!TreeUtils.isStandaloneExpression(a)) {
                     continue;
                 }
-                boolean oldShouldCache = shouldCache;
-                shouldCache = false;
                 AnnotatedTypeMirror t = getAnnotatedType(a);
-                shouldCache = oldShouldCache;
                 if (!(isInitialized(t) || isFbcBottom(t))) {
                     allInitialized = false;
                     break;

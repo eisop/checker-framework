@@ -7,7 +7,11 @@
 # Fail if any command fails
 set -e
 
-make plume-scripts-update
+# The Makefile runs `git pull` in the separate .plume-scripts clone.  During
+# `git commit -a` or `git commit <path>`, git exports GIT_INDEX_FILE (and, in
+# a worktree, other GIT_* variables), which would make that `git pull` operate
+# on this repository's temporary index and corrupt it.
+env -u GIT_INDEX_FILE -u GIT_DIR -u GIT_WORK_TREE -u GIT_PREFIX make plume-scripts-update
 
 # Check formatting.  This is slow (3+ seconds).
 # Could instead do "spotlessApply", but then the changes don't appear in this commit.
