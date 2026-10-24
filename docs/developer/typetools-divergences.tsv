@@ -3,8 +3,12 @@
 # Columns, separated by tabs: kind, scope, typetools, eisop, since, reason.
 #   kind: "collision" = the same name means something different here, so an import can silently
 #         change behavior; "rename" = a different name for the same thing; "api" = a different
-#         design (see reason).
+#         design (see reason); "file" = the code of a typetools file is in other files here.
 #   typetools / eisop: a method or class name, as it appears in code; "-" if there is none.
+#         For "file", typetools is a path and eisop a comma-separated list of paths, "-" if the
+#         code has no counterpart here.  A path without a slash is in the directory of the
+#         typetools path; a path ending in a slash means all files in that directory.  A typetools
+#         path ending in a slash maps every file below it to the same name below the eisop path.
 #   since: the typetools release (or this fork's decision) the entry applies from.
 collision	AnnotatedTypeMirror	getAnnotation(	getEffectiveAnnotation(	3.55.0	typetools 3.55.0 (#7594) renamed getEffectiveAnnotation*, hasEffectiveAnnotation*, getEffectiveAnnotations to getAnnotation*, hasAnnotation*, getAnnotations. Here getAnnotation*, hasAnnotation*, and getAnnotations() keep meaning the annotations on that type itself, as in javac.
 collision	AnnotatedTypeMirror	getAnnotations()	getEffectiveAnnotations()	3.55.0	See getAnnotation(: the plain name means the annotations on the type itself, as in javac.
@@ -22,3 +26,16 @@ api	Node	setIsLoopCondition(boolean), getIsLoopCondition()	same	3.55.0	Adopted w
 api	ValueTransfer	try/catch (Exception) around values for -Acfgviz=...,verbose	-	3.55.0	Not adopted: typetools' workarounds catch every exception; the crash does not occur here (112 Value and 70 Index test files run with verbose cfgviz).
 api	docs	docs/.htaccess	(removed)	3.55.1	Apache redirects for checkerframework.org on the CSE web server; eisop.github.io is on GitHub Pages and ignores .htaccess.
 api	checker/tests/nullness-extra	issue502 on all JDKs	issue502 on JDK 17 and later	3.55.1	Its expected javap output holds a constant-pool index that differs between JDK 8, 11, and 17+.
+file	Initialization Checker	checker/src/main/java/org/checkerframework/checker/initialization/InitializationAnnotatedTypeFactory.java	InitializationParentAnnotatedTypeFactory.java, InitializationAnnotatedTypeFactory.java, InitializationFieldAccessTreeAnnotator.java	3.39.0-eisop1	This fork split the class when it separated the Initialization Checker from the Nullness Checker. The abstract superclass InitializationParentAnnotatedTypeFactory, shared with the field-access subchecker, holds the type and tree annotators, the qualifier hierarchy, and the type-frame helpers; the subclass InitializationAnnotatedTypeFactory holds the parts that use the flow analysis; InitializationFieldAccessTreeAnnotator types field accesses. Typetools' field-invariant methods have no counterpart. The import of typetools 3.51.1 dropped the source hunk of fc3a55d3521b because of this split.
+file	Nullness Checker	checker/src/main/java/org/checkerframework/checker/nullness/NullnessAnalysis.java	NullnessNoInitAnalysis.java	3.39.0-eisop1	Renamed when the Initialization Checker became a separate checker: the Nullness Checker runs NullnessNoInitSubchecker, which checks nullness without initialization.
+file	Nullness Checker	checker/src/main/java/org/checkerframework/checker/nullness/NullnessAnnotatedTypeFactory.java	NullnessNoInitAnnotatedTypeFactory.java	3.39.0-eisop1	See NullnessAnalysis.java.
+file	Nullness Checker	checker/src/main/java/org/checkerframework/checker/nullness/NullnessStore.java	NullnessNoInitStore.java	3.39.0-eisop1	See NullnessAnalysis.java.
+file	Nullness Checker	checker/src/main/java/org/checkerframework/checker/nullness/NullnessTransfer.java	NullnessNoInitTransfer.java	3.39.0-eisop1	See NullnessAnalysis.java.
+file	Nullness Checker	checker/src/main/java/org/checkerframework/checker/nullness/NullnessValue.java	NullnessNoInitValue.java	3.39.0-eisop1	See NullnessAnalysis.java.
+file	Nullness Checker	checker/src/main/java/org/checkerframework/checker/nullness/NullnessVisitor.java	NullnessNoInitVisitor.java	3.39.0-eisop1	See NullnessAnalysis.java.
+file	Nullness Checker	checker/src/main/java/org/checkerframework/checker/nullness/NullnessAnnotatedTypeFormatter.java	-	3.49.5-eisop1	Removed here when the type of the null literal became NullType; this fork prints null literals with their annotations.
+file	Report Checker	framework/src/main/java/org/checkerframework/common/util/count/report/	framework/src/main/java/org/checkerframework/common/util/report/	3.42.0-eisop1	Typetools moved the Report Checker to common.util.count.report; this fork keeps it in common.util.report.
+file	Report Checker	checker-qual/src/main/java/org/checkerframework/common/util/count/report/qual/	checker-qual/src/main/java/org/checkerframework/common/util/report/qual/	3.42.0-eisop1	See the Report Checker row above.
+file	TypeInformationPresenter	framework/src/main/java/org/checkerframework/framework/util/TypeInformationPresenter.java	framework/src/main/java/org/checkerframework/framework/util/visualize/	3.42.0-eisop3	This fork made the class reusable: an interface TypeInformationPresenter, the implementation in AbstractTypeInformationPresenter, and the message kind and range as TypeOccurrenceKind and TypeOccurrenceRange.
+file	AnnotationFormatter	javacutil/src/main/java/org/checkerframework/javacutil/AnnotationFormatter.java	framework/src/main/java/org/checkerframework/framework/util/AnnotationFormatter.java	3.21.2-eisop1	This fork moved the annotation formatters from javacutil to framework/util; typetools keeps them in javacutil.
+file	AnnotationFormatter	javacutil/src/main/java/org/checkerframework/javacutil/DefaultAnnotationFormatter.java	framework/src/main/java/org/checkerframework/framework/util/DefaultAnnotationFormatter.java	3.21.2-eisop1	See AnnotationFormatter.java.

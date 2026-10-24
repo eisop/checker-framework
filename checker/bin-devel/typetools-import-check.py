@@ -2,12 +2,17 @@
 """Aids to reviewing an import of typetools commits.
 
 The table docs/developer/typetools-divergences.tsv records where this fork names or defines
-something differently from typetools.  This script uses it in three ways:
+something differently from typetools.  This script uses it in these ways:
 
 * `--range FROM..TO`: list the lines that the typetools commits in the range add and that use a
   name from the table.  A hit is a prompt to review the line, not an error: for example, typetools'
   `getAnnotation(` means this fork's `getEffectiveAnnotation(`, but `Element.getAnnotation(` is
   the same everywhere.
+* `--hunks FROM..TO`: for every Java, stub, and message file that the typetools commits in the
+  range touch, find the files here that hold its code (by the `file` rows of the table, by the
+  same path, or by the same file name) and list a file without counterpart, the removed lines
+  that are still here, and the added lines that are not here.  This finds a hunk that an import
+  dropped because the code lives in another file here.  Again a hit is a prompt to review.
 * `--api-diff TAG`: list the public and protected method names that classes of the typetools tag
   declare and this working tree does not, which finds divergences that nobody has written down.
 * `--markdown` prints the table for docs/developer/README-eisop.md, and `--check-doc FILE` checks
@@ -134,6 +139,429 @@ def scan_range(commit_range: str) -> int:
     return count
 
 
+class FileMap:
+    """Maps a file that typetools touches to the files of this working tree that hold its code."""
+
+    def __init__(self) -> None:
+        """Read the `file` rows of the divergence table and index the working tree by file name."""
+        self.rows = [row for row in read_table() if row["kind"] == "file"]
+        self.by_name: dict[str, list[str]] = {}
+        for path in git("ls-files").splitlines():
+            self.by_name.setdefault(Path(path).name, []).append(path)
+
+    def counterparts(self, path: str) -> tuple[list[str], str] | None:
+        """Return the files of this working tree that hold the code of a typetools file.
+
+        Args:
+            path: a path in typetools, relative to the root of the repository
+
+        Returns:
+            the files, possibly empty if the table says the file has no counterpart here, and how
+            they were found (`table`, `same path`, or `same name`); None if there is no counterpart
+        """
+        for row in self.rows:
+            upstream = row["typetools"]
+            if upstream.endswith("/") and path.startswith(upstream):
+                mapped = row["eisop"].rstrip("/") + "/" + path[len(upstream) :]
+                return ([mapped], "table") if Path(mapped).is_file() else None
+            if path == upstream:
+                files = self.expand(path, row["eisop"])
+                existing = [file for file in files if Path(file).is_file()]
+                return (existing, "table") if existing or not files else None
+        if Path(path).is_file():
+            return [path], "same path"
+        candidates = self.by_name.get(Path(path).name, [])
+        if len(candidates) == 1:
+            return candidates, "same name"
+        return None
+
+    @staticmethod
+    def expand(path: str, eisop: str) -> list[str]:
+        """Return the files that the eisop column of a `file` row names.
+
+        Args:
+            path: the typetools path of the row
+            eisop: the eisop column: `-`, or comma-separated paths; a path without a slash is in
+                the directory of the typetools path, and a path ending in a slash stands for the
+                files in that directory
+
+        Returns:
+            the files of this working tree
+        """
+        if eisop.strip() == "-":
+            return []
+        files = []
+        for item in (item.strip() for item in eisop.split(",")):
+            full = str(Path(path).parent / item) if "/" not in item.rstrip("/") else item
+            if item.endswith("/"):
+                files += sorted(str(p) for p in Path(full).iterdir() if p.is_file())
+            else:
+                files.append(full)
+        return files
+
+
+TRIVIAL_RE = re.compile(r"^[\s{}()\[\];,]*$|^\s*(?:import|package)\s|^\s*(?:/\*|\*|//(?! ::)|#|%)")
+"""Matches a line that says nothing on its own: blank, braces only, an import, or a comment.
+
+The `// ::` lines of test files state expected diagnostics, so they are not comments here."""
+
+
+def is_compared(path: str) -> bool:
+    """Return true if `--hunks` compares the lines of a file.
+
+    Only code is compared: build files, CI configuration, scripts, and documentation diverge on
+    purpose in so many places that comparing them line by line buries the findings in code.
+
+    Args:
+        path: a path relative to the root of the repository
+
+    Returns:
+        true for Java sources (including tests), stub files, and checker message files
+    """
+    return path.endswith((".java", ".astub")) or Path(path).name == "messages.properties"
+
+
+DEPRECATED_SINCE_RE = re.compile(r'@Deprecated\(since = "([^"]*)"\)')
+"""Matches typetools' `@Deprecated(since = "date")`, which is `@Deprecated // date` here."""
+
+
+def normalize(line: str) -> str:
+    """Return a line with its whitespace collapsed and an expected-diagnostic key in parentheses.
+
+    Args:
+        line: a line of code
+
+    Returns:
+        the line, with each run of whitespace replaced by one space and without leading and
+        trailing whitespace; `// :: error: [key]` becomes `// :: error: (key)` and
+        `@Deprecated(since = "date")` becomes `@Deprecated // date`, as in the table
+    """
+    line = " ".join(line.split())
+    line = DEPRECATED_SINCE_RE.sub(r"@Deprecated // \1", line)
+    if line.startswith("// ::"):
+        line = re.sub(r"\[([\w.-]+)\]", r"(\1)", line)
+    return line
+
+
+def squeeze(text: str) -> str:
+    """Return text without any whitespace, so that a line matches however it is wrapped.
+
+    Args:
+        text: some code
+
+    Returns:
+        the code without whitespace
+    """
+    return "".join(text.split())
+
+
+class Counterpart:
+    """The text of the files of this working tree that hold the code of one typetools file."""
+
+    def __init__(self, files: list[str]) -> None:
+        """Read the files.
+
+        Args:
+            files: paths relative to the root of the repository
+        """
+        self.lines: dict[str, list[tuple[str, int]]] = {}
+        squeezed = []
+        for path in files:
+            text = Path(path).read_text(encoding="utf-8", errors="replace")
+            for number, line in enumerate(text.splitlines(), start=1):
+                self.lines.setdefault(normalize(line), []).append((path, number))
+            squeezed.append(squeeze(text))
+        self.squeezed = "\n".join(squeezed)
+
+    def where(self, line: str) -> list[tuple[str, int]]:
+        """Return where a line occurs as a whole line.
+
+        Args:
+            line: a normalized line
+
+        Returns:
+            the file and line number of each occurrence
+        """
+        return self.lines.get(line, [])
+
+    def contains(self, line: str) -> bool:
+        """Return true if a line occurs, possibly wrapped differently.
+
+        Args:
+            line: a normalized line
+
+        Returns:
+            true if the line, without whitespace, occurs in the text without whitespace
+        """
+        return squeeze(line) in self.squeezed
+
+
+def short(path: str) -> str:
+    """Return a path with its Java package directories abbreviated, for output.
+
+    Args:
+        path: a path relative to the root of the repository
+
+    Returns:
+        the path, with `src/main/java/org/checkerframework/` replaced by `.../`
+    """
+    return path.replace("src/main/java/org/checkerframework/", ".../")
+
+
+def relative(file: str, upstream: str) -> str:
+    """Return a counterpart file for output, without its directory if it is that of upstream.
+
+    Args:
+        file: a counterpart file
+        upstream: the typetools file
+
+    Returns:
+        the file name if both are in the same directory, otherwise short(file)
+    """
+    same = Path(file).parent == Path(upstream).parent
+    return Path(file).name if same else short(file)
+
+
+def parse_diff(diff: str) -> list[dict]:
+    """Split the output of `git show` into files and hunks.
+
+    Args:
+        diff: a unified diff, without the commit header
+
+    Returns:
+        one dictionary per file, with the keys old and new (paths, None for /dev/null) and hunks
+        (a list of dictionaries with the keys start, the line number in the old file, and lines,
+        the lines of the hunk with their leading `+`, `-`, or space)
+    """
+    files: list[dict] = []
+    for line in diff.split("\n"):
+        if line.startswith("diff --git "):
+            old, _, new = line[len("diff --git a/") :].partition(" b/")
+            files.append({"old": old, "new": new, "hunks": []})
+        elif not files:
+            continue
+        elif line.startswith("--- ") and not files[-1]["hunks"]:
+            files[-1]["old"] = None if line == "--- /dev/null" else line[6:]
+        elif line.startswith("+++ ") and not files[-1]["hunks"]:
+            files[-1]["new"] = None if line == "+++ /dev/null" else line[6:]
+        elif match := re.match(r"@@ -(\d+)", line):
+            files[-1]["hunks"].append({"start": int(match.group(1)), "lines": []})
+        elif files[-1]["hunks"] and line[:1] in ("+", "-", " "):
+            files[-1]["hunks"][-1]["lines"].append(line)
+    return files
+
+
+class Renamer:
+    """Rewrites typetools' method names in a line into the names this fork uses."""
+
+    def __init__(self) -> None:
+        """Collect the method names of the `collision` and `rename` rows of the table.
+
+        A row names one method, but its reason usually covers the family of methods that start
+        with that name (`getAnnotation(` also stands for `getAnnotationInHierarchy(`), so a name
+        is rewritten as a prefix.  A row `*Word*` stands for dropping Word from any method name.
+        """
+        self.names: dict[str, str] = {}
+        self.dropped: list[str] = []
+        for row in read_table():
+            if row["kind"] in ("collision", "rename"):
+                theirs = re.fullmatch(r"([A-Za-z_]\w*)\(\)?", row["typetools"])
+                ours = re.fullmatch(r"([A-Za-z_]\w*)\(\)?", row["eisop"])
+                word = re.fullmatch(r"\*(\w+)\*", row["typetools"])
+                if theirs and ours:
+                    self.names[theirs.group(1)] = ours.group(1)
+                elif word:
+                    self.dropped.append(word.group(1))
+        self.prefixes = sorted(self.names, key=len, reverse=True)
+
+    def rename(self, match: re.Match[str]) -> str:
+        """Return the name this fork uses for a method name of typetools.
+
+        Args:
+            match: a match of a method name followed by `(`; group 1 is the name
+
+        Returns:
+            the replacement for the match
+        """
+        name = match.group(1)
+        for prefix in self.prefixes:
+            if name.startswith(prefix):
+                return self.names[prefix] + name[len(prefix) :] + "("
+        for word in self.dropped:
+            name = name.replace(word, "")
+        return name + "("
+
+    def ours(self, line: str) -> str:
+        """Return a line with typetools' method names replaced by the names this fork uses.
+
+        Args:
+            line: a line of typetools code
+
+        Returns:
+            the line under this fork's names; each name is rewritten once, so that two renamings
+            are not chained
+        """
+        return re.sub(r"\b([A-Za-z_]\w*)\(", self.rename, line)
+
+
+MIN_LENGTH = 8
+"""The length, without whitespace, below which a line is too common to compare, like `try {`."""
+
+MIN_ANCHORS = 2
+"""The number of anchor lines a hunk needs before its absence here suggests that code moved."""
+
+ANCHOR_LENGTH = 12
+"""The length, without whitespace, that a line needs to locate its hunk in a counterpart."""
+
+
+def compare_file(entry: dict, files: list[str], upstream: str, renamer: Renamer) -> list[str]:
+    """Compare the hunks of one typetools file with its counterpart here.
+
+    Args:
+        entry: a file of parse_diff
+        files: the counterpart files here
+        upstream: the text of the typetools file at the end of the range, to tell whether a
+            removed line is gone there and whether an added line survived the range
+        renamer: rewrites typetools' method names into ours
+
+    Returns:
+        the findings, one line each
+    """
+    here = Counterpart(files)
+    there = {normalize(line) for line in upstream.splitlines()}
+    normalized = "\n".join(there)
+    there_squeezed = squeeze(normalized) + "\n" + squeeze(renamer.ours(normalized))
+    findings = []
+    for hunk in entry["hunks"]:
+        removed = []
+        added = []
+        anchors = []
+        for raw in hunk["lines"]:
+            if TRIVIAL_RE.match(raw[1:]):
+                continue
+            line = normalize(raw[1:])
+            if raw[0] != "+" and len(squeeze(line)) >= ANCHOR_LENGTH:
+                anchors.append(line)
+            if len(squeeze(line)) < MIN_LENGTH:
+                continue
+            if raw[0] == "-":
+                removed.append(line)
+            elif raw[0] == "+" and line in there:
+                added.append(line)
+        if len(anchors) >= MIN_ANCHORS and not any(here.contains(line) for line in anchors):
+            if removed or any(not here.contains(renamer.ours(line)) for line in added):
+                findings.append(
+                    f"hunk at line {hunk['start']} not found here (none of its {len(anchors)}"
+                    " context/removed lines occur); the code may have moved"
+                )
+            continue
+        for line in removed:
+            occurrences = here.where(line)
+            if occurrences and squeeze(line) not in there_squeezed:
+                path, number = occurrences[0]
+                findings.append(
+                    f"removed there, still here ({Path(path).name}:{number}): {line[:100]}"
+                )
+        findings.extend(
+            f"added there, missing here: {line[:100]}"
+            for line in added
+            if not here.contains(line) and not here.contains(renamer.ours(line))
+        )
+    return list(dict.fromkeys(findings))
+
+
+def check_refs(commit_range: str) -> tuple[str, str]:
+    """Check that a range names two existing revisions.
+
+    Args:
+        commit_range: a range such as `checker-framework-3.51.0..checker-framework-3.51.1`
+
+    Returns:
+        the two revisions
+    """
+    parts = commit_range.split("..")
+    if len(parts) != 2 or not all(parts):
+        sys.exit(f"--hunks expects FROM..TO, got: {commit_range}")
+    for ref in parts:
+        if not git("rev-parse", "--verify", "--quiet", ref + "^{commit}"):
+            sys.exit(
+                f"unknown revision {ref!r}; fetch typetools tags with: git fetch typetools --tags"
+            )
+    return parts[0], parts[1]
+
+
+def compare_hunks(commit_range: str) -> int:
+    """Print where the hunks of a range of typetools commits disagree with this working tree.
+
+    For each file a commit touches, find the files here that hold its code (see FileMap) and
+    report a file without counterpart, removed lines that are still here, and added lines that
+    are not here.
+
+    Args:
+        commit_range: a range such as `checker-framework-3.51.0..checker-framework-3.51.1`
+
+    Returns:
+        the number of findings printed
+    """
+    _, to_ref = check_refs(commit_range)
+    file_map = FileMap()
+    renamer = Renamer()
+    upstream_cache: dict[str, str] = {}
+    commits = git("log", "--no-merges", "--reverse", "--format=%H", commit_range).split()
+    count = 0
+    skipped: set[str] = set()
+    for commit in commits:
+        header = git("show", "-s", "--format=%h %s", commit).strip()
+        printed_header = False
+        for entry in parse_diff(git("show", "-M", "--format=", commit)):
+            path = entry["new"] or entry["old"]
+            if not is_compared(path):
+                skipped.add(path)
+                continue
+            if not entry["hunks"]:
+                continue
+            found = file_map.counterparts(path)
+            if found is None and entry["old"] and entry["old"] != path:
+                found = file_map.counterparts(entry["old"])
+            how = ""
+            if found is None:
+                if entry["new"] is None:
+                    findings = []
+                elif entry["old"] is None:
+                    findings = ["new there, no counterpart here"]
+                else:
+                    findings = ["no counterpart here and no file row in the table"]
+            elif not found[0]:
+                findings = []
+            elif entry["new"] is None:
+                files, method = found
+                findings = [f"deleted there, still here: {', '.join(map(short, files))} ({method})"]
+            else:
+                files, method = found
+                if method != "same path":
+                    names = [relative(file, path) for file in files]
+                    how = f" -> {', '.join(names)} ({method})"
+                if path not in upstream_cache:
+                    upstream_cache[path] = git("show", f"{to_ref}:{path}") or git(
+                        "show", f"{commit}:{path}"
+                    )
+                findings = compare_file(entry, files, upstream_cache[path], renamer)
+            if findings:
+                if not printed_header:
+                    print(f"\n{header}")
+                    printed_header = True
+                print(f"  {short(path)}{how}")
+                for finding in findings:
+                    print(f"    {finding}")
+                count += len(findings)
+    print(
+        f"\n{count} finding(s) in {len(commits)} commit(s); {len(skipped)} file(s) that are not"
+        " code were not compared.  These are prompts for review, not"
+        " errors: mark each as handled or deliberately skipped in the import pull request."
+    )
+    return count
+
+
 def method_names(source: str) -> set[str]:
     """Return the names of the public and protected methods that a Java source file declares.
 
@@ -218,6 +646,9 @@ def main() -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--range", help="list added lines that use a name from the table")
     group.add_argument("--api-diff", metavar="TAG", help="list typetools-only method names")
+    group.add_argument(
+        "--hunks", metavar="FROM..TO", help="compare the hunks of a range with this working tree"
+    )
     group.add_argument("--markdown", action="store_true", help="print the table as Markdown")
     group.add_argument("--check-doc", metavar="FILE", help="check the table in a Markdown file")
     args = parser.parse_args()
@@ -225,6 +656,8 @@ def main() -> int:
         scan_range(args.range)
     elif args.api_diff:
         api_diff(args.api_diff)
+    elif args.hunks:
+        compare_hunks(args.hunks)
     elif args.markdown:
         print(markdown())
     else:
