@@ -2030,6 +2030,8 @@ profiled: `RLCCalledMethodsAnnotatedTypeFactory#analyze` calls `rlc.setRoot(getR
 CFG it analyzes, and the Resource Leak Checker, the ultimate parent, cleared the whole cache there.
 A separate map of artificial trees was tried first and dropped: more code, and it kept the lossy
 null result.
+The shared cache now lives for the whole compilation unit instead of being cleared by each
+`setRoot`; no memory problem was observed, and its size is bounded by the unit.
 
 The real paths of artificial trees exposed two older bugs. The Index Checker crashed on an upper
 bound offset with an error, which a null path had hidden (fixed in PR #2308). And

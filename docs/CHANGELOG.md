@@ -279,7 +279,7 @@ Performance optimizations:
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
 - The checkers of a compound checker keep the shared tree path cache for the same compilation unit,
   so they no longer scan the whole compilation unit for the trees that dataflow analysis creates
-  (Resource Leak Checker on plume-util 9-16% faster).
+  (Resource Leak Checker on plume-util about 6-16% faster).
 - `ElementUtils.isElementFromSourceCode` caches its result per source file object instead
   of constructing a `URI` on every call.
 - `Resolver.getEnvForPath` caches the attribution environment per location, so that
