@@ -2091,6 +2091,31 @@ offset=...)` in a few messages (one to six, depending on the build). That order 
 in identity-hash order, and the change allocates differently. With `-XX:hashCode=2` (constant
 identity hash codes) the messages of both versions are identical.
 
+After that fix, JFR at N = 4000 (805 samples) showed a second quadratic: 32% self-time in
+`AnnotatedTypeFactory#declarationFromElement`, at its `TreeInfo.declarationFor` calls, reached from
+`GenericAnnotatedTypeFactory#getAnnotatedTypeLhs` for `j`. `getAnnotatedTypeLhs` sets
+`shouldCache` to false while it computes the type of the left-hand side, and
+`declarationFromElement` used `elementToTreeCache` only when `shouldCache` was true, so it scanned
+the method body for the declaration of `j` at each assignment. The declaration of an element does
+not depend on the types computed so far, so the cache is now used whenever it exists, that is,
+unless `-AatfDoNotCache` is given. N = 500/1000/2000/4000: 2.2/2.9/3.9/5.8 s, about 1 ms per pair
+from N = 1000 on, so linear; the N = 4000 profile no longer has a leaf above 8%. Plume-util
+diagnostics are as with the first fix.
+
+Wall time of the repro (s, medians of 3 interleaved runs, JDK 21):
+
+| N | PR #2360 | shared environments | and declaration cache |
+| ---: | ---: | ---: | ---: |
+| 500 | 3.28 | 2.45 | 2.23 |
+| 1000 | 6.94 | 3.30 | 2.92 |
+| 2000 | 18.40 | 5.06 | 3.87 |
+| 4000 | 60.92 | 8.72 | 5.80 |
+
+On plume-util with its `@SuppressWarnings` removed (JDK 25, medians of 5 interleaved runs after a
+warm-up), master and both changes took 10.29 s and 9.30 s under the Resource Leak Checker, and
+19.83 s and 19.63 s under the Index Checker. The Resource Leak Checker's gain is presumably that of
+PR #2360: an earlier build of its branch took about as long as both changes (3 interleaved runs).
+
 ### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
 
 `CheckerFrameworkPerDirectoryTest` previously hardcoded `-AajavaChecks` across all directory tests.

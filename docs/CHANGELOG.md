@@ -288,6 +288,9 @@ Performance optimizations:
 - `Resolver.getEnvForPath` computes the attribution environment once for each run of expression
   statements in a block, instead of re-attributing the method body up to each statement of the run.
   The Index Checker on a method with 4000 compound assignments takes about 9 s instead of 61 s.
+- `AnnotatedTypeFactory.declarationFromElement` uses its cache also for the left-hand side of an
+  assignment, instead of scanning the enclosing method again for each assignment to a local
+  variable. The method with 4000 compound assignments now takes about 6 s.
 - `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
   by their class instead of missing for each new instance of the same type.
 - The types of method invocations, new class, conditional, and other flow-dependent expressions are
