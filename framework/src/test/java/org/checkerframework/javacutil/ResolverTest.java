@@ -1,7 +1,6 @@
 package org.checkerframework.javacutil;
 
 import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TreePath;
@@ -22,13 +21,10 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
 
 /**
- * Unit tests for how {@link Resolver} finds local variables at a path that ends with artificial
- * trees, such as the trees that the CFG builder creates for a compound assignment. Such a tree is
- * not part of the compilation unit, but it has a path: the path of the tree it was created for,
- * with the artificial tree appended.
- *
- * <p>In these tests the trees of the field initializer {@code (1 + 2)} stand in for artificial
- * trees: they are not in the method body that the paths lead into.
+ * Unit tests for how {@link Resolver} finds local variables at a path to a tree of the compilation
+ * unit. A path that ends with an artificial tree, which is not in the compilation unit, must not be
+ * passed to {@code Resolver}; {@code StringToJavaExpression#atPath} resolves it in the scope of the
+ * tree it was created for.
  */
 public class ResolverTest {
 
@@ -37,7 +33,6 @@ public class ResolverTest {
             String.join(
                     "\n",
                     "class R {",
-                    "  int standIn = (1 + 2);",
                     "  void m(int p) {",
                     "    int a = 1;",
                     "    {",
@@ -64,9 +59,6 @@ public class ResolverTest {
 
     /** The resolver under test. */
     private Resolver resolver;
-
-    /** The stand-in for an artificial tree that has an artificial child: {@code (1 + 2)}. */
-    private ParenthesizedTree artificial;
 
     /**
      * Parses and attributes {@link #SOURCE}.
@@ -100,7 +92,6 @@ public class ResolverTest {
         resolver =
                 new Resolver(
                         JavacProcessingEnvironment.instance(((BasicJavacTask) task).getContext()));
-        artificial = (ParenthesizedTree) find("(1 + 2)");
     }
 
     /**
@@ -156,58 +147,38 @@ public class ResolverTest {
         }
     }
 
-    /** At a tree in the compilation unit, the scope is that of the tree. */
+    /**
+     * At a tree in the compilation unit, the scope is that of the tree. That includes {@code b},
+     * which is declared in the innermost block, so the scope is neither that of the method nor that
+     * of the block.
+     */
     @Test
     public void treeInSource() {
         assertScope(pathOf("b + a"), new String[] {"p", "a", "b", "c"}, "later", "q", "g");
     }
 
-    /**
-     * At an artificial tree whose path is that of a tree in the compilation unit, the scope is that
-     * of the tree in the compilation unit. That includes {@code b}, which is declared in the
-     * innermost block, so the scope is neither that of the method nor that of the block.
-     */
+    /** At a tree in the body of a lambda, the scope includes the lambda's variables. */
     @Test
-    public void artificialTree() {
-        TreePath path = new TreePath(pathOf("b + a"), artificial);
-        assertScope(path, new String[] {"p", "a", "b", "c"}, "later", "q", "g");
+    public void treeInLambda() {
+        assertScope(pathOf("e + a"), new String[] {"p", "a", "q", "e"}, "b", "later", "g");
     }
 
     /**
-     * At an artificial tree that is a child of another artificial tree, the scope is that of the
-     * tree in the compilation unit that the outer artificial tree was created for.
+     * At a tree in a method of an anonymous class, the scope includes the variables of the method
+     * and of the enclosing method.
      */
     @Test
-    public void artificialTreeInArtificialTree() {
-        TreePath outer = new TreePath(pathOf("b + a"), artificial);
-        TreePath inner = new TreePath(outer, artificial.getExpression());
-        assertScope(inner, new String[] {"p", "a", "b", "c"}, "later", "q", "g");
-    }
-
-    /** At an artificial tree in the body of a lambda, the scope includes the lambda's variables. */
-    @Test
-    public void artificialTreeInLambda() {
-        TreePath path = new TreePath(pathOf("e + a"), artificial);
-        assertScope(path, new String[] {"p", "a", "q", "e"}, "b", "later", "g");
+    public void treeInAnonymousClass() {
+        assertScope(pathOf("g + p"), new String[] {"p", "a", "g", "h"}, "b", "q", "e");
     }
 
     /**
-     * At an artificial tree in a method of an anonymous class, the scope includes the variables of
-     * the method and of the enclosing method.
+     * At a path that the CFG builder makes for a statement in a {@code switch}, without the {@code
+     * case}, the scope is that of the statement, which includes the variables declared in the
+     * {@code case}.
      */
     @Test
-    public void artificialTreeInAnonymousClass() {
-        TreePath path = new TreePath(pathOf("g + p"), artificial);
-        assertScope(path, new String[] {"p", "a", "g", "h"}, "b", "q", "e");
-    }
-
-    /**
-     * At an artificial tree whose path is a path that the CFG builder makes for a statement in a
-     * {@code switch}, without the {@code case}, the scope is that of the statement, which includes
-     * the variables declared in the {@code case}.
-     */
-    @Test
-    public void artificialTreeInSwitchWithoutCase() {
+    public void treeInSwitchWithoutCase() {
         TreePath real = pathOf("s += a");
         TreePath statement = real.getParentPath();
         TreePath caseTree = statement.getParentPath();
@@ -216,22 +187,5 @@ public class ResolverTest {
                         new TreePath(caseTree.getParentPath(), statement.getLeaf()),
                         real.getLeaf());
         assertScope(withoutCase, new String[] {"p", "a", "s"}, "b", "q", "g");
-        assertScope(new TreePath(withoutCase, artificial), new String[] {"p", "a", "s"}, "b");
-    }
-
-    /**
-     * An artificial tree has the same environment as the tree in the compilation unit that it was
-     * created for, whichever of the two is looked up first.
-     */
-    @Test
-    public void environmentIsShared() {
-        TreePath real = pathOf("b + a");
-        TreePath path = new TreePath(real, artificial);
-        Assert.assertSame(resolver.getEnvForPath(path), resolver.getEnvForPath(real));
-        Assert.assertSame(resolver.getEnvForPath(path), resolver.getEnvForPath(path));
-
-        TreePath real2 = pathOf("e + a");
-        TreePath path2 = new TreePath(real2, artificial.getExpression());
-        Assert.assertSame(resolver.getEnvForPath(real2), resolver.getEnvForPath(path2));
     }
 }

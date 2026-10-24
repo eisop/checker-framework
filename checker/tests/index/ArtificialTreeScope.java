@@ -6,6 +6,7 @@ import org.checkerframework.checker.index.qual.SameLen;
 
 import java.io.StringReader;
 import java.util.List;
+import java.util.function.Consumer;
 
 // A compound assignment, increment, or decrement creates artificial trees in the CFG (the
 // operation and a cast). The dependent-type expressions in the type of such a tree must be
@@ -170,6 +171,18 @@ public class ArtificialTreeScope {
                     int[] d = new int[n];
                     @LTEqLengthOf("d") int k = d.length;
                     k -= 1;
+                };
+    }
+
+    void lambdaWithParameter() {
+        Consumer<int[]> c =
+                (int[] a) -> {
+                    // A dependent type that names the lambda parameter, or a variable whose type
+                    // refers to it, crashes with or without an artificial tree; see eisop#2355.
+                    int[] b = new int[3];
+                    @LTEqLengthOf("b") int j = b.length;
+                    j -= 1;
+                    j--;
                 };
     }
 

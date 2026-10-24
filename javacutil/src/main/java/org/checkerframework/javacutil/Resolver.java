@@ -1,10 +1,7 @@
 package org.checkerframework.javacutil;
 
-import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
-import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacScope;
 import com.sun.tools.javac.code.Kinds;
@@ -37,10 +34,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.Map;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -328,8 +322,8 @@ public class Resolver {
     /**
      * Determine the environment for the given path.
      *
-     * <p>If the path ends with artificial trees, which are not part of the compilation unit, the
-     * environment is that of the nearest tree before them; see {@link #pathInSource}.
+     * <p>The leaf of {@code path} must be a tree of the compilation unit; for an artificial tree,
+     * pass the path of the tree it was created for (see {@code StringToJavaExpression#atPath}).
      *
      * @param path the tree path to the local scope
      * @return the corresponding attribution environment
@@ -340,178 +334,9 @@ public class Resolver {
         if (cached != null) {
             return cached;
         }
-        TreePath sourcePath = pathInSource(path);
-        Tree sourceLeaf = sourcePath.getLeaf();
-        @SuppressWarnings("interning:not.interned") // reference equality of trees
-        boolean isSourcePath = sourceLeaf == leaf;
-        Env<AttrContext> result = isSourcePath ? null : envCache.get(sourceLeaf);
-        if (result == null) {
-            result = computeEnvForPath(sourcePath);
-            envCache.put(sourceLeaf, result);
-        }
-        if (!isSourcePath) {
-            envCache.put(leaf, result);
-        }
+        Env<AttrContext> result = computeEnvForPath(path);
+        envCache.put(leaf, result);
         return result;
-    }
-
-    /**
-     * Returns {@code path}, or the longest prefix of it whose leaf is in the compilation unit if
-     * the leaf of {@code path} is an artificial tree.
-     *
-     * <p>An artificial tree, such as one that the CFG builder creates for a compound assignment, is
-     * not part of the compilation unit, but it can have a path: the path of the tree it was created
-     * for, with the artificial tree appended. {@link Trees#getScope} cannot handle such a path. It
-     * attributes a copy of the method body (or field initializer) at the start of the path, up to
-     * the copy of the leaf of the path; it does not find the leaf, and returns the scope of the
-     * method, which lacks the method's local variables. The scope of the tree that the artificial
-     * tree was created for is the right one.
-     *
-     * <p>{@code getScope} uses only the start of the path, up to the copied tree, and the leaf. A
-     * path need not be a chain of children: an artificial tree can be a child of another artificial
-     * tree (an artificial cast of an artificial binary operation), and the CFG builder leaves the
-     * {@code case} out of the path of a statement in a {@code switch}. So if each tree on the path
-     * below the copied tree is a child of the tree before it, the leaf is in the compilation unit
-     * and the path is returned. Otherwise the copied tree is searched for the trees on the path,
-     * which costs no more than the copy that {@code getScope} makes, and the path is cut after the
-     * deepest one found.
-     *
-     * <p>Both checks rely on {@link TreeScanner} visiting every child of a tree. It does not visit
-     * the children of an {@link com.sun.source.tree.ErroneousTree}, so a path through one is cut
-     * above it and resolves in a wider scope. This is accepted: a compilation unit with errors is
-     * normally not type-checked, and the result is best effort for it. The other visit methods of
-     * {@code TreeScanner} that scan nothing are for trees without children and {@code visitOther},
-     * which visits javac-internal trees such as the {@code LetExpr} that lowering creates (checked
-     * for JDK 8, 11, 17, 21, 25, and 26).
-     *
-     * @param path a tree path
-     * @return {@code path}, or the longest prefix of it whose leaf is in the compilation unit
-     */
-    private static TreePath pathInSource(TreePath path) {
-        // The trees on the path, from the compilation unit to the leaf.
-        ArrayList<Tree> trees = new ArrayList<>();
-        for (TreePath p = path; p != null; p = p.getParentPath()) {
-            trees.add(p.getLeaf());
-        }
-        Collections.reverse(trees);
-        int copied = indexOfCopiedTree(trees);
-        int last = trees.size() - 1;
-        if (copied < 0 || copied == last || isChain(trees, copied)) {
-            return path;
-        }
-        int found = indexOfDeepestInSubtree(trees, copied);
-        TreePath result = path;
-        for (int i = last; i > found; i--) {
-            result = result.getParentPath();
-            assert result != null : "@AssumeAssertion(nullness): found >= 0";
-        }
-        return result;
-    }
-
-    // This file imports javac's List, for the arguments of javac's resolution methods, so
-    // java.util.List is written fully qualified here; do not import it instead.
-
-    /**
-     * Returns the index of the tree that {@link Trees#getScope} copies and attributes for a path
-     * with the given trees: the first block, or the initializer of the last variable before it.
-     * This follows {@code JavacTrees.getAttrContext}.
-     *
-     * @param trees the trees on a path, from the compilation unit to the leaf
-     * @return the index of the tree that {@code getScope} copies, or -1 if there is none
-     */
-    @SuppressWarnings("interning:not.interned") // reference equality of trees
-    private static int indexOfCopiedTree(java.util.List<Tree> trees) {
-        VariableTree variable = null;
-        for (int i = 0; i < trees.size(); i++) {
-            Tree tree = trees.get(i);
-            if (tree instanceof BlockTree) {
-                return i;
-            } else if (tree instanceof VariableTree) {
-                variable = (VariableTree) tree;
-            } else if (variable != null && variable.getInitializer() == tree) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    /**
-     * Returns true if each tree in {@code trees} after index {@code start} is a child of the tree
-     * before it.
-     *
-     * @param trees the trees on a path, from the compilation unit to the leaf
-     * @param start the index of the first tree to check the children of
-     * @return true if each tree after {@code start} is a child of the tree before it
-     */
-    private static boolean isChain(java.util.List<Tree> trees, int start) {
-        for (int i = start + 1; i < trees.size(); i++) {
-            if (!isChild(trees.get(i - 1), trees.get(i))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Returns true if {@code child} is a child of {@code parent}, that is, one of the trees that a
-     * {@link TreeScanner} visits directly from {@code parent}.
-     *
-     * @param parent a tree
-     * @param child a tree
-     * @return true if {@code child} is a child of {@code parent}
-     */
-    private static boolean isChild(Tree parent, Tree child) {
-        return Boolean.TRUE.equals(parent.accept(IS_CHILD_SCANNER, child));
-    }
-
-    /**
-     * Visits a tree and returns true if the parameter is one of its children. It does not visit
-     * deeper, so its cost is the number of children.
-     */
-    private static final TreeScanner<@Nullable Boolean, Tree> IS_CHILD_SCANNER =
-            new TreeScanner<@Nullable Boolean, Tree>() {
-                @Override
-                @SuppressWarnings("interning:not.interned") // reference equality of trees
-                public @Nullable Boolean scan(@Nullable Tree tree, Tree child) {
-                    return tree == child;
-                }
-
-                @Override
-                public @Nullable Boolean reduce(@Nullable Boolean r1, @Nullable Boolean r2) {
-                    return Boolean.TRUE.equals(r1) || Boolean.TRUE.equals(r2);
-                }
-            };
-
-    /**
-     * Returns the largest index of a tree in {@code trees} that is in the subtree of the tree at
-     * index {@code root}.
-     *
-     * @param trees the trees on a path, from the compilation unit to the leaf
-     * @param root the index of the tree whose subtree to search
-     * @return the largest index, at least {@code root}, of a tree in the subtree of {@code
-     *     trees.get(root)}
-     */
-    private static int indexOfDeepestInSubtree(java.util.List<Tree> trees, int root) {
-        int last = trees.size() - 1;
-        IdentityHashMap<Tree, Integer> indexes = new IdentityHashMap<>();
-        for (int i = root + 1; i <= last; i++) {
-            indexes.put(trees.get(i), i);
-        }
-        int[] deepest = {root};
-        new TreeScanner<Void, Void>() {
-            @Override
-            public Void scan(@Nullable Tree tree, Void p) {
-                if (tree == null || deepest[0] == last) {
-                    return null;
-                }
-                Integer index = indexes.get(tree);
-                if (index != null && index > deepest[0]) {
-                    deepest[0] = index;
-                }
-                return super.scan(tree, p);
-            }
-        }.scan(trees.get(root), null);
-        return deepest[0];
     }
 
     /**
