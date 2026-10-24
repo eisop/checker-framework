@@ -293,6 +293,10 @@ Performance optimizations:
 
 Other improvements and bug fixes:
 
+- A checker that packages its own `annotated-jdk` in its jar (such as the JSpecify
+  reference checker) now uses it, even when `checker.jar` is earlier on the processor path.
+- The Index Checker no longer crashes with a `NullPointerException` on an upper bound
+  annotation, such as `@LTLengthOf`, whose `offset` is an expression with an error.
 - The types of method invocations, field accesses, array accesses, and switch expressions are no
   longer reused from an earlier fixpoint iteration while dataflow analysis is running, including
   for the arguments of an enclosing invocation that type argument inference types together with
@@ -546,6 +550,7 @@ eisop#2287,
 eisop#2288,
 eisop#2323,
 eisop#2343,
+eisop#2349,
 typetools#399,
 typetools#602,
 typetools#2816,
