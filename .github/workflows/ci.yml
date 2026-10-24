@@ -23,14 +23,14 @@ env:
   # Pinned pre-release JDK build, from jdk.java.net. Renovate bumps JDK_EA_BUILD;
   # JDK_EA_MAJOR changes by hand when the next feature release opens.
   JDK_EA_MAJOR: "28"
-  JDK_EA_BUILD: "20"
+  JDK_EA_BUILD: "21"
 
 jobs:
   # All Linux test suites across all supported JDKs in a single parallel matrix.
   linux-tests:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-26.04
-    timeout-minutes: 60
+    timeout-minutes: 35
     strategy:
       fail-fast: true
       matrix:
@@ -110,6 +110,8 @@ jobs:
           fetch-depth: 1
 
       - name: Set up test environment
+        # Setup normally takes 1-5 minutes; one that takes 15 is stuck (apt, cache restore), so fail it early.
+        timeout-minutes: 15
         uses: ./.github/actions/setup-test-env
         with:
           primary-jdk: ${{ env.PRIMARY_JDK }}
@@ -129,7 +131,7 @@ jobs:
   otheros:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -142,18 +144,21 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up JDK ${{ matrix.java_version }}
+        timeout-minutes: 10
         uses: actions/setup-java@v6.1.0
         with:
           java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
 
       - name: Setup Gradle
+        timeout-minutes: 10
         uses: gradle/actions/setup-gradle@v6.4.0
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/master' }}
 
       - name: Install coreutils on macOS
         if: ${{ matrix.os == 'macos-latest' }}
+        timeout-minutes: 10
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
           HOMEBREW_NO_INSTALL_CLEANUP: "1"
@@ -161,6 +166,7 @@ jobs:
 
       - name: Install wget on Windows
         if: ${{ matrix.os == 'windows-latest' }}
+        timeout-minutes: 10
         run: choco install wget --no-progress
 
       - name: Run test script checker/bin-devel/test-${{ matrix.script }}
@@ -181,6 +187,7 @@ jobs:
           fetch-depth: 1
 
       - name: Set up test environment
+        timeout-minutes: 15
         uses: ./.github/actions/setup-test-env
         with:
           primary-jdk: ${{ env.PRIMARY_JDK }}
