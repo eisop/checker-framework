@@ -273,6 +273,53 @@ public class TreePathCacherTest {
     }
 
     /**
+     * Simulates the checkers of a compound checker, which share one cache and each call {@link
+     * TreePathCacher#useUnit} when they start a compilation unit: every entry, a registered path, a
+     * path found by a scan, and a cached absence, survives the later checkers' calls for the same
+     * unit, and none survives the next unit, even when the unit after that is the first one again.
+     *
+     * @throws Exception if parsing the test sources fails
+     */
+    @Test
+    public void useUnitKeepsEntriesForAllCheckersOfAUnit() throws Exception {
+        CompilationUnitTree cu1 = parse("A", "class A { int f() { return 1; } }");
+        CompilationUnitTree cu2 = parse("B", "class B { int g() { return 2; } }");
+        List<Tree> cu1Trees = treesUnder(cu1);
+        List<Tree> cu2Trees = treesUnder(cu2);
+        Tree real = cu1Trees.get(cu1Trees.size() - 1);
+        Tree artificial = cu2Trees.get(cu2Trees.size() - 1);
+        Tree absent = cu2Trees.get(cu2Trees.size() - 2);
+        MethodTree f = method(cu1, "f");
+        TreePath artificialPath = new TreePath(TreePath.getPath(cu1, f.getBody()), artificial);
+
+        TreePathCacher cacher = new TreePathCacher();
+        // The first subchecker builds the CFG and registers the path of an artificial tree.
+        cacher.useUnit(cu1);
+        cacher.addPath(artificial, artificialPath);
+        TreePath realPath = cacher.getPath(cu1, real);
+        Assert.assertNull("absent tree", cacher.getPath(cu1, absent));
+
+        // The other subcheckers and the parent checker start the same unit.
+        for (int checker = 0; checker < 3; checker++) {
+            cacher.useUnit(cu1);
+            Assert.assertSame("registered path", artificialPath, cacher.getCachedPath(artificial));
+            Assert.assertSame("found path", realPath, cacher.getCachedPath(real));
+            Assert.assertTrue("cached absence", cacher.isCached(absent));
+        }
+
+        cacher.useUnit(cu2);
+        Assert.assertFalse("registered path cleared", cacher.isCached(artificial));
+        Assert.assertFalse("found path cleared", cacher.isCached(real));
+        Assert.assertFalse("cached absence cleared", cacher.isCached(absent));
+        cacher.addPath(artificial, artificialPath);
+
+        cacher.useUnit(cu1);
+        Assert.assertFalse("path from the previous unit cleared", cacher.isCached(artificial));
+        assertSamePath(
+                "path after clearing", TreePath.getPath(cu1, real), cacher.getPath(cu1, real));
+    }
+
+    /**
      * Checks that many lookups under the same leaf, enough for {@code TreePathCacher} to index the
      * leaf's subtree, match the JDK for targets under the leaf, outside it, and absent from the
      * compilation unit. The body declares {@code Integer a, b;}, whose declarators share a type
