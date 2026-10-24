@@ -1437,8 +1437,9 @@ public abstract class GenericAnnotatedTypeFactory<
      * <p>While a class is analyzed, a cached type is used only for a tree that is evaluated before
      * the tree whose node the analysis is computing: a proper subexpression of that tree, or part
      * of the receiver or of an earlier argument of an enclosing invocation. The node of such a tree
-     * was visited before the current node in the current pass, so its cached type is the current
-     * one (see {@link #canCacheFlowDependentType(ExpressionTree)}). The cached type of any other
+     * was visited before the current node in the current pass, so its cached type was computed in
+     * the current pass and not in an earlier one (see {@link
+     * #canCacheFlowDependentType(ExpressionTree)}). The cached type of any other
      * tree may be from an earlier pass over a loop: for example, inferring the type arguments of
      * {@code bar()} in {@code foo(bar(), id(x))} also types the later argument {@code id(x)}, whose
      * node has not been visited yet. A backward analysis would need another rule.
@@ -1536,13 +1537,13 @@ public abstract class GenericAnnotatedTypeFactory<
         Tree child = tree;
         for (TreePath p = path.getParentPath(); p != null; p = p.getParentPath()) {
             Tree leaf = p.getLeaf();
+            if (isOtherControlFlowGraph(leaf)) {
+                return false;
+            }
             @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
             boolean isCurrent = leaf == current;
             if (isCurrent) {
                 return true;
-            }
-            if (isOtherControlFlowGraph(leaf)) {
-                return false;
             }
             int index = evaluationIndex(leaf, child);
             if (index >= 0) {
