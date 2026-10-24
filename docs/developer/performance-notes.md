@@ -2039,15 +2039,19 @@ bound offset with an error, which a null path had hidden (fixed in PR #2308). An
 without its local variables: `Trees#getScope` attributes a copy of the method body up to the copy
 of the leaf and never finds an artificial leaf. So `@LTLengthOf("b")` for a local `b` in the type
 of `j -= 1` gave a false positive; the Less Than Checker, which registers the paths itself, had
-this bug on master. `Resolver` now resolves at the deepest tree of the path that is in the
-compilation unit; a path whose trees form a chain of children costs one check per step, any other
-path a search of the method body. Re-measured with this fix, same setup, against the change
-without it: Resource Leak Checker 10.32 s [9.91-10.62] and 10.15 s [9.96-10.33] (master 11.19 s
-[10.05-11.68] in the same rounds), Index Checker 21.37 s [21.13-21.71] and 21.68 s [21.30-21.74],
-Nullness Checker 12.52 s and 12.46 s: no cost beyond the noise.
+this bug on master. Artificial trees are now marked: `TreePathCacher#addArtificialPath`, which
+`AnnotatedTypeFactory#setPathForArtificialTree` calls, records them, and
+`StringToJavaExpression#atPath` drops the marked trees from the end of the path, so an expression
+at an artificial tree is resolved in the scope of the construct it was created for. That costs one
+identity-set lookup per parse; `Resolver` is unchanged from master. A first version instead inferred
+from the shape of the path, in `Resolver`, which trees are artificial, and searched the method body
+when the path was not a chain of children; it was replaced by the marking, which is about 180 fewer
+lines in `Resolver`. Re-measured with the marking, same setup, against master: Resource Leak
+Checker 11.59 s [10.98-11.89] on master and 10.33 s [9.69-10.68] with the change (-10.9%); Index
+Checker 20.42 s [20.16-24.44] and 19.87 s [19.74-20.47], within the noise.
 The changelog's "about 6-16% faster" for the Resource Leak Checker is the range over all of
-these rounds, including a reviewer's 6.4%: the -15.7% above and the about -9% of the re-measurement
-against master (10.15 s to 10.32 s against 11.19 s) both lie in it.
+these rounds, including a reviewer's 6.4%: the -15.7% above and the -10.9% of the re-measurement
+both lie in it.
 
 ### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
 
