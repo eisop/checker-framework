@@ -17,13 +17,11 @@ class EisopIssue2271Loop {
         return true;
     }
 
-    // Known missed error, for both the named and the anonymous diamond (eisop#2343): `n` is
-    // nullable in the
-    // second iteration, so `get()` should return a nullable value. The type arguments of the
-    // diamond are not inferred again after the loop's store changes.
+    // `n` is nullable in the second iteration, so `get()` returns a nullable value (eisop#2343).
     void namedInLoop() {
         @Nullable Object n = "";
         while (c()) {
+            // :: error: (dereference.of.nullable)
             new Cell<>(n).get().toString();
             n = null;
         }
@@ -32,6 +30,7 @@ class EisopIssue2271Loop {
     void anonymousInLoop() {
         @Nullable Object n = "";
         while (c()) {
+            // :: error: (dereference.of.nullable)
             new Cell<>(n) {}.get().toString();
             n = null;
         }

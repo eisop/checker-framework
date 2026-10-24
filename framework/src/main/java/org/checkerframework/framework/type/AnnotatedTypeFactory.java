@@ -612,7 +612,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Mapping from an expression tree to its annotated type; before defaults are applied, just what
-     * the programmer wrote.
+     * the programmer wrote. The type of a flow-dependent expression (see {@link
+     * #isFlowDependent(ExpressionTree)}) is only cached and used as {@link
+     * #canCacheFlowDependentType(ExpressionTree)} and {@link
+     * #canUseCachedFlowDependentType(ExpressionTree)} allow.
      *
      * <p>This field is intentionally not final; it should only be re-assigned by {@link
      * #setRoot(CompilationUnitTree)}.
@@ -2478,7 +2481,27 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @see TypeFromExpressionVisitor
      */
     private AnnotatedTypeMirror fromExpression(ExpressionTree tree) {
-        if (shouldCache) {
+        // The type of a flow-dependent expression is computed from the refined types of its
+        // subexpressions, so caching it while those can still change would cache incorrect
+        // annotations (see Issue #602).
+        boolean read;
+        boolean write;
+        if (!shouldCache) {
+            read = write = false;
+        } else if (!isFlowDependent(tree)) {
+            read = write = true;
+        } else if (isInferring()) {
+            // The expressions that are part of a running type argument inference problem are
+            // typed without inferring their type arguments, so their types must not be cached.
+            // A type that was cached outside inference can be used, which avoids exponential time
+            // for chains of generic method calls (Issue2853).
+            read = canUseCachedFlowDependentType(tree);
+            write = false;
+        } else {
+            read = canUseCachedFlowDependentType(tree);
+            write = canCacheFlowDependentType(tree);
+        }
+        if (read) {
             AnnotatedTypeMirror cached = fromExpressionTreeCache.get(tree);
             if (cached != null) {
                 return cached.deepCopy();
@@ -2487,15 +2510,91 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         AnnotatedTypeMirror result = TypeFromTree.fromExpression(this, tree);
 
-        if (shouldCache
-                // Don't cache the type of some expressions, because incorrect annotations would be
-                // cached during dataflow analysis. See Issue #602.
-                && !(tree instanceof NewClassTree)
-                && !(tree instanceof NewArrayTree)
-                && !(tree instanceof ConditionalExpressionTree)) {
+        if (write) {
             fromExpressionTreeCache.put(tree, frozenDeepCopy(result));
         }
         return result;
+    }
+
+    /**
+     * Returns true if {@link TypeFromExpressionVisitor} computes the type of {@code tree} from the
+     * annotated types of its subexpressions or from type argument inference, which both depend on
+     * the dataflow store and on whether type argument inference is running.
+     *
+     * <p>Identifiers and {@code C.this} are not flow-dependent, although {@link #getSelfType} of a
+     * factory may read the store. The justification and a probe are in {@code
+     * docs/developer/performance-notes.md}; eisop#2344 describes a difference after dataflow.
+     *
+     * @param tree an expression tree without enclosing parentheses
+     * @return true if the type of {@code tree} that {@link #fromExpression} computes can depend on
+     *     the dataflow store
+     */
+    private static boolean isFlowDependent(ExpressionTree tree) {
+        switch (tree.getKind()) {
+            case METHOD_INVOCATION:
+            case NEW_CLASS:
+            case CONDITIONAL_EXPRESSION:
+            case ARRAY_ACCESS:
+                return true;
+            case MEMBER_SELECT:
+                // A field access uses the refined type of its receiver.
+                Element elt = TreeUtils.elementFromUse((MemberSelectTree) tree);
+                return elt != null && elt.getKind().isField() && !ElementUtils.isStatic(elt);
+            case ASSIGNMENT:
+                return isFlowDependent(
+                        TreeUtils.withoutParens(((AssignmentTree) tree).getVariable()));
+            default:
+                return TreeUtils.isSwitchExpression(tree);
+        }
+    }
+
+    /**
+     * Returns true if type argument inference may be running. The expressions that are part of a
+     * running inference problem are typed without inferring their type arguments, so their types
+     * must not be cached. A checker with its own {@link TypeArgumentInference} never caches them.
+     *
+     * @return true if type argument inference may be running
+     */
+    private boolean isInferring() {
+        return !(typeArgumentInference instanceof DefaultTypeArgumentInference)
+                || ((DefaultTypeArgumentInference) typeArgumentInference).isInferring();
+    }
+
+    /**
+     * Returns true if a cached type of the flow-dependent expression {@code tree} (see {@link
+     * #isFlowDependent(ExpressionTree)}) is still correct, i.e., the refined types of the
+     * expressions it was computed from have not changed since it was cached. This implementation,
+     * which performs no dataflow analysis, returns true.
+     *
+     * <p>A factory that computes the types of expressions from another factory's dataflow results,
+     * such as the Initialization Checker's from the {@code InitializationFieldAccessSubchecker}'s,
+     * relies on the order of the checkers: the subchecker finishes the compilation unit before the
+     * parent checker's visitor runs. It may keep this default only as long as it is not queried
+     * earlier. A factory that can be queried earlier must override this method and {@link
+     * #canCacheFlowDependentType(ExpressionTree)}.
+     *
+     * <p>{@link #isAnonymousDiamondSupertypeFinal} has the same default for the same reason.
+     *
+     * @param tree a flow-dependent expression
+     * @return true if a cached type of {@code tree} can be used
+     */
+    protected boolean canUseCachedFlowDependentType(ExpressionTree tree) {
+        return true;
+    }
+
+    /**
+     * Returns true if the type of the flow-dependent expression {@code tree} (see {@link
+     * #isFlowDependent(ExpressionTree)}) can be cached, i.e., it is computed from refined types
+     * that remain correct as long as {@link #canUseCachedFlowDependentType(ExpressionTree)} holds.
+     * The type of a poly expression whose type arguments are inferred together with an enclosing
+     * invocation also depends on the other arguments of that invocation, not only on its own
+     * subexpressions. This implementation, which performs no dataflow analysis, returns true.
+     *
+     * @param tree a flow-dependent expression
+     * @return true if the type of {@code tree} can be cached
+     */
+    protected boolean canCacheFlowDependentType(ExpressionTree tree) {
+        return true;
     }
 
     /**
@@ -4371,16 +4470,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * types of the arguments and of the context, which change during dataflow analysis of the
      * enclosing method.
      *
-     * <p>This implementation returns false. {@link GenericAnnotatedTypeFactory} returns true once
-     * dataflow analysis of the anonymous class has started, which is after that of the enclosing
-     * method. A factory that does not keep track of the analyzed classes itself must forward to the
-     * factory that does.
+     * <p>This implementation, which performs no dataflow analysis, returns true, like {@link
+     * #canUseCachedFlowDependentType(ExpressionTree)}. {@link GenericAnnotatedTypeFactory} returns
+     * true once dataflow analysis of the anonymous class has started, which is after that of the
+     * enclosing method. A factory that does not keep track of the analyzed classes itself must
+     * forward to the factory that does.
      *
      * @param creation an anonymous class creation with a diamond
      * @return true if the inferred supertype of the anonymous class can no longer change
      */
     public boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
-        return false;
+        return true;
     }
 
     /**

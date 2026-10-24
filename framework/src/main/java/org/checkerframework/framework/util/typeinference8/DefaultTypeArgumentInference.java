@@ -43,6 +43,16 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
     /** Creates a DefaultTypeArgumentInference. */
     public DefaultTypeArgumentInference() {}
 
+    /**
+     * Returns true if an inference problem is being solved. While it is, the types of the
+     * expressions that are part of the problem are computed without inferring their type arguments.
+     *
+     * @return true if an inference problem is being solved
+     */
+    public boolean isInferring() {
+        return java8Inference != null;
+    }
+
     @SuppressWarnings("interning:not.interned")
     @Override
     public InferenceResult inferTypeArgs(

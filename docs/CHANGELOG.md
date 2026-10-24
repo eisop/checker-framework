@@ -236,6 +236,13 @@ typetools' bracket syntax work unchanged.
 `insertOrRefinePermitNondeterministic` and `CFAbstractTransfer#insertIntoStoresPermitNonDeterministic`
 are removed.
 
+`GenericAnnotatedTypeFactory#performFlowAnalysisForClass` is now `final`; a subclass that customizes
+the dataflow analysis overrides the new `performFlowAnalysisForClassImpl` instead. New hooks
+`AnnotatedTypeFactory#canUseCachedFlowDependentType` and `#canCacheFlowDependentType` decide when
+the type of a flow-dependent expression is cached; `AnnotatedTypeFactory#isAnonymousDiamondSupertypeFinal`
+now defaults to true, like them. New `AbstractAnalysis#getCurrentNode()` returns the node whose
+transfer function is running.
+
 Performance optimizations:
 
 - Capped type argument inference work via `-AinferenceWorkBudget=N` (default
@@ -277,9 +284,21 @@ Performance optimizations:
   method each time.
 - `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
   by their class instead of missing for each new instance of the same type.
+- The types of method invocations, new class, conditional, and other flow-dependent expressions are
+  cached once the dataflow analysis of their class has finished, and during the analysis when it
+  computes the value of the expression's own node and the expression is not inferred together with
+  an enclosing invocation, instead of being recomputed, including type argument inference, at every
+  query. During the analysis, a cached type is used only for an expression that is evaluated before
+  the one whose node is computed. The types of new array expressions are always cached.
 
 Other improvements and bug fixes:
 
+- The types of method invocations, field accesses, array accesses, and switch expressions are no
+  longer reused from an earlier fixpoint iteration while dataflow analysis is running, including
+  for the arguments of an enclosing invocation that type argument inference types together with
+  an expression. A type cached in an early fixpoint iteration of a loop missed errors, e.g., for a
+  polymorphic or generic method whose argument becomes nullable later in the loop, or reported
+  false positives (typetools#602, eisop#2343).
 - Checker subclass inheritance: inherits `@StubFiles` from nearest annotated
   superclass (shared bidirectionally in compound checkers), combines
   `@RelevantJavaTypes` across superclasses, and accepts the default
@@ -526,7 +545,9 @@ eisop#2271,
 eisop#2287,
 eisop#2288,
 eisop#2323,
+eisop#2343,
 typetools#399,
+typetools#602,
 typetools#2816,
 typetools#3203,
 typetools#6291,
