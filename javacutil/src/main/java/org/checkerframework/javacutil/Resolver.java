@@ -335,6 +335,7 @@ public class Resolver {
      * @param path the tree path to the local scope
      * @return the corresponding attribution environment
      */
+    @SuppressWarnings("interning:not.interned") // AST node comparison
     public Env<AttrContext> getEnvForPath(TreePath path) {
         Tree leaf = path.getLeaf();
         Env<AttrContext> cached = envCache.get(leaf);
@@ -367,6 +368,7 @@ public class Resolver {
      * @param path the tree path to the local scope
      * @return a path with the same attribution environment as {@code path}
      */
+    @SuppressWarnings("interning:not.interned") // AST node comparison
     private static TreePath pathWithSameScope(TreePath path) {
         TreePath stmtPath = path.getParentPath();
         if (stmtPath == null) {
