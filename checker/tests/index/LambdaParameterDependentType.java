@@ -62,10 +62,4 @@ public class LambdaParameterDependentType {
                     return j + k;
                 };
     }
-
-    Function<int[], Integer> fieldInitializer =
-            a -> {
-                @LTEqLengthOf("a") int j = a.length;
-                return j;
-            };
 }
