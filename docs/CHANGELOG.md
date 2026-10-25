@@ -231,6 +231,15 @@ A lambda body keeps the refinement of a field with a monotonic qualifier to its
 target, such as a `@MonotonicNonNull` field that was checked to be non-null before
 the lambda.
 
+A dependent type annotation on a varargs parameter, such as `@KeyFor("#1") String... keys` or
+`@IndexFor("#1") int... indexes`, is now viewpoint-adapted at a call that passes the varargs
+elements individually, as in `many(map, k)`. Previously such a call reported a false positive
+`argument.type.incompatible`.
+
+The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
+`@GuardedBy` expression whose lock is not held, as it does for an explicit
+dereference of that expression.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -283,6 +292,9 @@ Performance optimizations:
 - New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
   replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
+- The checkers of a compound checker keep the shared tree path cache for the same compilation unit,
+  so they no longer scan the whole compilation unit for the trees that dataflow analysis creates
+  (Resource Leak Checker on plume-util about 6-16% faster).
 - `ElementUtils.isElementFromSourceCode` caches its result per source file object instead
   of constructing a `URI` on every call.
 - `Resolver.getEnvForPath` caches the attribution environment per location, so that
@@ -299,6 +311,15 @@ Performance optimizations:
 
 Other improvements and bug fixes:
 
+- An expression in a dependent type, such as `@LTLengthOf("a")` or `@LessThan("m")`, that names a
+  local variable is found at a compound assignment, an increment or decrement, and the other
+  operations for which dataflow analysis creates artificial trees. Before, the local variable was
+  not found, which gave false positives such as for `j -= 1` in the Index Checker. This affects
+  every checker with dependent types, such as the Lock, KeyFor, and Must Call Checkers, so they may
+  report changed diagnostics at such operations.
+- The type of a postfix increment or decrement expression is now the type of its value while dataflow
+  analysis computes the type of the expression that uses it. Before, it was the declared type, which
+  gave a false positive for a call of a polymorphic method such as `bid(i++)` in the Value Checker.
 - A checker that packages its own `annotated-jdk` in its jar (such as the JSpecify
   reference checker) now uses it, even when `checker.jar` is earlier on the processor path.
 - The Index Checker no longer crashes with a `NullPointerException` on an upper bound
@@ -406,12 +427,16 @@ Other improvements and bug fixes:
   binary path.
 - Fixed aliasing bug in `AnnotatedTypeCopier` for executable types.
 - Fixed `IndexOutOfBoundsException` for lambdas in varargs.
+- Fixed crash on a dependent type annotation that names a lambda parameter.
 - Fixed `BinaryOperation.hashCode()` for commutative operators.
 - Fixed `OptionalImplVisitor` `else`-branch check.
 - Fixed format crash in Optional Checker's `prefer.map.and.orelse` warning.
 - `JavaStubifier` names the source file on failure; new
   `--skipUnloadableAnnotations` flag.
 - Fixed crash in `AnnotatedTypeMirror#hasExplicitAnnotation(Class)`.
+- Fixed a crash of the Nullness Checker with `-AatfDoNotCache` on `this` in a constructor.
+  A subchecker's type factory kept the visitor tree path of the previous compilation unit;
+  `AnnotatedTypeFactory#setRoot` now clears it.
 - Fixed multi-catch dropping a type annotation on the first alternative.
 - Fixed `@DefaultQualifier` on a package lost for deeper subpackages.
 - Source-tree annotations resolve aliases first;
@@ -556,6 +581,12 @@ eisop#2287,
 eisop#2288,
 eisop#2323,
 eisop#2343,
+eisop#2348,
+eisop#2349,
+eisop#2354,
+eisop#2355,
+eisop#2356,
+eisop#2358,
 typetools#399,
 typetools#602,
 typetools#2816,

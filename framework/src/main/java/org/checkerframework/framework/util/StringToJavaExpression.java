@@ -313,6 +313,11 @@ public interface StringToJavaExpression {
     /**
      * Parses a string as if it were written at {@code localVarPath}.
      *
+     * <p>If the leaf of {@code localVarPath} is an artificial tree, one that the CFG builder
+     * created, {@code expression} is parsed in the scope of the construct that the artificial tree
+     * was created for. An artificial tree is not in the compilation unit, so the scope at it cannot
+     * be computed; see {@link TreePathCacher#addArtificialPath}.
+     *
      * @param expression a Java expression to parse
      * @param localVarPath location at which {@code expression} is parsed
      * @param checker checker used to get the {@link
@@ -323,6 +328,15 @@ public interface StringToJavaExpression {
      */
     static JavaExpression atPath(String expression, TreePath localVarPath, SourceChecker checker)
             throws JavaExpressionParseException {
+
+        TreePathCacher cacher = checker.getTreePathCacher();
+        while (cacher.isArtificial(localVarPath.getLeaf())) {
+            TreePath parentPath = localVarPath.getParentPath();
+            assert parentPath != null
+                    : "@AssumeAssertion(nullness): the path of an artificial tree starts at the"
+                            + " tree it was created for";
+            localVarPath = parentPath;
+        }
 
         TypeMirror enclosingType = TreeUtils.typeOf(TreePathUtil.enclosingClass(localVarPath));
         ThisReference thisReference =
