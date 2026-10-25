@@ -335,7 +335,6 @@ public class Resolver {
      * @param path the tree path to the local scope
      * @return the corresponding attribution environment
      */
-    @SuppressWarnings("interning:not.interned") // AST node comparison
     public Env<AttrContext> getEnvForPath(TreePath path) {
         Tree leaf = path.getLeaf();
         Env<AttrContext> cached = envCache.get(leaf);
@@ -343,8 +342,9 @@ public class Resolver {
             return cached;
         }
         TreePath scopePath = pathWithSameScope(path);
-        Env<AttrContext> result =
-                scopePath == path ? computeEnvForPath(path) : getEnvForPath(scopePath);
+        @SuppressWarnings("interning:not.interned") // pathWithSameScope returns path itself
+        boolean ownScope = scopePath == path;
+        Env<AttrContext> result = ownScope ? computeEnvForPath(path) : getEnvForPath(scopePath);
         envCache.put(leaf, result);
         return result;
     }
@@ -368,7 +368,6 @@ public class Resolver {
      * @param path the tree path to the local scope
      * @return a path with the same attribution environment as {@code path}
      */
-    @SuppressWarnings("interning:not.interned") // AST node comparison
     private static TreePath pathWithSameScope(TreePath path) {
         TreePath stmtPath = path.getParentPath();
         if (stmtPath == null) {
@@ -381,12 +380,16 @@ public class Resolver {
             return path;
         }
         ExpressionStatementTree stmt = (ExpressionStatementTree) stmtPath.getLeaf();
-        if (stmt.getExpression() != path.getLeaf() || !isScopeTransparent(stmt)) {
+        @SuppressWarnings("interning:not.interned") // AST node comparison
+        boolean leafIsExpression = stmt.getExpression() == path.getLeaf();
+        if (!leafIsExpression || !isScopeTransparent(stmt)) {
             return path;
         }
         ExpressionStatementTree runStart = null;
         for (StatementTree s : ((BlockTree) blockPath.getLeaf()).getStatements()) {
-            if (s == stmt) {
+            @SuppressWarnings("interning:not.interned") // AST node comparison
+            boolean isStmt = s == stmt;
+            if (isStmt) {
                 return runStart == null
                         ? path
                         : new TreePath(new TreePath(blockPath, runStart), runStart.getExpression());
