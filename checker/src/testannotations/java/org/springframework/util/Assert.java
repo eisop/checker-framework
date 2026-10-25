@@ -166,4 +166,145 @@ public abstract class Assert {
             throw new IllegalArgumentException(messageSupplier.get());
         }
     }
+
+    /**
+     * Throws IllegalStateException if {@code expression} is false.
+     *
+     * @param expression a boolean expression
+     * @param message the exception message to use if the assertion fails
+     * @throws IllegalStateException if {@code expression} is false
+     */
+    public static void state(boolean expression, String message) {
+        if (!expression) {
+            throw new IllegalStateException(message);
+        }
+    }
+
+    /**
+     * Throws IllegalStateException if {@code expression} is false.
+     *
+     * @param expression a boolean expression
+     * @param messageSupplier a supplier for the exception message to use if the assertion fails
+     * @throws IllegalStateException if {@code expression} is false
+     */
+    public static void state(boolean expression, Supplier<String> messageSupplier) {
+        if (!expression) {
+            throw new IllegalStateException(messageSupplier.get());
+        }
+    }
+
+    /**
+     * Throws IllegalArgumentException if {@code expression} is false.
+     *
+     * @param expression a boolean expression
+     * @param message the exception message to use if the assertion fails
+     * @throws IllegalArgumentException if {@code expression} is false
+     */
+    public static void isTrue(boolean expression, String message) {
+        if (!expression) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    /**
+     * Throws IllegalArgumentException if {@code expression} is false.
+     *
+     * @param expression a boolean expression
+     * @param messageSupplier a supplier for the exception message to use if the assertion fails
+     * @throws IllegalArgumentException if {@code expression} is false
+     */
+    public static void isTrue(boolean expression, Supplier<String> messageSupplier) {
+        if (!expression) {
+            throw new IllegalArgumentException(messageSupplier.get());
+        }
+    }
+
+    /**
+     * Throws IllegalArgumentException if {@code obj} is not an instance of {@code type}.
+     *
+     * @param type the type to check against
+     * @param obj the object to check
+     * @param message the exception message to use if the assertion fails
+     * @throws IllegalArgumentException if {@code obj} is not an instance of {@code type}
+     */
+    public static void isInstanceOf(Class<?> type, Object obj, String message) {
+        if (!type.isInstance(obj)) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    /**
+     * Throws IllegalArgumentException if {@code obj} is not an instance of {@code type}.
+     *
+     * @param type the type to check against
+     * @param obj the object to check
+     * @param messageSupplier a supplier for the exception message to use if the assertion fails
+     * @throws IllegalArgumentException if {@code obj} is not an instance of {@code type}
+     */
+    public static void isInstanceOf(Class<?> type, Object obj, Supplier<String> messageSupplier) {
+        if (!type.isInstance(obj)) {
+            throw new IllegalArgumentException(messageSupplier.get());
+        }
+    }
+
+    /**
+     * Throws IllegalArgumentException if {@code obj} is not an instance of {@code type}.
+     *
+     * @param type the type to check against
+     * @param obj the object to check
+     * @throws IllegalArgumentException if {@code obj} is not an instance of {@code type}
+     */
+    public static void isInstanceOf(Class<?> type, Object obj) {
+        if (!type.isInstance(obj)) {
+            throw new IllegalArgumentException("");
+        }
+    }
+
+    /**
+     * Throws IllegalArgumentException if {@code subType} is null or not assignable to {@code
+     * superType}.
+     *
+     * @param superType the supertype to check against
+     * @param subType the subtype to check
+     * @param message the exception message to use if the assertion fails
+     * @throws IllegalArgumentException if {@code subType} is null or not assignable to {@code
+     *     superType}
+     */
+    public static void isAssignable(Class<?> superType, Class<?> subType, String message) {
+        if (subType == null || !superType.isAssignableFrom(subType)) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    /**
+     * Throws IllegalArgumentException if {@code subType} is null or not assignable to {@code
+     * superType}.
+     *
+     * @param superType the supertype to check against
+     * @param subType the subtype to check
+     * @param messageSupplier a supplier for the exception message to use if the assertion fails
+     * @throws IllegalArgumentException if {@code subType} is null or not assignable to {@code
+     *     superType}
+     */
+    public static void isAssignable(
+            Class<?> superType, Class<?> subType, Supplier<String> messageSupplier) {
+        if (subType == null || !superType.isAssignableFrom(subType)) {
+            throw new IllegalArgumentException(messageSupplier.get());
+        }
+    }
+
+    /**
+     * Throws IllegalArgumentException if {@code subType} is null or not assignable to {@code
+     * superType}.
+     *
+     * @param superType the supertype to check against
+     * @param subType the subtype to check
+     * @throws IllegalArgumentException if {@code subType} is null or not assignable to {@code
+     *     superType}
+     */
+    public static void isAssignable(Class<?> superType, Class<?> subType) {
+        if (subType == null || !superType.isAssignableFrom(subType)) {
+            throw new IllegalArgumentException("");
+        }
+    }
 }

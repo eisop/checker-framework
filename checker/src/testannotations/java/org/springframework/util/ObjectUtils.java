@@ -25,4 +25,33 @@ public abstract class ObjectUtils {
     public static boolean isEmpty(Object obj) {
         return obj == null;
     }
+
+    /**
+     * Returns true if the given object is an array.
+     *
+     * @param obj the object to check
+     * @return true if {@code obj} is non-null and an array
+     */
+    public static boolean isArray(Object obj) {
+        return obj != null && obj.getClass().isArray();
+    }
+
+    /**
+     * Returns true if the given array contains the given element.
+     *
+     * @param array the array to check
+     * @param element the element to look for
+     * @return true if {@code array} is non-null and contains {@code element}
+     */
+    public static boolean containsElement(Object[] array, Object element) {
+        if (array == null) {
+            return false;
+        }
+        for (Object arrayEle : array) {
+            if (arrayEle == null ? element == null : arrayEle.equals(element)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
