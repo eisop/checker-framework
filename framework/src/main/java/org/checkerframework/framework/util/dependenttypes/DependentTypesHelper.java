@@ -387,7 +387,7 @@ public class DependentTypesHelper {
      * argument. Those parameters no longer line up with the parameters of {@code
      * declaredMethodType}, so this method copies the annotations of the declared varargs component
      * type to each of them, and the annotations of the declared varargs parameter to the vararg
-     * type of {@code methodType}.
+     * type of {@code methodType}, but not to the first expanded parameter.
      *
      * @param declaredMethodType the declared method type, whose dependent type annotations have
      *     been viewpoint-adapted to the invocation
@@ -399,38 +399,66 @@ public class DependentTypesHelper {
             AnnotatedExecutableType declaredMethodType,
             AnnotatedExecutableType methodType,
             ExpressionTree tree) {
-        viewpointAdaptedCopier.visit(declaredMethodType, methodType);
         AnnotatedArrayType varargType = methodType.getVarargType();
-        if (varargType == null || !TreeUtils.isVarargsCall(tree)) {
-            return;
-        }
         List<AnnotatedTypeMirror> declaredParams = declaredMethodType.getParameterTypes();
-        int numDeclaredParams = declaredParams.size();
-        if (numDeclaredParams == 0
-                || declaredParams.get(numDeclaredParams - 1).getKind() != TypeKind.ARRAY) {
-            // A signature polymorphic method, whose declared parameter types are those of the
-            // arguments.
+        int varargsIndex = declaredParams.size() - 1;
+        List<AnnotatedTypeMirror> params = methodType.getParameterTypes();
+        if (!hasExpandedVarargs(declaredParams, params, varargType, tree)) {
+            viewpointAdaptedCopier.visit(declaredMethodType, methodType);
             return;
         }
-        List<AnnotatedTypeMirror> params = methodType.getParameterTypes();
-        if (params.size() == numDeclaredParams) {
-            AnnotatedTypeMirror lastParam = params.get(numDeclaredParams - 1);
-            if (lastParam.getKind() == TypeKind.ARRAY
-                    && AnnotatedTypes.getArrayDepth((AnnotatedArrayType) lastParam)
-                            == AnnotatedTypes.getArrayDepth(varargType)) {
-                // The parameters have not been expanded, so the last parameter is the varargs
-                // array and has already been handled. (An expanded parameter is the component
-                // type, which has a smaller array depth.)
-                return;
-            }
+        // Visiting the method types pairs the declared varargs array with the first expanded
+        // parameter, and copies the annotations of the array to it. Undo that.
+        AnnotatedTypeMirror firstExpanded =
+                varargsIndex < params.size() ? params.get(varargsIndex).deepCopy() : null;
+        viewpointAdaptedCopier.visit(declaredMethodType, methodType);
+        if (firstExpanded != null) {
+            new org.checkerframework.framework.type.AnnotatedTypeReplacer()
+                    .visit(firstExpanded, params.get(varargsIndex));
         }
         AnnotatedArrayType declaredVarargType =
-                (AnnotatedArrayType) declaredParams.get(numDeclaredParams - 1);
+                (AnnotatedArrayType) declaredParams.get(varargsIndex);
         viewpointAdaptedCopier.visit(declaredVarargType, varargType);
         AnnotatedTypeMirror declaredComponentType = declaredVarargType.getComponentType();
-        for (int i = numDeclaredParams - 1; i < params.size(); i++) {
+        for (int i = varargsIndex; i < params.size(); i++) {
             viewpointAdaptedCopier.visit(declaredComponentType, params.get(i));
         }
+    }
+
+    /**
+     * Returns true if {@code tree} is a varargs invocation at which {@link
+     * AnnotatedTypes#adaptParameters} replaced the varargs array parameter by one copy of its
+     * component type per varargs argument.
+     *
+     * @param declaredParams the parameter types of the declared method type
+     * @param params the parameter types of the type of the invocation
+     * @param varargType the vararg type of the type of the invocation, or null
+     * @param tree invocation of the method or constructor
+     * @return true if the varargs parameter has been expanded
+     */
+    private static boolean hasExpandedVarargs(
+            List<AnnotatedTypeMirror> declaredParams,
+            List<AnnotatedTypeMirror> params,
+            @Nullable AnnotatedArrayType varargType,
+            ExpressionTree tree) {
+        int numDeclaredParams = declaredParams.size();
+        if (varargType == null
+                || !TreeUtils.isVarargsCall(tree)
+                || numDeclaredParams == 0
+                || declaredParams.get(numDeclaredParams - 1).getKind() != TypeKind.ARRAY) {
+            // Not a varargs call, or a signature polymorphic method, whose declared parameter
+            // types are those of the arguments.
+            return false;
+        }
+        if (params.size() != numDeclaredParams) {
+            return true;
+        }
+        // An expanded parameter is the component type, which has a smaller array depth than the
+        // varargs array.
+        AnnotatedTypeMirror lastParam = params.get(numDeclaredParams - 1);
+        return lastParam.getKind() != TypeKind.ARRAY
+                || AnnotatedTypes.getArrayDepth((AnnotatedArrayType) lastParam)
+                        != AnnotatedTypes.getArrayDepth(varargType);
     }
 
     /**
