@@ -403,6 +403,7 @@ Other improvements and bug fixes:
   binary path.
 - Fixed aliasing bug in `AnnotatedTypeCopier` for executable types.
 - Fixed `IndexOutOfBoundsException` for lambdas in varargs.
+- Fixed crash on a dependent type annotation that names a lambda parameter.
 - Fixed `BinaryOperation.hashCode()` for commutative operators.
 - Fixed `OptionalImplVisitor` `else`-branch check.
 - Fixed format crash in Optional Checker's `prefer.map.and.orelse` warning.
@@ -555,6 +556,7 @@ eisop#2323,
 eisop#2343,
 eisop#2348,
 eisop#2349,
+eisop#2355,
 typetools#399,
 typetools#602,
 typetools#2816,
