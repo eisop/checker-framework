@@ -225,6 +225,11 @@ A lambda body keeps the refinement of a field with a monotonic qualifier to its
 target, such as a `@MonotonicNonNull` field that was checked to be non-null before
 the lambda.
 
+A dependent type annotation on a varargs parameter, such as `@KeyFor("#1") String... keys` or
+`@IndexFor("#1") int... indexes`, is now viewpoint-adapted at a call that passes the varargs
+elements individually, as in `many(map, k)`. Previously such a call reported a false positive
+`argument.type.incompatible`.
+
 The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
 `@GuardedBy` expression whose lock is not held, as it does for an explicit
 dereference of that expression.
@@ -575,6 +580,7 @@ eisop#2349,
 eisop#2354,
 eisop#2355,
 eisop#2356,
+eisop#2358,
 typetools#399,
 typetools#602,
 typetools#2816,
