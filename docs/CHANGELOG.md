@@ -230,6 +230,10 @@ A dependent type annotation on a varargs parameter, such as `@KeyFor("#1") Strin
 elements individually, as in `many(map, k)`. Previously such a call reported a false positive
 `argument.type.incompatible`.
 
+The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
+`@GuardedBy` expression whose lock is not held, as it does for an explicit
+dereference of that expression.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -575,6 +579,7 @@ eisop#2348,
 eisop#2349,
 eisop#2354,
 eisop#2355,
+eisop#2356,
 eisop#2358,
 typetools#399,
 typetools#602,
