@@ -322,6 +322,9 @@ public class Resolver {
     /**
      * Determine the environment for the given path.
      *
+     * <p>The leaf of {@code path} must be a tree of the compilation unit; for an artificial tree,
+     * pass the path of the tree it was created for (see {@code StringToJavaExpression#atPath}).
+     *
      * @param path the tree path to the local scope
      * @return the corresponding attribution environment
      */

@@ -2019,6 +2019,40 @@ in `UBQualifier$LessThanLengthOf` — a null path yields an unparseable offset e
 layers from the cause. If this is revisited, the clear has to happen strictly before anything is
 cached for the new unit, and the Index Checker is the canary.
 
+*Update (October 2026, PR #2339).* This is now done: `TreePathCacher#useUnit` clears the cache
+only when the compilation unit changes, and every checker's `setRoot` calls it, so the paths that
+the CFG builder registered for artificial trees survive the parent checker's `setRoot`. Wall time
+on plume-util with its `@SuppressWarnings` removed (JDK 25, 5 interleaved runs after a warm-up,
+median [min-max]): Resource Leak Checker 10.43 s [9.44-10.94] on master and 8.79 s [8.15-9.36] with
+the change (-15.7%); Nullness Checker 11.65 s and 11.09 s, Index Checker 20.06 s and 19.37 s,
+within the machine's noise of 3-5%. A likely cause of the Resource Leak Checker's gain, not
+profiled: `RLCCalledMethodsAnnotatedTypeFactory#analyze` calls `rlc.setRoot(getRoot())` after each
+CFG it analyzes, and the Resource Leak Checker, the ultimate parent, cleared the whole cache there.
+A separate map of artificial trees was tried first and dropped: more code, and it kept the lossy
+null result.
+The shared cache now lives for the whole compilation unit instead of being cleared by each
+`setRoot`; no memory problem was observed, and its size is bounded by the unit.
+
+The real paths of artificial trees exposed two older bugs. The Index Checker crashed on an upper
+bound offset with an error, which a null path had hidden (fixed in PR #2308). And
+`Resolver#getEnvForPath` resolved the names at an artificial tree in the scope of the whole method,
+without its local variables: `Trees#getScope` attributes a copy of the method body up to the copy
+of the leaf and never finds an artificial leaf. So `@LTLengthOf("b")` for a local `b` in the type
+of `j -= 1` gave a false positive; the Less Than Checker, which registers the paths itself, had
+this bug on master. Artificial trees are now marked: `TreePathCacher#addArtificialPath`, which
+`AnnotatedTypeFactory#setPathForArtificialTree` calls, records them, and
+`StringToJavaExpression#atPath` drops the marked trees from the end of the path, so an expression
+at an artificial tree is resolved in the scope of the construct it was created for. That costs one
+identity-set lookup per parse; `Resolver` is unchanged from master. A first version instead inferred
+from the shape of the path, in `Resolver`, which trees are artificial, and searched the method body
+when the path was not a chain of children; it was replaced by the marking, which is about 180 fewer
+lines in `Resolver`. Re-measured with the marking, same setup, against master: Resource Leak
+Checker 11.59 s [10.98-11.89] on master and 10.33 s [9.69-10.68] with the change (-10.9%); Index
+Checker 20.42 s [20.16-24.44] and 19.87 s [19.74-20.47], within the noise.
+The changelog's "about 6-16% faster" for the Resource Leak Checker is the range over all of
+these rounds, including a reviewer's 6.4%: the -15.7% above and the -10.9% of the re-measurement
+both lie in it.
+
 ### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
 
 `CheckerFrameworkPerDirectoryTest` previously hardcoded `-AajavaChecks` across all directory tests.
