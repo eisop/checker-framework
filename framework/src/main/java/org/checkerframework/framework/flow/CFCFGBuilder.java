@@ -166,7 +166,8 @@ public class CFCFGBuilder extends CFGBuilder {
             // Create a new child of the current path and assign to the artificial tree.
             // Although intuitively, using the sibling of the current path as the artificial tree
             // path makes more sense, it has the risk of improperly changing the defaulting scope
-            // of the artificial tree.
+            // of the artificial tree. StringToJavaExpression#atPath resolves names at such a path
+            // in the scope of the tree that the artificial tree was created for.
             TreePath artificialPath = new TreePath(getCurrentPath(), tree);
             atypeFactory.setPathForArtificialTree(tree, artificialPath);
             // Give the artificial tree the source position of the construct it was created for.
