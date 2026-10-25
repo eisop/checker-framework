@@ -293,6 +293,9 @@ Performance optimizations:
 
 Other improvements and bug fixes:
 
+- The type of a postfix increment or decrement expression is now the type of its value while dataflow
+  analysis computes the type of the expression that uses it. Before, it was the declared type, which
+  gave a false positive for a call of a polymorphic method such as `bid(i++)` in the Value Checker.
 - A checker that packages its own `annotated-jdk` in its jar (such as the JSpecify
   reference checker) now uses it, even when `checker.jar` is earlier on the processor path.
 - The Index Checker no longer crashes with a `NullPointerException` on an upper bound
@@ -550,6 +553,7 @@ eisop#2287,
 eisop#2288,
 eisop#2323,
 eisop#2343,
+eisop#2348,
 eisop#2349,
 typetools#399,
 typetools#602,
