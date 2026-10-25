@@ -5,6 +5,7 @@ import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
@@ -13,12 +14,14 @@ import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.PrimitiveTypeTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.UnaryTree;
+import com.sun.source.tree.VariableTree;
 import com.sun.source.util.SimpleTreeVisitor;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
+import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Type.ArrayType;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.tree.JCTree;
@@ -33,6 +36,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.Resolver;
+import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.javacparse.JavacParse;
 import org.checkerframework.javacutil.javacparse.JavacParseResult;
@@ -47,6 +51,7 @@ import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
@@ -273,6 +278,40 @@ class ExpressionTreeToJavaExpressionVisitor extends SimpleTreeVisitor<JavaExpres
         return new ArrayAccess(componentType, array, index);
     }
 
+    /**
+     * Returns the symbol of the lambda parameter declaration in the AST that {@code varElem} stands
+     * for, or {@code varElem} itself if it is not a lambda parameter.
+     *
+     * <p>{@link Resolver#findLocalVariableOrParameter} looks the name up in a scope that javac
+     * computes by attributing a copy of the enclosing code, so for a lambda parameter it returns a
+     * fresh symbol rather than the one on the parameter's declaration tree. Lookups keyed on the
+     * declaration's symbol, such as {@code AnnotatedTypeFactory#declarationFromElement}, then fail
+     * to find it. The copy has the same name and position as the original.
+     *
+     * @param varElem a variable found by {@link Resolver#findLocalVariableOrParameter}
+     * @param path the path at which {@code varElem} was looked up
+     * @return the symbol of the matching lambda parameter declaration, or {@code varElem}
+     */
+    private static VariableElement lambdaParameterFromAst(VariableElement varElem, TreePath path) {
+        if (varElem.getKind() != ElementKind.PARAMETER) {
+            return varElem;
+        }
+        VarSymbol sym = (VarSymbol) varElem;
+        for (TreePath p = path; p != null; p = p.getParentPath()) {
+            Tree leaf = p.getLeaf();
+            if (!(leaf instanceof LambdaExpressionTree)) {
+                continue;
+            }
+            for (VariableTree param : ((LambdaExpressionTree) leaf).getParameters()) {
+                VarSymbol paramSym = (VarSymbol) TreeUtils.elementFromDeclaration(param);
+                if (paramSym.pos == sym.pos && paramSym.name == sym.name) {
+                    return paramSym;
+                }
+            }
+        }
+        return varElem;
+    }
+
     // `idTree` is an identifier with no dots in its name.
     @Override
     public JavaExpression visitIdentifier(IdentifierTree idTree, Void unused) {
@@ -311,7 +350,7 @@ class ExpressionTreeToJavaExpressionVisitor extends SimpleTreeVisitor<JavaExpres
         if (localVarPath != null) {
             VariableElement varElem = resolver.findLocalVariableOrParameter(idName, localVarPath);
             if (varElem != null) {
-                return new LocalVariable(varElem);
+                return new LocalVariable(lambdaParameterFromAst(varElem, localVarPath));
             }
         }
 

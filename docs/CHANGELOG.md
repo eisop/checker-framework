@@ -225,6 +225,15 @@ A lambda body keeps the refinement of a field with a monotonic qualifier to its
 target, such as a `@MonotonicNonNull` field that was checked to be non-null before
 the lambda.
 
+A dependent type annotation on a varargs parameter, such as `@KeyFor("#1") String... keys` or
+`@IndexFor("#1") int... indexes`, is now viewpoint-adapted at a call that passes the varargs
+elements individually, as in `many(map, k)`. Previously such a call reported a false positive
+`argument.type.incompatible`.
+
+The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
+`@GuardedBy` expression whose lock is not held, as it does for an explicit
+dereference of that expression.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -418,12 +427,16 @@ Other improvements and bug fixes:
   binary path.
 - Fixed aliasing bug in `AnnotatedTypeCopier` for executable types.
 - Fixed `IndexOutOfBoundsException` for lambdas in varargs.
+- Fixed crash on a dependent type annotation that names a lambda parameter.
 - Fixed `BinaryOperation.hashCode()` for commutative operators.
 - Fixed `OptionalImplVisitor` `else`-branch check.
 - Fixed format crash in Optional Checker's `prefer.map.and.orelse` warning.
 - `JavaStubifier` names the source file on failure; new
   `--skipUnloadableAnnotations` flag.
 - Fixed crash in `AnnotatedTypeMirror#hasExplicitAnnotation(Class)`.
+- Fixed a crash of the Nullness Checker with `-AatfDoNotCache` on `this` in a constructor.
+  A subchecker's type factory kept the visitor tree path of the previous compilation unit;
+  `AnnotatedTypeFactory#setRoot` now clears it.
 - Fixed multi-catch dropping a type annotation on the first alternative.
 - Fixed `@DefaultQualifier` on a package lost for deeper subpackages.
 - Source-tree annotations resolve aliases first;
@@ -570,6 +583,10 @@ eisop#2323,
 eisop#2343,
 eisop#2348,
 eisop#2349,
+eisop#2354,
+eisop#2355,
+eisop#2356,
+eisop#2358,
 typetools#399,
 typetools#602,
 typetools#2816,

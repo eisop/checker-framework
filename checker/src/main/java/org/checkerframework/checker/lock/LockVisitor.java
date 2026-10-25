@@ -6,6 +6,7 @@ import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.CompoundAssignmentTree;
+import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
@@ -523,6 +524,22 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                 atmOfReceiver.getEffectiveAnnotationInHierarchy(atypeFactory.GUARDEDBYUNKNOWN);
         checkLock(tree.getExpression(), gb);
         return super.visitArrayAccess(tree, p);
+    }
+
+    /**
+     * Checks the lock of the expression of an enhanced for loop, which the loop dereferences: it
+     * calls {@code iterator()} on an {@code Iterable} or reads the length and the elements of an
+     * array.
+     */
+    @Override
+    public Void visitEnhancedForLoop(EnhancedForLoopTree tree, Void p) {
+        ExpressionTree iterated = tree.getExpression();
+        AnnotationMirror gb =
+                atypeFactory
+                        .getAnnotatedType(iterated)
+                        .getEffectiveAnnotationInHierarchy(atypeFactory.GUARDEDBYUNKNOWN);
+        checkLock(iterated, gb);
+        return super.visitEnhancedForLoop(tree, p);
     }
 
     /**
