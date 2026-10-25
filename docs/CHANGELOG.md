@@ -225,6 +225,10 @@ A lambda body keeps the refinement of a field with a monotonic qualifier to its
 target, such as a `@MonotonicNonNull` field that was checked to be non-null before
 the lambda.
 
+The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
+`@GuardedBy` expression whose lock is not held, as it does for an explicit
+dereference of that expression.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -555,6 +559,7 @@ eisop#2323,
 eisop#2343,
 eisop#2348,
 eisop#2349,
+eisop#2356,
 typetools#399,
 typetools#602,
 typetools#2816,
