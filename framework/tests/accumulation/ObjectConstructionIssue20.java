@@ -14,6 +14,8 @@ public class ObjectConstructionIssue20<E> {
         if (!enableProtoAnnotations) {
             return null;
         }
+        // The map value is an Object, whose qualifier is not that of every instantiation of T.
+        // :: error: (return.type.incompatible)
         return (T) element.getOptionFields().get(extension.getDescriptor());
     }
 
