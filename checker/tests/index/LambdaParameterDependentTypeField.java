@@ -1,6 +1,5 @@
 // @below-java14-jdk-skip-test
 // On JDK 8 and 11, javac does not find the parameter of a lambda in a field initializer.
-// initializer.
 
 import org.checkerframework.checker.index.qual.LTEqLengthOf;
 
