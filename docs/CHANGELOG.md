@@ -225,6 +225,11 @@ A lambda body keeps the refinement of a field with a monotonic qualifier to its
 target, such as a `@MonotonicNonNull` field that was checked to be non-null before
 the lambda.
 
+A dependent type annotation on a varargs parameter, such as `@KeyFor("#1") String... keys` or
+`@IndexFor("#1") int... indexes`, is now viewpoint-adapted at a call that passes the varargs
+elements individually, as in `many(map, k)`. Previously such a call reported a false positive
+`argument.type.incompatible`.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -555,6 +560,7 @@ eisop#2323,
 eisop#2343,
 eisop#2348,
 eisop#2349,
+eisop#2358,
 typetools#399,
 typetools#602,
 typetools#2816,

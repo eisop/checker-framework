@@ -307,7 +307,7 @@ public class KeyForAnnotatedTypeFactory
                     };
 
             convertAnnotatedTypeMirror(stringToJavaExpr, declaredMethodType);
-            this.viewpointAdaptedCopier.visit(declaredMethodType, methodType);
+            copyViewpointAdaptedAnnotations(declaredMethodType, methodType, methodInvocationTree);
             this.errorAnnoReplacer.visit(methodType.getReturnType());
         }
     }

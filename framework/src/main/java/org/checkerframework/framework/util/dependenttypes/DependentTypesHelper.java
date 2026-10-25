@@ -27,6 +27,7 @@ import org.checkerframework.dataflow.expression.Unknown;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
@@ -35,6 +36,7 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.DoubleAnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -373,7 +375,62 @@ public class DependentTypesHelper {
             throw new BugInCF("Unexpected tree: %s kind: %s", tree, tree.getKind());
         }
         convertAnnotatedTypeMirror(stringToJavaExpr, declaredMethodType);
-        this.viewpointAdaptedCopier.visit(declaredMethodType, methodType);
+        copyViewpointAdaptedAnnotations(declaredMethodType, methodType, tree);
+    }
+
+    /**
+     * Copies the viewpoint-adapted dependent type annotations of {@code declaredMethodType} to
+     * {@code methodType}, using {@link #viewpointAdaptedCopier}.
+     *
+     * <p>At a varargs invocation, {@link AnnotatedTypes#adaptParameters} may have replaced the
+     * varargs array parameter of {@code methodType} by one copy of its component type per varargs
+     * argument. Those parameters no longer line up with the parameters of {@code
+     * declaredMethodType}, so this method copies the annotations of the declared varargs component
+     * type to each of them, and the annotations of the declared varargs parameter to the vararg
+     * type of {@code methodType}.
+     *
+     * @param declaredMethodType the declared method type, whose dependent type annotations have
+     *     been viewpoint-adapted to the invocation
+     * @param methodType type of the method or constructor invocation; is side-effected by this
+     *     method
+     * @param tree invocation of the method or constructor
+     */
+    protected final void copyViewpointAdaptedAnnotations(
+            AnnotatedExecutableType declaredMethodType,
+            AnnotatedExecutableType methodType,
+            ExpressionTree tree) {
+        viewpointAdaptedCopier.visit(declaredMethodType, methodType);
+        AnnotatedArrayType varargType = methodType.getVarargType();
+        if (varargType == null || !TreeUtils.isVarargsCall(tree)) {
+            return;
+        }
+        List<AnnotatedTypeMirror> declaredParams = declaredMethodType.getParameterTypes();
+        int numDeclaredParams = declaredParams.size();
+        if (numDeclaredParams == 0
+                || declaredParams.get(numDeclaredParams - 1).getKind() != TypeKind.ARRAY) {
+            // A signature polymorphic method, whose declared parameter types are those of the
+            // arguments.
+            return;
+        }
+        List<AnnotatedTypeMirror> params = methodType.getParameterTypes();
+        if (params.size() == numDeclaredParams) {
+            AnnotatedTypeMirror lastParam = params.get(numDeclaredParams - 1);
+            if (lastParam.getKind() == TypeKind.ARRAY
+                    && AnnotatedTypes.getArrayDepth((AnnotatedArrayType) lastParam)
+                            == AnnotatedTypes.getArrayDepth(varargType)) {
+                // The parameters have not been expanded, so the last parameter is the varargs
+                // array and has already been handled. (An expanded parameter is the component
+                // type, which has a smaller array depth.)
+                return;
+            }
+        }
+        AnnotatedArrayType declaredVarargType =
+                (AnnotatedArrayType) declaredParams.get(numDeclaredParams - 1);
+        viewpointAdaptedCopier.visit(declaredVarargType, varargType);
+        AnnotatedTypeMirror declaredComponentType = declaredVarargType.getComponentType();
+        for (int i = numDeclaredParams - 1; i < params.size(); i++) {
+            viewpointAdaptedCopier.visit(declaredComponentType, params.get(i));
+        }
     }
 
     /**
