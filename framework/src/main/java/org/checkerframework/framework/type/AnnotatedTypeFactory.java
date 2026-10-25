@@ -1318,6 +1318,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         */
 
+        // Drop the visitor tree path from the previous compilation unit: getPath would search that
+        // unit for a tree of the new one and record in the shared treePathCache that the tree is
+        // absent. A subchecker's factory, whose path only its parent sets, would otherwise keep
+        // such a path.
+        this.visitorTreePath = null;
         this.root = newRoot;
         // Do not clear here. Only the primary checker should clear this cache.
         // treePathCache.clear();

@@ -409,6 +409,9 @@ Other improvements and bug fixes:
 - `JavaStubifier` names the source file on failure; new
   `--skipUnloadableAnnotations` flag.
 - Fixed crash in `AnnotatedTypeMirror#hasExplicitAnnotation(Class)`.
+- Fixed a crash of the Nullness Checker with `-AatfDoNotCache` on `this` in a constructor.
+  A subchecker's type factory kept the visitor tree path of the previous compilation unit;
+  `AnnotatedTypeFactory#setRoot` now clears it.
 - Fixed multi-catch dropping a type annotation on the first alternative.
 - Fixed `@DefaultQualifier` on a package lost for deeper subpackages.
 - Source-tree annotations resolve aliases first;
@@ -555,6 +558,7 @@ eisop#2323,
 eisop#2343,
 eisop#2348,
 eisop#2349,
+eisop#2354,
 typetools#399,
 typetools#602,
 typetools#2816,
