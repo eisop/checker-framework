@@ -200,6 +200,36 @@ Two established exceptions:
 The same care applies to an eisop issue in a *typetools* context, and to any
 other repository this project does not own.
 
+## Importing a typetools release
+
+An import can silently drop a hunk when typetools changed a file that is
+named or split differently here (the Initialization Checker's factory is
+one example). Before opening an import PR:
+
+1. Run `checker/bin-devel/typetools-import-check.py --range FROM..TO` and
+   `--api-diff TAG` (names from the divergence table, typetools-only API).
+2. Run `checker/bin-devel/typetools-import-check.py --hunks FROM..TO` on the
+   import branch. It finds hunks that the import dropped because the code is
+   in another file here; what it reports is in
+   `docs/developer/README-eisop.md`. A finding prompts for review; it is not
+   an error. Open the files before judging it.
+3. Put the findings in the import PR description, each marked as adapted,
+   already handled, or deliberately skipped. Adapt the real ones in the same
+   PR or in an immediate second PR; do not leave a test-only half of a change.
+4. For **each** typetools hunk you pull in, decide whether this fork already
+   has a similar fix: search the history and the code for the same symptom,
+   the same method, the same message key, and the same test (`git log -S`,
+   `git log --grep`, the issues of this repository). Record the decision per
+   hunk in the PR description (new, already fixed here and dropped, fixed
+   here differently and reconciled).
+5. Finish with one broad review of the whole import that looks for
+   duplication and, worse, contradiction between the typetools fixes and
+   this fork's fixes: two changes to the same behavior, a check added twice,
+   a fix that undoes a deliberate local change, or a test expectation that
+   now disagrees with the code. Fix or document each one before merging.
+6. When a finding shows a file or class that is named or split differently,
+   add a `file` row to `docs/developer/typetools-divergences.tsv`.
+
 ## Branch naming
 
 - Performance/correctness audits of a package: `review-<package>` or
