@@ -20,8 +20,8 @@ public class IndexForVarargsElements {
 
     void arrayAnnotation(String[] a, String x, String y) {
         // The annotation on the varargs array must not be copied to the elements, so the only
-        // error is about the array.
-        // TODO: false positive; the implicitly created array is not known to have a's length.
+        // error is about the array: the implicitly created array has length 2, which is not
+        // known to be the length of a.
         // :: error: (varargs.type.incompatible)
         sameLen(a, x, y);
     }
