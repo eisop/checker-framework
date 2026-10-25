@@ -2313,71 +2313,77 @@ public abstract class GenericAnnotatedTypeFactory<
         computingAnnotatedTypeMirrorOfLhs = true;
 
         AnnotatedTypeMirror res;
-        switch (lhsTree.getKind()) {
-            case VARIABLE:
-                VariableTree varTree = (VariableTree) lhsTree;
-                boolean isVarTree = TreeUtils.isVariableTreeDeclaredUsingVar(varTree);
-                if (isVarTree) {
-                    // If this variable is declared using `var`, re-enable caching to avoid
-                    // re-computing the initializer expression type.
-                    shouldCache = oldShouldCache;
-                }
-                res = getAnnotatedType(lhsTree);
-                // Value of shouldCache no longer used below, so no need to reset.
-
-                // A field declaration initializer assigns to an implicit this.field.
-                // Viewpoint-adapt the field's declared type to the enclosing class just as
-                // for an explicit member access, against a use of the class.
-                if (viewpointAdapter != null) {
-                    VariableElement field = TreeUtils.elementFromDeclaration(varTree);
-                    if (field.getKind().isField() && !ElementUtils.isStatic(field)) {
-                        TypeElement enclosingType = (TypeElement) field.getEnclosingElement();
-                        AnnotatedTypeMirror adapted = res.shallowCopy();
-                        viewpointAdapter.viewpointAdaptMember(
-                                getAnnotatedType(enclosingType).asUse(), field, adapted);
-                        res = adapted;
-                    }
-                }
-                break;
-            case IDENTIFIER:
-                Element elt = TreeUtils.elementFromTree(lhsTree);
-                if (elt != null) {
-                    Tree decl = declarationFromElement(elt);
-                    if (decl instanceof VariableTree
-                            && TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) decl)) {
-                        // If this identifier accesses a variable that was declared using `var`,
-                        // re-enable caching to avoid re-computing the initializer expression type.
+        try {
+            switch (lhsTree.getKind()) {
+                case VARIABLE:
+                    VariableTree varTree = (VariableTree) lhsTree;
+                    boolean isVarTree = TreeUtils.isVariableTreeDeclaredUsingVar(varTree);
+                    if (isVarTree) {
+                        // If this variable is declared using `var`, re-enable caching to avoid
+                        // re-computing the initializer expression type.
                         shouldCache = oldShouldCache;
                     }
-                }
-                res = getAnnotatedType(lhsTree);
-                // Value of shouldCache no longer used below, so no need to reset.
-                break;
-            case MEMBER_SELECT:
-            case ARRAY_ACCESS:
-                res = getAnnotatedType(lhsTree);
-                break;
-            case PARENTHESIZED:
-                res = getAnnotatedTypeLhs(TreeUtils.withoutParens((ExpressionTree) lhsTree));
-                break;
-            default:
-                if (TreeUtils.isTypeTree(lhsTree)) {
-                    // lhsTree is a type tree at the pseudo assignment of a returned expression to
-                    // declared return type.
                     res = getAnnotatedType(lhsTree);
-                } else {
-                    throw new BugInCF(
-                            "GenericAnnotatedTypeFactory: Unexpected tree passed to"
-                                    + " getAnnotatedTypeLhs. lhsTree: "
-                                    + lhsTree
-                                    + " Tree.Kind: "
-                                    + lhsTree.getKind());
-                }
-        }
+                    // Value of shouldCache no longer used below, so no need to reset.
 
-        useFlow = oldUseFlow;
-        shouldCache = oldShouldCache;
-        computingAnnotatedTypeMirrorOfLhs = oldComputingAnnotatedTypeMirrorOfLhs;
+                    // A field declaration initializer assigns to an implicit this.field.
+                    // Viewpoint-adapt the field's declared type to the enclosing class just as
+                    // for an explicit member access, against a use of the class.
+                    if (viewpointAdapter != null) {
+                        VariableElement field = TreeUtils.elementFromDeclaration(varTree);
+                        if (field.getKind().isField() && !ElementUtils.isStatic(field)) {
+                            TypeElement enclosingType = (TypeElement) field.getEnclosingElement();
+                            AnnotatedTypeMirror adapted = res.shallowCopy();
+                            viewpointAdapter.viewpointAdaptMember(
+                                    getAnnotatedType(enclosingType).asUse(), field, adapted);
+                            res = adapted;
+                        }
+                    }
+                    break;
+                case IDENTIFIER:
+                    Element elt = TreeUtils.elementFromTree(lhsTree);
+                    if (elt != null) {
+                        Tree decl = declarationFromElement(elt);
+                        if (decl instanceof VariableTree
+                                && TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) decl)) {
+                            // If this identifier accesses a variable that was declared using
+                            // `var`, re-enable caching to avoid re-computing the initializer
+                            // expression type.
+                            shouldCache = oldShouldCache;
+                        }
+                    }
+                    res = getAnnotatedType(lhsTree);
+                    // Value of shouldCache no longer used below, so no need to reset.
+                    break;
+                case MEMBER_SELECT:
+                case ARRAY_ACCESS:
+                    res = getAnnotatedType(lhsTree);
+                    break;
+                case PARENTHESIZED:
+                    res = getAnnotatedTypeLhs(TreeUtils.withoutParens((ExpressionTree) lhsTree));
+                    break;
+                default:
+                    if (TreeUtils.isTypeTree(lhsTree)) {
+                        // lhsTree is a type tree at the pseudo assignment of a returned
+                        // expression to declared return type.
+                        res = getAnnotatedType(lhsTree);
+                    } else {
+                        throw new BugInCF(
+                                "GenericAnnotatedTypeFactory: Unexpected tree passed to"
+                                        + " getAnnotatedTypeLhs. lhsTree: "
+                                        + lhsTree
+                                        + " Tree.Kind: "
+                                        + lhsTree.getKind());
+                    }
+            }
+        } finally {
+            // Restore the state even if an exception is thrown above. Otherwise, flow-sensitive
+            // refinement would stay disabled for the rest of the compilation, for example for
+            // the compilation units that follow one in which the checker crashed.
+            useFlow = oldUseFlow;
+            shouldCache = oldShouldCache;
+            computingAnnotatedTypeMirrorOfLhs = oldComputingAnnotatedTypeMirrorOfLhs;
+        }
         return res;
     }
 
@@ -2394,9 +2400,11 @@ public abstract class GenericAnnotatedTypeFactory<
     /*package-private*/ AnnotatedTypeMirror getAnnotatedTypeWithReceiverRefinement(Tree tree) {
         boolean oldUseFlow = useFlow;
         useFlow = everUseFlow;
-        AnnotatedTypeMirror result = getAnnotatedType(tree);
-        useFlow = oldUseFlow;
-        return result;
+        try {
+            return getAnnotatedType(tree);
+        } finally {
+            useFlow = oldUseFlow;
+        }
     }
 
     /**
@@ -2540,8 +2548,11 @@ public abstract class GenericAnnotatedTypeFactory<
             Tree tree, AnnotatedTypeMirror type) {
         boolean oldUseflow = useFlow;
         useFlow = false;
-        addComputedTypeAnnotations(tree, type);
-        useFlow = oldUseflow;
+        try {
+            addComputedTypeAnnotations(tree, type);
+        } finally {
+            useFlow = oldUseflow;
+        }
     }
 
     /**

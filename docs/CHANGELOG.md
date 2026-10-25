@@ -234,6 +234,10 @@ The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
 `@GuardedBy` expression whose lock is not held, as it does for an explicit
 dereference of that expression.
 
+A crash while computing the type of the left-hand side of an assignment no longer disables
+flow-sensitive type refinement for the rest of the compilation. The compilation units checked
+after the crash reported false positives, such as a dereference after `if (x != null)`.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
