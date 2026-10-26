@@ -261,7 +261,11 @@ the dataflow analysis overrides the new `performFlowAnalysisForClassImpl` instea
 `AnnotatedTypeFactory#canUseCachedFlowDependentType` and `#canCacheFlowDependentType` decide when
 the type of a flow-dependent expression is cached; `AnnotatedTypeFactory#isAnonymousDiamondSupertypeFinal`
 now defaults to true, like them. New `AbstractAnalysis#getCurrentNode()` returns the node whose
-transfer function is running.
+transfer function is running. `AnalysisResult#runAnalysisFor`, which re-runs the transfer functions
+of a block to answer a query on a finished analysis, now keeps the analysis's `currentInput` at the
+input of the node being re-run, and `AbstractAnalysis#getStoreBefore(Tree)` answers a query for the
+tree of the node being processed from that input, so a factory that reads the store from within a
+transfer function sees the store before the node in a re-run as well as in the analysis itself.
 
 Performance optimizations:
 
@@ -597,6 +601,7 @@ eisop#2323,
 eisop#2326,
 eisop#2330,
 eisop#2343,
+eisop#2344,
 eisop#2348,
 eisop#2349,
 eisop#2354,

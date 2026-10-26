@@ -2531,7 +2531,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * <p>Identifiers and {@code C.this} are not flow-dependent, although {@link #getSelfType} of a
      * factory may read the store. The justification and a probe are in {@code
-     * docs/developer/performance-notes.md}; eisop#2344 describes a difference after dataflow.
+     * docs/developer/performance-notes.md}. The difference after dataflow that eisop#2344 reported
+     * was in the recomputed type, not in the cached one: a query made while an {@code
+     * AnalysisResult} re-ran the transfer functions of a block read the state of the last analysis
+     * instead of the store before the node. The dataflow re-run now keeps that state consistent.
      *
      * @param tree an expression tree without enclosing parentheses
      * @return true if the type of {@code tree} that {@link #fromExpression} computes can depend on
