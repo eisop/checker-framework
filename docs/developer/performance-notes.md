@@ -2143,8 +2143,12 @@ and the leaf is in a member of a class that is not in code, and no variable anyw
 (pattern variables included) has the name, no local variable of that name is in scope, and the
 method returns null without javac. Only otherwise, such as for pattern variables, a variable of an
 earlier `case` of an old-style `switch`, or code in a local or anonymous class, does it compute the
-environment as before. The names declared in a member are computed once per member (a single-entry
-cache, since the queries of one method come together). After this change (s):
+environment as before. The names declared in a member are computed once per member, in a
+single-entry cache. It assumes that the queries come in runs per member, as they do while the
+dataflow analysis and the visitor process one method. A workload that alternates between members
+recomputes the names at each switch, at the cost of one `TreeScanner` pass over the member. That is
+linear in the size of the member, as is the re-attribution that one javac lookup there costs, so such
+a workload does not become quadratic. After this change (s):
 
 | statements per pair | N = 500 | 1000 | 2000 | 4000 |
 | --- | ---: | ---: | ---: | ---: |
@@ -2160,7 +2164,7 @@ of the loops, with self-time in `IdentityHashMap#get`, `HashMap#getNode`, and
 `CFAbstractValue#canBeMissingAnnotations`. Presumably the store grows with the loop variables `k`,
 which stay in it after their loops, so each merge is linear in the number of loops before it (a
 hypothesis, not checked). The Nullness Checker on the same mix is close to linear (5.4/9.1/20.0 s for
-N = 1000/2000/4000).
+N = 1000/2000/4000). The remaining quadratic cost is eisop#2374.
 
 The variable found in the source is the symbol of its declaration, whereas the environment that
 `Trees#getScope` computes holds copies made by attributing a copy of the method. `LocalVariable`
