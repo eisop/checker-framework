@@ -106,16 +106,32 @@ public class ResolverTest {
                     "    class L { int hid; int get() { return hid + 1; } }",
                     "    java.util.function.IntBinaryOperator bin = (int l1, int l2) -> l1 + l2;",
                     "  }",
+                    "  void w(int sw) {",
+                    "    switch (sw) {",
+                    "      case 1:",
+                    "        sw++;",
+                    "        sw--;",
+                    "        int z = sw;",
+                    "        z++;",
+                    "        z--;",
+                    "        break;",
+                    "      default:",
+                    "    }",
+                    "  }",
                     "}");
 
-    /** Source code with a pattern variable, which needs JDK 16 or later. */
-    private static final String PATTERN_SOURCE =
+    /** Source code with a pattern variable and case rules, which need JDK 16 or later. */
+    private static final String JDK16_SOURCE =
             String.join(
                     "\n",
                     "class P {",
                     "  void m(Object o) {",
                     "    if (o instanceof String s) { s.length(); }",
                     "    o.hashCode();",
+                    "    switch (o.hashCode()) {",
+                    "      case 1 -> o.toString();",
+                    "      default -> o.getClass();",
+                    "    }",
                     "  }",
                     "}");
 
@@ -402,10 +418,38 @@ public class ResolverTest {
     @Test
     public void patternVariable() throws IOException {
         Assume.assumeTrue("pattern matching requires JDK 16 or later", SystemUtil.jreVersion >= 16);
-        compile("P", PATTERN_SOURCE);
+        compile("P", JDK16_SOURCE);
         assertLookup("s.length()", "s", true, true);
         assertLookup("o.hashCode()", "s", false, true);
         assertLookup("o.hashCode()", "o", true, false);
+    }
+
+    /**
+     * The expression statements of a run of expression statements in a {@code case} share the
+     * environment of the first, and a declaration ends the run.
+     */
+    @Test
+    public void runOfExpressionStatementsInCase() {
+        assertScope(pathOf("sw++"), new String[] {"sw"}, "z");
+        assertScope(pathOf("z--"), new String[] {"sw", "z"}, "p");
+        Assert.assertSame(envAt("sw++"), envAt("sw--"));
+        Assert.assertSame(envAt("z++"), envAt("z--"));
+        Assert.assertNotSame(envAt("sw++"), envAt("z++"));
+    }
+
+    /**
+     * The statement of a {@code case} rule is the only statement of the rule, so it does not share
+     * the environment of another statement.
+     *
+     * @throws IOException if the source cannot be parsed
+     */
+    @Test
+    public void caseRule() throws IOException {
+        Assume.assumeTrue("the source requires JDK 16 or later", SystemUtil.jreVersion >= 16);
+        compile("P", JDK16_SOURCE);
+        assertScope(pathOf("o.toString()"), new String[] {"o"}, "s");
+        assertScope(pathOf("o.getClass()"), new String[] {"o"}, "s");
+        Assert.assertNotSame(envAt("o.toString()"), envAt("o.getClass()"));
     }
 
     /**

@@ -381,24 +381,37 @@ public class Resolver {
      * <p>An expression statement adds nothing to the scope of the statements after it: unlike an
      * {@code if} or a loop, it introduces no pattern binding into them. The exception is a {@code
      * this(...)} or {@code super(...)} call, which ends a constructor prologue. So the environment
-     * at the expression of an expression statement in a block is the same as at the expression of
-     * the first statement of the run of such statements that the statement is in. If the leaf of
-     * {@code path} is such an expression, returns the path of the expression of that first
-     * statement. Otherwise, including for a statement directly in a {@code case}, or a path whose
-     * statement is not in the block, returns {@code path} itself.
+     * at the expression of an expression statement in a block, or in the statements of an old-style
+     * {@code case}, is the same as at the expression of the first statement of the run of such
+     * statements that the statement is in. If the leaf of {@code path} is such an expression,
+     * returns the path of the expression of that first statement. Otherwise, including for the
+     * statement of a {@code case} rule ({@code case L -> ...}), which is the only statement of its
+     * rule, or a path whose statement is not in the block or {@code case}, returns {@code path}
+     * itself.
      *
      * @param path the tree path to the local scope
      * @return a path with the same attribution environment as {@code path}
      */
     private static TreePath pathWithSameScope(TreePath path) {
         TreePath stmtPath = path.getParentPath();
-        if (stmtPath == null) {
+        if (stmtPath == null || !(stmtPath.getLeaf() instanceof ExpressionStatementTree)) {
             return path;
         }
         TreePath blockPath = stmtPath.getParentPath();
-        if (blockPath == null
-                || !(stmtPath.getLeaf() instanceof ExpressionStatementTree)
-                || !(blockPath.getLeaf() instanceof BlockTree)) {
+        if (blockPath == null) {
+            return path;
+        }
+        Tree block = blockPath.getLeaf();
+        java.util.List<? extends StatementTree> statements;
+        if (block instanceof BlockTree) {
+            statements = ((BlockTree) block).getStatements();
+        } else if (block instanceof CaseTree) {
+            // getStatements is null for a case rule.
+            statements = ((CaseTree) block).getStatements();
+            if (statements == null) {
+                return path;
+            }
+        } else {
             return path;
         }
         ExpressionStatementTree stmt = (ExpressionStatementTree) stmtPath.getLeaf();
@@ -408,7 +421,7 @@ public class Resolver {
             return path;
         }
         ExpressionStatementTree runStart = null;
-        for (StatementTree s : ((BlockTree) blockPath.getLeaf()).getStatements()) {
+        for (StatementTree s : statements) {
             @SuppressWarnings("interning:not.interned") // AST node comparison
             boolean isStmt = s == stmt;
             if (isStmt) {
@@ -424,14 +437,15 @@ public class Resolver {
                 runStart = null;
             }
         }
-        // The block does not contain the statement, so the path is not a path in the source.
+        // The block or case does not contain the statement, so the path is not a path in the
+        // source.
         return path;
     }
 
     /**
      * Returns true if the given statement adds nothing to the scope of the statements after it in
-     * its block: it is an expression statement that is not a {@code this(...)} or {@code
-     * super(...)} call.
+     * its block or {@code case}: it is an expression statement that is not a {@code this(...)} or
+     * {@code super(...)} call.
      *
      * @param stmt a statement
      * @return true if {@code stmt} is an expression statement that does not change the scope of the

@@ -2069,7 +2069,7 @@ re-attributing the statements before the leaf (`Operators#resolveBinary` → `Ty
 copy of the leaf, so each location costs time linear in its position, and there are N locations.
 The per-leaf `envCache` computes each location once; it cannot help across locations.
 
-Fix: `Resolver#pathWithSameScope` maps the expression of an expression statement in a block to the
+Fix: `Resolver#pathWithSameScope` maps the expression of an expression statement in a block (or `case`) to the
 expression of the first statement of its run of expression statements, and `getEnvForPath` computes
 and caches the environment at that statement. An expression statement adds nothing to the scope of
 the statements after it (no pattern binding is in scope after an expression statement), except a
@@ -2078,8 +2078,9 @@ environment at the expression of a statement is the block's environment after th
 it, which is the same for every statement of the run; `findVar` still gets the original leaf as its
 position. The repro now computes one environment instead of N: 2.5/3.3/5.1/8.7 s for N =
 500/1000/2000/4000. `ResolverTest#runOfExpressionStatements` and `#constructorCallEndsRun` check
-that a declaration and a `this(...)` call end a run, and which statements share an environment. Only
-statements directly in a block form runs, not those directly in a `case`. Statements separated by
+that a declaration and a `this(...)` call end a run, and which statements share an environment. The
+statements of an old-style `case` form runs too (`#runOfExpressionStatementsInCase`); a `case` rule
+has a single statement. Statements separated by
 declarations, or nested in `if`, loops, or `try`, still each cost a re-attribution; the lookup in
 the source below avoids it for local variables. Finding the start of the run
 walks the block's statements, linear per query, about 1% of the samples at N = 4000.
