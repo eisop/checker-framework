@@ -71,7 +71,11 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
      */
     @SuppressWarnings({
         "unchecked",
-        "interning:not.interned" // optimized special case
+        "interning:not.interned", // optimized special case
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
     })
     public <T extends AnnotatedTypeMirror> T asSuper(AnnotatedTypeMirror type, T superType) {
         if (type == null || superType == null) {

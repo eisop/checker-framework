@@ -223,7 +223,13 @@ public class AElement implements Cloneable {
         };
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({
+        "unchecked",
+        // The cast type has the qualifiers of the operand, which V need not accept.
+        "interning:argument.type.incompatible",
+        "rlccalledmethods:argument.type.incompatible",
+        "signature:argument.type.incompatible"
+    })
     static <K, V extends AElement> void copyMapContents(
             VivifyingMap<K, V> orig, VivifyingMap<K, V> copy) {
         for (K key : orig.keySet()) {

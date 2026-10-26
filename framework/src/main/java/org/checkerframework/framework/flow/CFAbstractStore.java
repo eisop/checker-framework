@@ -1229,7 +1229,13 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     /* Helper and miscellaneous methods */
     /* --------------------------------------------------------- */
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({
+        "unchecked",
+        // The cast type has the qualifiers of `this`, which S need not accept.
+        "interning:argument.type.incompatible",
+        "rlccalledmethods:argument.type.incompatible",
+        "signature:argument.type.incompatible"
+    })
     @Override
     public S copy() {
         return analysis.createCopiedStore((S) this);

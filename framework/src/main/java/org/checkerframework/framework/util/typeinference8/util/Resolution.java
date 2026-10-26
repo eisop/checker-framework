@@ -504,7 +504,13 @@ public class Resolution {
      * @param <T> the kind of type
      * @return {@code type}, or a copy of it with adjusted qualifiers
      */
-    @SuppressWarnings("unchecked") // create() returns the receiver's own class
+    @SuppressWarnings({
+        "unchecked", // create() returns the receiver's own class
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     private static <T extends AbstractType> T boundQualifiers(
             QualifierHierarchy qualHierarchy,
             T type,

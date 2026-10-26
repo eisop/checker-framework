@@ -694,7 +694,14 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return the appropriate flow analysis class that is used for the
      *     org.checkerframework.dataflow analysis
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({
+        "unchecked",
+        "rawtypes",
+        // The cast type has the qualifiers of the operand, which FlowAnalysis need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     protected FlowAnalysis createFlowAnalysis() {
         // Try to reflectively load the visitor.
         Class<?> checkerClass = checker.getClass();
@@ -732,6 +739,13 @@ public abstract class GenericAnnotatedTypeFactory<
     // is the type parameter bounded by the current parameter type CFAbstractAnalysis<Value, Store,
     // TransferFunction>.
     // However, we ran into issues in callers of the method if we used that type.
+    @SuppressWarnings({
+        "unchecked",
+        // The cast type has the qualifiers of the operand, which TransferFunction need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     public TransferFunction createFlowTransferFunction(
             CFAbstractAnalysis<Value, Store, TransferFunction> analysis) {
         // Try to reflectively load the visitor.
@@ -750,7 +764,6 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         // If a transfer function couldn't be loaded reflectively, return the default.
-        @SuppressWarnings("unchecked")
         TransferFunction ret =
                 (TransferFunction)
                         new CFTransfer((CFAbstractAnalysis<CFValue, CFStore, CFTransfer>) analysis);
@@ -2956,7 +2969,15 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return the AnnotatedTypeFactory of the subchecker or null if no subchecker exists
      * @see #getTypeFactoryOfSubchecker
      */
-    @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
+    @SuppressWarnings({
+        "TypeParameterUnusedInFormals", // Intentional abuse
+        // This might not be safe, but the caller of the method should use the correct type.
+        "unchecked",
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>>
             @Nullable T getTypeFactoryOfSubcheckerOrNull(
                     Class<? extends SourceChecker> subCheckerClass) {
@@ -2967,10 +2988,6 @@ public abstract class GenericAnnotatedTypeFactory<
 
         BaseTypeChecker subchecker = (BaseTypeChecker) subSourceChecker;
 
-        @SuppressWarnings(
-                "unchecked" // This might not be safe, but the caller of the method should use the
-        // correct type.
-        )
         T subFactory = (T) subchecker.getTypeFactory();
         if (subFactory != null) {
             subFactory.setVisitorTreePath(getVisitorTreePath());

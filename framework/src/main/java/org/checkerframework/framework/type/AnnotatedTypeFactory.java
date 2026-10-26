@@ -3751,8 +3751,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param type the type to copy and freeze
      * @return a frozen deep copy of {@code type}
      */
+    @SuppressWarnings({
+        "unchecked", // deepCopy() preserves the runtime type
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     private static <T extends AnnotatedTypeMirror> T frozenDeepCopy(T type) {
-        @SuppressWarnings("unchecked") // deepCopy() preserves the runtime type
         T copy = (T) type.deepCopy();
         copy.freeze();
         return copy;
@@ -7284,18 +7290,22 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             return super.visitTypeVariable(original, originalToCopy);
         }
 
+        @SuppressWarnings({
+            // The key-value pairs in originalToCopy are always the same kind of
+            // AnnotatedTypeMirror.
+            "unchecked",
+            // The cast type has the qualifiers of the operand, which T need not accept.
+            "interning:return.type.incompatible",
+            "rlccalledmethods:return.type.incompatible",
+            "signature:return.type.incompatible"
+        })
         @Override
         protected <T extends AnnotatedTypeMirror> T makeOrReturnCopy(
                 T original,
                 IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
             AnnotatedTypeMirror copy = originalToCopy.get(original);
             if (copy != null) {
-                @SuppressWarnings(
-                        "unchecked" // the key-value pairs in originalToCopy are always the same
-                // kind of AnnotatedTypeMirror.
-                )
-                T copyCasted = (T) copy;
-                return copyCasted;
+                return (T) copy;
             }
 
             if (original.getKind() == TypeKind.TYPEVAR) {
@@ -7304,12 +7314,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                                 ((AnnotatedTypeVariable) original).getUnderlyingType());
                 if (captureType != null) {
                     originalToCopy.put(original, captureType);
-                    @SuppressWarnings(
-                            "unchecked" // the key-value pairs in originalToCopy are always the same
-                    // kind of AnnotatedTypeMirror.
-                    )
-                    T captureTypeCasted = (T) captureType;
-                    return captureTypeCasted;
+                    return (T) captureType;
                 }
             }
             originalToCopy.put(original, original);

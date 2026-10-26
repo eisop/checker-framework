@@ -409,6 +409,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     @SuppressWarnings({
         "unchecked", // unchecked cast to type variable
+        // The cast type has the qualifiers of the operand, which Factory need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
     })
     protected Factory createTypeFactory() {
         // Try to reflectively load the type factory.

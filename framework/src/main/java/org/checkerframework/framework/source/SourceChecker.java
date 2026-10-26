@@ -1557,7 +1557,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param checkerClass the class of the subchecker to return
      * @return the requested (immediate) subchecker or null if not found
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({
+        "unchecked",
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     public <T extends SourceChecker> @Nullable T getSubchecker(Class<T> checkerClass) {
         for (SourceChecker checker : immediateSubcheckers) {
             if (checker.getClass() == checkerClass) {
