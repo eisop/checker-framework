@@ -590,6 +590,18 @@ public class Resolver {
      * Finds the local variable (including formal parameters) with name {@code name} in the given
      * scope.
      *
+     * <p>If the declaration of the variable is found in the source (see {@link
+     * #localDeclarationInScope}), the result is the symbol of that declaration. Otherwise, as for a
+     * pattern variable, a variable of an earlier {@code case} of an old-style {@code switch}, or a
+     * local variable of an enclosing method used in a local or anonymous class, the result is the
+     * symbol from javac's attributed copy of the enclosing code, which {@code Trees#getScope}
+     * creates. The two are different objects, and they differ in flags: the copy can lack {@code
+     * EFFECTIVELY_FINAL}, so that {@link ElementUtils#isEffectivelyFinal} is false for it, which
+     * makes the Lock Checker report {@code lock.expression.not.final} for an effectively final
+     * variable (eisop#2375). A caller that compares the result with another symbol by identity, or
+     * that tests its flags, must allow for either. {@code LocalVariable} compares variables by
+     * name, position, and owner, so both give the same {@code LocalVariable}.
+     *
      * @param name the name of the local variable
      * @param path the tree path to the local scope
      * @return the element for the local variable, {@code null} otherwise

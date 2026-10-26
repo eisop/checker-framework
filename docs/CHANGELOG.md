@@ -235,7 +235,9 @@ The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
 dereference of that expression.
 
 The Lock Checker no longer reports `lock.expression.not.final` for an effectively final local
-variable named in a lock expression in most code.
+variable named in a lock expression, except where the variable's declaration is not found in the
+source: for a variable declared in an earlier `case` of an old-style `switch`, a pattern variable,
+or a local variable of an enclosing method used in a local or anonymous class (eisop#2375).
 
 ### Implementation details
 

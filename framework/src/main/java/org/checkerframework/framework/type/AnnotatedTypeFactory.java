@@ -5368,7 +5368,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         // The declaration of an element does not depend on the types computed so far, so use the
         // cache even while shouldCache is temporarily false, as in getAnnotatedTypeLhs. Otherwise
-        // each such query for a local variable scans the enclosing method again.
+        // each such query for a local variable scans the enclosing method again. The cache is null
+        // only if -AatfDoNotCache is given, so then useCache is false.
         boolean useCache = elementToTreeCache != null;
         if (useCache && elementToTreeCache.containsKey(elt)) {
             return elementToTreeCache.get(elt);

@@ -2098,8 +2098,8 @@ After that fix, JFR at N = 4000 (805 samples) showed a second quadratic: 32% sel
 `shouldCache` to false while it computes the type of the left-hand side, and
 `declarationFromElement` used `elementToTreeCache` only when `shouldCache` was true, so it scanned
 the method body for the declaration of `j` at each assignment. The declaration of an element does
-not depend on the types computed so far, so the cache is now used whenever it exists, that is,
-unless `-AatfDoNotCache` is given. N = 500/1000/2000/4000: 2.2/2.9/3.9/5.8 s, about 1 ms per pair
+not depend on the types computed so far, so the cache is now used whenever it exists. It is null
+only with `-AatfDoNotCache`, which therefore still scans each time. N = 500/1000/2000/4000: 2.2/2.9/3.9/5.8 s, about 1 ms per pair
 from N = 1000 on, so linear; the N = 4000 profile no longer has a leaf above 8%. Plume-util
 diagnostics are as with the first fix.
 
@@ -2169,7 +2169,7 @@ flow analysis does not run on the copy, so a copy lacks the `EFFECTIVELY_FINAL` 
 Checker reported `lock.expression.not.final` for `@GuardedBy("localLock")` on an effectively final
 local variable `localLock`, as the expected errors of `checker/tests/lock/Issue524.java` recorded
 (the test's comment says the desired result is no diagnostic). The source lookup removes that false
-positive; it remains where the lookup falls back to javac. The checker JUnit tests pass with the
+positive; it remains where the lookup falls back to javac (eisop#2375). The checker JUnit tests pass with the
 two expected errors removed.
 
 ### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
