@@ -1050,6 +1050,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         }
     }
 
+    /**
+     * Returns information about the type of a tree: whether it is a boxed primitive, or a type
+     * variable, wildcard, or intersection type with a boxed primitive bound, and its unboxed type.
+     *
+     * @param tree a tree
+     * @return information about the type of {@code tree}
+     */
     private TreeInfo getTreeInfo(Tree tree) {
         TypeMirror type = TreeUtils.typeOf(tree);
         TypeMirror boxedType = TypesUtils.boxedPrimitiveBound(type);
@@ -1140,8 +1147,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * Returns true if the argument type is a numeric primitive or a boxed numeric primitive and
-     * false otherwise.
+     * Returns true if the argument type is a numeric primitive or a boxed numeric primitive, or a
+     * type variable, wildcard, or intersection type with a boxed numeric primitive bound, and false
+     * otherwise.
+     *
+     * @param type a type
+     * @return true if {@code type} is numeric, possibly boxed or through a bound
      */
     protected boolean isNumericOrBoxed(TypeMirror type) {
         type = TypesUtils.boxedPrimitiveBound(type);
