@@ -702,6 +702,29 @@ public final class TypesUtils {
     }
 
     /**
+     * Returns the type to which unboxing conversion (JLS 5.1.8) applies for {@code type}: {@code
+     * type} itself, or, if {@code type} is a type variable, wildcard, or intersection type, the
+     * boxed primitive type among its bounds. javac unboxes such a type through its bound, so {@code
+     * x++} and {@code x + 1} compile when {@code x} has type {@code N} and {@code <N extends
+     * Integer>}.
+     *
+     * @param type a type
+     * @return the boxed primitive type among the bounds of {@code type}, or {@code type} itself
+     *     (its non-variable, non-wildcard upper bound) if it has no such bound
+     */
+    public static TypeMirror boxedPrimitiveBound(TypeMirror type) {
+        TypeMirror bound = upperBound(type);
+        if (bound.getKind() == TypeKind.INTERSECTION) {
+            for (TypeMirror b : ((IntersectionType) bound).getBounds()) {
+                if (isBoxedPrimitive(b)) {
+                    return b;
+                }
+            }
+        }
+        return bound;
+    }
+
+    /**
      * Returns the type parameter for this wildcard from the underlying type's bound field. This
      * field is sometimes null, in that case this method will return null.
      *
