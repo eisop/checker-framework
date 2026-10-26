@@ -287,7 +287,9 @@ public abstract class AbstractAnalysis<
             throw new BugInCF(
                     "AbstractAnalysis::getStoreBefore() should only be called when the analysis is running.");
         }
-        if (currentNode != null && currentNode.getTree() == tree && currentInput != null) {
+        @SuppressWarnings("interning:not.interned") // Tree identity
+        boolean isCurrentNodesTree = currentNode != null && currentNode.getTree() == tree;
+        if (isCurrentNodesTree && currentInput != null) {
             // The store before the node being processed is its input. This also answers a query
             // made while an AnalysisResult re-runs the transfer functions of a block of a
             // finished analysis (AnalysisResult#runAnalysisFor): the tree lookup of this analysis
