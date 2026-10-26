@@ -287,6 +287,13 @@ public abstract class AbstractAnalysis<
             throw new BugInCF(
                     "AbstractAnalysis::getStoreBefore() should only be called when the analysis is running.");
         }
+        if (currentNode != null && currentNode.getTree() == tree && currentInput != null) {
+            // The store before the node being processed is its input. This also answers a query
+            // made while an AnalysisResult re-runs the transfer functions of a block of a
+            // finished analysis (AnalysisResult#runAnalysisFor): the tree lookup of this analysis
+            // then belongs to the last CFG analyzed, which need not be the CFG being re-run.
+            return currentInput.getRegularStore();
+        }
         Set<Node> nodes = getNodesForTree(tree);
         if (nodes == null) {
             return null;
