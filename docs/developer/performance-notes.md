@@ -2538,8 +2538,18 @@ the head of a loop is the intersection of the entry store and the back edge's, w
 store, so the type of `this` that an early fixpoint iteration caches is never more initialized than
 the final one. A probe with `this` passed as an `@UnderInitialization` argument before and after
 field assignments in `while` and `for` loops reported the same errors with and without
-`-AatfDoNotCache`. Independently, the cached type of `this` differs from a recomputed one even when
-both queries come after dataflow (eisop#2344).
+`-AatfDoNotCache`. The difference between the cached type of `this` and a recomputed one after
+dataflow (eisop#2344) turned out to be in the recomputation, not in the cache. The Nullness visitor's
+assignment check asks for the store before `this.f`, which `AnalysisResult#runAnalysisFor` answers
+by re-running the transfer functions of the block with `isRunning` set. The transfer function for
+`this` recomputes its type, and `getSelfType` asks the running analysis for the store before the
+tree; the analysis's tree lookup and `currentInput` still belonged to the last CFG analyzed, so the
+answer was null (superclass frame) or the final store of that other CFG (every field initialized).
+The first query for a `this` tree always comes from the real analysis of its CFG, so the cache held
+the right type on plume-util and the nullness-initialization tests. The re-run now sets
+`currentInput` per node and the running-analysis lookup answers the current node's own tree from its
+input; with that, a recompute-and-compare probe reports no `this`/`super` mismatch on either corpus.
+`this` and `super` therefore stay out of `isFlowDependent`.
 
 ### Type caches for constructor arguments in the Initialization Checker (October 2026, PR #2309)
 

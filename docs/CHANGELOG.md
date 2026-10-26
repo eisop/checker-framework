@@ -264,6 +264,12 @@ now defaults to true, like them. New `AbstractAnalysis#getCurrentNode()` returns
 transfer function is running. New `PurityUtils#isPure(AnnotationProvider, ExecutableElement)` is
 true for a method that is both deterministic and side-effect-free.
 
+`AnalysisResult#runAnalysisFor`, which re-runs the transfer functions of a block to answer a query
+on a finished analysis, now keeps the analysis's `currentInput` at the input of the node being
+re-run, and `AbstractAnalysis#getStoreBefore(Tree)` answers a query for the tree of the node being
+processed from that input, so a factory that reads the store from within a transfer function sees
+the store before the node in a re-run as well as in the analysis itself.
+
 Performance optimizations:
 
 - Capped type argument inference work via `-AinferenceWorkBudget=N` (default
@@ -604,6 +610,7 @@ eisop#2324,
 eisop#2326,
 eisop#2330,
 eisop#2343,
+eisop#2344,
 eisop#2348,
 eisop#2349,
 eisop#2354,
