@@ -234,6 +234,10 @@ The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
 `@GuardedBy` expression whose lock is not held, as it does for an explicit
 dereference of that expression.
 
+The Lock Checker no longer reports `lock.expression.not.final` for an effectively final local
+variable named in a lock expression, such as `@GuardedBy("lock")` for a local variable `lock`, in
+most code.
+
 ### Implementation details
 
 The test framework accepts an expected error key in square brackets, as in
@@ -300,6 +304,10 @@ Performance optimizations:
 - `AnnotatedTypeFactory.declarationFromElement` uses its cache also for the left-hand side of an
   assignment, instead of scanning the enclosing method again for each assignment to a local
   variable. The method with 4000 compound assignments now takes about 6 s.
+- `Resolver.findLocalVariableOrParameter` finds a local variable or parameter by its declaration
+  in the source, without re-attributing the enclosing method up to the location. Under the Index
+  Checker, a method with 2000 pairs of compound assignments separated by local variable declarations,
+  `if`, or `try` statements takes about 5 s instead of 18-27 s.
 - `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
   by their class instead of missing for each new instance of the same type.
 - The types of method invocations, new class, conditional, and other flow-dependent expressions are
@@ -586,6 +594,7 @@ eisop#2349,
 eisop#2354,
 eisop#2355,
 eisop#2356,
+eisop#2357,
 eisop#2358,
 typetools#399,
 typetools#602,

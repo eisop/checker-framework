@@ -2080,8 +2080,8 @@ position. The repro now computes one environment instead of N: 2.5/3.3/5.1/8.7 s
 500/1000/2000/4000. `ResolverTest#runOfExpressionStatements` and `#constructorCallEndsRun` check
 that a declaration and a `this(...)` call end a run, and which statements share an environment. Only
 statements directly in a block form runs, not those directly in a `case`. Statements separated by
-declarations still each cost a re-attribution; making that linear would need an environment computed
-incrementally along the block, which `Trees#getScope` does not offer. Finding the start of the run
+declarations, or nested in `if`, loops, or `try`, still each cost a re-attribution; the lookup in
+the source below avoids it for local variables. Finding the start of the run
 walks the block's statements, linear per query, about 1% of the samples at N = 4000.
 
 Index Checker and Resource Leak Checker diagnostics on plume-util with its `@SuppressWarnings`
@@ -2115,6 +2115,61 @@ On plume-util with its `@SuppressWarnings` removed (JDK 25, medians of 5 interle
 warm-up), master and both changes took 10.29 s and 9.30 s under the Resource Leak Checker, and
 19.83 s and 19.63 s under the Index Checker. The Resource Leak Checker's gain is presumably that of
 PR #2360: an earlier build of its branch took about as long as both changes (3 interleaved runs).
+
+Shared environments help only consecutive expression statements. With other statements between the
+compound assignments, the repro stayed quadratic (Index Checker, JDK 25, one run each, s):
+
+| statements per pair | N = 500 | 1000 | 2000 |
+| --- | ---: | ---: | ---: |
+| `j -= 1; j += 1;` | 2.0 | 2.6 | 3.9 |
+| `int k<i> = j; j -= 1; j += 1;` | 3.6 | 7.8 | 22.0 |
+| `if (j > 0) { j -= 1; } j += 1;` | 4.4 | 8.9 | 27.3 |
+| `try { j -= 1; } finally { j += 1; }` | 3.7 | 6.9 | 18.3 |
+| `for (int k = 0; k < 1; k++) { j -= 1; } j += 1;` | 6.6 | 16.5 | 52.9 |
+
+(master: 3.2/6.6/18.4, 3.7/8.6/22.9, 4.6/9.6/27.6, 4.0/7.4/20.0, and 7.0/18.2/60.9 s for N =
+500/1000/2000.) Each run of expression statements still computes its own environment, and a
+statement in a nested block starts a run of its own.
+
+Fix: `Resolver#findLocalVariableOrParameter` first looks for the declaration in the source
+(`Resolver#localDeclarationInScope`): it walks up the path to the innermost enclosing class and
+collects the declarations before the leaf in each enclosing block or `case`, the variables of an
+enclosing `for`, enhanced `for`, `catch`, and `try`-with-resources, and the parameters of an
+enclosing lambda or method. A variable found that way is the answer, because a local variable must
+not be redeclared within its scope (JLS 6.4), so nothing else in scope has its name; a field of a
+local or anonymous class can hide it, which is why the search stops at a class. If nothing is found
+and the leaf is in a member of a class that is not in code, and no variable anywhere in that member
+(pattern variables included) has the name, no local variable of that name is in scope, and the
+method returns null without javac. Only otherwise, such as for pattern variables, a variable of an
+earlier `case` of an old-style `switch`, or code in a local or anonymous class, does it compute the
+environment as before. The names declared in a member are computed once per member (a single-entry
+cache, since the queries of one method come together). After this change (s):
+
+| statements per pair | N = 500 | 1000 | 2000 | 4000 |
+| --- | ---: | ---: | ---: | ---: |
+| `j -= 1; j += 1;` | 2.1 | 2.7 | 5.0 | 5.7 |
+| `int k<i> = j; j -= 1; j += 1;` | 2.3 | 3.3 | 5.2 | 6.1 |
+| `if (j > 0) { j -= 1; } j += 1;` | 2.4 | 3.3 | 5.3 | 7.0 |
+| `try { j -= 1; } finally { j += 1; }` | 2.3 | 4.1 | 4.4 | 6.4 |
+| `for (int k = 0; k < 1; k++) { j -= 1; } j += 1;` | 4.1 | 10.6 | 22.7 | 121 (OOM) |
+
+The `for` mix is still quadratic for a different reason: JFR at N = 2000 (2050 samples) has no
+`Resolver` frame; 63% is inclusive in `CFAbstractStore#leastUpperBound` → `mergeMap` at the merges
+of the loops, with self-time in `IdentityHashMap#get`, `HashMap#getNode`, and
+`CFAbstractValue#canBeMissingAnnotations`. Presumably the store grows with the loop variables `k`,
+which stay in it after their loops, so each merge is linear in the number of loops before it (a
+hypothesis, not checked). The Nullness Checker on the same mix is close to linear (5.4/9.1/20.0 s for
+N = 1000/2000/4000).
+
+The variable found in the source is the symbol of its declaration, whereas the environment that
+`Trees#getScope` computes holds copies made by attributing a copy of the method. `LocalVariable`
+compares variables by name, position, and owner, so both are the same `LocalVariable`. But javac's
+flow analysis does not run on the copy, so a copy lacks the `EFFECTIVELY_FINAL` flag: the Lock
+Checker reported `lock.expression.not.final` for `@GuardedBy("localLock")` on an effectively final
+local variable `localLock`, as the expected errors of `checker/tests/lock/Issue524.java` recorded
+(the test's comment says the desired result is no diagnostic). The source lookup removes that false
+positive; it remains where the lookup falls back to javac. The checker JUnit tests pass with the
+two expected errors removed.
 
 ### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
 

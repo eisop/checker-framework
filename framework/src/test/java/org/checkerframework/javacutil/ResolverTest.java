@@ -2,6 +2,7 @@ package org.checkerframework.javacutil;
 
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreeScanner;
@@ -65,6 +66,18 @@ public class ResolverTest {
                     "    k--;",
                     "  }",
                     "  R(int i, int j) {}",
+                    "  int fld;",
+                    "  void v(Object o, java.util.List<String> list) throws Exception {",
+                    "    for (int i = 0, i2 = i; i < 1; i++) { int fi = i + i2; }",
+                    "    for (String str : list) { str.length(); }",
+                    "    try (java.io.StringReader rd = new java.io.StringReader(\"\")) {",
+                    "      rd.read();",
+                    "    } catch (RuntimeException ex) {",
+                    "      ex.getMessage();",
+                    "    }",
+                    "    int fld2 = 0;",
+                    "    Object anon = new Object() { int fld2 = 1; int get() { return fld2 + 0; } };",
+                    "  }",
                     "}");
 
     /** The compilation unit of {@link #SOURCE}. */
@@ -209,6 +222,41 @@ public class ResolverTest {
     public void constructorCallEndsRun() {
         Assert.assertSame(envAt("k++"), envAt("k--"));
         Assert.assertNotSame(envAt("this(k, k)"), envAt("k++"));
+    }
+
+    /**
+     * The variables of a {@code for}, an enhanced {@code for}, a {@code try}-with-resources, and a
+     * {@code catch} are in scope in their bodies, and the lookup returns the symbols of their
+     * declarations. A field of an anonymous class hides a local variable of the same name around
+     * the class.
+     */
+    @Test
+    public void statementVariables() {
+        assertDeclaration("i + i2", "i", "int i = 0");
+        assertDeclaration("i + i2", "i2", "int i2 = i");
+        assertDeclaration("str.length()", "str", "String str");
+        assertDeclaration(
+                "rd.read()", "rd", "java.io.StringReader rd = new java.io.StringReader(\"\")");
+        assertDeclaration("ex.getMessage()", "ex", "RuntimeException ex");
+        assertDeclaration("ex.getMessage()", "o", "Object o");
+        assertScope(pathOf("str.length()"), new String[] {"o", "list"}, "i", "fi", "rd", "fld");
+        assertScope(pathOf("ex.getMessage()"), new String[] {"ex"}, "rd", "str", "fld2", "nope");
+        assertScope(pathOf("fld2 + 0"), new String[] {"o", "list"}, "fld2", "fld", "i");
+    }
+
+    /**
+     * Asserts that the local variable or parameter named {@code name} at the tree whose source text
+     * is {@code text} is the variable declared by the tree whose source text is {@code decl}.
+     *
+     * @param text the source text of the tree at which to look up {@code name}
+     * @param name the name of the variable
+     * @param decl the source text of the declaration of the variable
+     */
+    private void assertDeclaration(String text, String name, String decl) {
+        Assert.assertSame(
+                name + " at " + text,
+                TreeUtils.elementFromDeclaration((VariableTree) find(decl)),
+                resolver.findLocalVariableOrParameter(name, pathOf(text)));
     }
 
     /**
