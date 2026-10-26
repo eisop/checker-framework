@@ -2189,6 +2189,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * the variable type in the enhanced for loop.
      *
      * <p>If the subtype check fails, it issues a "enhancedfor.type.incompatible" error.
+     *
+     * <p>An enhanced for loop also calls {@code iterator()} on an {@code Iterable} or reads the
+     * length and the elements of an array, which no tree represents. A type system with a rule for
+     * method calls or array accesses, such as a dereference rule, must override this method to
+     * apply it to {@code tree.getExpression()}, as {@code NullnessNoInitVisitor} and {@code
+     * LockVisitor} do.
      */
     @Override
     public Void visitEnhancedForLoop(EnhancedForLoopTree tree, Void p) {

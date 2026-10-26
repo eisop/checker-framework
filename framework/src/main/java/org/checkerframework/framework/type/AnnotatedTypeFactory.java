@@ -1328,7 +1328,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // SourceChecker#setRoot clears it, through TreePathCacher#useUnit, only when the
         // compilation unit changes.
 
-        if (shouldCache) {
+        // Test for the caches rather than shouldCache: declarationFromElement uses
+        // elementToTreeCache whenever it exists.
+        if (elementToTreeCache != null) {
             // Clear the caches with trees because once the compilation unit changes,
             // the trees may be modified and lose type arguments.
             elementToTreeCache = new IdentityHashMap<>();
@@ -5370,7 +5372,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (root == null) {
             return null;
         }
-        if (shouldCache && elementToTreeCache.containsKey(elt)) {
+        // The declaration of an element does not depend on the types computed so far, so use the
+        // cache even while shouldCache is temporarily false, as in getAnnotatedTypeLhs. Otherwise
+        // each such query for a local variable scans the enclosing method again. The cache is null
+        // only if -AatfDoNotCache is given, so then useCache is false.
+        boolean useCache = elementToTreeCache != null;
+        if (useCache && elementToTreeCache.containsKey(elt)) {
             return elementToTreeCache.get(elt);
         }
 
@@ -5423,12 +5430,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     }
                     enclosing = enclosing.getEnclosingElement();
                 }
-                if (shouldCache
-                        && enclosingTree != null
-                        && scannedEnclosingTrees.add(enclosingTree)) {
+                if (useCache && enclosingTree != null && scannedEnclosingTrees.add(enclosingTree)) {
                     new DeclarationScanner().scan(enclosingTree, null);
                 }
-                fromElt = shouldCache ? elementToTreeCache.get(elt) : null;
+                fromElt = useCache ? elementToTreeCache.get(elt) : null;
                 if (fromElt == null && enclosingTree != null) {
                     fromElt =
                             com.sun.tools.javac.tree.TreeInfo.declarationFor(
@@ -5443,7 +5448,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 }
                 break;
         }
-        if (shouldCache) {
+        if (useCache) {
             elementToTreeCache.put(elt, fromElt);
         }
         return fromElt;
