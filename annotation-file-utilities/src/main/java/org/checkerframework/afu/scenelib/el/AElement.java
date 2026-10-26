@@ -223,6 +223,14 @@ public class AElement implements Cloneable {
         };
     }
 
+    /**
+     * Copies the contents of one vivifying map into another, cloning each value.
+     *
+     * @param <K> the type of the keys
+     * @param <V> the type of the values
+     * @param orig the map to copy from
+     * @param copy the map to copy into
+     */
     @SuppressWarnings({
         "unchecked",
         // The cast type has the qualifiers of the operand, which V need not accept.
