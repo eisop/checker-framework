@@ -475,6 +475,9 @@ Other improvements and bug fixes:
 - `Arrays.copyOf` no longer crashes when component types differ.
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
+- Type argument inference no longer crashes on a lambda or method reference whose
+  functional interface declares `throws E` and whose target type instantiates `E`
+  with a class, such as a `ThrowingSupplier<Exception>` parameter.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
@@ -609,6 +612,7 @@ eisop#2323,
 eisop#2324,
 eisop#2326,
 eisop#2330,
+eisop#2335,
 eisop#2343,
 eisop#2344,
 eisop#2348,
