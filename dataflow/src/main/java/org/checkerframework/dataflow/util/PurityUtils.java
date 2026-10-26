@@ -107,6 +107,23 @@ public class PurityUtils {
     }
 
     /**
+     * Is the method {@code methodElement} pure, that is, both deterministic and side-effect-free?
+     *
+     * <p>Like {@link #isDeterministic(AnnotationProvider, ExecutableElement)} and {@link
+     * #isSideEffectFree(AnnotationProvider, ExecutableElement)}, this method is concerned only with
+     * standard purity annotations; it does not use {@link AnnotationProvider#isDeterministic} or
+     * {@link AnnotationProvider#isSideEffectFree}.
+     *
+     * @param provider how to get annotations
+     * @param methodElement a method to test
+     * @return true if the method is deterministic and side-effect-free
+     */
+    public static boolean isPure(AnnotationProvider provider, ExecutableElement methodElement) {
+        return isDeterministic(provider, methodElement)
+                && isSideEffectFree(provider, methodElement);
+    }
+
+    /**
      * Returns the purity annotations on the method {@code methodTree}.
      *
      * @param provider how to get annotations. Its {@link AnnotationProvider#isSideEffectFree} and
