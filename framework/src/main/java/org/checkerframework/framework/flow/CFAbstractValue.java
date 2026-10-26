@@ -248,6 +248,22 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
     }
 
     /**
+     * Returns this value as a {@code V}.
+     *
+     * @return this value
+     */
+    @SuppressWarnings({
+        "unchecked", // V is the type of this value
+        // The cast type has the qualifiers of `this`, which V need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
+    private V thisAsV() {
+        return (V) this;
+    }
+
+    /**
      * Returns the more specific of two values {@code this} and {@code other}. If they do not
      * contain information for all hierarchies, then it is possible that information from both
      * {@code this} and {@code other} are taken.
@@ -263,9 +279,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
      */
     public V mostSpecific(@Nullable V other, @Nullable V backup) {
         if (other == null) {
-            @SuppressWarnings("unchecked")
-            V v = (V) this;
-            return v;
+            return thisAsV();
         }
         TypeMirror thisType = this.getUnderlyingType();
         TypeMirror otherType = other.getUnderlyingType();
@@ -527,9 +541,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
      */
     private V upperBound(@Nullable V other, boolean shouldWiden) {
         if (other == null) {
-            @SuppressWarnings("unchecked")
-            V v = (V) this;
-            return v;
+            return thisAsV();
         }
         TypeMirror thisType = this.getUnderlyingType();
         TypeMirror otherType = other.getUnderlyingType();
@@ -691,9 +703,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
      */
     public V greatestLowerBound(@Nullable V other) {
         if (other == null) {
-            @SuppressWarnings("unchecked")
-            V v = (V) this;
-            return v;
+            return thisAsV();
         }
         TypeMirror thisType = this.getUnderlyingType();
         TypeMirror otherType = other.getUnderlyingType();

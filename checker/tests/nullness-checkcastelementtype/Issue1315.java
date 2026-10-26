@@ -13,7 +13,8 @@ public class Issue1315 {
 
         @SuppressWarnings("unchecked")
         T test1(@Nullable Object p) {
-            // :: warning: (cast.unsafe)
+            // The cast is typed @Nullable T, which is not a subtype of T.
+            // :: error: (return.type.incompatible)
             return (T) p;
         }
 

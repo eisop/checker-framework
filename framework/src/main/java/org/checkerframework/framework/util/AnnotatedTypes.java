@@ -131,6 +131,12 @@ public class AnnotatedTypes {
      * @param supertype supertype that subtype is transformed to
      * @return subtype as an instance of supertype
      */
+    @SuppressWarnings({
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     public static <T extends AnnotatedTypeMirror> T castedAsSuper(
             AnnotatedTypeFactory atypeFactory, AnnotatedTypeMirror subtype, T supertype) {
         Types types = atypeFactory.getProcessingEnv().getTypeUtils();

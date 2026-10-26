@@ -3753,6 +3753,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param type the type to copy and freeze
      * @return a frozen deep copy of {@code type}
      */
+    @SuppressWarnings({
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     private static <T extends AnnotatedTypeMirror> T frozenDeepCopy(T type) {
         @SuppressWarnings("unchecked") // deepCopy() preserves the runtime type
         T copy = (T) type.deepCopy();
@@ -7289,6 +7295,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             return super.visitTypeVariable(original, originalToCopy);
         }
 
+        @SuppressWarnings({
+            // The cast type has the qualifiers of the operand, which T need not accept.
+            "interning:return.type.incompatible",
+            "rlccalledmethods:return.type.incompatible",
+            "signature:return.type.incompatible"
+        })
         @Override
         protected <T extends AnnotatedTypeMirror> T makeOrReturnCopy(
                 T original,

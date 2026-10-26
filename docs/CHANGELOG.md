@@ -103,6 +103,12 @@ Type-checking and subtyping improvements:
   `nondet().f`.
 - The Value Checker no longer refines the receiver of `startsWith` or `endsWith` if it is a call to
   a method that is not pure.
+- A cast to a type variable from an operand that is not a type variable now has
+  the qualifier of the operand, unless that qualifier is below the lower bound of
+  the type variable: `(T) o` for a `@Nullable Object o` is `@Nullable T`, so
+  returning it as a `T` is an error. It was typed as `T` and accepted. Code with
+  such unchecked casts, such as `(T) this` or `(T) map.get(k)`, may need
+  additional warning suppressions.
 
 JSpecify support in the Nullness Checker:
 
@@ -582,6 +588,7 @@ eisop#2271,
 eisop#2287,
 eisop#2288,
 eisop#2323,
+eisop#2330,
 eisop#2343,
 eisop#2348,
 eisop#2349,

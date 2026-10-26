@@ -368,7 +368,13 @@ public class AnnotatedTypeCopier
      *     over the visitor
      * @return a copy of original
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({
+        "unchecked",
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     protected <T extends AnnotatedTypeMirror> T makeOrReturnCopy(
             T original, IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
         T existing = (T) originalToCopy.get(original);
@@ -389,7 +395,13 @@ public class AnnotatedTypeCopier
      * @param original an AnnotatedTypeMirror (more specifically, a {@code T})
      * @return a copy of the given AnnotatedTypeMirror
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({
+        "unchecked",
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     protected <T extends AnnotatedTypeMirror> T makeCopy(T original) {
         T copy =
                 (T)
