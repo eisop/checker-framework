@@ -740,7 +740,6 @@ public abstract class GenericAnnotatedTypeFactory<
     // TransferFunction>.
     // However, we ran into issues in callers of the method if we used that type.
     @SuppressWarnings({
-        "unchecked",
         // The cast type has the qualifiers of the operand, which TransferFunction need not accept.
         "interning:return.type.incompatible",
         "rlccalledmethods:return.type.incompatible",
@@ -764,6 +763,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         // If a transfer function couldn't be loaded reflectively, return the default.
+        @SuppressWarnings("unchecked")
         TransferFunction ret =
                 (TransferFunction)
                         new CFTransfer((CFAbstractAnalysis<CFValue, CFStore, CFTransfer>) analysis);
@@ -2971,8 +2971,6 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     @SuppressWarnings({
         "TypeParameterUnusedInFormals", // Intentional abuse
-        // This might not be safe, but the caller of the method should use the correct type.
-        "unchecked",
         // The cast type has the qualifiers of the operand, which T need not accept.
         "interning:return.type.incompatible",
         "rlccalledmethods:return.type.incompatible",
@@ -2988,6 +2986,10 @@ public abstract class GenericAnnotatedTypeFactory<
 
         BaseTypeChecker subchecker = (BaseTypeChecker) subSourceChecker;
 
+        @SuppressWarnings(
+                "unchecked" // This might not be safe, but the caller of the method should use the
+        // correct type.
+        )
         T subFactory = (T) subchecker.getTypeFactory();
         if (subFactory != null) {
             subFactory.setVisitorTreePath(getVisitorTreePath());

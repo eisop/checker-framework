@@ -170,7 +170,6 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
      * @return {@code lub}, casted to {@code T}
      */
     @SuppressWarnings({
-        "unchecked",
         // The cast type has the qualifiers of the operand, which T need not accept.
         "interning:return.type.incompatible",
         "rlccalledmethods:return.type.incompatible",
@@ -182,7 +181,9 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
                     "AtmLubVisitor: unexpected type. Found: %s Required %s",
                     lub.getKind(), type.getKind());
         }
-        return (T) lub;
+        @SuppressWarnings("unchecked")
+        T castedLub = (T) lub;
+        return castedLub;
     }
 
     @Override

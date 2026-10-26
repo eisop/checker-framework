@@ -132,7 +132,6 @@ public class AnnotatedTypes {
      * @return subtype as an instance of supertype
      */
     @SuppressWarnings({
-        "unchecked",
         // The cast type has the qualifiers of the operand, which T need not accept.
         "interning:return.type.incompatible",
         "rlccalledmethods:return.type.incompatible",
@@ -146,6 +145,7 @@ public class AnnotatedTypes {
             // Make a copy of the supertype so that if supertype is a composite type, the
             // returned type will be fully annotated.  (For example, if sub is @C null and super is
             // @A List<@B String>, then the returned type is @C List<@B String>.)
+            @SuppressWarnings("unchecked")
             T copy = (T) supertype.deepCopy();
             copy.replaceAnnotations(subtype.getAnnotations());
             return copy;
@@ -156,7 +156,9 @@ public class AnnotatedTypes {
                 && AnnotatedTypes.isEnum(supertype)
                 && AnnotatedTypes.isDeclarationOfJavaLangEnum(types, elements, supertype)) {
             // Don't return the asSuper result because it causes an infinite loop.
-            return (T) supertype.deepCopy();
+            @SuppressWarnings("unchecked")
+            T result = (T) supertype.deepCopy();
+            return result;
         }
 
         T asSuperType = AnnotatedTypes.asSuper(atypeFactory, subtype, supertype);

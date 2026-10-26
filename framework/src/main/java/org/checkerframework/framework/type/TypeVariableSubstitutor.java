@@ -171,7 +171,6 @@ public class TypeVariableSubstitutor {
         }
 
         @SuppressWarnings({
-            "unchecked",
             // The cast type has the qualifiers of the operand, which T need not accept.
             "interning:return.type.incompatible",
             "rlccalledmethods:return.type.incompatible",
@@ -189,6 +188,7 @@ public class TypeVariableSubstitutor {
                             typeMirrors,
                             original.atypeFactory.processingEnv);
 
+            @SuppressWarnings("unchecked")
             T copy =
                     (T)
                             AnnotatedTypeMirror.createType(
