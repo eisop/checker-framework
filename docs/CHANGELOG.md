@@ -469,6 +469,12 @@ Other improvements and bug fixes:
 - `Arrays.copyOf` no longer crashes when component types differ.
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
+- A refined method call, or a fact about a call from a contract such as
+  `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
+  method with side effects, whatever the receiver and arguments of the call are.
+  Before, a call with a class name receiver and no modifiable argument, such as
+  `Foo.get()`, kept its refinement across every call, so a value that a side
+  effect had changed was still believed to be non-null.
 - The Lock Checker now requires a method called in a lock expression, such as
   `@GuardedBy("lock()")` or `synchronized (lock())`, to be side-effect-free as
   well as deterministic, that is, `@Pure`. Before, a method that was only
@@ -594,6 +600,7 @@ eisop#2271,
 eisop#2287,
 eisop#2288,
 eisop#2323,
+eisop#2326,
 eisop#2324,
 eisop#2330,
 eisop#2343,
