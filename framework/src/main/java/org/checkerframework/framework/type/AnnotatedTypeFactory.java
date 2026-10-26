@@ -2529,12 +2529,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * annotated types of its subexpressions or from type argument inference, which both depend on
      * the dataflow store and on whether type argument inference is running.
      *
-     * <p>Identifiers and {@code C.this} are not flow-dependent, although {@link #getSelfType} of a
-     * factory may read the store. The justification and a probe are in {@code
-     * docs/developer/performance-notes.md}. The difference after dataflow that eisop#2344 reported
-     * was in the recomputed type, not in the cached one: a query made while an {@code
-     * AnalysisResult} re-ran the transfer functions of a block read the state of the last analysis
-     * instead of the store before the node. The dataflow re-run now keeps that state consistent.
+     * <p>Identifiers, including {@code this} and {@code super}, and {@code C.this} are not
+     * flow-dependent: their types are cached on the first query and reused in every later phase. A
+     * factory's {@link #getSelfType} may still read the dataflow store, as the Initialization
+     * Checker's does to choose the type frame of {@code this}. The type it then caches is the one
+     * computed from the store before the tree's node when the transfer function of that node first
+     * queried it during the analysis of its CFG. A later query, with the cache or with {@code
+     * -AatfDoNotCache}, reads the store before that node as well, whether it comes from the
+     * finished analysis or from a re-run of the node's block ({@code
+     * AbstractAnalysis#getStoreBefore(Tree, Map)}).
      *
      * @param tree an expression tree without enclosing parentheses
      * @return true if the type of {@code tree} that {@link #fromExpression} computes can depend on
