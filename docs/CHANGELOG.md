@@ -475,6 +475,9 @@ Other improvements and bug fixes:
 - `Arrays.copyOf` no longer crashes when component types differ.
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
+- No longer crashes on a type annotation on an array creation whose element
+  type has a wildcard type argument, such as `new @NonNull List<?>[0]`, inside a
+  method that has a parameter.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
@@ -605,6 +608,7 @@ eisop#2267,
 eisop#2271,
 eisop#2287,
 eisop#2288,
+eisop#2290,
 eisop#2323,
 eisop#2324,
 eisop#2326,
