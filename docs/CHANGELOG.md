@@ -261,7 +261,8 @@ the dataflow analysis overrides the new `performFlowAnalysisForClassImpl` instea
 `AnnotatedTypeFactory#canUseCachedFlowDependentType` and `#canCacheFlowDependentType` decide when
 the type of a flow-dependent expression is cached; `AnnotatedTypeFactory#isAnonymousDiamondSupertypeFinal`
 now defaults to true, like them. New `AbstractAnalysis#getCurrentNode()` returns the node whose
-transfer function is running.
+transfer function is running. New `PurityUtils#isPure(AnnotationProvider, ExecutableElement)` is
+true for a method that is both deterministic and side-effect-free.
 
 Performance optimizations:
 
@@ -474,6 +475,11 @@ Other improvements and bug fixes:
   Before, a call with a class name receiver and no modifiable argument, such as
   `Foo.get()`, kept its refinement across every call, so a value that a side
   effect had changed was still believed to be non-null.
+- The Lock Checker now requires a method called in a lock expression, such as
+  `@GuardedBy("lock()")` or `synchronized (lock())`, to be side-effect-free as
+  well as deterministic, that is, `@Pure`. Before, a method that was only
+  `@Deterministic` was accepted although it may change the heap, so that two
+  evaluations of the lock expression could name different locks.
 
 ### Closed issues
 
@@ -594,6 +600,7 @@ eisop#2271,
 eisop#2287,
 eisop#2288,
 eisop#2323,
+eisop#2324,
 eisop#2326,
 eisop#2330,
 eisop#2343,

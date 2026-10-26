@@ -219,8 +219,10 @@ public class LockAnnotatedTypeFactory
      *
      * <p>2. an effectively final local variable.
      *
-     * <p>3. a deterministic method call whose arguments and receiver expression are effectively
-     * final as specified by this method.
+     * <p>3. a pure (deterministic and side-effect-free) method call whose arguments and receiver
+     * expression are effectively final as specified by this method. A deterministic method that is
+     * not side-effect-free may change the heap, so two evaluations of the call could return
+     * different locks.
      *
      * <p>4. a this reference or a class literal
      *
@@ -242,7 +244,10 @@ public class LockAnnotatedTypeFactory
                     return false;
                 }
             }
-            return PurityUtils.isDeterministic(this, methodCall.getElement())
+            ExecutableElement method = methodCall.getElement();
+            // Not isSideEffectFree(method) of this factory: it also accepts a @ReleasesNoLocks or
+            // @LockingFree method, which may change the heap.
+            return PurityUtils.isPure(this, method)
                     && isExpressionEffectivelyFinal(methodCall.getReceiver());
         } else if (expr instanceof ThisReference || expr instanceof ClassName) {
             // this is always final. "ClassName" is actually a class literal (String.class), it's
