@@ -247,8 +247,7 @@ public class LockAnnotatedTypeFactory
             ExecutableElement method = methodCall.getElement();
             // Not isSideEffectFree(method) of this factory: it also accepts a @ReleasesNoLocks or
             // @LockingFree method, which may change the heap.
-            return PurityUtils.isDeterministic(this, method)
-                    && PurityUtils.isSideEffectFree(this, method)
+            return PurityUtils.isPure(this, method)
                     && isExpressionEffectivelyFinal(methodCall.getReceiver());
         } else if (expr instanceof ThisReference || expr instanceof ClassName) {
             // this is always final. "ClassName" is actually a class literal (String.class), it's

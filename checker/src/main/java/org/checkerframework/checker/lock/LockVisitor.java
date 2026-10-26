@@ -930,8 +930,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                     ExecutableElement method = TreeUtils.elementFromUse(methodInvocationTree);
                     // A deterministic method that is not side-effect-free may change the heap, so
                     // two evaluations of the call could return different locks.
-                    if (!PurityUtils.isDeterministic(atypeFactory, method)
-                            || !PurityUtils.isSideEffectFree(atypeFactory, method)) {
+                    if (!PurityUtils.isPure(atypeFactory, method)) {
                         checker.reportError(tree, "lock.expression.not.final", lockExpressionTree);
                         return false;
                     }

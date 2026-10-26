@@ -261,7 +261,8 @@ the dataflow analysis overrides the new `performFlowAnalysisForClassImpl` instea
 `AnnotatedTypeFactory#canUseCachedFlowDependentType` and `#canCacheFlowDependentType` decide when
 the type of a flow-dependent expression is cached; `AnnotatedTypeFactory#isAnonymousDiamondSupertypeFinal`
 now defaults to true, like them. New `AbstractAnalysis#getCurrentNode()` returns the node whose
-transfer function is running.
+transfer function is running. New `PurityUtils#isPure(AnnotationProvider, ExecutableElement)` is
+true for a method that is both deterministic and side-effect-free.
 
 Performance optimizations:
 
