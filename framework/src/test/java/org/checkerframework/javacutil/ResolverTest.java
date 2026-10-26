@@ -302,8 +302,9 @@ public class ResolverTest {
         assertDeclaration("i + i2", "i", "int i = 0");
         assertDeclaration("i + i2", "i2", "int i2 = i");
         assertDeclaration("str.length()", "str", "String str");
-        assertDeclaration(
-                "rd.read()", "rd", "java.io.StringReader rd = new java.io.StringReader(\"\")");
+        // Find the declaration of the resource by its name: JDK 11 and 17 print it with its
+        // implicit "final", and JDK 21 without.
+        assertLookup("rd.read()", "rd", true, false);
         assertDeclaration("ex.getMessage()", "ex", "RuntimeException ex");
         assertDeclaration("ex.getMessage()", "o", "Object o");
         assertScope(pathOf("str.length()"), new String[] {"o", "list"}, "i", "fi", "rd", "fld");
