@@ -235,8 +235,7 @@ The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
 dereference of that expression.
 
 The Lock Checker no longer reports `lock.expression.not.final` for an effectively final local
-variable named in a lock expression, such as `@GuardedBy("lock")` for a local variable `lock`, in
-most code.
+variable named in a lock expression in most code.
 
 ### Implementation details
 
@@ -298,16 +297,9 @@ Performance optimizations:
 - `Resolver.getEnvForPath` caches the attribution environment per location, so that
   resolving the identifiers of Java expression strings does not re-attribute the enclosing
   method each time.
-- `Resolver.getEnvForPath` computes the attribution environment once for each run of expression
-  statements in a block, instead of re-attributing the method body up to each statement of the run.
-  The Index Checker on a method with 4000 compound assignments takes about 9 s instead of 61 s.
-- `AnnotatedTypeFactory.declarationFromElement` uses its cache also for the left-hand side of an
-  assignment, instead of scanning the enclosing method again for each assignment to a local
-  variable. The method with 4000 compound assignments now takes about 6 s.
-- `Resolver.findLocalVariableOrParameter` finds a local variable or parameter by its declaration
-  in the source, without re-attributing the enclosing method up to the location. Under the Index
-  Checker, a method with 2000 pairs of compound assignments separated by local variable declarations,
-  `if`, or `try` statements takes about 5 s instead of 18-27 s.
+- The Index Checker no longer takes quadratic time in the number of statements of a method that
+  contains compound assignments, local variable declarations, `if`, or `try` statements: a method
+  with 4000 pairs of compound assignments takes about 6 s instead of about a minute.
 - `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
   by their class instead of missing for each new instance of the same type.
 - The types of method invocations, new class, conditional, and other flow-dependent expressions are
