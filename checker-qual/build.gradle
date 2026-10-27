@@ -19,10 +19,8 @@ sourceSets {
 }
 
 // Compiling module-info.java needs the packages it exports, so this task compiles all sources, for
-// Java 9.  The jar takes only module-info.class from it; all other classes come from compileJava,
-// for Java 8.  The task has an output directory of its own: a task that shares its output
-// directory with another task cannot be cached, and the two tasks would make each other out of
-// date, so that both ran in every build.
+// Java 9, into a directory of its own, which lets Gradle cache it and compileJava separately.  The
+// jar takes only module-info.class from it; all other classes come from compileJava, for Java 8.
 def compileJava9 = tasks.register("compileJava9", JavaCompile) {
     source = sourceSets.module_info.java
     destinationDirectory = layout.buildDirectory.dir("classes/java/java9")
@@ -43,8 +41,8 @@ tasks.named("jar") {
             include("module-info.class")
         }
     }
-    // A build of a version in which compileJava9 wrote into compileJava's directory left a
-    // module-info.class there.  Take it only from compileJava9's own directory.
+    // Take module-info.class only from compileJava9's directory, and ignore one in compileJava's
+    // directory, where builds of older versions put it.
     filesMatching("module-info.class") { details ->
         if (details.file.parentFile != moduleInfoDir.get().asFile) {
             details.exclude()
