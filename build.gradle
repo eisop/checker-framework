@@ -337,13 +337,13 @@ allprojects { currentProj ->
             dependsOn(":checker:shadowJar")
             dependsOn(":framework-test:${tagletVersion}Classes")
 
-            // The AFU's updateUserOptions tasks run plume-lib's OptionsDoclet instead of the
-            // standard doclet.
-            boolean standardDoclet = !name.startsWith("updateUserOptions")
+            // A task that runs another doclet, such as plume-lib's OptionsDoclet in the AFU's
+            // updateUserOptions tasks, sets its own member level and takes no taglet.  This block
+            // runs in afterEvaluate, after the task's own configuration has set the doclet.
+            boolean standardDoclet = options.doclet == null
 
             options.encoding = "UTF-8"
-            // javadocDoclintAll, javadocPrivate and the updateUserOptions tasks set their own
-            // member level.
+            // javadocDoclintAll and javadocPrivate set their own member level.
             if (!name.equals("javadocDoclintAll") && !name.equals("javadocPrivate") && standardDoclet) {
                 options.memberLevel = javadocMemberLevel
             }
@@ -351,7 +351,6 @@ allprojects { currentProj ->
             if (isJava8) {
                 classpath += configurations.javacJar
             }
-            // OptionsDoclet does not accept a taglet.
             if (standardDoclet) {
                 options.taglets("org.checkerframework.taglet.ManualTaglet")
 

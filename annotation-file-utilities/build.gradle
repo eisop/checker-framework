@@ -155,6 +155,7 @@ tasks.register("updateUserOptions") {
  * @param taskDescription description of the task
  * @param docfile the file to rewrite
  * @param format the format of the documentation: "javadoc" or "html"
+ * @return the new task
  */
 def createUpdateUserOptionsTask(taskName, taskDescription, docfile, format) {
     tasks.register(taskName, Javadoc) {
@@ -168,9 +169,18 @@ def createUpdateUserOptionsTask(taskName, taskDescription, docfile, format) {
         classpath = project.sourceSets.main.compileClasspath + project.sourceSets.main.runtimeClasspath
         options.memberLevel = JavadocMemberLevel.PRIVATE
         options.docletpath = project.sourceSets.main.runtimeClasspath as List
-        // The root build.gradle does not add its taglet to tasks named updateUserOptions*, since
-        // OptionsDoclet does not accept one.
+        // With this doclet, the root build.gradle adds no taglet, which OptionsDoclet does not
+        // accept, and keeps the member level.
         options.doclet = "org.plumelib.options.OptionsDoclet"
+        // OptionsDoclet 2 needs the doclet API of JDK 9 and later, and javadoc from JDK 25 on
+        // fails with "AssertionError: ignored flag: -Xlint:-options".
+        def jdkVersion = useJdkVersionInt
+        doFirst {
+            if (jdkVersion < 9 || jdkVersion > 24) {
+                throw new GradleException(
+                        "${taskName} needs JDK 9 to 24, but uses JDK ${jdkVersion}; run it with -PuseJdkVersion=21.")
+            }
+        }
         // OptionsDoclet loads the annotator's classes, which use javac internals.
         if (!isJava8) {
             options.jFlags(*compilerArgsForRunningCF)
