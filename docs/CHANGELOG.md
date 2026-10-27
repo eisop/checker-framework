@@ -507,6 +507,9 @@ Other improvements and bug fixes:
   method reference or a lambda is the body of a lambda passed to a generic
   method, as in `each(in, l -> each(l, Box::get))`, or an argument whose formal
   parameter type is proper.
+- No longer crashes on a generic method reference, such as `C::glist` or
+  `ArrayList::new`, returned by a lambda whose target is a raw functional
+  interface type.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
@@ -641,6 +644,7 @@ eisop#2290,
 eisop#2323,
 eisop#2324,
 eisop#2326,
+eisop#2329,
 eisop#2330,
 eisop#2332,
 eisop#2335,
