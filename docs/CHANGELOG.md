@@ -478,6 +478,10 @@ Other improvements and bug fixes:
 - Type argument inference no longer crashes on a lambda or method reference whose
   functional interface declares `throws E` and whose target type instantiates `E`
   with a class, such as a `ThrowingSupplier<Exception>` parameter.
+- No longer crashes at start-up on a JDK 9 to 12 build whose `javac` lacks
+  `TypeVar.setUpperBound`: the upper bound of a type variable is set through
+  the method when it exists and through the `bound` field otherwise, instead
+  of choosing by JDK version.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
@@ -622,6 +626,7 @@ eisop#2355,
 eisop#2356,
 eisop#2357,
 eisop#2358,
+eisop#2366,
 typetools#399,
 typetools#602,
 typetools#2816,
