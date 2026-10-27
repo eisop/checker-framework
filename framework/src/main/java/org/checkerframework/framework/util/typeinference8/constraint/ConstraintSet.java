@@ -448,17 +448,23 @@ public class ConstraintSet implements ReductionResult {
      * @param context the context
      */
     public void reduceAdditionalArgsOfReducedInvocations(Java8InferenceContext context) {
-        List<AdditionalArgument> reducible = new ArrayList<>();
-        for (Constraint constraint : list) {
+        ConstraintSet reduced = null;
+        for (Iterator<Constraint> iter = list.iterator(); iter.hasNext(); ) {
+            Constraint constraint = iter.next();
             if (constraint instanceof AdditionalArgument
                     && ((AdditionalArgument) constraint).isInvocationReduced(context)) {
-                reducible.add((AdditionalArgument) constraint);
+                iter.remove();
+                fastLookup.remove(constraint);
+                ConstraintSet set = ((AdditionalArgument) constraint).reduce(context);
+                if (reduced == null) {
+                    reduced = set;
+                } else {
+                    reduced.addAll(set);
+                }
             }
         }
-        for (AdditionalArgument constraint : reducible) {
-            list.remove(constraint);
-            fastLookup.remove(constraint);
-            addAll(constraint.reduce(context));
+        if (reduced != null) {
+            addAll(reduced);
         }
     }
 

@@ -123,13 +123,9 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
                                 typeFactory.getPath(expressionTree);
                         return java8Inference.infer((MemberReferenceTree) expressionTree);
                     }
-                    // The inference problem of outerTree did not infer the type arguments of
-                    // expressionTree: the constraint that contains expressionTree had a proper
-                    // target type, for example the return type of the function type of a lambda
-                    // whose inference variables were already instantiated, so it reduced to a
-                    // compatibility check (JLS 18.2.1) and expressionTree is its own inference
-                    // problem. Now that outerTree is inferred, the lambda parameters that
-                    // expressionTree uses have their types.
+                    // expressionTree is not part of the problem of outerTree (see
+                    // AdditionalArgument#reduce), so infer it on its own, now that the lambda
+                    // parameters it uses have their types.
                     java8Inference =
                             new InvocationTypeInference(
                                     typeFactory, typeFactory.getPath(expressionTree));

@@ -233,15 +233,10 @@ public class Typing extends TypeConstraint {
             AbstractType sAsSuper = S.asSuper(T.getJavaType());
             if (sAsSuper == null) {
                 if (S.getTypeKind() == TypeKind.TYPEVAR) {
-                    // The supertypes of a type variable are those of its upper bound (JLS
-                    // 4.10.2), and javac's asSuper follows the chain of upper bounds. So S has no
-                    // supertype of T's class only if that chain ends in an inference variable,
-                    // for example S is "capture of ? extends alpha", a capture variable created
-                    // below from a wildcard whose bound is an inference variable. Whether the
-                    // instantiation of alpha has such a supertype is decided by the bound
-                    // alpha <: T, so reduce to the upper bound as javac's Types.isSubtype does
-                    // for a type variable. With a proper upper bound, this reduces to false, as
-                    // the JLS says.
+                    // javac's asSuper follows a type variable's chain of upper bounds; it ends in
+                    // an inference variable here, as for a capture of "? extends alpha". Reduce
+                    // upperBound(S) <: T, as javac's Types.isSubtype does (JLS 4.10.2); a proper
+                    // bound still reduces to false.
                     return new Typing(this, S.getTypeVarUpperBound(), T, Kind.SUBTYPE);
                 }
                 return ConstraintSet.FALSE;

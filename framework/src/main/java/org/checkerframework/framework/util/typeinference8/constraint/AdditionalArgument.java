@@ -106,16 +106,23 @@ public class AdditionalArgument implements Constraint {
     @Override
     public ConstraintSet reduce(Java8InferenceContext context) {
         if (!isInvocationReduced(context)) {
-            // The invocation has not been reduced as part of this inference problem, because the
-            // constraint that contains it had a proper target type, for example the return type of
-            // the function type of an enclosing lambda whose inference variables were already
-            // instantiated. Such a constraint reduces to a compatibility check (JLS 18.2.1) and
-            // the type arguments of the invocation are inferred separately, not to the bound set
-            // B3 of the invocation. Its additional argument constraints would then mention
-            // inference variables that no bound of this problem constrains, and resolving one of
-            // them gives it its declared bound (eisop#2337).
+            // The invocation is not part of this problem: its constraint had a proper target type,
+            // so it is inferred separately (JLS 18.2.1). Its constraints would mention variables
+            // that nothing here bounds, which then resolve to their declared bounds (eisop#2337).
             return new ConstraintSet();
         }
+        return reduceInvocation(context);
+    }
+
+    /**
+     * Returns the additional argument constraints of the invocation, whether or not it has been
+     * reduced as part of this inference problem yet. Use it only for an invocation that is part of
+     * the problem.
+     *
+     * @param context the context
+     * @return the additional argument constraints of the invocation
+     */
+    public ConstraintSet reduceInvocation(Java8InferenceContext context) {
         if (methodOrConstructorInvocation instanceof MethodInvocationTree) {
             MethodInvocationTree methodInvocation =
                     (MethodInvocationTree) methodOrConstructorInvocation;

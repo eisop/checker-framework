@@ -22,4 +22,20 @@ class EisopIssue2337NoTarget {
         var x = each(in, l -> each(l, Box::get));
         List<List<String>> y = x;
     }
+
+    static <A, B> Function<A, B> wrap(Function<A, B> f) {
+        throw new Error();
+    }
+
+    static <A, B> List<B> apply(Function<A, B> f, A a) {
+        throw new Error();
+    }
+
+    // The generic call in a branch of the conditional is reduced only with the whole conditional,
+    // after the arguments of apply.  Its lambda still bounds B, so the elements may be null.
+    void callInConditionalArgument(boolean b) {
+        var r = apply(b ? x -> "s" : wrap(y -> null), 1);
+        // :: error: (dereference.of.nullable)
+        r.get(0).length();
+    }
 }

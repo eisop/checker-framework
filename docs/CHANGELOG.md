@@ -505,9 +505,8 @@ Other improvements and bug fixes:
   inference variable is captured, as for a lambda passed as
   `Supplier<? extends List<? extends T>>`, or when a generic call that takes a
   method reference or a lambda is the body of a lambda passed to a generic
-  method, as in `each(in, l -> each(l, Box::get))`. The nested call is now
-  inferred with the types of the lambda parameters, instead of with its type
-  arguments defaulted to their bounds.
+  method, as in `each(in, l -> each(l, Box::get))`, or an argument whose formal
+  parameter type is proper.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
