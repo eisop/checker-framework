@@ -496,6 +496,10 @@ Other improvements and bug fixes:
   intersection type bounded by a boxed primitive type, such as `x++` for
   `<N extends Integer> N x`. The CFG now unboxes such an expression through
   its bound, as javac does.
+- A `checker-qual` jar of another Checker Framework that is earlier on the
+  annotation processor path than `checker.jar`, as Error Prone's configuration
+  can arrange, is now reported once, with the jar it was loaded from, instead
+  of every compilation unit failing with a `NoSuchFieldError`.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
@@ -643,6 +647,7 @@ eisop#2356,
 eisop#2357,
 eisop#2358,
 eisop#2366,
+eisop#2372,
 typetools#399,
 typetools#602,
 typetools#2816,
