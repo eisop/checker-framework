@@ -164,6 +164,7 @@ tasks.register("updateUserOptionsJavadoc", Javadoc) {
     options.addStringOption("source", "8")
     options.noTimestamp(false)
     title = ""
+    outputs.doNotCacheIf("The doclet rewrites the docfile in place, which is not a task output") { true }
 }
 
 tasks.register("updateUserOptionsHtml", Javadoc) {
@@ -183,6 +184,7 @@ tasks.register("updateUserOptionsHtml", Javadoc) {
     options.addStringOption("source", "8")
     options.noTimestamp(false)
     title = ""
+    outputs.doNotCacheIf("The doclet rewrites the docfile in place, which is not a task output") { true }
 }
 
 tasks.named("assemble") {
