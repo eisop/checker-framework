@@ -475,6 +475,9 @@ Other improvements and bug fixes:
 - `Arrays.copyOf` no longer crashes when component types differ.
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
+- Type argument inference no longer crashes on a lambda or method reference whose
+  functional interface declares `throws E` and whose target type instantiates `E`
+  with a class, such as a `ThrowingSupplier<Exception>` parameter.
 - No longer crashes at start-up on a JDK 9 to 12 build whose `javac` lacks
   `TypeVar.setUpperBound`: the upper bound of a type variable is set through
   the method when it exists and through the `bound` field otherwise, instead
@@ -613,6 +616,7 @@ eisop#2323,
 eisop#2324,
 eisop#2326,
 eisop#2330,
+eisop#2335,
 eisop#2343,
 eisop#2344,
 eisop#2348,
