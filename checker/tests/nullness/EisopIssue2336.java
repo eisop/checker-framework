@@ -70,14 +70,7 @@ class EisopIssue2336 {
         return each(in, l -> each(l, b -> b.get()));
     }
 
-    // The outer call has no target type, so its return type variable is still uninstantiated when
-    // the lambda is reduced and the inner call is reduced as part of the outer inference problem.
-    // The additional argument constraints of the inner call must be known before the return type
-    // variable is resolved, or the type argument of the method reference is lost.
-    void issue2337NoTarget(List<List<Box<String>>> in) {
-        var x = each(in, l -> each(l, Box::get));
-        List<List<String>> y = x;
-    }
+    // The case without a target type, which needs `var`, is in EisopIssue2337NoTarget.java.
 
     // Variants of eisop#2337 that did not crash.
     List<String> issue2337NotNested(List<List<Box<String>>> in) {
