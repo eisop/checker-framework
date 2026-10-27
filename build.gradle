@@ -337,18 +337,26 @@ allprojects { currentProj ->
             dependsOn(":checker:shadowJar")
             dependsOn(":framework-test:${tagletVersion}Classes")
 
+            // The AFU's updateUserOptions tasks run plume-lib's OptionsDoclet instead of the
+            // standard doclet.
+            boolean standardDoclet = !name.startsWith("updateUserOptions")
+
             options.encoding = "UTF-8"
-            // javadocDoclintAll and javadocPrivate set their own member level.
-            if (!name.equals("javadocDoclintAll") && !name.equals("javadocPrivate")) {
+            // javadocDoclintAll, javadocPrivate and the updateUserOptions tasks set their own
+            // member level.
+            if (!name.equals("javadocDoclintAll") && !name.equals("javadocPrivate") && standardDoclet) {
                 options.memberLevel = javadocMemberLevel
             }
             classpath += configurations.getByName("checkerFatJar").asFileTree
             if (isJava8) {
                 classpath += configurations.javacJar
             }
-            options.taglets("org.checkerframework.taglet.ManualTaglet")
+            // OptionsDoclet does not accept a taglet.
+            if (standardDoclet) {
+                options.taglets("org.checkerframework.taglet.ManualTaglet")
 
-            options.tagletPath(project(":framework-test").layout.buildDirectory.dir("classes/java/${tagletVersion}").get().asFile)
+                options.tagletPath(project(":framework-test").layout.buildDirectory.dir("classes/java/${tagletVersion}").get().asFile)
+            }
 
             if (!isJava8) {
                 // Javadoc needs the same javac-internal packages as running the CF, but only
