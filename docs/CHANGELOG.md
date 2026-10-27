@@ -270,6 +270,12 @@ re-run, and `AbstractAnalysis#getStoreBefore(Tree)` answers a query for the tree
 processed from that input, so a factory that reads the store from within a transfer function sees
 the store before the node in a re-run as well as in the analysis itself.
 
+The `installGitHooks` task, which every build runs, now does nothing in a linked git worktree:
+the hooks directory is shared by all worktrees, and a build of an old commit in a worktree replaced
+the shared pre-commit hook with that commit's version. The `Makefile` clones `.plume-scripts`
+without the `GIT_*` variables that git exports to a hook, so that a pre-commit hook of a checkout
+without that clone no longer writes the clone's tree into the repository's index.
+
 Performance optimizations:
 
 - Capped type argument inference work via `-AinferenceWorkBudget=N` (default
