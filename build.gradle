@@ -1034,6 +1034,10 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
         options.addBooleanOption("Xdoclint:all", true)
         options.addStringOption("Xmaxwarns", "99999")
 
+        // The result of this task is the warnings it prints, which test-misc.sh filters.  A build
+        // cache hit restores the generated files but prints no warnings.
+        outputs.doNotCacheIf("Its result is the warnings it prints") { true }
+
         // options.addStringOption("skip", "ClassNotToCheck|OtherClass")
     }
 }
@@ -1541,6 +1545,9 @@ subprojects {
 
             // Always re-run tests.  This must live at the test task level.
             outputs.upToDateWhen { false }
+            // Because of upToDateWhen, a test task is never loaded from the build cache, so do not
+            // store its results there either.
+            outputs.doNotCacheIf("Tests always re-run") { true }
 
             testLogging {
                 showStandardStreams = true
