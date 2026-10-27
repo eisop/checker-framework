@@ -1,6 +1,7 @@
 package org.checkerframework.framework.util.typeinference8.types;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.util.typeinference8.constraint.Constraint;
 import org.checkerframework.framework.util.typeinference8.constraint.Constraint.Kind;
 import org.checkerframework.framework.util.typeinference8.constraint.ConstraintSet;
@@ -457,6 +458,16 @@ public class VariableBounds {
      * ({@code 1 <= i <= n}), if Si and Ti are types (not wildcards), the constraint formula {@code
      * <Si = Ti>} is implied.
      *
+     * <p>If G is {@code java.lang.Enum} and {@code s} (or {@code t}) is an enum type E, then {@code
+     * Enum<E>} is a supertype to which {@code SupertypeFinder.createEnumSuperType} gives the
+     * primary qualifiers of {@code s} as the qualifiers of its type argument E. Those qualifiers
+     * hold for {@code s} itself but not for every subtype of {@code s}, such as the instantiation
+     * of a variable bounded by it: {@code @Bottom E <: @Top E} although their supertypes {@code
+     * Enum<@Bottom E>} and {@code Enum<@Top E>} are not subtypes. So in that case only the Java
+     * type of the other type argument is implied; its qualifiers are left to the other bounds. An
+     * enum type has no subtype other than itself, so the Java type is constrained by a subtype
+     * constraint against E whose qualifiers are ignored.
+     *
      * @param s a type argument
      * @param t a type argument
      * @return the constraints between the type arguments to {@code s} and {@code t}
@@ -475,15 +486,42 @@ public class VariableBounds {
         List<AbstractType> ts = pair.second.getTypeArguments();
         assert ss.size() == ts.size();
 
+        boolean enumSuper = TypesUtils.isDeclaredOfName(pair.first.getJavaType(), "java.lang.Enum");
+        boolean sIsEnum =
+                enumSuper && !TypesUtils.isDeclaredOfName(s.getJavaType(), "java.lang.Enum");
+        boolean tIsEnum =
+                enumSuper && !TypesUtils.isDeclaredOfName(t.getJavaType(), "java.lang.Enum");
+
         List<Typing> constraints = new ArrayList<>();
         for (int i = 0; i < ss.size(); i++) {
             AbstractType si = ss.get(i);
             AbstractType ti = ts.get(i);
-            if (si.getTypeKind() != TypeKind.WILDCARD && ti.getTypeKind() != TypeKind.WILDCARD) {
+            if (si.getTypeKind() == TypeKind.WILDCARD || ti.getTypeKind() == TypeKind.WILDCARD) {
+                continue;
+            }
+            if (sIsEnum) {
+                constraints.add(new Typing(source, ti, ignoreQualifiers(si), Kind.SUBTYPE));
+            } else if (tIsEnum) {
+                constraints.add(new Typing(source, si, ignoreQualifiers(ti), Kind.SUBTYPE));
+            } else {
                 constraints.add(new Typing(source, si, ti, Kind.TYPE_EQUALITY));
             }
         }
         return constraints;
+    }
+
+    /**
+     * Returns a copy of {@code type} whose qualifiers are ignored: its primary qualifiers are the
+     * top qualifiers and it is marked so that constraints against it compare only Java types, as
+     * {@link UseOfVariable#addBound} marks the upper bounds of a use with a primary qualifier.
+     *
+     * @param type a type
+     * @return a copy of {@code type} whose qualifiers are ignored
+     */
+    private AbstractType ignoreQualifiers(AbstractType type) {
+        AnnotatedTypeMirror copy = type.getAnnotatedType().deepCopy();
+        copy.replaceAnnotations(context.typeFactory.getQualifierHierarchy().getTopAnnotations());
+        return type.create(copy, type.getJavaType(), true);
     }
 
     /**
