@@ -4,6 +4,8 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '0 7 * * *'  # Runs daily at 07:00 UTC.
   pull_request:
+    # Experiment branch only: do not run the full CI for a change to workflow files alone.
+    paths-ignore: ['.github/workflows/**']
   push:
     branches: ["master"]
 
