@@ -500,6 +500,13 @@ Other improvements and bug fixes:
   annotation processor path than `checker.jar`, as Error Prone's configuration
   can arrange, is now reported once, with the jar it was loaded from, instead
   of every compilation unit failing with a `NoSuchFieldError`.
+- Type argument inference no longer crashes with "the return value of
+  `AbstractType.asSuper(...)` is null" when a wildcard whose bound is an
+  inference variable is captured, as for a lambda passed as
+  `Supplier<? extends List<? extends T>>`, or when a generic call that takes a
+  method reference or a lambda is the body of a lambda passed to a generic
+  method, as in `each(in, l -> each(l, Box::get))`, or an argument whose formal
+  parameter type is proper.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
@@ -637,6 +644,8 @@ eisop#2326,
 eisop#2330,
 eisop#2332,
 eisop#2335,
+eisop#2336,
+eisop#2337,
 eisop#2343,
 eisop#2344,
 eisop#2348,
