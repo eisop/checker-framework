@@ -509,8 +509,7 @@ Other improvements and bug fixes:
   parameter type is proper.
 - No longer crashes on a generic method reference, such as `C::glist` or
   `ArrayList::new`, returned by a lambda whose target is a raw functional
-  interface type; the erased functional interface is used as the target type
-  of the method reference.
+  interface type.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.

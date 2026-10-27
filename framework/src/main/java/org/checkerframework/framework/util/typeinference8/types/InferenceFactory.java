@@ -108,17 +108,19 @@ public class InferenceFactory {
         // the function type of a raw Supplier.  A wildcard is not a type that an expression can
         // have, so using it as the target type makes inference fail.
         Tree expression = context.pathToExpression.getLeaf();
-        TypeMirror javaType = TreeUtils.typeOf(expression);
-        if (expression instanceof MemberReferenceTree && javaType.getKind() == TypeKind.DECLARED) {
-            // A method reference needs a target type to determine its function type.  Its Java
-            // target type is the erasure of the type argument's bound, a raw functional interface
-            // type.  Use it, as AnnotatedTypeFactory#getFnInterfaceFromTree does for a lambda or a
-            // method reference whose target is a type argument of a raw type.
-            AnnotatedTypeMirror rawType =
-                    AnnotatedTypeMirror.createType(javaType, context.typeFactory, false);
-            context.typeFactory.addDefaultAnnotations(rawType);
-            rawType.replaceAnnotations(target.getAnnotatedType().getEffectiveAnnotations());
-            return new ProperType(rawType, javaType, context);
+        if (expression instanceof MemberReferenceTree) {
+            TypeMirror javaType = TreeUtils.typeOf(expression);
+            if (javaType.getKind() == TypeKind.DECLARED) {
+                // A method reference needs a target type to determine its function type.  Its Java
+                // target type is the erasure of the type argument's bound, a raw functional
+                // interface type.  Use it, as AnnotatedTypeFactory#getFnInterfaceFromTree does for
+                // a lambda or a method reference whose target is a type argument of a raw type.
+                AnnotatedTypeMirror rawType =
+                        AnnotatedTypeMirror.createType(javaType, typeFactory, false);
+                typeFactory.addDefaultAnnotations(rawType);
+                rawType.replaceAnnotations(target.getAnnotatedType().getEffectiveAnnotations());
+                return new ProperType(rawType, javaType, context);
+            }
         }
         // A method invocation's Java target type is the erasure, so it constrains nothing, and the
         // Checker Framework ignores type arguments of raw types in subtyping checks.

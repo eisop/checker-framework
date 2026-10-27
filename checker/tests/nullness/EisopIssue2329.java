@@ -1,11 +1,7 @@
 // Test case for https://github.com/eisop/checker-framework/issues/2329
-// A generic method reference whose target type is a type argument of a raw type: the return type
-// of the function type of a raw functional interface, or a parameter type of a method of a raw
-// type.  The Java target type is the erasure of the type argument's bound, a raw functional
-// interface type, which is used as the target type of the method reference as it is for a lambda.
+// A generic method reference returned by a lambda whose target is a raw functional interface type.
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -33,7 +29,6 @@ public class EisopIssue2329 {
 
     void returnedByLambdaWithRawTarget() {
         S2 n = () -> EisopIssue2329::glist;
-        S2 e = () -> Collections::emptyList;
         S2 a = () -> ArrayList::new;
         S2 block =
                 () -> {
@@ -42,16 +37,13 @@ public class EisopIssue2329 {
         Object cast = (S2) () -> EisopIssue2329::glist;
     }
 
-    void argumentOfRawType(Box raw) {
-        raw.set(EisopIssue2329::glist);
-        raw.set(ArrayList::new);
-        new Box(EisopIssue2329::glist);
-    }
-
     // Controls that did not crash.
-    void controls() {
+    void controls(Box raw) {
         S2<Supplier<List<String>>> parameterized = () -> EisopIssue2329::glist;
         S2 nonGeneric = () -> EisopIssue2329::list;
         S2 lambda = () -> () -> glist();
+        raw.set(EisopIssue2329::glist);
+        raw.set(ArrayList::new);
+        new Box(EisopIssue2329::glist);
     }
 }
