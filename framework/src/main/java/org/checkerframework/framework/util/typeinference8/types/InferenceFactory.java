@@ -1259,9 +1259,16 @@ public class InferenceFactory {
                         context.typeFactory,
                         targetType.getAnnotatedType(),
                         ele);
-        Iterator<AnnotatedTypeMirror> iter = functionType.getThrownTypes().iterator();
-        for (TypeMirror thrownType : ele.getThrownTypes()) {
-            AbstractType ei = InferenceType.create(iter.next(), thrownType, map, context);
+        // Use the thrown types of the function type, in which the type arguments of the target
+        // type are substituted, together with their own underlying types. The declared thrown
+        // types of the function's method may differ: for a target type ThrowingSupplier<Exception>
+        // of an interface that declares `String get() throws E`, the function type throws
+        // Exception, a class type, where the method declares the type variable E. A pair of a
+        // type variable and a class type made InferenceType.create cast the class type to a type
+        // variable.
+        for (AnnotatedTypeMirror thrownAtm : functionType.getThrownTypes()) {
+            AbstractType ei =
+                    InferenceType.create(thrownAtm, thrownAtm.getUnderlyingType(), map, context);
             if (ei.isProper()) {
                 properTypes.add((ProperType) ei);
             } else {

@@ -159,7 +159,14 @@ tasks.register("copyAndMinimizeAnnotatedJdkFiles", JavaExec) {
     description = "Copy annotated JDK files to ${outputDir}.  Converts each JDK source .java file into a stub file, though its extension remains '.java'.  Removes private and package-private methods, method bodies, comments, etc. from the annotated JDK."
 
     inputs.dir(file(inputDir))
+            .withPropertyName("annotatedJdkSources")
+            .withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.dir(file(outputDir))
+    // The task takes about half a minute and runs in every CI job.  Its inputs are the annotated
+    // JDK sources and the stubifier's classpath, so its output can be reused from the build cache.
+    // (The absolute output directory in the arguments is part of the cache key, so entries are
+    // only reused by a checkout at the same path, as on CI.)
+    outputs.cacheIf { true }
 
     classpath = sourceSets.stubifier.runtimeClasspath
     standardOutput = System.out
@@ -174,6 +181,11 @@ tasks.register("copyAndMinimizeAnnotatedJdkFiles", JavaExec) {
     def absolutejdkHome = jdkHomeFile.absolutePath
 
     doFirst {
+        // Copying never removes a file, so a JDK file that is no longer annotated, or no longer
+        // exists, would stay behind and be stored in the build cache.  Start from an empty
+        // directory, so that it holds exactly what the current annotated JDK produces.
+        injectedFiles.fs.delete { delete(outputDir) }
+
         FileTree tree = injectedFiles.objects.fileTree().setDir(inputDirFile)
         Set<String> annotatedForFiles = new HashSet<>()
         // For each annotated file, also record every ancestor directory along the
