@@ -20,7 +20,10 @@ import java.util.List;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 
 /** Data structure to stores the bounds of a variable. */
 public class VariableBounds {
@@ -378,8 +381,6 @@ public class VariableBounds {
             // a supertype of T of the form G<T1,..., Tn> (for some generic class or interface, G),
             // then for all i (1 <= i <= n), if Si and Ti are types (not wildcards),
             // the constraint formula <Si = Ti> is implied.
-            // The other bound is an upper bound: for a bound S <: var the constraint <S <: T>
-            // added above already implies the equality of the type arguments.
             if (boundType.isInferenceType() || boundType.isProper()) {
                 for (AbstractType t : bounds.get(BoundKind.UPPER)) {
                     if (boundType != t && (t.isProper() || t.isInferenceType())) {
@@ -458,18 +459,14 @@ public class VariableBounds {
      * ({@code 1 <= i <= n}), if Si and Ti are types (not wildcards), the constraint formula {@code
      * <Si = Ti>} is implied.
      *
-     * <p>If G is {@code java.lang.Enum} and {@code s} (or {@code t}) is an enum type E, then {@code
-     * Enum<E>} is a supertype to which {@code SupertypeFinder.createEnumSuperType} gives the
-     * primary qualifiers of {@code s} as the qualifiers of its type argument E. Those qualifiers
-     * hold for {@code s} itself but not for every subtype of {@code s}, such as the instantiation
-     * of a variable bounded by it: {@code @Bottom E <: @Top E} although their supertypes {@code
-     * Enum<@Bottom E>} and {@code Enum<@Top E>} are not subtypes. So in that case only the Java
-     * type of the other type argument is implied; its qualifiers are left to the other bounds. An
-     * enum type has no subtype other than itself, so the Java type is constrained by a subtype
-     * constraint against E whose qualifiers are ignored.
+     * <p>If G is {@code Enum} and {@code s} (or {@code t}) is an enum type E, {@code
+     * SupertypeFinder.createEnumSuperType} gives the type argument of {@code Enum<E>} the primary
+     * qualifiers of E, which do not hold for the subtypes of E. So only the Java type is implied,
+     * by a subtype constraint against a copy of E whose qualifiers are ignored; an enum type has no
+     * other subtype. See eisop#2414.
      *
-     * @param s a type argument
-     * @param t a type argument
+     * @param s an upper bound
+     * @param t another upper bound
      * @return the constraints between the type arguments to {@code s} and {@code t}
      */
     private List<Typing> getConstraintsFromParameterized(AbstractType s, AbstractType t) {
@@ -487,10 +484,8 @@ public class VariableBounds {
         assert ss.size() == ts.size();
 
         boolean enumSuper = TypesUtils.isDeclaredOfName(pair.first.getJavaType(), "java.lang.Enum");
-        boolean sIsEnum =
-                enumSuper && !TypesUtils.isDeclaredOfName(s.getJavaType(), "java.lang.Enum");
-        boolean tIsEnum =
-                enumSuper && !TypesUtils.isDeclaredOfName(t.getJavaType(), "java.lang.Enum");
+        boolean sIsEnum = enumSuper && isEnumType(s);
+        boolean tIsEnum = enumSuper && isEnumType(t);
 
         List<Typing> constraints = new ArrayList<>();
         for (int i = 0; i < ss.size(); i++) {
@@ -508,6 +503,18 @@ public class VariableBounds {
             }
         }
         return constraints;
+    }
+
+    /**
+     * Returns true if {@code type} is an enum type.
+     *
+     * @param type a type
+     * @return true if {@code type} is an enum type
+     */
+    private static boolean isEnumType(AbstractType type) {
+        TypeMirror javaType = type.getJavaType();
+        return javaType.getKind() == TypeKind.DECLARED
+                && ((DeclaredType) javaType).asElement().getKind() == ElementKind.ENUM;
     }
 
     /**
@@ -592,10 +599,8 @@ public class VariableBounds {
         if (!dirty) {
             return false;
         }
-        // Clear the flag before the scan, not after it: the scan may find the instantiation of
-        // this variable and mark its dependents dirty, which include this variable itself when
-        // one of its bounds mentions it (such as E <: Enum<E>); that mark must survive so the
-        // next round applies the instantiation to those bounds.
+        // Clear the flag before the scan: the scan may mark this variable dirty again, as for
+        // E <: Enum<E>, and that mark must survive.
         dirty = false;
         return doApplyInstantiationsToBounds();
     }

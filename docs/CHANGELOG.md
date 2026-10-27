@@ -510,10 +510,9 @@ Other improvements and bug fixes:
 - No longer crashes on a generic method reference, such as `C::glist` or
   `ArrayList::new`, returned by a lambda whose target is a raw functional
   interface type.
-- Type argument inference no longer crashes when a type variable bounded by another
-  type variable, such as `B` in `<T, B extends Box<T>> B box()`, is inferred from the
-  assignment target: two upper bounds on an inference variable that are parameterizations
-  of the same class now imply that their type arguments are equal (JLS 18.3.1).
+- No longer crashes inferring a type variable whose bound mentions another
+  type variable, such as `B` in `<T, B extends Box<T>> B box()`, from the
+  assignment target.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
