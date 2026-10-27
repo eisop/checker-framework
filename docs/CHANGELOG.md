@@ -480,6 +480,15 @@ Other improvements and bug fixes:
   intersection type bounded by a boxed primitive type, such as `x++` for
   `<N extends Integer> N x`. The CFG now unboxes such an expression through
   its bound, as javac does.
+- The Index Checker no longer crashes on an expression whose type is a type
+  variable bounded by a boxed integral type, such as an array index `a[x]` for
+  `<N extends Integer> N x`, or such an argument of `Math.min`, `Math.max`, or
+  `Random.nextInt`: the qualifier of a type variable's bound is used where the
+  checker read the type's primary qualifier.
+- No longer crashes at start-up on a JDK 9 to 12 build whose `javac` lacks
+  `TypeVar.setUpperBound`: the upper bound of a type variable is set through
+  the method when it exists and through the `bound` field otherwise, instead
+  of choosing by JDK version.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
@@ -624,6 +633,8 @@ eisop#2355,
 eisop#2356,
 eisop#2357,
 eisop#2358,
+eisop#2366,
+eisop#2404,
 typetools#399,
 typetools#602,
 typetools#2816,
