@@ -136,7 +136,9 @@ jobs:
       fail-fast: false
       matrix:
         os: ['windows-latest', 'macos-latest']
-        script: ['cftests-junit']
+        # Two parts, as on Linux: a single job took 20 to 27 minutes on Windows and was the
+        # longest job of every run.
+        script: ['cftests-junit-part1', 'cftests-junit-part2']
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
