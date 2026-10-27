@@ -101,17 +101,30 @@ public class InferenceFactory {
      */
     public @Nullable ProperType getTargetType() {
         ProperType target = getTargetTypeOfContext();
-        if (target != null
-                && target.getAnnotatedType().getKind() == TypeKind.WILDCARD
-                && ((AnnotatedWildcardType) target.getAnnotatedType()).isTypeArgOfRawType()) {
-            // The expression is assigned to a type argument of a raw type, such as the return type
-            // of the function type of a raw Supplier.  Its Java target type is the erasure, so it
-            // constrains nothing, and the Checker Framework ignores type arguments of raw types
-            // in subtyping checks.  A wildcard is not a type that an expression can have, so
-            // using it as the target type makes inference fail.
-            return null;
+        if (target == null || !AnnotatedTypes.isTypeArgOfRawType(target.getAnnotatedType())) {
+            return target;
         }
-        return target;
+        // The expression is assigned to a type argument of a raw type, such as the return type of
+        // the function type of a raw Supplier.  A wildcard is not a type that an expression can
+        // have, so using it as the target type makes inference fail.
+        Tree expression = context.pathToExpression.getLeaf();
+        if (expression instanceof MemberReferenceTree) {
+            TypeMirror javaType = TreeUtils.typeOf(expression);
+            if (javaType.getKind() == TypeKind.DECLARED) {
+                // A method reference needs a target type to determine its function type.  Its Java
+                // target type is the erasure of the type argument's bound, a raw functional
+                // interface type.  Use it, as AnnotatedTypeFactory#getFnInterfaceFromTree does for
+                // a lambda or a method reference whose target is a type argument of a raw type.
+                AnnotatedTypeMirror rawType =
+                        AnnotatedTypeMirror.createType(javaType, typeFactory, false);
+                typeFactory.addDefaultAnnotations(rawType);
+                rawType.replaceAnnotations(target.getAnnotatedType().getEffectiveAnnotations());
+                return new ProperType(rawType, javaType, context);
+            }
+        }
+        // A method invocation's Java target type is the erasure, so it constrains nothing, and the
+        // Checker Framework ignores type arguments of raw types in subtyping checks.
+        return null;
     }
 
     /**
@@ -1259,9 +1272,16 @@ public class InferenceFactory {
                         context.typeFactory,
                         targetType.getAnnotatedType(),
                         ele);
-        Iterator<AnnotatedTypeMirror> iter = functionType.getThrownTypes().iterator();
-        for (TypeMirror thrownType : ele.getThrownTypes()) {
-            AbstractType ei = InferenceType.create(iter.next(), thrownType, map, context);
+        // Use the thrown types of the function type, in which the type arguments of the target
+        // type are substituted, together with their own underlying types. The declared thrown
+        // types of the function's method may differ: for a target type ThrowingSupplier<Exception>
+        // of an interface that declares `String get() throws E`, the function type throws
+        // Exception, a class type, where the method declares the type variable E. A pair of a
+        // type variable and a class type made InferenceType.create cast the class type to a type
+        // variable.
+        for (AnnotatedTypeMirror thrownAtm : functionType.getThrownTypes()) {
+            AbstractType ei =
+                    InferenceType.create(thrownAtm, thrownAtm.getUnderlyingType(), map, context);
             if (ei.isProper()) {
                 properTypes.add((ProperType) ei);
             } else {
