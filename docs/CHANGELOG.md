@@ -481,6 +481,9 @@ Other improvements and bug fixes:
 - `Arrays.copyOf` no longer crashes when component types differ.
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
+- No longer crashes on a type annotation on an array creation whose element
+  type has a wildcard type argument, such as `new @NonNull List<?>[0]`, inside a
+  method that has a parameter.
 - Type argument inference no longer crashes on a lambda or method reference whose
   functional interface declares `throws E` and whose target type instantiates `E`
   with a class, such as a `ThrowingSupplier<Exception>` parameter.
@@ -618,6 +621,7 @@ eisop#2267,
 eisop#2271,
 eisop#2287,
 eisop#2288,
+eisop#2290,
 eisop#2323,
 eisop#2324,
 eisop#2326,
