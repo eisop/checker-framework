@@ -377,9 +377,11 @@ public class VariableBounds {
             // a supertype of T of the form G<T1,..., Tn> (for some generic class or interface, G),
             // then for all i (1 <= i <= n), if Si and Ti are types (not wildcards),
             // the constraint formula <Si = Ti> is implied.
+            // The other bound is an upper bound: for a bound S <: var the constraint <S <: T>
+            // added above already implies the equality of the type arguments.
             if (boundType.isInferenceType() || boundType.isProper()) {
-                for (AbstractType t : bounds.get(BoundKind.LOWER)) {
-                    if (t.isProper() || t.isInferenceType()) {
+                for (AbstractType t : bounds.get(BoundKind.UPPER)) {
+                    if (boundType != t && (t.isProper() || t.isInferenceType())) {
                         constraints.addAll(getConstraintsFromParameterized(boundType, t));
                     }
                 }
