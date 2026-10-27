@@ -1009,14 +1009,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * If the input node is a boxed type, unbox it, otherwise leave it alone.
+     * If the input node is a boxed type, or a type variable, wildcard, or intersection type with a
+     * boxed type bound, unbox it, otherwise leave it alone.
      *
      * @param node in input node
      * @return a Node representing the unboxed version of the input, which may simply be the input
      *     node
      */
     protected Node unbox(Node node) {
-        if (TypesUtils.isBoxedPrimitive(node.getType())) {
+        if (TypesUtils.isBoxedPrimitive(TypesUtils.boxedPrimitiveBound(node.getType()))) {
 
             MemberSelectTree primValueSelect =
                     treeBuilder.buildPrimValueMethodAccess(node.getTree());
@@ -1049,10 +1050,18 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         }
     }
 
+    /**
+     * Returns information about the type of a tree: whether it is a boxed primitive, or a type
+     * variable, wildcard, or intersection type with a boxed primitive bound, and its unboxed type.
+     *
+     * @param tree a tree
+     * @return information about the type of {@code tree}
+     */
     private TreeInfo getTreeInfo(Tree tree) {
         TypeMirror type = TreeUtils.typeOf(tree);
-        boolean boxed = TypesUtils.isBoxedPrimitive(type);
-        TypeMirror unboxedType = boxed ? types.unboxedType(type) : type;
+        TypeMirror boxedType = TypesUtils.boxedPrimitiveBound(type);
+        boolean boxed = TypesUtils.isBoxedPrimitive(boxedType);
+        TypeMirror unboxedType = boxed ? types.unboxedType(boxedType) : type;
 
         boolean bool = TypesUtils.isBooleanType(type);
         boolean numeric = TypesUtils.isNumeric(unboxedType);
@@ -1138,10 +1147,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * Returns true if the argument type is a numeric primitive or a boxed numeric primitive and
-     * false otherwise.
+     * Returns true if the argument type is a numeric primitive or a boxed numeric primitive, or a
+     * type variable, wildcard, or intersection type with a boxed numeric primitive bound, and false
+     * otherwise.
+     *
+     * @param type a type
+     * @return true if {@code type} is numeric, possibly boxed or through a bound
      */
     protected boolean isNumericOrBoxed(TypeMirror type) {
+        type = TypesUtils.boxedPrimitiveBound(type);
         if (TypesUtils.isBoxedPrimitive(type)) {
             type = types.unboxedType(type);
         }
@@ -1159,21 +1173,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      */
     protected TypeMirror binaryPromotedType(TypeMirror left, TypeMirror right) {
         if (!left.getKind().isPrimitive()) {
-            if (TypesUtils.isCapturedTypeVariable(left)) {
-                // This doesn't seem legal according to the JLS, but javac accepts it.
-                left = types.unboxedType(TypesUtils.upperBound(left));
-            } else {
-                left = types.unboxedType(left);
-            }
+            left = types.unboxedType(TypesUtils.boxedPrimitiveBound(left));
         }
 
         if (!right.getKind().isPrimitive()) {
-            if (TypesUtils.isCapturedTypeVariable(right)) {
-                // This doesn't seem legal according to the JLS, but javac accepts it.
-                right = types.unboxedType(TypesUtils.upperBound(right));
-            } else {
-                right = types.unboxedType(right);
-            }
+            right = types.unboxedType(TypesUtils.boxedPrimitiveBound(right));
         }
 
         TypeKind promotedTypeKind = TypeKindUtils.widenedNumericType(left, right);
@@ -4473,7 +4477,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         operNode.setInSource(false);
         extendWithNode(operNode);
 
-        Node narrowed = narrowAndBox(operNode, exprType);
+        // For a type variable bounded by a boxed type, the result is boxed to the bound, as javac
+        // does, and then assigned to the type-variable-typed expression.
+        Node narrowed = narrowAndBox(operNode, TypesUtils.boxedPrimitiveBound(exprType));
 
         Tree target;
         if (isPostfix) {
