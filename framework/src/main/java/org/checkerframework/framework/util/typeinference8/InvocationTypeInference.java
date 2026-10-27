@@ -526,7 +526,13 @@ public class InvocationTypeInference {
             case LAMBDA_EXPRESSION:
                 c.add(new CheckedExceptionConstraint(ei, fi, map));
                 LambdaExpressionTree lambda = (LambdaExpressionTree) ei;
-                Set<Variable> lambdaInputs = getLambdaParameterInputVariables(lambda, fi);
+                // The input variables of the constraint <lambda -> fi>: those of the parameters
+                // of lambda and those of the constraints of its returned expressions. An
+                // AdditionalArgument for an invocation that lambda returns gets them all, so that
+                // <lambda -> fi>, which is reduced first when both can be reduced, has been reduced
+                // before the AdditionalArgument (see AdditionalArgument).
+                Set<Variable> lambdaInputs =
+                        new Expression("Argument constraint", lambda, fi).getInputVariables();
                 for (ExpressionTree expression : TreeUtils.getReturnedExpressions(lambda)) {
                     c.addAll(createAdditionalArgConstraintsNoLambda(expression, fi, lambdaInputs));
                 }
@@ -652,13 +658,13 @@ public class InvocationTypeInference {
             case METHOD_INVOCATION:
             case NEW_CLASS:
                 if (InferenceFactory.isPolyExpression(expression)) {
-                    if (lambdaInputs.isEmpty()) {
-                        c.addAll(new AdditionalArgument(expression).reduce(context));
-                    } else {
-                        // See framework/tests/all-systems/SimpleLambdaParameter.java and
-                        // framework/tests/all-systems/java8inference/Issue2084.java.
-                        c.add(new AdditionalArgument(expression, lambdaInputs));
-                    }
+                    // Not reduced here, even without input variables: the constraint of the
+                    // enclosing lambda has not been reduced yet, so it is not yet known whether
+                    // expression is reduced as part of this inference problem (see
+                    // AdditionalArgument). See also
+                    // framework/tests/all-systems/SimpleLambdaParameter.java and
+                    // framework/tests/all-systems/java8inference/Issue2084.java.
+                    c.add(new AdditionalArgument(expression, lambdaInputs));
                 }
                 break;
             case PARENTHESIZED:
@@ -769,6 +775,14 @@ public class InvocationTypeInference {
         // C might contain new variables that have not yet been added to the b3 bound set.
         Set<Variable> newVariables = c.getAllInferenceVariables();
         while (!c.isEmpty()) {
+            // An additional argument constraint stands for the constraints of an invocation that
+            // are only created once the invocation has been reduced as part of this problem, as
+            // the returned expression of a lambda, for example. Create them as soon as that has
+            // happened: the selection below must know their input and output variables, or it
+            // may select a constraint that resolves a variable they would have bounded, such as
+            // the return type variable of the function type of the lambda, which is an input
+            // variable of the lambda's checked exception constraint.
+            c.reduceAdditionalArgsOfReducedInvocations(context);
 
             ConstraintSet subset =
                     ConstraintSet.getClosedSubset(c, b3.getDependencies(newVariables));

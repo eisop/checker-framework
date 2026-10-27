@@ -441,6 +441,28 @@ public class ConstraintSet implements ReductionResult {
     }
 
     /**
+     * Reduces the additional argument constraints in this set whose invocation has been reduced as
+     * part of this inference problem (see {@link AdditionalArgument#isInvocationReduced}) and adds
+     * the resulting constraints to this set.
+     *
+     * @param context the context
+     */
+    public void reduceAdditionalArgsOfReducedInvocations(Java8InferenceContext context) {
+        List<AdditionalArgument> reducible = new ArrayList<>();
+        for (Constraint constraint : list) {
+            if (constraint instanceof AdditionalArgument
+                    && ((AdditionalArgument) constraint).isInvocationReduced(context)) {
+                reducible.add((AdditionalArgument) constraint);
+            }
+        }
+        for (AdditionalArgument constraint : reducible) {
+            list.remove(constraint);
+            fastLookup.remove(constraint);
+            addAll(constraint.reduce(context));
+        }
+    }
+
+    /**
      * Reduce one constraint in this set.
      *
      * @param context the context

@@ -475,6 +475,14 @@ Other improvements and bug fixes:
 - `Arrays.copyOf` no longer crashes when component types differ.
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
+- Type argument inference no longer crashes with "the return value of
+  `AbstractType.asSuper(...)` is null" when a wildcard whose bound is an
+  inference variable is captured, as for a lambda passed as
+  `Supplier<? extends List<? extends T>>`, or when a generic call that takes a
+  method reference or a lambda is the body of a lambda passed to a generic
+  method, as in `each(in, l -> each(l, Box::get))`. The nested call is now
+  inferred with the types of the lambda parameters, instead of with its type
+  arguments defaulted to their bounds.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
@@ -609,6 +617,8 @@ eisop#2323,
 eisop#2324,
 eisop#2326,
 eisop#2330,
+eisop#2336,
+eisop#2337,
 eisop#2343,
 eisop#2344,
 eisop#2348,
