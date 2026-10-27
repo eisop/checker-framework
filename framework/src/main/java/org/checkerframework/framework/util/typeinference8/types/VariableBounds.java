@@ -552,9 +552,12 @@ public class VariableBounds {
         if (!dirty) {
             return false;
         }
-        boolean changed = doApplyInstantiationsToBounds();
+        // Clear the flag before the scan, not after it: the scan may find the instantiation of
+        // this variable and mark its dependents dirty, which include this variable itself when
+        // one of its bounds mentions it (such as E <: Enum<E>); that mark must survive so the
+        // next round applies the instantiation to those bounds.
         dirty = false;
-        return changed;
+        return doApplyInstantiationsToBounds();
     }
 
     /**
