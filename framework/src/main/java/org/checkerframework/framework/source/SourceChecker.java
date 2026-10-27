@@ -64,6 +64,7 @@ import java.lang.management.MemoryPoolMXBean;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.CodeSource;
 import java.time.Instant;
@@ -927,21 +928,27 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (missing == null && !mixed) {
             return;
         }
-        String where =
-                qualSource == null ? "an unknown location" : qualSource.getLocation().toString();
         throw new UserError(
                 "The qualifier classes of the Checker Framework were loaded from %s, which is not the"
                         + " checker-qual of this release (%s). A checker-qual jar of another"
                         + " Checker Framework is earlier on the annotation processor path; put the"
                         + " Checker Framework's checker.jar before it, or remove it from the"
                         + " processor path.",
-                where,
+                locationOf(qualSource),
                 missing != null
                         ? "it lacks " + missing
-                        : "other qualifiers come from "
-                                + (eisopSource == null
-                                        ? "an unknown location"
-                                        : eisopSource.getLocation()));
+                        : "other qualifiers come from " + locationOf(eisopSource));
+    }
+
+    /**
+     * Returns the location of a code source, for a message.
+     *
+     * @param source a code source, or null if a class has none
+     * @return the location of {@code source}, or "an unknown location"
+     */
+    private static String locationOf(@Nullable CodeSource source) {
+        URL location = source == null ? null : source.getLocation();
+        return location == null ? "an unknown location" : location.toString();
     }
 
     /**

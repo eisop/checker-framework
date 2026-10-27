@@ -91,22 +91,20 @@ public class ShadowedCheckerQual {
             throws IOException, InterruptedException {
         List<String> command = new ArrayList<>();
         command.add(Paths.get(System.getProperty("java.home"), "bin", "javac").toString());
-        if (!System.getProperty("java.specification.version").startsWith("1.")) {
-            // JDK 9 and later: the Checker Framework needs access to javac's internals.
-            for (String pkg :
-                    Arrays.asList(
-                            "api",
-                            "code",
-                            "comp",
-                            "file",
-                            "main",
-                            "parser",
-                            "processing",
-                            "tree",
-                            "util")) {
-                command.add(
-                        "-J--add-opens=jdk.compiler/com.sun.tools.javac." + pkg + "=ALL-UNNAMED");
-            }
+        // The Checker Framework needs access to javac's internals.  (jtreg runs on JDK 11 and
+        // later.)
+        for (String pkg :
+                Arrays.asList(
+                        "api",
+                        "code",
+                        "comp",
+                        "file",
+                        "main",
+                        "parser",
+                        "processing",
+                        "tree",
+                        "util")) {
+            command.add("-J--add-opens=jdk.compiler/com.sun.tools.javac." + pkg + "=ALL-UNNAMED");
         }
         command.addAll(
                 Arrays.asList(
