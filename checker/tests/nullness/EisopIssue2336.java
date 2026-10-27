@@ -8,6 +8,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 class EisopIssue2336 {
 
@@ -84,7 +85,7 @@ class EisopIssue2336 {
     }
 
     List<List<String>> issue2337Stream(List<List<Box<String>>> in) {
-        return in.stream().map(l -> each(l, Box::get)).toList();
+        return in.stream().map(l -> each(l, Box::get)).collect(Collectors.toList());
     }
 
     // The same cause as eisop#2337, with a lambda whose target type is proper from the start, and
