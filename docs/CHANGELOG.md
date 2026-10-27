@@ -270,6 +270,12 @@ re-run, and `AbstractAnalysis#getStoreBefore(Tree)` answers a query for the tree
 processed from that input, so a factory that reads the store from within a transfer function sees
 the store before the node in a re-run as well as in the analysis itself.
 
+The `installGitHooks` task, which every build runs, now does nothing in a linked git worktree:
+the hooks directory is shared by all worktrees, and a build of an old commit in a worktree replaced
+the shared pre-commit hook with that commit's version. The `Makefile` clones `.plume-scripts`
+without the `GIT_*` variables that git exports to a hook, so that a pre-commit hook of a checkout
+without that clone no longer writes the clone's tree into the repository's index.
+
 Performance optimizations:
 
 - Capped type argument inference work via `-AinferenceWorkBudget=N` (default
@@ -475,6 +481,16 @@ Other improvements and bug fixes:
 - `Arrays.copyOf` no longer crashes when component types differ.
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
+- No longer crashes on a type annotation on an array creation whose element
+  type has a wildcard type argument, such as `new @NonNull List<?>[0]`, inside a
+  method that has a parameter.
+- Type argument inference no longer crashes on a lambda or method reference whose
+  functional interface declares `throws E` and whose target type instantiates `E`
+  with a class, such as a `ThrowingSupplier<Exception>` parameter.
+- No longer crashes at start-up on a JDK 9 to 12 build whose `javac` lacks
+  `TypeVar.setUpperBound`: the upper bound of a type variable is set through
+  the method when it exists and through the `bound` field otherwise, instead
+  of choosing by JDK version.
 - No longer crashes on an increment, decrement, comparison, or arithmetic
   operation on an expression whose type is a type variable, wildcard, or
   intersection type bounded by a boxed primitive type, such as `x++` for
@@ -610,11 +626,13 @@ eisop#2267,
 eisop#2271,
 eisop#2287,
 eisop#2288,
+eisop#2290,
 eisop#2323,
 eisop#2324,
 eisop#2326,
 eisop#2330,
 eisop#2332,
+eisop#2335,
 eisop#2343,
 eisop#2344,
 eisop#2348,
@@ -624,6 +642,7 @@ eisop#2355,
 eisop#2356,
 eisop#2357,
 eisop#2358,
+eisop#2366,
 typetools#399,
 typetools#602,
 typetools#2816,
