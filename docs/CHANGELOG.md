@@ -30,7 +30,7 @@ binary stub falls back to text parsing with a warning (suppressible via
 `-Astubs` files with `BinaryStubFileGenerator`; see the manual's "Using a
 binary (pre-parsed) stub file" section.
 
-Runs under JDK 27 and JDK 28 b15 early-access builds.
+Runs under JDK 27 and JDK 28 early-access builds.
 
 Can now run as an Error Prone plugin (`eisopcf` check), published as
 `io.github.eisop:framework-errorprone` (requires JDK 21+). See the manual's
@@ -118,7 +118,6 @@ JSpecify support in the Nullness Checker:
   specifies: checks only `@AnnotatedFor` scope, treats `@NullMarked` as a
   defaulting annotation, skips initialization/map-key checking, assumes purity
   and enabled assertions, and applies permissive defaults to unscoped code.
-  Field reads through another object no longer crash (eisop#2259).
 - `@NullMarked` aliases `@AnnotatedFor` scoped to nullness (plus
   `@DefaultQualifier`), and `@NullUnmarked` aliases `@UnannotatedFor`. Both
   apply under `-AuseConservativeDefaultsForUncheckedCode` and compose with
@@ -157,6 +156,10 @@ Nullness Checker improvements:
 
 Initialization Checker improvements:
 
+- New method postcondition `@EnsuresInitialized`: after the method returns
+  normally, the given expressions are initialized. Use it instead of
+  `@EnsuresNonNull` for a field of primitive type, or to state only
+  initialization.
 - Respects an explicit receiver annotation on an inner class constructor
   (e.g. `Inner(@UnknownInitialization Outer Outer.this)`), instead of
   defaulting the enclosing instance to `@Initialized`.
@@ -469,7 +472,6 @@ Other improvements and bug fixes:
 - Stubifier resolves nested annotations through enclosing classes.
 - `AnnotationFileUtil.allAnnotationFiles(String, ...)` replaced by
   `resolveAnnotationFileLocation` plus `allAnnotationFiles(File, ...)`.
-- Custom annotated JDKs no longer load `checker.jar`'s binary JDK on top.
 - Fixed `-AwarnUnneededSuppressions` for values matching a checker prefix.
 - `-AwarnUnneededSuppressions` now also works with `-AassumeInitialized`.
 - Fixed missing `EnsuresNonNullIf` import in
@@ -478,7 +480,6 @@ Other improvements and bug fixes:
 - Fixed restoring dataflow-refined captured type variable bounds.
 - `AnnotatedTypeMirror.toString(false)` now matches `toString()`.
 - `@AnnotatedFor` scope checking unified and cached.
-- `Arrays.copyOf` no longer crashes when component types differ.
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
 - No longer crashes on a type annotation on an array creation whose element
@@ -831,8 +832,7 @@ you need to add:
 ### Implementation details
 
 Moved the Annotation File Utilities code into the Checker Framework repository as a subproject.
-(EISOP note: the code is in the `annotation-file-utilities` directory but is not part of the EISOP
-Gradle build.)
+(EISOP note: EISOP builds it as the `annotation-file-utilities` subproject since 3.49.5-eisop2.)
 
 Java expressions in annotations, such as in contracts and dependent types, are now parsed with
 javac's parser instead of JavaParser.
