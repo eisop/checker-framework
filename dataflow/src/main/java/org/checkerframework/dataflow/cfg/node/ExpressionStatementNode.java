@@ -62,6 +62,6 @@ public class ExpressionStatementNode extends Node {
 
     @Override
     public int hashCode() {
-        return Objects.hash(toString());
+        return Objects.hashCode(toString());
     }
 }
