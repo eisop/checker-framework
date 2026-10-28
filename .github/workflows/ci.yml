@@ -119,7 +119,9 @@ jobs:
           jdk-ea-major: ${{ env.JDK_EA_MAJOR }}
           jdk-ea-build: ${{ env.JDK_EA_BUILD }}
           script: ${{ matrix.script }}
-          cache-read-only: ${{ github.ref != 'refs/heads/master' && matrix.java.version != env.PRIMARY_JDK }}
+          # Only master writes caches, which pull requests then read.  A pull request's own
+          # entries help only its reruns, and they push master's entries out of the cache.
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
 
       - name: Run test script checker/bin-devel/test-${{ matrix.script }}
         run: ./checker/bin-devel/test-${{ matrix.script }}.sh
