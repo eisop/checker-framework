@@ -622,6 +622,8 @@ allprojects { currentProj ->
                         "-Xep:SystemExitOutsideMain:OFF",
                         "-Xep:TypeEquals:OFF",
                         "-Xep:UnnecessaryDefaultInEnumSwitch:OFF",
+                        // New in Error Prone 2.51.0.
+                        "-Xep:CompareToZero:OFF",
                     ])
                 }
 
@@ -629,6 +631,8 @@ allprojects { currentProj ->
                     options.errorprone.errorproneArgs.addAll([
                         // Some Value Checker tests use int literals intentionally.
                         "-Xep:IntLiteralCast:OFF",
+                        // Would require TestParameterInjector as a test dependency.
+                        "-Xep:LoopToTestParameter:OFF",
                     ])
                 }
 

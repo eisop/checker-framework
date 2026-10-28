@@ -66,7 +66,7 @@ public class VariableDeclarationNode extends Node {
 
     @Override
     public int hashCode() {
-        return Objects.hash(getName());
+        return Objects.hashCode(getName());
     }
 
     @Override
