@@ -242,6 +242,19 @@ final class SupertypeFinder {
             if (enclosing == null || superclassEnclosing == null) {
                 return;
             }
+            // Without an explicit enclosing instance, the enclosing instance of the superclass is
+            // the innermost enclosing instance of a subclass of the superclass's enclosing class
+            // (JLS 15.9.2), which need not be the anonymous class's own enclosing instance.
+            while (enclosing != null
+                    && !TypesUtils.isErasedSubtype(
+                            enclosing.getUnderlyingType(),
+                            superclassEnclosing.getUnderlyingType(),
+                            types)) {
+                enclosing = enclosing.getEnclosingType();
+            }
+            if (enclosing == null) {
+                return;
+            }
             TypeMirror enclosingAsSuper =
                     TypesUtils.asSuper(
                             enclosing.getUnderlyingType(),
