@@ -511,7 +511,8 @@ Other improvements and bug fixes:
   `Supplier<? extends List<? extends T>>`, or when a generic call that takes a
   method reference or a lambda is the body of a lambda passed to a generic
   method, as in `each(in, l -> each(l, Box::get))`, or an argument whose formal
-  parameter type is proper.
+  parameter type is proper. A generic call passed to a generic method of a raw
+  type, as in `q.reduce(id(s))` for a raw `q`, no longer crashes either.
 - No longer crashes on a generic method reference, such as `C::glist` or
   `ArrayList::new`, returned by a lambda whose target is a raw functional
   interface type.
@@ -671,6 +672,7 @@ eisop#2358,
 eisop#2366,
 eisop#2372,
 eisop#2389,
+eisop#2391,
 eisop#2404,
 eisop#2411,
 typetools#399,
