@@ -510,6 +510,9 @@ Other improvements and bug fixes:
 - No longer crashes on a generic method reference, such as `C::glist` or
   `ArrayList::new`, returned by a lambda whose target is a raw functional
   interface type.
+- No longer crashes inferring a type variable whose bound mentions another
+  type variable, such as `B` in `<T, B extends Box<T>> B box()`, from the
+  assignment target.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
@@ -647,6 +650,7 @@ eisop#2326,
 eisop#2329,
 eisop#2330,
 eisop#2332,
+eisop#2334,
 eisop#2335,
 eisop#2336,
 eisop#2337,
