@@ -58,6 +58,12 @@ ext {
         useJdkVersionInt = majorVersionToInt(useJdkVersionProp)
     }
 
+    // The JDK that runs the JUnit tests, if not the one that compiles them.  CI job
+    // cftests-junit-jdk21 compiles with JDK 21 and runs the tests on another JDK, as a user does
+    // who runs a release on that JDK.  JDK 11 or later.
+    String testJdkVersionProp = findProperty("testJdkVersion")
+    testJdkVersionInt = (testJdkVersionProp == null) ? null : majorVersionToInt(testJdkVersionProp)
+
     // On a Java 8 JVM, use error-prone javac and source/target 8.
     // On a Java 9+ JVM, use the host javac, default source/target, and required module flags.
     isJava8 = (useJdkVersionInt == 8)
@@ -275,8 +281,6 @@ allprojects { currentProj ->
     if (useToolchains) {
         // This uses the requested Java toolchain.
         // On CI, gradle always runs with JDK 21 and different versions are selected as toolchains.
-        // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
-        // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
         //   https://docs.gradle.org/current/userguide/toolchains.html
         java {
             toolchain {
@@ -294,6 +298,18 @@ allprojects { currentProj ->
         tasks.withType(JavaCompile).configureEach {
             javaCompiler = javaToolchains.compilerFor {
                 languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+            }
+        }
+    }
+
+    // Run the tests on another JDK than the one that compiles them, to find mismatches between
+    // the javac APIs that the Checker Framework is compiled against and those it runs with.
+    // A Test task otherwise runs on the toolchain JDK, or on Gradle's JDK if there is none.
+    Integer testJdkVersionInt = rootProject.ext.testJdkVersionInt
+    if (testJdkVersionInt != null) {
+        tasks.withType(Test).configureEach {
+            javaLauncher = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(testJdkVersionInt)
             }
         }
     }
