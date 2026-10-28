@@ -1850,6 +1850,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param p the path to the declaration to visit
      */
     private void visitDeclaration(TreePath p) {
+        if (visitor == null) {
+            // typeProcessingStart invokes initChecker, which should have set the visitor. If the
+            // field is still null, an exception occurred during initialization, which was already
+            // logged there. Return before the warnings below, which use fields such as messager
+            // that initChecker may not have set either.
+            return;
+        }
+
         Context context = ((JavacProcessingEnvironment) processingEnv).getContext();
         Log log = Log.instance(context);
 
@@ -1890,12 +1898,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return;
         }
 
-        if (visitor == null) {
-            // typeProcessingStart invokes initChecker, which should have set the visitor. If the
-            // field is still null, an exception occurred during initialization, which was already
-            // logged there. Don't also cause a NPE here.
-            return;
-        }
         if (p.getCompilationUnit() != currentRoot) {
             setRoot(p.getCompilationUnit());
             if (printFilenames) {
