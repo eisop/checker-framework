@@ -5595,9 +5595,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          *       it, and at least one position does.
          * </ol>
          *
-         * A type parameter that nothing pins, such as {@code F} in {@code class Child<E, F> extends
-         * Parent<E>}, is fixed by nothing, so any annotation on it is a narrowing. Primary
-         * annotations are not compared here; {@link #isReceiverPrimaryOverrideValid} checks them.
+         * A type argument is pinned by each type argument of the overridden class, as the
+         * overrider's class sees it, that is the same type parameter, and an enclosing type's type
+         * argument is also pinned by the same position of the overridden receiver's enclosing type
+         * for that class. So {@code V} in {@code Outer<K, V>.Inner this}, where {@code class Inner
+         * extends Coll<V>}, is pinned by {@code Coll}'s type argument. A type parameter that
+         * nothing pins, such as {@code F} in {@code class Child<E, F> extends Parent<E>}, is fixed
+         * by nothing, so any annotation on it is a narrowing. Primary annotations are not compared
+         * here; {@link #isReceiverPrimaryOverrideValid} checks them.
          *
          * @param overriderReceiver the receiver of the overrider
          * @param overriddenReceiver the receiver of the overridden method
@@ -5618,37 +5623,37 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 if (args.size() != params.size()) {
                     return false;
                 }
-                AnnotatedDeclaredType pinning =
-                        isReceiver ? seen : enclosingTypeOf(overriddenReceiver, typeElt);
+                // The overridden receiver's enclosing type for this class, which pins an enclosing
+                // type's type arguments position by position, or null.
+                AnnotatedDeclaredType enclosingPinning =
+                        isReceiver ? null : enclosingTypeOf(overriddenReceiver, typeElt);
+                List<? extends AnnotatedTypeMirror> seenArgs = seen.getTypeArguments();
+                List<? extends AnnotatedTypeMirror> overriddenArgs =
+                        overriddenReceiver.getTypeArguments();
                 for (int i = 0; i < args.size(); i++) {
                     AnnotatedTypeMirror arg = args.get(i);
                     if (isOwnTypeParameter(arg, params.get(i))) {
                         // The type of "this" accepts every instance of the class.
                         continue;
                     }
-                    if (pinning == null) {
-                        // Fixed by nothing: the overridden receiver has no counterpart.
-                        return false;
-                    }
-                    List<? extends AnnotatedTypeMirror> pinningArgs = pinning.getTypeArguments();
-                    List<? extends AnnotatedTypeMirror> overriddenArgs =
-                            overriddenReceiver.getTypeArguments();
                     boolean pinned = false;
-                    for (int j = 0; j < pinningArgs.size(); j++) {
-                        boolean pinsHere =
-                                isReceiver
-                                        ? isTypeVariableFor(pinningArgs.get(j), params.get(i))
-                                        : j == i;
-                        if (pinsHere) {
+                    for (int j = 0; j < seenArgs.size(); j++) {
+                        if (isTypeVariableFor(seenArgs.get(j), params.get(i))) {
                             pinned = true;
-                            AnnotatedTypeMirror required =
-                                    isReceiver ? overriddenArgs.get(j) : pinningArgs.get(j);
-                            if (!isEqualType(arg, required)) {
+                            if (!isEqualType(arg, overriddenArgs.get(j))) {
                                 return false;
                             }
                         }
                     }
+                    if (enclosingPinning != null
+                            && enclosingPinning.getTypeArguments().size() == args.size()) {
+                        pinned = true;
+                        if (!isEqualType(arg, enclosingPinning.getTypeArguments().get(i))) {
+                            return false;
+                        }
+                    }
                     if (!pinned) {
+                        // Fixed by nothing: the overridden receiver has no counterpart.
                         return false;
                     }
                 }
