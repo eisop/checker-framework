@@ -22,12 +22,14 @@ import java.util.Set;
  * a type. So, the additional constraints can be created until after the implicit lambda parameter
  * has a type.
  *
- * <p>If the invocation is in the body of an implicitly typed lambda, then the input variables of
- * this constraint are the inference variables that must be resolved before the parameters of that
- * lambda have their types. Like the input variables of an {@link Expression} constraint, they are
- * resolved before this constraint is reduced (see <a
+ * <p>If the invocation is in the body of a lambda, then the input variables of this constraint are
+ * those of the {@link Expression} constraint of that lambda. Like the input variables of an {@link
+ * Expression} constraint, they are resolved before this constraint is reduced (see <a
  * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-18.html#jls-18.5.2.2">JLS
- * 18.5.2.2</a>).
+ * 18.5.2.2</a>), so the lambda constraint, which is preferred to this constraint when both can be
+ * reduced, has been reduced first: the parameters of the lambda have their types, and the
+ * invocation has been reduced as part of this inference problem if it is part of it at all. The
+ * reduction of this constraint is empty if it is not.
  */
 public class AdditionalArgument implements Constraint {
 
@@ -89,8 +91,38 @@ public class AdditionalArgument implements Constraint {
         return Kind.ADDITIONAL_ARG;
     }
 
+    /**
+     * Returns true if the invocation of this constraint has been reduced as part of this inference
+     * problem, so that its additional argument constraints can be created.
+     *
+     * @param context the context
+     * @return true if the invocation of this constraint has been reduced as part of this inference
+     *     problem
+     */
+    public boolean isInvocationReduced(Java8InferenceContext context) {
+        return context.maps.containsKey(methodOrConstructorInvocation);
+    }
+
     @Override
     public ConstraintSet reduce(Java8InferenceContext context) {
+        if (!isInvocationReduced(context)) {
+            // The invocation is not part of this problem: its constraint had a proper target type,
+            // so it is inferred separately (JLS 18.2.1). Its constraints would mention variables
+            // that nothing here bounds, which then resolve to their declared bounds (eisop#2337).
+            return new ConstraintSet();
+        }
+        return reduceInvocation(context);
+    }
+
+    /**
+     * Returns the additional argument constraints of the invocation, whether or not it has been
+     * reduced as part of this inference problem yet. Use it only for an invocation that is part of
+     * the problem.
+     *
+     * @param context the context
+     * @return the additional argument constraints of the invocation
+     */
+    public ConstraintSet reduceInvocation(Java8InferenceContext context) {
         if (methodOrConstructorInvocation instanceof MethodInvocationTree) {
             MethodInvocationTree methodInvocation =
                     (MethodInvocationTree) methodOrConstructorInvocation;

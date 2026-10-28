@@ -117,10 +117,19 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
                 return java8Inference.infer((MemberReferenceTree) outerTree);
             } else {
                 InferenceResult result = java8Inference.infer(outerTree, outerMethodType);
-                if (!result.getResults().containsKey(expressionTree)
-                        && expressionTree instanceof MemberReferenceTree) {
-                    java8Inference.context.pathToExpression = typeFactory.getPath(expressionTree);
-                    return java8Inference.infer((MemberReferenceTree) expressionTree);
+                if (!result.getResults().containsKey(expressionTree)) {
+                    if (expressionTree instanceof MemberReferenceTree) {
+                        java8Inference.context.pathToExpression =
+                                typeFactory.getPath(expressionTree);
+                        return java8Inference.infer((MemberReferenceTree) expressionTree);
+                    }
+                    // expressionTree is not part of the problem of outerTree (see
+                    // AdditionalArgument#reduce), so infer it on its own, now that the lambda
+                    // parameters it uses have their types.
+                    java8Inference =
+                            new InvocationTypeInference(
+                                    typeFactory, typeFactory.getPath(expressionTree));
+                    result = java8Inference.infer(expressionTree, methodType);
                 }
                 return result.swapTypeVariables(methodType, expressionTree);
             }

@@ -491,6 +491,28 @@ Other improvements and bug fixes:
   `TypeVar.setUpperBound`: the upper bound of a type variable is set through
   the method when it exists and through the `bound` field otherwise, instead
   of choosing by JDK version.
+- No longer crashes on an increment, decrement, comparison, or arithmetic
+  operation on an expression whose type is a type variable, wildcard, or
+  intersection type bounded by a boxed primitive type, such as `x++` for
+  `<N extends Integer> N x`. The CFG now unboxes such an expression through
+  its bound, as javac does.
+- A `checker-qual` jar of another Checker Framework that is earlier on the
+  annotation processor path than `checker.jar`, as Error Prone's configuration
+  can arrange, is now reported once, with the jar it was loaded from, instead
+  of every compilation unit failing with a `NoSuchFieldError`.
+- Type argument inference no longer crashes with "the return value of
+  `AbstractType.asSuper(...)` is null" when a wildcard whose bound is an
+  inference variable is captured, as for a lambda passed as
+  `Supplier<? extends List<? extends T>>`, or when a generic call that takes a
+  method reference or a lambda is the body of a lambda passed to a generic
+  method, as in `each(in, l -> each(l, Box::get))`, or an argument whose formal
+  parameter type is proper.
+- No longer crashes on a generic method reference, such as `C::glist` or
+  `ArrayList::new`, returned by a lambda whose target is a raw functional
+  interface type.
+- No longer crashes inferring a type variable whose bound mentions another
+  type variable, such as `B` in `<T, B extends Box<T>> B box()`, from the
+  assignment target.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
@@ -625,8 +647,13 @@ eisop#2290,
 eisop#2323,
 eisop#2324,
 eisop#2326,
+eisop#2329,
 eisop#2330,
+eisop#2332,
+eisop#2334,
 eisop#2335,
+eisop#2336,
+eisop#2337,
 eisop#2343,
 eisop#2344,
 eisop#2348,
@@ -637,6 +664,7 @@ eisop#2356,
 eisop#2357,
 eisop#2358,
 eisop#2366,
+eisop#2372,
 eisop#2411,
 typetools#399,
 typetools#602,
