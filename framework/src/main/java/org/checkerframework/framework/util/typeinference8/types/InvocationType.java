@@ -24,6 +24,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -159,6 +160,17 @@ public class InvocationType {
                     ((AnnotatedDeclaredType) returnType).getEnclosingType();
             Type javaEnclosing = classTypeJava.getEnclosingType();
             AnnotatedTypeMirror receiver = typeFactory.getReceiverType(invocation);
+            if (newClassTree.getClassBody() != null
+                    && newClassTree.getEnclosingExpression() == null
+                    && javaEnclosing.hasTag(TypeTag.CLASS)) {
+                // The implicit receiver is the enclosing instance of the anonymous class.  That of
+                // C is the innermost enclosing instance of a subclass of C's enclosing class.
+                while (receiver instanceof AnnotatedDeclaredType
+                        && !TypesUtils.isErasedSubtype(
+                                receiver.getUnderlyingType(), javaEnclosing, typeFactory.types)) {
+                    receiver = ((AnnotatedDeclaredType) receiver).getEnclosingType();
+                }
+            }
             if (declaredEnclosing != null
                     && receiver != null
                     && javaEnclosing.hasTag(TypeTag.CLASS)) {
