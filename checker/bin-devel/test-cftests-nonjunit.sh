@@ -9,10 +9,8 @@ echo "SHELLOPTS=${SHELLOPTS}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 source "$SCRIPT_DIR"/clone-related.sh
 
-# See test-cftests-junit.sh for why this is --no-build-cache rather than
-# --max-workers=1.
-# https://github.com/eisop/checker-framework/issues/849
-./gradlew nonJunitTests -x javadoc -x allJavadoc --warning-mode=all --no-build-cache
+# See test-cftests-junit.sh about the build cache.
+./gradlew nonJunitTests -x javadoc -x allJavadoc --warning-mode=all
 
 # Also note the test in docs/examples/publish-smoketest/ which is run
 # by exampleTests below. This runs in CI, so okay to pollute local Maven.

@@ -1326,23 +1326,37 @@ public final class TypesUtils {
                 (Type.WildcardType) wildcardType);
     }
 
-    /** The {@code TypeVar.setUpperBound(Type)} method, which does not exist before JDK 9. */
+    /**
+     * The {@code TypeVar.setUpperBound(Type)} method, or null if this JDK does not have it. It does
+     * not exist on JDK 8, nor on some builds of JDK 9 to 12.
+     */
     private static final @Nullable Method TYPEVAR_SETUPPERBOUND;
 
-    /** The {@code TypeVar.bound} field, which holds the upper bound before JDK 9. */
+    /**
+     * The {@code TypeVar.bound} field, which holds the upper bound on a JDK that has no {@code
+     * setUpperBound} method; null otherwise.
+     */
     private static final @Nullable Field TYPEVAR_BOUND;
 
     static {
+        // Look for the method rather than branching on the JDK version: some builds of JDK 9 to
+        // 12 lack it, and every checker crashed on them (eisop#2366).
+        Method setUpperBound;
         try {
-            if (SystemUtil.jreVersion >= 9) {
-                TYPEVAR_SETUPPERBOUND = Type.TypeVar.class.getMethod("setUpperBound", Type.class);
-                TYPEVAR_BOUND = null;
-            } else {
-                TYPEVAR_SETUPPERBOUND = null;
+            setUpperBound = Type.TypeVar.class.getMethod("setUpperBound", Type.class);
+        } catch (NoSuchMethodException e) {
+            setUpperBound = null;
+        }
+        if (setUpperBound != null) {
+            TYPEVAR_SETUPPERBOUND = setUpperBound;
+            TYPEVAR_BOUND = null;
+        } else {
+            TYPEVAR_SETUPPERBOUND = null;
+            try {
                 TYPEVAR_BOUND = Type.TypeVar.class.getField("bound");
+            } catch (NoSuchFieldException e) {
+                throw new BugInCF("Cannot access the upper bound of TypeVar", e);
             }
-        } catch (NoSuchMethodException | NoSuchFieldException e) {
-            throw new BugInCF("Cannot access the upper bound of TypeVar", e);
         }
     }
 
@@ -1387,7 +1401,7 @@ public final class TypesUtils {
                     TYPEVAR_SETUPPERBOUND.invoke(typeVar, uppers.get(i));
                 } else {
                     assert TYPEVAR_BOUND != null
-                            : "@AssumeAssertion(nullness): TYPEVAR_BOUND is set before JDK 9";
+                            : "@AssumeAssertion(nullness): set when TYPEVAR_SETUPPERBOUND is null";
                     @SuppressWarnings(
                             "interning:assignment") // Field.set requires an @Interned Object
                     @Interned Object upper = uppers.get(i);

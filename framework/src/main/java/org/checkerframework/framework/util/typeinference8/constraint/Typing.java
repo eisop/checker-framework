@@ -230,12 +230,21 @@ public class Typing extends TypeConstraint {
             // constraint reduces to the following new constraints:
             // for all i (1 <= i <= n), <Bi <= Ai>.
 
+            AbstractType sAsSuper = S.asSuper(T.getJavaType());
+            if (sAsSuper == null) {
+                if (S.getTypeKind() == TypeKind.TYPEVAR) {
+                    // javac's asSuper follows a type variable's chain of upper bounds; it ends in
+                    // an inference variable here, as for a capture of "? extends alpha". Reduce
+                    // upperBound(S) <: T, as javac's Types.isSubtype does (JLS 4.10.2); a proper
+                    // bound still reduces to false.
+                    return new Typing(this, S.getTypeVarUpperBound(), T, Kind.SUBTYPE);
+                }
+                return ConstraintSet.FALSE;
+            }
             // Capturing is not in the JLS, but otherwise wildcards appear in the constraints
             // against the type arguments, which causes crashes.
-            AbstractType sAsSuper = S.asSuper(T.getJavaType()).capture(context);
-            if (sAsSuper == null) {
-                return ConstraintSet.FALSE;
-            } else if (sAsSuper.isRaw() || T.isRaw()) {
+            sAsSuper = sAsSuper.capture(context);
+            if (sAsSuper.isRaw() || T.isRaw()) {
                 return ReductionResult.UNCHECKED_CONVERSION;
             }
 
