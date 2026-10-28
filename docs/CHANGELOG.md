@@ -9,10 +9,10 @@
 
 Performance improvements over 3.49.5-eisop1:
 
-- `allNullnessTests`: 1m24s vs. 2m16s
-- `checkNullness`: 1m28s vs. 3m40s
-- `checkInterning`: 0m35s vs. 1m13s
-- `test`: 7m15s vs. 12m40s (lots of build overhead)
+- `allNullnessTests`: 1m42s vs. 2m14s
+- `checkNullness`: 1m35s vs. 3m53s
+- `checkInterning`: 0m41s vs. 1m12s
+- `test`: 7m48s vs. 10m41s
 
 Several optimizations also reduce GC pressure and superlinear behavior for
 large (e.g. auto-generated) files. Type-checking a class with many fields
