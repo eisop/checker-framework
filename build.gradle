@@ -311,6 +311,16 @@ allprojects { currentProj ->
             javaLauncher = javaToolchains.launcherFor {
                 languageVersion = JavaLanguageVersion.of(testJdkVersionInt)
             }
+            // Show that the JDKs differ.  The compiler is part of compileJava's build cache key,
+            // so classes from the cache were compiled by the same JDK.
+            def compiler = tasks.named("compileJava", JavaCompile).flatMap { it.javaCompiler }
+            def launcher = javaLauncher
+            doFirst { Task t ->
+                t.logger.lifecycle("${t.path}: classes compiled by JDK "
+                        + "${compiler.get().metadata.javaRuntimeVersion}, tests run on JDK "
+                        + "${launcher.get().metadata.javaRuntimeVersion} "
+                        + "(${launcher.get().executablePath})")
+            }
         }
     }
 
