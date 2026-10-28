@@ -24,11 +24,13 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
+import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.Options;
 
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
@@ -610,7 +612,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Mapping from an expression tree to its annotated type; before defaults are applied, just what
-     * the programmer wrote.
+     * the programmer wrote. The type of a flow-dependent expression (see {@link
+     * #isFlowDependent(ExpressionTree)}) is only cached and used as {@link
+     * #canCacheFlowDependentType(ExpressionTree)} and {@link
+     * #canUseCachedFlowDependentType(ExpressionTree)} allow.
      *
      * <p>This field is intentionally not final; it should only be re-assigned by {@link
      * #setRoot(CompilationUnitTree)}.
@@ -1313,11 +1318,19 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         */
 
+        // Drop the visitor tree path from the previous compilation unit: getPath would search that
+        // unit for a tree of the new one and record in the shared treePathCache that the tree is
+        // absent. A subchecker's factory, whose path only its parent sets, would otherwise keep
+        // such a path.
+        this.visitorTreePath = null;
         this.root = newRoot;
-        // Do not clear here. Only the primary checker should clear this cache.
-        // treePathCache.clear();
+        // Do not clear treePathCache here. It is shared by the checkers of a compound checker, and
+        // SourceChecker#setRoot clears it, through TreePathCacher#useUnit, only when the
+        // compilation unit changes.
 
-        if (shouldCache) {
+        // Test for the caches rather than shouldCache: declarationFromElement uses
+        // elementToTreeCache whenever it exists.
+        if (elementToTreeCache != null) {
             // Clear the caches with trees because once the compilation unit changes,
             // the trees may be modified and lose type arguments.
             elementToTreeCache = new IdentityHashMap<>();
@@ -1513,7 +1526,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedExecutableType result =
                 AnnotatedTypes.asMemberOf(types, this, overriddenType, overriddenMethodElt);
         if (viewpointAdapter != null) {
-            viewpointAdapter.viewpointAdaptMethod(overriderType, overriddenMethodElt, result);
+            // Adapt to a use of the class: the type arguments of its declaration are type variable
+            // declarations, which cannot be type variable bounds.
+            viewpointAdapter.viewpointAdaptMethod(
+                    overriderType.asUse(), overriddenMethodElt, result);
         }
         return result;
     }
@@ -2473,7 +2489,27 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @see TypeFromExpressionVisitor
      */
     private AnnotatedTypeMirror fromExpression(ExpressionTree tree) {
-        if (shouldCache) {
+        // The type of a flow-dependent expression is computed from the refined types of its
+        // subexpressions, so caching it while those can still change would cache incorrect
+        // annotations (see Issue #602).
+        boolean read;
+        boolean write;
+        if (!shouldCache) {
+            read = write = false;
+        } else if (!isFlowDependent(tree)) {
+            read = write = true;
+        } else if (isInferring()) {
+            // The expressions that are part of a running type argument inference problem are
+            // typed without inferring their type arguments, so their types must not be cached.
+            // A type that was cached outside inference can be used, which avoids exponential time
+            // for chains of generic method calls (Issue2853).
+            read = canUseCachedFlowDependentType(tree);
+            write = false;
+        } else {
+            read = canUseCachedFlowDependentType(tree);
+            write = canCacheFlowDependentType(tree);
+        }
+        if (read) {
             AnnotatedTypeMirror cached = fromExpressionTreeCache.get(tree);
             if (cached != null) {
                 return cached.deepCopy();
@@ -2482,15 +2518,97 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         AnnotatedTypeMirror result = TypeFromTree.fromExpression(this, tree);
 
-        if (shouldCache
-                // Don't cache the type of some expressions, because incorrect annotations would be
-                // cached during dataflow analysis. See Issue #602.
-                && !(tree instanceof NewClassTree)
-                && !(tree instanceof NewArrayTree)
-                && !(tree instanceof ConditionalExpressionTree)) {
+        if (write) {
             fromExpressionTreeCache.put(tree, frozenDeepCopy(result));
         }
         return result;
+    }
+
+    /**
+     * Returns true if {@link TypeFromExpressionVisitor} computes the type of {@code tree} from the
+     * annotated types of its subexpressions or from type argument inference, which both depend on
+     * the dataflow store and on whether type argument inference is running.
+     *
+     * <p>Identifiers, including {@code this} and {@code super}, and {@code C.this} are not
+     * flow-dependent: their types are cached on the first query and reused in every later phase. A
+     * factory's {@link #getSelfType} may still read the dataflow store, as the Initialization
+     * Checker's does to choose the type frame of {@code this}. The type it then caches is the one
+     * computed from the store before the tree's node when the transfer function of that node first
+     * queried it during the analysis of its CFG. A later query, with the cache or with {@code
+     * -AatfDoNotCache}, reads the store before that node as well, whether it comes from the
+     * finished analysis or from a re-run of the node's block ({@code
+     * AbstractAnalysis#getStoreBefore(Tree, Map)}).
+     *
+     * @param tree an expression tree without enclosing parentheses
+     * @return true if the type of {@code tree} that {@link #fromExpression} computes can depend on
+     *     the dataflow store
+     */
+    private static boolean isFlowDependent(ExpressionTree tree) {
+        switch (tree.getKind()) {
+            case METHOD_INVOCATION:
+            case NEW_CLASS:
+            case CONDITIONAL_EXPRESSION:
+            case ARRAY_ACCESS:
+                return true;
+            case MEMBER_SELECT:
+                // A field access uses the refined type of its receiver.
+                Element elt = TreeUtils.elementFromUse((MemberSelectTree) tree);
+                return elt != null && elt.getKind().isField() && !ElementUtils.isStatic(elt);
+            case ASSIGNMENT:
+                return isFlowDependent(
+                        TreeUtils.withoutParens(((AssignmentTree) tree).getVariable()));
+            default:
+                return TreeUtils.isSwitchExpression(tree);
+        }
+    }
+
+    /**
+     * Returns true if type argument inference may be running. The expressions that are part of a
+     * running inference problem are typed without inferring their type arguments, so their types
+     * must not be cached. A checker with its own {@link TypeArgumentInference} never caches them.
+     *
+     * @return true if type argument inference may be running
+     */
+    private boolean isInferring() {
+        return !(typeArgumentInference instanceof DefaultTypeArgumentInference)
+                || ((DefaultTypeArgumentInference) typeArgumentInference).isInferring();
+    }
+
+    /**
+     * Returns true if a cached type of the flow-dependent expression {@code tree} (see {@link
+     * #isFlowDependent(ExpressionTree)}) is still correct, i.e., the refined types of the
+     * expressions it was computed from have not changed since it was cached. This implementation,
+     * which performs no dataflow analysis, returns true.
+     *
+     * <p>A factory that computes the types of expressions from another factory's dataflow results,
+     * such as the Initialization Checker's from the {@code InitializationFieldAccessSubchecker}'s,
+     * relies on the order of the checkers: the subchecker finishes the compilation unit before the
+     * parent checker's visitor runs. It may keep this default only as long as it is not queried
+     * earlier. A factory that can be queried earlier must override this method and {@link
+     * #canCacheFlowDependentType(ExpressionTree)}.
+     *
+     * <p>{@link #isAnonymousDiamondSupertypeFinal} has the same default for the same reason.
+     *
+     * @param tree a flow-dependent expression
+     * @return true if a cached type of {@code tree} can be used
+     */
+    protected boolean canUseCachedFlowDependentType(ExpressionTree tree) {
+        return true;
+    }
+
+    /**
+     * Returns true if the type of the flow-dependent expression {@code tree} (see {@link
+     * #isFlowDependent(ExpressionTree)}) can be cached, i.e., it is computed from refined types
+     * that remain correct as long as {@link #canUseCachedFlowDependentType(ExpressionTree)} holds.
+     * The type of a poly expression whose type arguments are inferred together with an enclosing
+     * invocation also depends on the other arguments of that invocation, not only on its own
+     * subexpressions. This implementation, which performs no dataflow analysis, returns true.
+     *
+     * @param tree a flow-dependent expression
+     * @return true if the type of {@code tree} can be cached
+     */
+    protected boolean canCacheFlowDependentType(ExpressionTree tree) {
+        return true;
     }
 
     /**
@@ -2984,8 +3102,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the type of {@code this} at the location of {@code tree}
      */
     public @Nullable AnnotatedDeclaredType getSelfType(Tree tree) {
+        // The type of "this" is a use of the class, not its declaration.
         if (TreeUtils.isClassTree(tree)) {
-            return getAnnotatedType(TreeUtils.elementFromDeclaration((ClassTree) tree));
+            return getAnnotatedType(TreeUtils.elementFromDeclaration((ClassTree) tree)).asUse();
         }
 
         Tree enclosingTree = getEnclosingClassOrMethod(tree);
@@ -3000,7 +3119,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 return getAnnotatedType(enclosingMethod).getReceiverType();
             }
         } else if (TreeUtils.isClassTree(enclosingTree)) {
-            return (AnnotatedDeclaredType) getAnnotatedType(enclosingTree);
+            return ((AnnotatedDeclaredType) getAnnotatedType(enclosingTree)).asUse();
         }
         return null;
     }
@@ -3140,7 +3259,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // In such case, use the synthetic argument as its receiver type.
         if ((expression instanceof NewClassTree)
                 && TreeUtils.hasSyntheticArgument((NewClassTree) expression)) {
-            receiverType = getAnnotatedType(((NewClassTree) expression).getArguments().get(0));
+            ExpressionTree syntheticArg = ((NewClassTree) expression).getArguments().get(0);
+            // javac wraps the enclosing expression in a synthetic null check `<*nullchk*>outer`.
+            // The type of that tree is the defaulted Java type, which loses the annotations of
+            // the enclosing expression's type, such as those on its type arguments.
+            if (((JCTree) syntheticArg).hasTag(JCTree.Tag.NULLCHK)) {
+                syntheticArg = ((UnaryTree) syntheticArg).getExpression();
+            }
+            receiverType = getAnnotatedType(syntheticArg);
         }
         return receiverType;
     }
@@ -3321,15 +3447,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // viewpoint adaptation + asMemberOf), since the same method is invoked on the same receiver
         // type at many call sites. Everything call-site-dependent -- type-argument inference,
         // polymorphic-qualifier resolution, unchecked-conversion and getClass adjustments below --
-        // runs per call on a copy. Two soundness conditions: (1) do not cache a method type that
+        // runs per call on a copy. Three soundness conditions: (1) do not cache a method type that
         // contains a polymorphic qualifier (its annotations are resolved per call from the
         // arguments); (2) checkers whose method types are otherwise call-dependent (e.g. Value,
-        // MethodVal) opt out via shouldCacheMethodAsMemberOf.
+        // MethodVal) opt out via shouldCacheMethodAsMemberOf; (3) do not cache a member of an
+        // anonymous class created with a diamond while its inferred supertype can change (see
+        // hasChangingSupertype).
         MethodAsMemberOfCacheKey cacheKey =
                 (shouldCache
                                 && receiverType != null
                                 && shouldCacheMethodAsMemberOf()
-                                && !methodDeclaresPolymorphicQualifier(methodElt))
+                                && !methodDeclaresPolymorphicQualifier(methodElt)
+                                && !(receiverType.getKind() == TypeKind.DECLARED
+                                        && hasChangingSupertype(
+                                                (AnnotatedDeclaredType) receiverType)))
                         ? new MethodAsMemberOfCacheKey(methodElt, receiverType)
                         : null;
         AnnotatedExecutableType methodType;
@@ -3575,13 +3706,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * the structural {@code (type)} key is sound; the same structural type's supertypes are
      * recomputed constantly while walking type hierarchies ({@code asSuper}, {@code
      * allSupertypes}). Stores and returns deep copies, since callers mutate the supertypes'
-     * annotations.
+     * annotations. The exception is an anonymous class created with a diamond while its supertype,
+     * which is inferred from the creation expression, can still change; see {@link
+     * #hasChangingSupertype}.
      *
      * @param type a declared type
      * @return the direct supertypes of {@code type} (an unmodifiable list)
      */
     public List<AnnotatedDeclaredType> getDirectSupertypes(AnnotatedDeclaredType type) {
-        DirectSupertypesCacheKey key = shouldCache ? new DirectSupertypesCacheKey(type) : null;
+        DirectSupertypesCacheKey key =
+                shouldCache && !hasChangingSupertype(type)
+                        ? new DirectSupertypesCacheKey(type)
+                        : null;
         List<AnnotatedDeclaredType> cached = key == null ? null : directSupertypesCache.get(key);
         if (cached != null) {
             return Collections.unmodifiableList(deepCopySupertypes(cached));
@@ -3623,6 +3759,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param type the type to copy and freeze
      * @return a frozen deep copy of {@code type}
      */
+    @SuppressWarnings({
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     private static <T extends AnnotatedTypeMirror> T frozenDeepCopy(T type) {
         @SuppressWarnings("unchecked") // deepCopy() preserves the runtime type
         T copy = (T) type.deepCopy();
@@ -3969,6 +4111,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedExecutableType con = getAnnotatedType(ctor); // get unsubstituted type
         constructorFromUsePreSubstitution(tree, con, inferTypeArgs);
 
+        // The type arguments inferred for the superclass of an anonymous class created with a
+        // diamond, or null.
+        TypeArguments anonymousDiamondTypeArgs = null;
         if (tree.getClassBody() != null) {
             // Because the anonymous constructor can't have explicit annotations on its parameters,
             // they are copied from the super constructor invoked in the anonymous constructor. To
@@ -3979,10 +4124,29 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // 4. copy the parameters to the anonymous constructor, `con`.
             // 5. copy annotations on the return type to `con`.
             ExecutableElement superCtor = TreeUtils.getSuperConstructor(tree);
-            AnnotatedExecutableType superCon = getAnnotatedType(superCtor);
-            constructorFromUsePreSubstitution(tree, superCon, inferTypeArgs);
-            superCon =
-                    AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
+            AnnotatedExecutableType superCon;
+            if (TreeUtils.isDiamondTree(tree)) {
+                // The type arguments of the superclass are inferred as for `new C<>(args)` (JLS
+                // 15.9.3), so adapt the super constructor to the generic superclass and infer them
+                // from it. Adapting it to `type`, the anonymous class, would use the superclass
+                // that javac inferred, whose type arguments are defaulted.
+                superCon = getAnonymousDiamondSuperConstructor(tree, inferTypeArgs);
+                anonymousDiamondTypeArgs =
+                        AnnotatedTypes.findTypeArguments(
+                                this, tree, superCtor, superCon, inferTypeArgs);
+                superCon =
+                        (AnnotatedExecutableType)
+                                typeVarSubstitutor.substitute(
+                                        anonymousDiamondTypeArgs.typeArguments,
+                                        superCon,
+                                        anonymousDiamondTypeArgs.typeArgumentsInferred);
+            } else {
+                superCon = getAnnotatedType(superCtor);
+                constructorFromUsePreSubstitution(tree, superCon, inferTypeArgs);
+                superCon =
+                        AnnotatedTypes.asMemberOf(
+                                types, this, type, superCon.getElement(), superCon);
+            }
             if (viewpointAdapter != null) {
                 // Viewpoint adapt the super constructor, because the return type could depend on
                 // the viewpoint and there is an LUB computation later.
@@ -4065,8 +4229,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
         }
 
+        // The anonymous constructor has no type parameters, and for a diamond its parameters were
+        // substituted above.
         TypeArguments typeArguments =
-                AnnotatedTypes.findTypeArguments(this, tree, ctor, con, inferTypeArgs);
+                anonymousDiamondTypeArgs != null
+                        ? anonymousDiamondTypeArgs
+                        : AnnotatedTypes.findTypeArguments(this, tree, ctor, con, inferTypeArgs);
         Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg =
                 new HashMap<>(typeArguments.typeArguments);
         List<AnnotatedTypeMirror> typeargs;
@@ -4181,6 +4349,185 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     .getTypeArguments();
         }
         return Collections.emptyList();
+    }
+
+    /**
+     * Returns the generic supertype of the anonymous class created by {@code tree}, a diamond such
+     * as {@code new C<>(args) {...}}: the declared type {@code C<T>} whose type arguments are the
+     * type parameters of {@code C}, with the primary annotations and enclosing type of the
+     * anonymous class's extends or implements clause.
+     *
+     * @param tree an anonymous class creation with a diamond
+     * @return the generic supertype of the anonymous class
+     */
+    private AnnotatedDeclaredType getAnonymousDiamondGenericSupertype(NewClassTree tree) {
+        AnnotatedDeclaredType clause =
+                (AnnotatedDeclaredType) getAnnotatedTypeFromTypeTree(tree.getIdentifier());
+        TypeElement superElt = (TypeElement) clause.getUnderlyingType().asElement();
+        AnnotatedDeclaredType generic = getAnnotatedType(superElt).asUse();
+        generic.replaceAnnotations(clause.getAnnotations());
+        AnnotatedDeclaredType enclosing = clause.getEnclosingType();
+        generic.setEnclosingType(enclosing == null ? null : enclosing.deepCopy());
+        return generic;
+    }
+
+    /**
+     * Returns the type of the superclass constructor that {@code tree}, an anonymous class creation
+     * with a diamond such as {@code new C<>(args) {...}}, invokes, as a member of the generic
+     * superclass {@code C<T>}. Type argument inference treats {@code tree} as {@code new C<>(args)}
+     * (JLS 15.9.3), and uses this type to infer the type arguments of the superclass. Polymorphic
+     * qualifiers are not resolved.
+     *
+     * @param tree an anonymous class creation with a diamond
+     * @return the type of the invoked superclass constructor, before type argument inference
+     */
+    public AnnotatedExecutableType getAnonymousDiamondSuperConstructor(NewClassTree tree) {
+        return getAnonymousDiamondSuperConstructor(tree, false);
+    }
+
+    /**
+     * Implementation of {@link #getAnonymousDiamondSuperConstructor(NewClassTree)}.
+     *
+     * @param tree an anonymous class creation with a diamond
+     * @param resolvePolyQuals if true, resolve polymorphic qualifiers
+     * @return the type of the invoked superclass constructor, before type argument inference
+     */
+    private AnnotatedExecutableType getAnonymousDiamondSuperConstructor(
+            NewClassTree tree, boolean resolvePolyQuals) {
+        ExecutableElement superCtor = TreeUtils.getSuperConstructor(tree);
+        AnnotatedExecutableType superCon = getAnnotatedType(superCtor);
+        constructorFromUsePreSubstitution(tree, superCon, resolvePolyQuals);
+        AnnotatedDeclaredType generic = getAnonymousDiamondGenericSupertype(tree);
+        if (generic.getUnderlyingType().asElement().getKind().isInterface()) {
+            // The super constructor is Object(), which does not mention the type parameters of the
+            // interface. They are inferred from the target type alone.
+            return superCon;
+        }
+        return AnnotatedTypes.asMemberOf(types, this, generic, superCtor, superCon);
+    }
+
+    /** The anonymous class creations whose superclass is being inferred. */
+    private final Set<NewClassTree> anonymousDiamondSupertypesInProgress =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /**
+     * The anonymous class creations for which {@link #getAnonymousDiamondSupertype} last returned
+     * null, so that the supertype of the anonymous class is not the inferred one.
+     */
+    private final Set<NewClassTree> anonymousDiamondFallbacks =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /**
+     * Returns the supertype of the anonymous class created by {@code tree}, a diamond such as
+     * {@code new C<>(args) {...}}, with the type arguments inferred as for {@code new C<>(args)}
+     * (JLS 15.9.3). The supertype is the superclass, or the interface that the anonymous class
+     * implements.
+     *
+     * <p>Returns null if inference does not determine the type arguments, or if this method is
+     * invoked again for {@code tree} while it infers them. The caller then uses javac's supertype,
+     * which has defaulted type arguments. Invariant: a supertype that is not the inferred one is
+     * never cached; see {@link #hasChangingSupertype}.
+     *
+     * @param tree an anonymous class creation with a diamond
+     * @return the inferred supertype of the anonymous class, or null
+     */
+    public @Nullable AnnotatedDeclaredType getAnonymousDiamondSupertype(NewClassTree tree) {
+        if (!anonymousDiamondSupertypesInProgress.add(tree)) {
+            anonymousDiamondFallbacks.add(tree);
+            return null;
+        }
+        try {
+            AnnotatedExecutableType superCon = getAnonymousDiamondSuperConstructor(tree, true);
+            TypeArguments typeArgs =
+                    AnnotatedTypes.findTypeArguments(
+                            this, tree, superCon.getElement(), superCon, true);
+            if (typeArgs.needsDefaultedReturnType || typeArgs.typeArguments.isEmpty()) {
+                anonymousDiamondFallbacks.add(tree);
+                return null;
+            }
+            AnnotatedDeclaredType result =
+                    (AnnotatedDeclaredType)
+                            typeVarSubstitutor.substitute(
+                                    typeArgs.typeArguments,
+                                    getAnonymousDiamondGenericSupertype(tree),
+                                    typeArgs.typeArgumentsInferred);
+            anonymousDiamondFallbacks.remove(tree);
+            return result;
+        } finally {
+            anonymousDiamondSupertypesInProgress.remove(tree);
+        }
+    }
+
+    /**
+     * Returns true if {@code type} is an anonymous class created with a diamond, as in {@code new
+     * C<>(args) {...}}, whose supertype is not yet known to be the final inferred one, so that
+     * types that depend on it must not be cached. This is the case while
+     *
+     * <ul>
+     *   <li>the inferred supertype can still change (see {@link
+     *       #isAnonymousDiamondSupertypeFinal}),
+     *   <li>the supertype is being inferred, so that a result computed now uses javac's supertype,
+     *       or
+     *   <li>the last inference did not produce a supertype, so javac's supertype is used.
+     * </ul>
+     *
+     * Invariant: a supertype that is not the inferred one is never cached.
+     *
+     * @param type a declared type
+     * @return true if the supertype of {@code type} must not be relied on or cached
+     */
+    private boolean hasChangingSupertype(AnnotatedDeclaredType type) {
+        NewClassTree creation = getAnonymousDiamondCreation(type);
+        return creation != null
+                && (!isAnonymousDiamondSupertypeFinal(creation)
+                        || anonymousDiamondSupertypesInProgress.contains(creation)
+                        || anonymousDiamondFallbacks.contains(creation));
+    }
+
+    /**
+     * Returns true if the supertype inferred for the anonymous class created by {@code creation}, a
+     * diamond such as {@code new C<>(args) {...}}, can no longer change. It is inferred from the
+     * types of the arguments and of the context, which change during dataflow analysis of the
+     * enclosing method.
+     *
+     * <p>This implementation, which performs no dataflow analysis, returns true, like {@link
+     * #canUseCachedFlowDependentType(ExpressionTree)}. {@link GenericAnnotatedTypeFactory} returns
+     * true once dataflow analysis of the anonymous class has started, which is after that of the
+     * enclosing method. A factory that does not keep track of the analyzed classes itself must
+     * forward to the factory that does.
+     *
+     * @param creation an anonymous class creation with a diamond
+     * @return true if the inferred supertype of the anonymous class can no longer change
+     */
+    public boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
+        return true;
+    }
+
+    /**
+     * Returns the class instance creation expression of {@code type}'s class if that is an
+     * anonymous class created with a diamond, as in {@code new C<>(args) {...}}.
+     *
+     * <p>The supertype of such a class is inferred from the creation expression and its context,
+     * and can change during dataflow analysis; see {@link #hasChangingSupertype}.
+     *
+     * @param type a declared type
+     * @return the anonymous class creation with a diamond that declares {@code type}'s class, or
+     *     null
+     */
+    public @Nullable NewClassTree getAnonymousDiamondCreation(AnnotatedDeclaredType type) {
+        TypeElement elt = (TypeElement) type.getUnderlyingType().asElement();
+        if (!ElementUtils.isAnonymous(elt)) {
+            return null;
+        }
+        ClassTree classTree = trees.getTree(elt);
+        TreePath path = classTree == null ? null : getPath(classTree);
+        TreePath parent = path == null ? null : path.getParentPath();
+        if (parent != null
+                && parent.getLeaf() instanceof NewClassTree
+                && TreeUtils.isDiamondTree(parent.getLeaf())) {
+            return (NewClassTree) parent.getLeaf();
+        }
+        return null;
     }
 
     /**
@@ -5031,7 +5378,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (root == null) {
             return null;
         }
-        if (shouldCache && elementToTreeCache.containsKey(elt)) {
+        // The declaration of an element does not depend on the types computed so far, so use the
+        // cache even while shouldCache is temporarily false, as in getAnnotatedTypeLhs. Otherwise
+        // each such query for a local variable scans the enclosing method again. The cache is null
+        // only if -AatfDoNotCache is given, so then useCache is false.
+        boolean useCache = elementToTreeCache != null;
+        if (useCache && elementToTreeCache.containsKey(elt)) {
             return elementToTreeCache.get(elt);
         }
 
@@ -5084,12 +5436,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     }
                     enclosing = enclosing.getEnclosingElement();
                 }
-                if (shouldCache
-                        && enclosingTree != null
-                        && scannedEnclosingTrees.add(enclosingTree)) {
+                if (useCache && enclosingTree != null && scannedEnclosingTrees.add(enclosingTree)) {
                     new DeclarationScanner().scan(enclosingTree, null);
                 }
-                fromElt = shouldCache ? elementToTreeCache.get(elt) : null;
+                fromElt = useCache ? elementToTreeCache.get(elt) : null;
                 if (fromElt == null && enclosingTree != null) {
                     fromElt =
                             com.sun.tools.javac.tree.TreeInfo.declarationFor(
@@ -5104,7 +5454,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 }
                 break;
         }
-        if (shouldCache) {
+        if (useCache) {
             elementToTreeCache.put(elt, fromElt);
         }
         return fromElt;
@@ -5246,7 +5596,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param path the {@link TreePath} for the artificial tree
      */
     public final void setPathForArtificialTree(Tree tree, TreePath path) {
-        treePathCache.addPath(tree, path);
+        treePathCache.addArtificialPath(tree, path);
     }
 
     /**
@@ -6130,11 +6480,22 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Functional interface
         // This is the target type of `tree`.
         AnnotatedTypeMirror functionalInterfaceType = getFunctionalInterfaceType(tree);
+        TypeMirror javaType = TreeUtils.typeOf(tree);
+        if (AnnotatedTypes.isTypeArgOfRawType(functionalInterfaceType)
+                && javaType.getKind() == TypeKind.DECLARED) {
+            // The target is a type argument of a raw type, such as the return type of the function
+            // type of a raw functional interface type, for a lambda returned by a lambda.  The Java
+            // target type is the erasure of the type argument's bound, a raw functional interface
+            // type.  Use it, as for a lambda whose target type is written as a raw type.
+            AnnotatedTypeMirror rawType = toAnnotatedType(javaType, false);
+            rawType.addAnnotations(functionalInterfaceType.getEffectiveAnnotations());
+            functionalInterfaceType = rawType;
+        }
         if (functionalInterfaceType.getKind() == TypeKind.DECLARED) {
             functionalInterfaceType =
                     makeGroundTargetType(
                             (AnnotatedDeclaredType) functionalInterfaceType,
-                            (DeclaredType) TreeUtils.typeOf(tree));
+                            (DeclaredType) javaType);
         }
 
         // Functional method
@@ -6940,6 +7301,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             return super.visitTypeVariable(original, originalToCopy);
         }
 
+        @SuppressWarnings({
+            // The cast type has the qualifiers of the operand, which T need not accept.
+            "interning:return.type.incompatible",
+            "rlccalledmethods:return.type.incompatible",
+            "signature:return.type.incompatible"
+        })
         @Override
         protected <T extends AnnotatedTypeMirror> T makeOrReturnCopy(
                 T original,

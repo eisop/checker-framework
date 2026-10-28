@@ -5,6 +5,7 @@ import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.Tree;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.TypeTag;
 
@@ -23,6 +24,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -141,15 +143,34 @@ public class InvocationType {
         AnnotatedTypeMirror returnType;
 
         if (TreeUtils.isDiamondTree(invocation)) {
-            Element e = ElementUtils.enclosingTypeElement(TreeUtils.elementFromUse(invocation));
+            NewClassTree newClassTree = (NewClassTree) invocation;
+            // For an anonymous class, `new C<>(args) {...}`, the type arguments of its superclass
+            // C are inferred as for `new C<>(args)` (JLS 15.9.3).
+            Tree classTypeTree =
+                    newClassTree.getClassBody() == null
+                            ? newClassTree
+                            : newClassTree.getIdentifier();
+            Type classTypeJava = (Type) TreeUtils.typeOf(classTypeTree);
+            Element e = classTypeJava.asElement();
             returnTypeJava = e.asType();
             returnType = typeFactory.getAnnotatedType(e);
             // The type arguments of the class are inferred, but those of an enclosing type are
             // the type arguments of the type of the enclosing instance.
             AnnotatedDeclaredType declaredEnclosing =
                     ((AnnotatedDeclaredType) returnType).getEnclosingType();
-            Type javaEnclosing = ((Type) TreeUtils.typeOf(invocation)).getEnclosingType();
+            Type javaEnclosing = classTypeJava.getEnclosingType();
             AnnotatedTypeMirror receiver = typeFactory.getReceiverType(invocation);
+            if (newClassTree.getClassBody() != null
+                    && newClassTree.getEnclosingExpression() == null
+                    && javaEnclosing.hasTag(TypeTag.CLASS)) {
+                // The implicit receiver is the enclosing instance of the anonymous class.  That of
+                // C is the innermost enclosing instance of a subclass of C's enclosing class.
+                while (receiver instanceof AnnotatedDeclaredType
+                        && !TypesUtils.isErasedSubtype(
+                                receiver.getUnderlyingType(), javaEnclosing, typeFactory.types)) {
+                    receiver = ((AnnotatedDeclaredType) receiver).getEnclosingType();
+                }
+            }
             if (declaredEnclosing != null
                     && receiver != null
                     && javaEnclosing.hasTag(TypeTag.CLASS)) {
@@ -255,7 +276,8 @@ public class InvocationType {
         if (invocation instanceof NewClassTree) {
             NewClassTree newClassTree = (NewClassTree) invocation;
             if (newClassTree.getEnclosingExpression() != null
-                    && newClassTree.getClassBody() != null) {
+                    && newClassTree.getClassBody() != null
+                    && ElementUtils.isAnonymousConstructor(annotatedExecutableType.getElement())) {
                 return 1;
             }
         }

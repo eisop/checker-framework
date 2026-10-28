@@ -4,7 +4,7 @@
 
 [versions]
 
-error-prone = "2.50.0"
+error-prone = "2.51.0"
 junit-junit = "4.13.2"
 jgit-version = "7.8.0.202609011348-r"
 
@@ -12,7 +12,7 @@ jgit-version = "7.8.0.202609011348-r"
 
 biz-aqute-bnd-builder = { id = "biz.aQute.bnd.builder", version = "7.4.0" }
 
-com-diffplug-spotless = { id = "com.diffplug.spotless", version = "8.10.3" }
+com-diffplug-spotless = { id = "com.diffplug.spotless", version = "8.10.4" }
 
 com-dorongold-task-tree = { id = "com.dorongold.task-tree", version = "4.0.2" }
 
@@ -67,7 +67,7 @@ hashmap-util = "org.plumelib:hashmap-util:0.0.1"
 
 stubparser = "org.checkerframework:stubparser:3.28.0"
 
-asm = "org.ow2.asm:asm:9.11"
+asm = "org.ow2.asm:asm:9.11.1"
 
 junit = { group = "junit", name = "junit", version.ref = "junit-junit" }
 

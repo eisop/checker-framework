@@ -418,14 +418,28 @@ public abstract class CFAbstractTransfer<
                 addFinalLocalValues(store, enclosingElement);
             }
 
-            // We want the initialization stuff, but need to throw out any refinements.
-            // Update values in place; keys are unchanged.
+            // We want the initialization stuff, but need to throw out any refinements, except to
+            // the target of a monotonic qualifier: the lambda body runs later, when such a
+            // refinement still holds. Update values in place; keys are unchanged.
+            // `store` is reassigned in this method, so the lambda below captures a copy.
+            S lambdaStore = store;
             store.fieldValues.replaceAll(
                     (fieldAccess, currentValue) -> {
                         AnnotatedTypeMirror declaredType =
                                 atypeFactory.getAnnotatedType(fieldAccess.getField());
-                        return analysis.createAbstractValue(declaredType)
-                                .leastUpperBound(currentValue);
+                        V newValue =
+                                analysis.createAbstractValue(declaredType)
+                                        .leastUpperBound(currentValue);
+                        if (!fieldAccess.getReceiver().isAssignableByOtherCode()) {
+                            V monotonicValue =
+                                    lambdaStore.newMonotonicFieldValueAfterMethodCall(
+                                            fieldAccess, analysis.getTypeFactory(), currentValue);
+                            if (monotonicValue != null) {
+                                // The monotonic target, where comparable, else the declared type.
+                                newValue = monotonicValue.mostSpecific(newValue, newValue);
+                            }
+                        }
+                        return newValue;
                     });
         } else {
             assert false : "Unexpected tree: " + underlyingAST;
@@ -689,7 +703,9 @@ public abstract class CFAbstractTransfer<
                 // Errors are reported by BaseTypeVisitor.checkContractsAtMethodDeclaration().
                 continue;
             }
-            initialStore.insertValuePermitNondeterministic(exprJe, annotation);
+            // The expression is parsed at the declaration, without substitution, so it can be
+            // impure only if it contains a call.
+            initialStore.insertValuePermitImpure(exprJe, annotation);
         }
     }
 
@@ -997,7 +1013,7 @@ public abstract class CFAbstractTransfer<
                 List<Node> secondParts = splitAssignments(secondNode);
                 for (Node secondPart : secondParts) {
                     JavaExpression secondInternal = JavaExpression.fromNode(secondPart);
-                    if (!secondInternal.isDeterministic(analysis.atypeFactory)) {
+                    if (!secondInternal.isPure(analysis.atypeFactory)) {
                         continue;
                     }
                     if (CFAbstractStore.canInsertJavaExpression(secondInternal)) {
@@ -1365,6 +1381,10 @@ public abstract class CFAbstractTransfer<
             S elseStore,
             Set<? extends Contract> postconditions) {
 
+        if (postconditions.isEmpty()) {
+            return;
+        }
+
         StringToJavaExpression stringToJavaExpr = null;
         if (invocationNode instanceof MethodInvocationNode) {
             stringToJavaExpr =
@@ -1386,6 +1406,8 @@ public abstract class CFAbstractTransfer<
                             + invocationNode.getClass().getSimpleName());
         }
 
+        List<JavaExpression> impureActuals = impureActuals(invocationNode);
+
         for (Contract p : postconditions) {
             // Viewpoint-adapt to the method use (the call site).
             AnnotationMirror anno =
@@ -1400,14 +1422,22 @@ public abstract class CFAbstractTransfer<
                 // existing information rather than replacing it.  If the called method is not
                 // side-effect-free, then the values that might have been changed by the method call
                 // are removed from the store before this method is called.
-                if (p.kind == Contract.Kind.CONDITIONALPOSTCONDITION) {
-                    if (((ConditionalPostcondition) p).resultValue) {
-                        thenStore.insertOrRefinePermitNondeterministic(je, anno);
-                    } else {
-                        elseStore.insertOrRefinePermitNondeterministic(je, anno);
+                // A contract that mentions a call is a fact about the next evaluation of that
+                // call, so an impure call is permitted. But if the contract expression contains an
+                // actual receiver or argument that is an impure call, the fact is about a value
+                // that has already been computed, which a later evaluation can change.
+                boolean permitImpure = true;
+                for (JavaExpression impureActual : impureActuals) {
+                    if (je.containsSyntacticEqualJavaExpression(impureActual)) {
+                        permitImpure = false;
+                        break;
                     }
+                }
+                if (p.kind == Contract.Kind.CONDITIONALPOSTCONDITION) {
+                    S store = ((ConditionalPostcondition) p).resultValue ? thenStore : elseStore;
+                    store.insertOrRefine(je, anno, permitImpure);
                 } else {
-                    thenStore.insertOrRefinePermitNondeterministic(je, anno);
+                    thenStore.insertOrRefine(je, anno, permitImpure);
                 }
             } catch (JavaExpressionParseException e) {
                 // report errors here
@@ -1628,24 +1658,27 @@ public abstract class CFAbstractTransfer<
     }
 
     /**
-     * Inserts {@code newAnno} into all stores (conditional or not) in the result for {@code
-     * target}, while permitting non-deterministic values to be stored. This is a utility method for
-     * subclasses.
+     * Returns the actual receiver and arguments of the given invocation that are not pure.
      *
-     * @param result the {@link TransferResult} holding the stores to modify
-     * @param target the {@link JavaExpression} for which the stores should be modified to contain
-     *     the value {@code newAnno}
-     * @param newAnno the new value
+     * @param invocationNode a method call node or an object creation node
+     * @return the actual receiver and arguments of the invocation that are not pure
      */
-    protected static void insertIntoStoresPermitNonDeterministic(
-            TransferResult<CFValue, CFStore> result,
-            JavaExpression target,
-            AnnotationMirror newAnno) {
-        if (result.containsTwoStores()) {
-            result.getThenStore().insertValuePermitNondeterministic(target, newAnno);
-            result.getElseStore().insertValuePermitNondeterministic(target, newAnno);
+    private List<JavaExpression> impureActuals(Node invocationNode) {
+        List<Node> actuals = new ArrayList<>();
+        if (invocationNode instanceof MethodInvocationNode) {
+            MethodInvocationNode call = (MethodInvocationNode) invocationNode;
+            actuals.add(call.getTarget().getReceiver());
+            actuals.addAll(call.getArguments());
         } else {
-            result.getRegularStore().insertValuePermitNondeterministic(target, newAnno);
+            actuals.addAll(((ObjectCreationNode) invocationNode).getArguments());
         }
+        List<JavaExpression> result = new ArrayList<>();
+        for (Node actual : actuals) {
+            JavaExpression je = JavaExpression.fromNode(actual);
+            if (!je.isPure(analysis.atypeFactory)) {
+                result.add(je);
+            }
+        }
+        return result;
     }
 }

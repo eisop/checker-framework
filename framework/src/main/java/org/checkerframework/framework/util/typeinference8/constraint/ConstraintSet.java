@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -162,6 +163,28 @@ public class ConstraintSet implements ReductionResult {
         Constraint c = list.removeFirst();
         fastLookup.remove(c);
         return c;
+    }
+
+    /**
+     * Returns the constraints in this set, compared by identity.
+     *
+     * @return the constraints in this set, compared by identity
+     */
+    public Set<Constraint> identitySnapshot() {
+        Set<Constraint> snapshot = Collections.newSetFromMap(new IdentityHashMap<>());
+        snapshot.addAll(list);
+        return snapshot;
+    }
+
+    /**
+     * Removes from this set every constraint that is not in {@code kept}.
+     *
+     * @param kept the constraints to keep, compared by identity, such as returned by {@link
+     *     #identitySnapshot()}
+     */
+    public void retainOnly(Set<Constraint> kept) {
+        list.removeIf(c -> !kept.contains(c));
+        fastLookup.removeIf(c -> !kept.contains(c));
     }
 
     /**
@@ -415,6 +438,34 @@ public class ConstraintSet implements ReductionResult {
             boundSet.merge(result);
         }
         return boundSet;
+    }
+
+    /**
+     * Reduces the additional argument constraints in this set whose invocation has been reduced as
+     * part of this inference problem (see {@link AdditionalArgument#isInvocationReduced}) and adds
+     * the resulting constraints to this set.
+     *
+     * @param context the context
+     */
+    public void reduceAdditionalArgsOfReducedInvocations(Java8InferenceContext context) {
+        ConstraintSet reduced = null;
+        for (Iterator<Constraint> iter = list.iterator(); iter.hasNext(); ) {
+            Constraint constraint = iter.next();
+            if (constraint instanceof AdditionalArgument
+                    && ((AdditionalArgument) constraint).isInvocationReduced(context)) {
+                iter.remove();
+                fastLookup.remove(constraint);
+                ConstraintSet set = ((AdditionalArgument) constraint).reduce(context);
+                if (reduced == null) {
+                    reduced = set;
+                } else {
+                    reduced.addAll(set);
+                }
+            }
+        }
+        if (reduced != null) {
+            addAll(reduced);
+        }
     }
 
     /**

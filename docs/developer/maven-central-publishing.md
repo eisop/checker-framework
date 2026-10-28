@@ -170,6 +170,12 @@ build produced. Once nightly snapshots exist, pointing the same smoke test at
 the published snapshot repository would close that gap, and would fail on the
 day a publication breaks rather than at the next release.
 
+The `annotation-file-utilities` artifact has a check of its own in
+`checker/bin-devel/test-release.sh` (the `release` CI job): its POM and jar
+contents, and a run of the annotator from the locally published artifact by the
+consumer project `docs/examples/afu-consumer/`. It has the same limitation: it
+runs against `publishToMavenLocal` output.
+
 **Nothing publishes the website automatically.** `EisopSiteGenerator` is run by
 hand against a `gh-pages` checkout, as its README in the `eisop.github.io`
 repository describes, and the release scripts here do not mention it, so

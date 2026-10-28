@@ -20,6 +20,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
@@ -331,8 +332,9 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             if (exprType.getKind() == TypeKind.TYPEVAR) {
                 // If both types are type variables, take the direct annotations.
                 type.addMissingAnnotations(exprType.getAnnotations());
+            } else {
+                addAnnoUnlessBelowLowerBound(type, exprType);
             }
-            // else do nothing.
         } else {
             // Use effective annotations from the expression, to get upper bound of type variables.
             AnnotationMirrorSet expressionAnnos = exprType.getEffectiveAnnotations();
@@ -379,11 +381,47 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      */
     private boolean hasPrimaryAnnotationInAllHierarchies(AnnotatedTypeMirror type) {
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-            if (type.getEffectiveAnnotationInHierarchy(top) == null) {
+            // Not the effective annotation: that of a type variable comes from its upper bound, so
+            // it would make every type variable look annotated and nothing would be propagated.
+            if (type.getAnnotationInHierarchy(top) == null) {
                 return false;
             }
         }
         return true;
+    }
+
+    /**
+     * Adds to {@code castType}, a type variable, the effective qualifiers of {@code exprType}, the
+     * type of a cast's operand that is not a type variable, in each hierarchy where they are not a
+     * subtype of the lower bound of {@code castType}.
+     *
+     * <p>A cast to a type variable is checked at run time only against the erasure of the type
+     * variable, so it cannot change the qualifier of the value. An operand whose qualifier is below
+     * the lower bound is a value of every instantiation of the type variable, so the cast type is
+     * left unannotated in that hierarchy. Otherwise the cast type gets the operand's qualifier,
+     * even if it is above the upper bound of the type variable: {@code (T) o} for a
+     * {@code @Nullable Object o} is {@code @Nullable T}, which is not a subtype of {@code T}.
+     *
+     * @param castType the type of the cast, a type variable
+     * @param exprType the type of the cast's operand, not a type variable
+     */
+    private void addAnnoUnlessBelowLowerBound(
+            AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+        AnnotationMirrorSet lowerBoundAnnos =
+                AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, castType);
+        TypeMirror castTM = castType.getUnderlyingType();
+        TypeMirror exprTM = exprType.getUnderlyingType();
+        AnnotationMirrorSet annosToAdd = new AnnotationMirrorSet();
+        for (AnnotationMirror exprAnno : exprType.getEffectiveAnnotations()) {
+            AnnotationMirror lowerBoundAnno =
+                    qualHierarchy.findAnnotationInSameHierarchy(lowerBoundAnnos, exprAnno);
+            if (lowerBoundAnno == null
+                    || !qualHierarchy.isSubtypeShallow(exprAnno, exprTM, lowerBoundAnno, castTM)) {
+                annosToAdd.add(exprAnno);
+            }
+        }
+        log("addAnnoUnlessBelowLowerBound(%s, %s): %s%n", castType, exprType, annosToAdd);
+        castType.addMissingAnnotations(annosToAdd);
     }
 
     /**

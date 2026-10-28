@@ -9,6 +9,7 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.UnaryTree;
@@ -86,6 +87,7 @@ import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesTreeAnnotator;
+import org.checkerframework.framework.util.typeinference8.DefaultTypeArgumentInference;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -123,6 +125,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
@@ -691,7 +694,14 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return the appropriate flow analysis class that is used for the
      *     org.checkerframework.dataflow analysis
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({
+        "unchecked",
+        "rawtypes",
+        // The cast type has the qualifiers of the operand, which FlowAnalysis need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     protected FlowAnalysis createFlowAnalysis() {
         // Try to reflectively load the visitor.
         Class<?> checkerClass = checker.getClass();
@@ -729,6 +739,12 @@ public abstract class GenericAnnotatedTypeFactory<
     // is the type parameter bounded by the current parameter type CFAbstractAnalysis<Value, Store,
     // TransferFunction>.
     // However, we ran into issues in callers of the method if we used that type.
+    @SuppressWarnings({
+        // The cast type has the qualifiers of the operand, which TransferFunction need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     public TransferFunction createFlowTransferFunction(
             CFAbstractAnalysis<Value, Store, TransferFunction> analysis) {
         // Try to reflectively load the visitor.
@@ -1151,6 +1167,20 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected IdentityHashMap<ClassTree, ScanState> scannedClasses = new IdentityHashMap<>();
 
+    @Override
+    public boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
+        // Without dataflow analysis the types of the arguments cannot change, so the inferred
+        // supertype is final from the start. Otherwise, the anonymous class is analyzed after the
+        // method that contains it.
+        return !everUseFlow || scannedClasses.containsKey(creation.getClassBody());
+    }
+
+    /**
+     * The number of active calls to {@link #performFlowAnalysisForClass}; see {@link
+     * #canUseCachedFlowDependentType(ExpressionTree)}.
+     */
+    private int flowAnalysisDepth = 0;
+
     /**
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
      * reachable trees. Use {@link #isUnreachable(ExpressionTree)} instead of this set directly.
@@ -1387,9 +1417,260 @@ public abstract class GenericAnnotatedTypeFactory<
      * Perform a org.checkerframework.dataflow analysis over a single class tree and its nested
      * classes.
      *
+     * <p>This method does the bookkeeping that {@link
+     * #canUseCachedFlowDependentType(ExpressionTree)} relies on: it counts the active analyses and
+     * discards the cached types of expressions that the analysis may refine. It is final so that no
+     * subclass can skip it; a subclass customizes the analysis by overriding {@link
+     * #performFlowAnalysisForClassImpl(ClassTree)}.
+     *
      * @param classTree the class to analyze
      */
-    protected void performFlowAnalysisForClass(ClassTree classTree) {
+    protected final void performFlowAnalysisForClass(ClassTree classTree) {
+        flowAnalysisDepth++;
+        try {
+            if (fromExpressionTreeCache != null) {
+                // The analysis may refine the types of flow-dependent trees that were cached
+                // before it started.
+                fromExpressionTreeCache.clear();
+            }
+            performFlowAnalysisForClassImpl(classTree);
+        } finally {
+            flowAnalysisDepth--;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>When no dataflow analysis is running, the refined types of the trees of all classes that
+     * have been analyzed are final, and a class is analyzed before any of its trees are
+     * type-checked; the cached types of the trees of a class that has not been analyzed yet are
+     * discarded when its analysis starts.
+     *
+     * <p>While a class is analyzed, a cached type is used only for a tree that is evaluated before
+     * the tree whose node the analysis is computing: a proper subexpression of that tree, or part
+     * of the receiver or of an earlier argument of an enclosing invocation. The node of such a tree
+     * was visited before the current node in the current pass, so its cached type was computed in
+     * the current pass and not in an earlier one (see {@link
+     * #canCacheFlowDependentType(ExpressionTree)}). The cached type of any other tree may be from
+     * an earlier pass over a loop: for example, inferring the type arguments of {@code bar()} in
+     * {@code foo(bar(), id(x))} also types the later argument {@code id(x)}, whose node has not
+     * been visited yet. A backward analysis would need another rule.
+     */
+    @Override
+    protected boolean canUseCachedFlowDependentType(ExpressionTree tree) {
+        if (useFlow != everUseFlow) {
+            return false;
+        }
+        return flowAnalysisDepth == 0 || isEvaluatedBeforeAnalyzedTree(tree);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>While a class is analyzed, the type of a tree is cached only when the analysis computes
+     * the value of the tree's own node and the tree is its own type argument inference problem,
+     * that is, not a poly expression whose type arguments are inferred together with an enclosing
+     * invocation. Then its type depends only on its subexpressions, whose nodes have been visited
+     * in the current pass, and the tree's own node recomputes its type at each visit. The type of
+     * {@code bar()} in {@code foo(bar(), id(x))} depends on the type of {@code id(x)}, whose node
+     * is visited after that of {@code bar()}.
+     */
+    @Override
+    protected boolean canCacheFlowDependentType(ExpressionTree tree) {
+        if (useFlow != everUseFlow) {
+            return false;
+        }
+        if (flowAnalysisDepth == 0) {
+            return true;
+        }
+        if (!isAnalyzingNodeOf(tree)) {
+            return false;
+        }
+        TreePath path = getPath(tree);
+        if (path == null) {
+            return false;
+        }
+        @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+        boolean isInferenceRoot =
+                DefaultTypeArgumentInference.outerInference(tree, path.getParentPath()) == tree;
+        return isInferenceRoot;
+    }
+
+    /**
+     * Returns true if the dataflow analysis is computing the value of a node of {@code tree}.
+     *
+     * @param tree an expression tree
+     * @return true if the dataflow analysis is computing the value of a node of {@code tree}
+     */
+    private boolean isAnalyzingNodeOf(ExpressionTree tree) {
+        if (!analysis.isRunning()) {
+            return false;
+        }
+        @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+        boolean isCurrent = analysis.getCurrentTree() == tree;
+        return isCurrent;
+    }
+
+    /**
+     * Returns true if {@code tree} is evaluated before the tree whose node the dataflow analysis is
+     * computing, which is {@code analysis.getCurrentTree()} or else the tree of {@code
+     * analysis.getCurrentNode()}: {@code tree} is a proper subexpression of that tree, or it is
+     * part of the receiver or of an earlier argument of an invocation that has that tree in a later
+     * argument. The search stops at an enclosing lambda, method, or class, whose body is another
+     * control flow graph.
+     *
+     * @param tree an expression tree
+     * @return true if {@code tree} is evaluated before the tree whose node the dataflow analysis is
+     *     computing
+     */
+    private boolean isEvaluatedBeforeAnalyzedTree(ExpressionTree tree) {
+        if (!analysis.isRunning()) {
+            return false;
+        }
+        Tree current = analysis.getCurrentTree();
+        if (current == null) {
+            // The transfer function queries a type outside of getValueFromFactory.
+            Node currentNode = analysis.getCurrentNode();
+            current = currentNode == null ? null : currentNode.getTree();
+        }
+        if (current == null) {
+            return false;
+        }
+        @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+        boolean isSame = current == tree;
+        if (isSame) {
+            return false;
+        }
+        TreePath path = getPath(tree);
+        if (path == null) {
+            return false;
+        }
+        TreePath currentPath = null;
+        Tree child = tree;
+        for (TreePath p = path.getParentPath(); p != null; p = p.getParentPath()) {
+            Tree leaf = p.getLeaf();
+            if (isOtherControlFlowGraph(leaf)) {
+                return false;
+            }
+            @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+            boolean isCurrent = leaf == current;
+            if (isCurrent) {
+                return true;
+            }
+            int index = evaluationIndex(leaf, child);
+            if (index >= 0) {
+                if (currentPath == null) {
+                    currentPath = getPath(current);
+                    if (currentPath == null) {
+                        return false;
+                    }
+                }
+                Tree currentChild = childTowards(currentPath, leaf);
+                if (currentChild != null) {
+                    // leaf is the innermost invocation that contains both trees.
+                    return evaluationIndex(leaf, currentChild) > index;
+                }
+            }
+            child = leaf;
+        }
+        return false;
+    }
+
+    /**
+     * Returns true if {@code tree} has its own control flow graph or is outside of any.
+     *
+     * @param tree a tree
+     * @return true if {@code tree} is a lambda, method, or class
+     */
+    private static boolean isOtherControlFlowGraph(Tree tree) {
+        return tree instanceof LambdaExpressionTree
+                || tree instanceof MethodTree
+                || tree instanceof ClassTree;
+    }
+
+    /**
+     * Returns the position of {@code child} in the evaluation order of the receiver and the
+     * arguments of the invocation {@code parent}.
+     *
+     * @param parent a tree
+     * @param child a child of {@code parent}
+     * @return the position of {@code child} in the evaluation order of the receiver, the arguments,
+     *     and the artificial array of the variable arguments of {@code parent}, or -1 if {@code
+     *     parent} is not a method invocation or a new class expression, or {@code child} is neither
+     *     its receiver nor an argument
+     */
+    private static int evaluationIndex(Tree parent, Tree child) {
+        List<? extends ExpressionTree> arguments;
+        if (parent instanceof MethodInvocationTree) {
+            MethodInvocationTree invocation = (MethodInvocationTree) parent;
+            @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+            boolean isReceiver = invocation.getMethodSelect() == child;
+            if (isReceiver) {
+                return 0;
+            }
+            arguments = invocation.getArguments();
+        } else if (parent instanceof NewClassTree) {
+            NewClassTree newClass = (NewClassTree) parent;
+            @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+            boolean isEnclosing = newClass.getEnclosingExpression() == child;
+            if (isEnclosing) {
+                return 0;
+            }
+            arguments = newClass.getArguments();
+        } else {
+            return -1;
+        }
+        for (int i = 0; i < arguments.size(); i++) {
+            @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+            boolean isArgument = arguments.get(i) == child;
+            if (isArgument) {
+                return i + 1;
+            }
+        }
+        if (child instanceof NewArrayTree) {
+            // The artificial array of the variable arguments, which the control flow graph
+            // creates after all arguments.
+            return arguments.size() + 1;
+        }
+        return -1;
+    }
+
+    /**
+     * Returns the child of {@code ancestor} on {@code path}, within the control flow graph of the
+     * leaf of {@code path}.
+     *
+     * @param path a path
+     * @param ancestor a tree
+     * @return the child of {@code ancestor} on {@code path}, or null if {@code ancestor} is not on
+     *     {@code path} within the same control flow graph
+     */
+    private static @Nullable Tree childTowards(TreePath path, Tree ancestor) {
+        Tree child = path.getLeaf();
+        for (TreePath p = path.getParentPath(); p != null; p = p.getParentPath()) {
+            Tree leaf = p.getLeaf();
+            @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+            boolean isAncestor = leaf == ancestor;
+            if (isAncestor) {
+                return child;
+            }
+            if (isOtherControlFlowGraph(leaf)) {
+                return null;
+            }
+            child = leaf;
+        }
+        return null;
+    }
+
+    /**
+     * Performs the dataflow analysis for {@link #performFlowAnalysisForClass}, which calls this
+     * method between its bookkeeping. A subclass that does not run its own analysis, or runs it
+     * only under some condition, overrides this method and not {@code performFlowAnalysisForClass},
+     * which it cannot override.
+     *
+     * @param classTree the class to analyze
+     */
+    protected void performFlowAnalysisForClassImpl(ClassTree classTree) {
         if (flowResult == null) {
             this.regularExitStores = new IdentityHashMap<>();
             this.exceptionalExitStores = new IdentityHashMap<>();
@@ -2059,14 +2340,14 @@ public abstract class GenericAnnotatedTypeFactory<
 
                 // A field declaration initializer assigns to an implicit this.field.
                 // Viewpoint-adapt the field's declared type to the enclosing class just as
-                // for an explicit member access.
+                // for an explicit member access, against a use of the class.
                 if (viewpointAdapter != null) {
                     VariableElement field = TreeUtils.elementFromDeclaration(varTree);
                     if (field.getKind().isField() && !ElementUtils.isStatic(field)) {
                         TypeElement enclosingType = (TypeElement) field.getEnclosingElement();
                         AnnotatedTypeMirror adapted = res.shallowCopy();
                         viewpointAdapter.viewpointAdaptMember(
-                                getAnnotatedType(enclosingType), field, adapted);
+                                getAnnotatedType(enclosingType).asUse(), field, adapted);
                         res = adapted;
                     }
                 }
@@ -2688,7 +2969,13 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return the AnnotatedTypeFactory of the subchecker or null if no subchecker exists
      * @see #getTypeFactoryOfSubchecker
      */
-    @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
+    @SuppressWarnings({
+        "TypeParameterUnusedInFormals", // Intentional abuse
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>>
             @Nullable T getTypeFactoryOfSubcheckerOrNull(
                     Class<? extends SourceChecker> subCheckerClass) {
@@ -2894,7 +3181,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /** For each type, whether it is relevant. A cache to avoid repeated re-computation. */
-    private final Map<TypeMirror, Boolean> isRelevantCache = MapsP.createLruCache(300);
+    private final Map<TypeMirror, Boolean> isRelevantCache = MapsP.createLruCache(2000);
 
     /**
      * Returns true if users can write type annotations from this type system directly on the given
@@ -2914,7 +3201,13 @@ public abstract class GenericAnnotatedTypeFactory<
         if (relevantJavaTypes == null) {
             return true;
         }
-        if (tm.getKind() != TypeKind.PACKAGE && tm.getKind() != TypeKind.MODULE) {
+        if (tm.getKind() == TypeKind.DECLARED) {
+            // The cache is keyed by identity, but erasure does not return one canonical instance
+            // per class: it returns a String type unchanged (with its constant value and
+            // annotations), and javac copies types in other ways. Look up the class's own erased
+            // type instead.
+            tm = types.erasure(((DeclaredType) tm).asElement().asType());
+        } else if (tm.getKind() != TypeKind.PACKAGE && tm.getKind() != TypeKind.MODULE) {
             tm = types.erasure(tm);
         }
         Boolean cachedResult = isRelevantCache.get(tm);

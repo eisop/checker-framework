@@ -48,10 +48,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.CodeSource;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -1482,6 +1484,16 @@ public class AnnotationFileElementTypes {
                 data, atypeFactory, this, target, /* fromLazyJdk= */ false);
         AnnotationMirror fromStubFile = getFromStubFileAnno();
         for (Map.Entry<String, BinaryStubData.ClassRecord> entry : data.classes.entrySet()) {
+            BinaryStubReader.applyClassTypeParamRecords(
+                    entry.getValue(),
+                    entry.getKey(),
+                    atypeFactory,
+                    this,
+                    data,
+                    target,
+                    fromStubFile);
+        }
+        for (Map.Entry<String, BinaryStubData.ClassRecord> entry : data.classes.entrySet()) {
             BinaryStubReader.applyClassRecord(
                     entry.getValue(),
                     entry.getKey(),
@@ -2281,19 +2293,42 @@ public class AnnotationFileElementTypes {
                 ++parsingCount;
                 boolean appliedAny = false;
                 try {
-                    if (!applyBinaryClassRecord(className, cr, cache)) {
+                    if (processedBinaryClasses.contains(className)) {
                         // Already processed via binary path; nothing more to do.
                         return;
                     }
-                    appliedAny = true;
-
                     // Also apply binary records for all inner classes in the same file.
                     // This mirrors the text parser's behavior of parsing the entire .java file at
                     // once (which includes all inner classes). Without this, inner-class
                     // annotations (e.g. @InternedDistinct on Symbol.Completer.NULL_COMPLETER) are
-                    // missed.
-                    for (BinaryStubData.ClassRecord innerCr :
-                            getInnerClassesFromBinary(className)) {
+                    // missed. The type parameters of all of them come first; see
+                    // BinaryStubReader.applyClassTypeParamRecords.
+                    List<BinaryStubData.ClassRecord> innerCrs =
+                            getInnerClassesFromBinary(className);
+                    BinaryStubReader.applyClassTypeParamRecords(
+                            cr,
+                            className,
+                            atypeFactory,
+                            this,
+                            cache.data,
+                            annotationFileAnnos,
+                            null);
+                    for (BinaryStubData.ClassRecord innerCr : innerCrs) {
+                        BinaryStubReader.applyClassTypeParamRecords(
+                                innerCr,
+                                cache.data.stringPool[innerCr.nameIndex],
+                                atypeFactory,
+                                this,
+                                cache.data,
+                                annotationFileAnnos,
+                                null);
+                    }
+                    if (!applyBinaryClassRecord(className, cr, cache)) {
+                        // Processed by a reentrant call while applying the type parameters.
+                        return;
+                    }
+                    appliedAny = true;
+                    for (BinaryStubData.ClassRecord innerCr : innerCrs) {
                         String innerName = cache.data.stringPool[innerCr.nameIndex];
                         applyBinaryClassRecord(innerName, innerCr, cache);
                     }
@@ -2614,12 +2649,61 @@ public class AnnotationFileElementTypes {
     }
 
     /**
+     * Returns the root of the annotated JDK to use for the checker whose type factory is {@code
+     * factoryClass}, or null if there is none.
+     *
+     * <p>If the jar (or directory) that {@code factoryClass} was loaded from contains an annotated
+     * JDK, that one is used. Otherwise this returns the first annotated JDK that the class loader
+     * finds. {@link Class#getResource} alone is not enough: it searches the whole processor path in
+     * order, and {@code CheckerMain} puts checker.jar ahead of the jars of a downstream checker, so
+     * a checker that packages its own annotated JDK, such as the JSpecify reference checker, would
+     * get checker.jar's instead.
+     *
+     * @param factoryClass the class of the checker's type factory
+     * @return the URL of the root directory of the annotated JDK, or null if there is none
+     */
+    static @Nullable URL findAnnotatedJdk(Class<?> factoryClass) {
+        ClassLoader loader = factoryClass.getClassLoader();
+        if (loader == null) {
+            return factoryClass.getResource("/" + ANNOTATED_JDK_PATH);
+        }
+        String ownLocation = null;
+        CodeSource codeSource = factoryClass.getProtectionDomain().getCodeSource();
+        if (codeSource != null && codeSource.getLocation() != null) {
+            ownLocation = codeSource.getLocation().toExternalForm();
+        }
+        URL first = null;
+        try {
+            Enumeration<URL> candidates = loader.getResources(ANNOTATED_JDK_PATH);
+            while (candidates.hasMoreElements()) {
+                URL candidate = candidates.nextElement();
+                if (first == null) {
+                    first = candidate;
+                }
+                String text = candidate.toExternalForm();
+                // A jar's location is "file:/x.jar" and its entries are "jar:file:/x.jar!/...";
+                // a directory's location "file:/x/" is a prefix of its entries.  Only a location
+                // that ends with "/" is a directory, so that "file:/x.jar" does not match
+                // "file:/x.jar2/...".
+                if (ownLocation != null
+                        && (text.startsWith("jar:" + ownLocation + "!/")
+                                || (ownLocation.endsWith("/") && text.startsWith(ownLocation)))) {
+                    return candidate;
+                }
+            }
+        } catch (IOException e) {
+            throw new BugInCF("cannot search for the annotated JDK of " + factoryClass, e);
+        }
+        return first;
+    }
+
+    /**
      * Returns a JarURLConnection to "/jdk*".
      *
      * @return a JarURLConnection to "/annotated-jdk"
      */
     private JarURLConnection getJarURLConnectionToJdk() {
-        URL resourceURL = atypeFactory.getClass().getResource("/" + ANNOTATED_JDK_PATH);
+        URL resourceURL = findAnnotatedJdk(atypeFactory.getClass());
         JarURLConnection connection;
         try {
             connection = (JarURLConnection) resourceURL.openConnection();
@@ -2661,7 +2745,7 @@ public class AnnotationFileElementTypes {
      * #binaryStubCacheChecked} bookkeeping in one {@code finally} block.
      */
     private void prepJdkStubsImpl() {
-        URL resourceURL = atypeFactory.getClass().getResource("/" + ANNOTATED_JDK_PATH);
+        URL resourceURL = findAnnotatedJdk(atypeFactory.getClass());
         URL binURL = resourceURL == null ? null : binaryStubURL(resourceURL);
         // -AparseAllJdk means "parse every JDK source file". Reading the binary stub file as well
         // would apply the same annotations a second time -- the text is parsed eagerly below, and

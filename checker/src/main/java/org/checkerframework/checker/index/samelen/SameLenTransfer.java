@@ -111,7 +111,7 @@ public class SameLenTransfer extends CFTransfer {
                     AnnotationMirror lengthNodeAnnotation =
                             atypeFactory
                                     .getAnnotatedType(lengthNodeReceiver.getTree())
-                                    .getAnnotationInHierarchy(UNKNOWN);
+                                    .getEffectiveAnnotationInHierarchy(UNKNOWN);
 
                     AnnotationMirror combinedSameLen =
                             atypeFactory.createCombinedSameLen(
@@ -125,7 +125,9 @@ public class SameLenTransfer extends CFTransfer {
         }
 
         AnnotationMirror rightAnno =
-                atypeFactory.getAnnotatedType(exprNode.getTree()).getAnnotationInHierarchy(UNKNOWN);
+                atypeFactory
+                        .getAnnotatedType(exprNode.getTree())
+                        .getEffectiveAnnotationInHierarchy(UNKNOWN);
 
         // If the left side of the assignment is an array or a string, then have both the right and
         // left side be SameLen of each other.
@@ -226,7 +228,9 @@ public class SameLenTransfer extends CFTransfer {
      */
     AnnotationMirror getAnno(Node n) {
         if (n.isLValue()) {
-            return atypeFactory.getAnnotatedType(n.getTree()).getAnnotationInHierarchy(UNKNOWN);
+            return atypeFactory
+                    .getAnnotatedType(n.getTree())
+                    .getEffectiveAnnotationInHierarchy(UNKNOWN);
         }
         CFValue cfValue = analysis.getValue(n);
         if (cfValue == null) {
@@ -313,7 +317,7 @@ public class SameLenTransfer extends CFTransfer {
                                 Collections.singletonList(paramNames.get(index)));
                 JavaExpression otherParamRec =
                         JavaExpression.fromVariableTree(paramTrees.get(otherParamIndex));
-                info.insertValuePermitNondeterministic(otherParamRec, newSameLen);
+                info.insertValue(otherParamRec, newSameLen);
             }
         }
     }

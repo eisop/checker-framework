@@ -6,6 +6,7 @@ import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.CompoundAssignmentTree;
+import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
@@ -32,8 +33,7 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.Unknown;
-import org.checkerframework.dataflow.qual.Deterministic;
-import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.util.PurityUtils;
 import org.checkerframework.framework.flow.CFAbstractValue;
 import org.checkerframework.framework.type.AnnotatedTypeFactory.ParameterizedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -526,6 +526,22 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
     }
 
     /**
+     * Checks the lock of the expression of an enhanced for loop, which the loop dereferences: it
+     * calls {@code iterator()} on an {@code Iterable} or reads the length and the elements of an
+     * array.
+     */
+    @Override
+    public Void visitEnhancedForLoop(EnhancedForLoopTree tree, Void p) {
+        ExpressionTree iterated = tree.getExpression();
+        AnnotationMirror gb =
+                atypeFactory
+                        .getAnnotatedType(iterated)
+                        .getEffectiveAnnotationInHierarchy(atypeFactory.GUARDEDBYUNKNOWN);
+        checkLock(iterated, gb);
+        return super.visitEnhancedForLoop(tree, p);
+    }
+
+    /**
      * Skips the call to super and returns true.
      *
      * <p>{@code GuardedBy({})} is the default type on class declarations, which is a subtype of the
@@ -870,13 +886,13 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
     /**
      * Ensures that each variable accessed in an expression is final or effectively final and that
-     * each called method in the expression is @Deterministic. Issues an error otherwise.
-     * Recursively performs this check on method arguments. Only intended to be used on the
-     * expression of a synchronized block.
+     * each called method in the expression is pure (deterministic and side-effect-free). Issues an
+     * error otherwise. Recursively performs this check on method arguments. Only intended to be
+     * used on the expression of a synchronized block.
      *
      * <p>Example: given the expression var1.field1.method1(var2.method2()).field2, var1, var2,
      * field1 and field2 are enforced to be final or effectively final, and method1 and method2 are
-     * enforced to be @Deterministic.
+     * enforced to be pure.
      *
      * @param lockExpressionTree the expression tree of a synchronized block
      * @return true if the check succeeds, false if an error message was issued
@@ -910,14 +926,14 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                     }
                     return result;
                 case METHOD_INVOCATION:
-                    Element elem = TreeUtils.elementFromUse(tree);
-                    if (atypeFactory.getDeclAnnotationNoAliases(elem, Deterministic.class) == null
-                            && atypeFactory.getDeclAnnotationNoAliases(elem, Pure.class) == null) {
+                    MethodInvocationTree methodInvocationTree = (MethodInvocationTree) tree;
+                    ExecutableElement method = TreeUtils.elementFromUse(methodInvocationTree);
+                    // A deterministic method that is not side-effect-free may change the heap, so
+                    // two evaluations of the call could return different locks.
+                    if (!PurityUtils.isPure(atypeFactory, method)) {
                         checker.reportError(tree, "lock.expression.not.final", lockExpressionTree);
                         return false;
                     }
-
-                    MethodInvocationTree methodInvocationTree = (MethodInvocationTree) tree;
 
                     for (ExpressionTree argTree : methodInvocationTree.getArguments()) {
                         result = ensureExpressionIsEffectivelyFinal(argTree) && result;

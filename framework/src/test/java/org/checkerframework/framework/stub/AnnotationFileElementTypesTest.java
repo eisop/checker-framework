@@ -5,14 +5,23 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.Trees;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
@@ -26,7 +35,8 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
 
 /**
- * Unit test for {@link AnnotationFileElementTypes#buildSigIndex}.
+ * Unit test for {@link AnnotationFileElementTypes#buildSigIndex} and {@link
+ * AnnotationFileElementTypes#findAnnotatedJdk}.
  *
  * <p>Regression test for a crash: {@code TypesUtils.simpleTypeName} throws {@link
  * org.checkerframework.javacutil.BugInCF} (a {@link RuntimeException}) for a parameter whose type
@@ -191,5 +201,109 @@ public class AnnotationFileElementTypesTest {
         Assert.assertNull(
                 AnnotationFileElementTypes.extractModuleName(
                         "annotated-jdk/java.base/module-info.java"));
+    }
+
+    /**
+     * {@code findAnnotatedJdk} returns the annotated JDK in the jar or directory of the factory
+     * class if it has one, even when a jar earlier on the class path has an annotated JDK too, and
+     * otherwise the first one on the class path.
+     */
+    @Test
+    public void testFindAnnotatedJdk() throws Exception {
+        Path dir = Files.createTempDirectory("findAnnotatedJdk");
+        Path classes = dir.resolve("classes");
+        Files.createDirectories(classes);
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        Assert.assertEquals(
+                0, compiler.run(null, null, null, "-d", classes.toString(), writeFactory(dir)));
+
+        Path first = jar(dir.resolve("first.jar"), null);
+        Path own = jar(dir.resolve("own.jar"), classes);
+        Path plain = jar(dir.resolve("plain.jar"), classes, false);
+        Path ownDir = dir.resolve("ownDir");
+        Files.createDirectories(ownDir.resolve("annotated-jdk"));
+        Files.copy(classes.resolve("Factory.class"), ownDir.resolve("Factory.class"));
+
+        // The jar that holds the factory class has an annotated JDK: it wins over the first one.
+        Assert.assertTrue(findIn(first, own).contains("own.jar!/annotated-jdk"));
+        // The directory that holds the factory class has one.
+        Assert.assertTrue(findIn(first, ownDir).contains("ownDir/annotated-jdk"));
+        // The jar that holds the factory class has none: the first one on the class path is used.
+        Assert.assertTrue(findIn(first, plain).contains("first.jar!/annotated-jdk"));
+        // A directory whose name starts with the name of the jar that holds the factory class is
+        // not that jar.
+        Path sibling = dir.resolve("plain.jar2");
+        Files.createDirectories(sibling.resolve("annotated-jdk"));
+        Assert.assertTrue(findIn(first, sibling, plain).contains("first.jar!/annotated-jdk"));
+    }
+
+    /**
+     * Writes the source of a class named {@code Factory} into {@code dir}.
+     *
+     * @param dir a directory
+     * @return the path of the source file, as a string
+     * @throws IOException if the file cannot be written
+     */
+    private static String writeFactory(Path dir) throws IOException {
+        Path src = dir.resolve("Factory.java");
+        Files.write(src, "public class Factory {}".getBytes(StandardCharsets.UTF_8));
+        return src.toString();
+    }
+
+    /**
+     * Writes a jar with an {@code annotated-jdk/} directory entry and, if {@code classes} is
+     * non-null, the {@code Factory.class} in it.
+     *
+     * @param jar the jar to write
+     * @param classes a directory with {@code Factory.class}, or null
+     * @return {@code jar}
+     * @throws IOException if the jar cannot be written
+     */
+    private static Path jar(Path jar, @Nullable Path classes) throws IOException {
+        return jar(jar, classes, true);
+    }
+
+    /**
+     * Writes a jar with {@code Factory.class} if {@code classes} is non-null, and with an {@code
+     * annotated-jdk/} directory entry if {@code withJdk}.
+     *
+     * @param jar the jar to write
+     * @param classes a directory with {@code Factory.class}, or null
+     * @param withJdk whether the jar gets an annotated JDK
+     * @return {@code jar}
+     * @throws IOException if the jar cannot be written
+     */
+    private static Path jar(Path jar, @Nullable Path classes, boolean withJdk) throws IOException {
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar))) {
+            if (withJdk) {
+                out.putNextEntry(new JarEntry("annotated-jdk/"));
+                out.closeEntry();
+            }
+            if (classes != null) {
+                out.putNextEntry(new JarEntry("Factory.class"));
+                out.write(Files.readAllBytes(classes.resolve("Factory.class")));
+                out.closeEntry();
+            }
+        }
+        return jar;
+    }
+
+    /**
+     * Loads {@code Factory} from the last of {@code path} and returns the annotated JDK that {@code
+     * findAnnotatedJdk} finds for it, with the entries of {@code path} on the class path in order.
+     *
+     * @param path the class path, ending with the jar or directory that holds {@code Factory}
+     * @return the URL of the annotated JDK, as a string
+     * @throws Exception if loading fails
+     */
+    private static String findIn(Path... path) throws Exception {
+        URL[] urls = new URL[path.length];
+        for (int i = 0; i < path.length; i++) {
+            urls[i] = path[i].toUri().toURL();
+        }
+        try (URLClassLoader loader = new URLClassLoader(urls, null)) {
+            Class<?> factory = Class.forName("Factory", false, loader);
+            return String.valueOf(AnnotationFileElementTypes.findAnnotatedJdk(factory));
+        }
     }
 }

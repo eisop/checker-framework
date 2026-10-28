@@ -12,6 +12,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.util.typeinference8.types.ContainsInferenceVariable;
+import org.checkerframework.framework.util.typeinference8.types.InferenceFactory;
 import org.checkerframework.framework.util.typeinference8.types.Variable;
 import org.checkerframework.framework.util.typeinference8.util.InferenceBudgetExceededError;
 import org.checkerframework.framework.util.typeinference8.util.Theta;
@@ -41,6 +42,16 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
 
     /** Creates a DefaultTypeArgumentInference. */
     public DefaultTypeArgumentInference() {}
+
+    /**
+     * Returns true if an inference problem is being solved. While it is, the types of the
+     * expressions that are part of the problem are computed without inferring their type arguments.
+     *
+     * @return true if an inference problem is being solved
+     */
+    public boolean isInferring() {
+        return java8Inference != null;
+    }
 
     @SuppressWarnings("interning:not.interned")
     @Override
@@ -106,10 +117,19 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
                 return java8Inference.infer((MemberReferenceTree) outerTree);
             } else {
                 InferenceResult result = java8Inference.infer(outerTree, outerMethodType);
-                if (!result.getResults().containsKey(expressionTree)
-                        && expressionTree instanceof MemberReferenceTree) {
-                    java8Inference.context.pathToExpression = typeFactory.getPath(expressionTree);
-                    return java8Inference.infer((MemberReferenceTree) expressionTree);
+                if (!result.getResults().containsKey(expressionTree)) {
+                    if (expressionTree instanceof MemberReferenceTree) {
+                        java8Inference.context.pathToExpression =
+                                typeFactory.getPath(expressionTree);
+                        return java8Inference.infer((MemberReferenceTree) expressionTree);
+                    }
+                    // expressionTree is not part of the problem of outerTree (see
+                    // AdditionalArgument#reduce), so infer it on its own, now that the lambda
+                    // parameters it uses have their types.
+                    java8Inference =
+                            new InvocationTypeInference(
+                                    typeFactory, typeFactory.getPath(expressionTree));
+                    result = java8Inference.infer(expressionTree, methodType);
                 }
                 return result.swapTypeVariables(methodType, expressionTree);
             }
@@ -185,7 +205,7 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         if (parentPath == null) {
             return tree;
         }
-        if (!TreeUtils.isPolyExpression(tree)) {
+        if (!InferenceFactory.isPolyExpression(tree)) {
             return tree;
         }
 
@@ -218,7 +238,12 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
                 if (!newClassTree.getTypeArguments().isEmpty()) {
                     return tree;
                 }
-                ExecutableElement constructor = TreeUtils.elementFromUse(newClassTree);
+                // The type arguments of the superclass of an anonymous class created with a
+                // diamond are inferred from the super constructor (JLS 15.9.3).
+                ExecutableElement constructor =
+                        TreeUtils.isAnonymousDiamondTree(newClassTree)
+                                ? TreeUtils.getSuperConstructor(newClassTree)
+                                : TreeUtils.elementFromUse(newClassTree);
                 if (argumentNeedsInference(
                         constructor, newClassTree.getArguments(), tree, newClassTree)) {
                     return outerInference((ExpressionTree) parentTree, parentPath.getParentPath());
@@ -293,9 +318,13 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         if (executableElement.getKind() == ElementKind.CONSTRUCTOR) {
             List<TypeVariable> list = new ArrayList<>(executableType.getTypeVariables());
             if (newClassTree != null && TreeUtils.isDiamondTree(newClassTree)) {
+                Tree classTypeTree =
+                        newClassTree.getClassBody() == null
+                                ? newClassTree
+                                : newClassTree.getIdentifier();
                 DeclaredType declaredType =
                         (DeclaredType)
-                                ((DeclaredType) TreeUtils.typeOf(newClassTree))
+                                ((DeclaredType) TreeUtils.typeOf(classTypeTree))
                                         .asElement()
                                         .asType();
                 for (TypeMirror typeVar : declaredType.getTypeArguments()) {

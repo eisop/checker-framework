@@ -23,6 +23,9 @@ import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.ImmutableTypes;
 import org.plumelib.util.StringsPlume;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -699,6 +702,29 @@ public final class TypesUtils {
     }
 
     /**
+     * Returns the type to which unboxing conversion (JLS 5.1.8) applies for {@code type}: {@code
+     * type} itself, or, if {@code type} is a type variable, wildcard, or intersection type, the
+     * boxed primitive type among its bounds. javac unboxes such a type through its bound, so {@code
+     * x++} and {@code x + 1} compile when {@code x} has type {@code N} and {@code <N extends
+     * Integer>}.
+     *
+     * @param type a type
+     * @return the boxed primitive type among the bounds of {@code type}, or {@code type} itself
+     *     (its non-variable, non-wildcard upper bound) if it has no such bound
+     */
+    public static TypeMirror boxedPrimitiveBound(TypeMirror type) {
+        TypeMirror bound = upperBound(type);
+        if (bound.getKind() == TypeKind.INTERSECTION) {
+            for (TypeMirror b : ((IntersectionType) bound).getBounds()) {
+                if (isBoxedPrimitive(b)) {
+                    return b;
+                }
+            }
+        }
+        return bound;
+    }
+
+    /**
      * Returns the type parameter for this wildcard from the underlying type's bound field. This
      * field is sometimes null, in that case this method will return null.
      *
@@ -1298,6 +1324,94 @@ public final class TypesUtils {
                 (Type) upper,
                 (Type) lower,
                 (Type.WildcardType) wildcardType);
+    }
+
+    /**
+     * The {@code TypeVar.setUpperBound(Type)} method, or null if this JDK does not have it. It does
+     * not exist on JDK 8, nor on some builds of JDK 9 to 12.
+     */
+    private static final @Nullable Method TYPEVAR_SETUPPERBOUND;
+
+    /**
+     * The {@code TypeVar.bound} field, which holds the upper bound on a JDK that has no {@code
+     * setUpperBound} method; null otherwise.
+     */
+    private static final @Nullable Field TYPEVAR_BOUND;
+
+    static {
+        // Look for the method rather than branching on the JDK version: some builds of JDK 9 to
+        // 12 lack it, and every checker crashed on them (eisop#2366).
+        Method setUpperBound;
+        try {
+            setUpperBound = Type.TypeVar.class.getMethod("setUpperBound", Type.class);
+        } catch (NoSuchMethodException e) {
+            setUpperBound = null;
+        }
+        if (setUpperBound != null) {
+            TYPEVAR_SETUPPERBOUND = setUpperBound;
+            TYPEVAR_BOUND = null;
+        } else {
+            TYPEVAR_SETUPPERBOUND = null;
+            try {
+                TYPEVAR_BOUND = Type.TypeVar.class.getField("bound");
+            } catch (NoSuchFieldException e) {
+                throw new BugInCF("Cannot access the upper bound of TypeVar", e);
+            }
+        }
+    }
+
+    /**
+     * Substitutes {@code freshTypeVariables} for {@code typeVariables} in the bounds of each type
+     * variable in {@code freshTypeVariables}, by side effect. Afterward, a bound that referred to
+     * the type variable at index i refers to the fresh type variable at index i instead, which may
+     * be the bounded type variable itself or another one in the list. {@link #substitute} cannot do
+     * this: it does not substitute in the bounds of a type variable, and a bound that refers to its
+     * own type variable cannot be built before that type variable exists.
+     *
+     * @param freshTypeVariables fresh type variables, such as created by {@link
+     *     #freshTypeVariable(TypeMirror, TypeMirror, ProcessingEnvironment)}, that are not used
+     *     anywhere else yet; their bounds are side-effected
+     * @param typeVariables the type variables to replace, at the same indices as {@code
+     *     freshTypeVariables}
+     * @param env processing environment
+     */
+    public static void substituteInBounds(
+            List<? extends TypeMirror> freshTypeVariables,
+            List<? extends TypeVariable> typeVariables,
+            ProcessingEnvironment env) {
+        for (TypeMirror fresh : freshTypeVariables) {
+            if (!(fresh instanceof Type.TypeVar)) {
+                throw new BugInCF("Not a type variable: %s [%s]", fresh, fresh.getClass());
+            }
+        }
+        // Compute every new bound before setting any, so that each substitution sees the original
+        // bounds. For a captured type variable, the wildcard field is not updated: javac only
+        // compares it by identity, in isCaptureOf.
+        List<TypeMirror> uppers = new ArrayList<>(freshTypeVariables.size());
+        List<TypeMirror> lowers = new ArrayList<>(freshTypeVariables.size());
+        for (TypeMirror fresh : freshTypeVariables) {
+            Type.TypeVar typeVar = (Type.TypeVar) fresh;
+            uppers.add(substitute(typeVar.getUpperBound(), typeVariables, freshTypeVariables, env));
+            lowers.add(substitute(typeVar.getLowerBound(), typeVariables, freshTypeVariables, env));
+        }
+        for (int i = 0; i < freshTypeVariables.size(); i++) {
+            Type.TypeVar typeVar = (Type.TypeVar) freshTypeVariables.get(i);
+            try {
+                if (TYPEVAR_SETUPPERBOUND != null) {
+                    TYPEVAR_SETUPPERBOUND.invoke(typeVar, uppers.get(i));
+                } else {
+                    assert TYPEVAR_BOUND != null
+                            : "@AssumeAssertion(nullness): set when TYPEVAR_SETUPPERBOUND is null";
+                    @SuppressWarnings(
+                            "interning:assignment") // Field.set requires an @Interned Object
+                    @Interned Object upper = uppers.get(i);
+                    TYPEVAR_BOUND.set(typeVar, upper);
+                }
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                throw new BugInCF("Cannot set the upper bound of " + typeVar, e);
+            }
+            typeVar.lower = (Type) lowers.get(i);
+        }
     }
 
     /**

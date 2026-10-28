@@ -90,7 +90,7 @@ public class MutabilityNoInitTransfer
         boolean refined = false;
         for (Node receiverPart : splitAssignments(getClassReceiver)) {
             JavaExpression receiverExpression = JavaExpression.fromNode(receiverPart);
-            if (!receiverExpression.isDeterministic(mutabilityTypeFactory)
+            if (!receiverExpression.isPure(mutabilityTypeFactory)
                     || !CFAbstractStore.canInsertJavaExpression(receiverExpression)) {
                 continue;
             }

@@ -26,6 +26,9 @@ def perProjectDoNotFormat = [
     ],
     "dataflow": ["manual/examples/**"],
     "docs": [
+        // The smoke test compares the annotator output with Insert.java.expected, which depends on
+        // the exact formatting of the input.
+        "examples/afu-consumer/**",
         "examples/BazelExample/bazel-BazelExample/**",
         "examples/lombok/build/**",
         "manual/plume-bib/.plume-scripts/**",

@@ -119,6 +119,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -1680,7 +1681,6 @@ public class AnnotationFileParser {
             ReferenceType type,
             @Nullable NodeList<AnnotationExpr> declAnnos,
             NodeWithRange<?> astNode) {
-        annotateInnermostComponentType(atype, declAnnos, astNode);
         Type typeDef = type;
         AnnotatedTypeMirror currentAtype = atype;
         while (typeDef.isArrayType()) {
@@ -1701,7 +1701,11 @@ public class AnnotationFileParser {
         }
         if (currentAtype.getKind() == TypeKind.ARRAY) {
             warn(astNode, "mismatched array lengths; atype: " + atype + "%n  type: " + type);
+            return;
         }
+        // The element type, including its type arguments, such as the ? of Box<?>[].
+        annotate(currentAtype, typeDef, null, astNode);
+        annotateInnermostComponentType(atype, declAnnos, astNode);
     }
 
     private @Nullable ClassOrInterfaceType unwrapDeclaredType(Type type) {
@@ -1827,33 +1831,8 @@ public class AnnotationFileParser {
                             null,
                             astNode);
                     annotate(wildcardType.getExtendsBound(), primaryAnnotations, astNode);
-                } else if (primaryAnnotations.isEmpty() && wildcardType.getTypeVariable() != null) {
-                    // Unannotated unbounded wildcard "?": remove any existing annotations and
-                    // add the annotations from the type variable corresponding to the wildcard.
-                    wildcardType.getExtendsBound().clearAnnotations();
-                    wildcardType.getSuperBound().clearAnnotations();
-                    AnnotatedTypeVariable atv =
-                            (AnnotatedTypeVariable)
-                                    atypeFactory.getAnnotatedType(
-                                            wildcardType.getTypeVariable().asElement());
-                    wildcardType
-                            .getExtendsBound()
-                            .addAnnotations(atv.getUpperBound().getAnnotations());
-                    wildcardType
-                            .getSuperBound()
-                            .addAnnotations(atv.getLowerBound().getAnnotations());
                 } else if (primaryAnnotations.isEmpty()) {
-                    // Unannotated unbounded wildcard "?" whose corresponding type variable could
-                    // not be determined (AnnotatedWildcardType#getTypeVariable can be null -- it is
-                    // only set while building a declared type's type arguments, see
-                    // AnnotatedDeclaredType#getTypeArguments and BoundsInitializer): leave the
-                    // wildcard's bounds as already computed by the type factory rather than
-                    // crashing. This previously threw an uncaught NullPointerException while
-                    // parsing an unbounded wildcard type argument (e.g. Class<?>) for some JDK
-                    // releases (e.g. --release 8), silently aborting all remaining processing of
-                    // the enclosing stub file -- observed via -AbinaryStubDiffCheck forcing a full
-                    // re-parse of every JDK stub file, which ordinary lazy per-reference parsing
-                    // had never exercised for this combination before.
+                    annotateUnannotatedUnboundedWildcard(wildcardType, atypeFactory);
                 } else {
                     // Annotated unbounded wildcard "@A ?": use annotations.
                     annotate(atype, primaryAnnotations, astNode);
@@ -1878,6 +1857,35 @@ public class AnnotationFileParser {
             default:
                 // No additional annotations to add.
         }
+    }
+
+    /**
+     * Annotates a wildcard that an annotation file writes as a plain {@code ?}, without a bound or
+     * an annotation: replaces the annotations of its bounds with those of the bounds of its type
+     * variable's declaration, as currently known to {@code atypeFactory}. A class-file bound such
+     * as {@code ? extends @A Object} does not survive. {@code BinaryStubReader} calls this for the
+     * marker that the binary form has for such a wildcard.
+     *
+     * <p>{@link AnnotatedWildcardType#getTypeVariable} is null unless the wildcard was built as a
+     * type argument by {@code AnnotatedDeclaredType#getTypeArguments}; then the bounds are left
+     * unchanged. (Dereferencing it unguarded once threw a NullPointerException that aborted the
+     * rest of a JDK stub file under {@code --release 8}.)
+     *
+     * @param wildcardType the wildcard to annotate, side-effected
+     * @param atypeFactory the type factory, used to get the type variable's declared type
+     */
+    /*package-private*/ static void annotateUnannotatedUnboundedWildcard(
+            AnnotatedWildcardType wildcardType, AnnotatedTypeFactory atypeFactory) {
+        @Nullable TypeVariable typeVariable = wildcardType.getTypeVariable();
+        if (typeVariable == null) {
+            return;
+        }
+        wildcardType.getExtendsBound().clearAnnotations();
+        wildcardType.getSuperBound().clearAnnotations();
+        AnnotatedTypeVariable atv =
+                (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeVariable.asElement());
+        wildcardType.getExtendsBound().addAnnotations(atv.getUpperBound().getAnnotations());
+        wildcardType.getSuperBound().addAnnotations(atv.getLowerBound().getAnnotations());
     }
 
     /**

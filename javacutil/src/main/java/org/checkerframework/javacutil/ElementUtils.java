@@ -75,6 +75,15 @@ public class ElementUtils {
     private static final Map<Element, @CanonicalName @Interned String> qualifiedNameCache =
             Collections.synchronizedMap(new WeakHashMap<>());
 
+    /**
+     * Cache mapping a class's source file object to whether it is a source file being compiled. See
+     * {@link #isElementFromSourceCodeImpl}: the answer depends only on the file object, and
+     * computing it constructs a {@link java.net.URI}, which is expensive relative to the frequent
+     * calls.
+     */
+    private static final Map<JavaFileObject, Boolean> isCompiledSourceFileCache =
+            Collections.synchronizedMap(new WeakHashMap<>());
+
     /** The value of Flags.COMPACT_RECORD_CONSTRUCTOR which does not exist in Java 9 or 11. */
     private static final long Flags_COMPACT_RECORD_CONSTRUCTOR = 1L << 51;
 
@@ -370,14 +379,26 @@ public class ElementUtils {
     /**
      * Returns a user-friendly name for the given method, which includes the name of the enclosing
      * type. Does not return {@code "<init>"} or {@code "<clinit>"} as
-     * ExecutableElement.getSimpleName() does.
+     * ExecutableElement.getSimpleName() does. For a member of an anonymous class, which has no
+     * name, the enclosing type is described as {@code "anonymous "} followed by the simple name of
+     * its supertype.
      *
      * @param element a method declaration
      * @return a user-friendly name for the method
      */
     public static CharSequence getSimpleDescription(ExecutableElement element) {
-        String enclosingTypeName =
-                ((TypeElement) element.getEnclosingElement()).getSimpleName().toString();
+        TypeElement enclosingType = (TypeElement) element.getEnclosingElement();
+        String enclosingTypeName = enclosingType.getSimpleName().toString();
+        if (enclosingTypeName.isEmpty()) {
+            List<? extends TypeMirror> interfaces = enclosingType.getInterfaces();
+            TypeMirror supertype =
+                    interfaces.isEmpty() ? enclosingType.getSuperclass() : interfaces.get(0);
+            enclosingTypeName =
+                    "anonymous "
+                            + (supertype.getKind() == TypeKind.DECLARED
+                                    ? ((DeclaredType) supertype).asElement().getSimpleName()
+                                    : supertype);
+        }
         Name methodName = element.getSimpleName();
         switch (methodName.toString()) {
             case "<init>":
@@ -459,9 +480,19 @@ public class ElementUtils {
         // This is a bit of a hack to avoid treating JDK as source files. JDK files' toUri() method
         // returns just the name of the file (e.g. "Object.java"), but any file actually being
         // compiled returns a file URI to the source file.
-        return symbol.sourcefile != null
-                && symbol.sourcefile.getKind() == JavaFileObject.Kind.SOURCE
-                && symbol.sourcefile.toUri().toString().startsWith("file:");
+        JavaFileObject sourcefile = symbol.sourcefile;
+        if (sourcefile == null) {
+            return false;
+        }
+        Boolean cached = isCompiledSourceFileCache.get(sourcefile);
+        if (cached != null) {
+            return cached;
+        }
+        boolean result =
+                sourcefile.getKind() == JavaFileObject.Kind.SOURCE
+                        && sourcefile.toUri().toString().startsWith("file:");
+        isCompiledSourceFileCache.put(sourcefile, result);
+        return result;
     }
 
     /**

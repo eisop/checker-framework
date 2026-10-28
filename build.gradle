@@ -12,8 +12,6 @@ plugins {
     id("java")
     // https://github.com/tbroyer/gradle-errorprone-plugin
     alias(libs.plugins.net.ltgt.errorprone)
-    // https://docs.gradle.org/current/userguide/eclipse_plugin.html
-    id("eclipse")
     // To show task list as a tree, run: ./gradlew <taskname> taskTree
     alias(libs.plugins.com.dorongold.task.tree)
     // This is a locally built "plugin" that contains the spotless configuration. It is in
@@ -118,9 +116,25 @@ def gitHooksDir = providers.exec {
     worktreeList.substring(0, worktreeList.indexOf(" ")) + "/.git/hooks"
 }
 
+// True if this checkout is the main worktree of its repository. The hooks directory is shared by
+// all worktrees, and every build installs the hooks, so a build in a linked worktree would
+// replace the shared hooks with that checkout's version: a bisect or an old branch installed a
+// pre-commit hook that lacked a later fix and corrupted the index of another worktree.
+File checkoutDir = layout.projectDirectory.asFile
+def isMainWorktree = providers.exec {
+    workingDir(checkoutDir)
+    commandLine("git", "rev-parse", "--git-dir", "--git-common-dir")
+}.standardOutput.asText.map { String out ->
+    String[] dirs = out.trim().split("\n")
+    new File(checkoutDir, dirs[0]).canonicalPath == new File(checkoutDir, dirs[1]).canonicalPath
+}
+
 // No group so it does not show up in the output of `gradlew tasks`
 tasks.register("installGitHooks", Copy) {
     description = "Copies git hooks to .git directory"
+    onlyIf("this checkout is the main worktree; hooks are shared by all worktrees") {
+        isMainWorktree.get()
+    }
     from(files("checker/bin-devel/git.post-merge", "checker/bin-devel/git.pre-commit"))
     rename("git\\.(.*)", '$1')
     into(gitHooksDir)
@@ -149,7 +163,6 @@ allprojects { currentProj ->
     group = "io.github.eisop"
 
     apply plugin: "java"
-    apply plugin: "eclipse"
     apply plugin: "com.gradleup.shadow"
     apply plugin: "de.undercouch.download"
     apply plugin: "net.ltgt.errorprone"
@@ -214,26 +227,6 @@ allprojects { currentProj ->
         javacJar(rootLibs.javac)
 
         subprojects.each { sp -> allProjects project(sp.path) }
-    }
-
-    eclipse.classpath {
-        defaultOutputDir = file("build/default")
-        file.whenMerged { cp ->
-            // Remove bare "src/main" source folder entries that cause Eclipse nesting errors.
-            // See https://github.com/eisop/checker-framework/issues/2130 for a permanent cleanup.
-            cp.entries.removeAll { e ->
-                e instanceof org.gradle.plugins.ide.eclipse.model.SourceFolder && e.path == "src/main"
-            }
-
-            cp.entries.forEach { cpe ->
-                if (cpe instanceof org.gradle.plugins.ide.eclipse.model.SourceFolder) {
-                    cpe.output = cpe.output.replace "bin/", "build/classes/java/"
-                }
-                if (cpe instanceof org.gradle.plugins.ide.eclipse.model.Output) {
-                    cpe.path = cpe.path.replace "bin/", "build/"
-                }
-            }
-        }
     }
 
     ext {
@@ -344,18 +337,25 @@ allprojects { currentProj ->
             dependsOn(":checker:shadowJar")
             dependsOn(":framework-test:${tagletVersion}Classes")
 
+            // A task that runs another doclet, such as plume-lib's OptionsDoclet in the AFU's
+            // updateUserOptions tasks, sets its own member level and takes no taglet.  This block
+            // runs in afterEvaluate, after the task's own configuration has set the doclet.
+            boolean standardDoclet = options.doclet == null
+
             options.encoding = "UTF-8"
             // javadocDoclintAll and javadocPrivate set their own member level.
-            if (!name.equals("javadocDoclintAll") && !name.equals("javadocPrivate")) {
+            if (!name.equals("javadocDoclintAll") && !name.equals("javadocPrivate") && standardDoclet) {
                 options.memberLevel = javadocMemberLevel
             }
             classpath += configurations.getByName("checkerFatJar").asFileTree
             if (isJava8) {
                 classpath += configurations.javacJar
             }
-            options.taglets("org.checkerframework.taglet.ManualTaglet")
+            if (standardDoclet) {
+                options.taglets("org.checkerframework.taglet.ManualTaglet")
 
-            options.tagletPath(project(":framework-test").layout.buildDirectory.dir("classes/java/${tagletVersion}").get().asFile)
+                options.tagletPath(project(":framework-test").layout.buildDirectory.dir("classes/java/${tagletVersion}").get().asFile)
+            }
 
             if (!isJava8) {
                 // Javadoc needs the same javac-internal packages as running the CF, but only
@@ -622,6 +622,8 @@ allprojects { currentProj ->
                         "-Xep:SystemExitOutsideMain:OFF",
                         "-Xep:TypeEquals:OFF",
                         "-Xep:UnnecessaryDefaultInEnumSwitch:OFF",
+                        // New in Error Prone 2.51.0.
+                        "-Xep:CompareToZero:OFF",
                     ])
                 }
 
@@ -629,6 +631,8 @@ allprojects { currentProj ->
                     options.errorprone.errorproneArgs.addAll([
                         // Some Value Checker tests use int literals intentionally.
                         "-Xep:IntLiteralCast:OFF",
+                        // Would require TestParameterInjector as a test dependency.
+                        "-Xep:LoopToTestParameter:OFF",
                     ])
                 }
 
@@ -1040,6 +1044,10 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
         options.memberLevel = memberLevel
         options.addBooleanOption("Xdoclint:all", true)
         options.addStringOption("Xmaxwarns", "99999")
+
+        // The result of this task is the warnings it prints, which test-misc.sh filters.  A build
+        // cache hit restores the generated files but prints no warnings.
+        outputs.doNotCacheIf("Its result is the warnings it prints") { true }
 
         // options.addStringOption("skip", "ClassNotToCheck|OtherClass")
     }
@@ -1548,6 +1556,9 @@ subprojects {
 
             // Always re-run tests.  This must live at the test task level.
             outputs.upToDateWhen { false }
+            // Because of upToDateWhen, a test task is never loaded from the build cache, so do not
+            // store its results there either.
+            outputs.doNotCacheIf("Tests always re-run") { true }
 
             testLogging {
                 showStandardStreams = true

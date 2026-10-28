@@ -59,7 +59,7 @@ public class ParameterizedTypeNode extends Node {
 
     @Override
     public int hashCode() {
-        return Objects.hash(getTree());
+        return Objects.hashCode(getTree());
     }
 
     @Override

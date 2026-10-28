@@ -768,6 +768,21 @@ so small per-call wins paid back substantially.
   Profiling showed the LRU eviction rate dominated some workloads;
   the win from cache-hit rate exceeds the memory cost at modern heap
   sizes.
+- **PR #2304** — *`GenericAnnotatedTypeFactory.isRelevant`: look up the canonical erased type.*
+  The identity-keyed LRU cache of relevance missed on 193,000 of 1.99 million calls (Index Checker,
+  plume-util; 2.7% of samples). A probe that classified each miss as cold, evicted (same instance
+  seen before) or new instance of a class already seen showed 96% were new instances, and none was
+  a constant type or had annotation metadata (25,356 of 33,590 were `java.lang.Object` in an
+  anonymous javac `ClassType` copy). `Types.erasure` does not return one canonical instance per
+  class: it returns primitives and `String` unchanged, and returns the canonical erased type only
+  for inputs without metadata. For a declared type the fix looks up
+  `types.erasure(elt.asType())`, which is canonical (declared-type misses: about 35,000 → 700), and
+  the cache grows from 300 to 2000 entries because daikon needs about 1,400 entries per factory
+  (99.96% hit rate). Wall time is unchanged within noise; the benefit is the JFR share. Lesson: do
+  not key an identity cache by `Types.erasure(t)`; canonicalize through the element first. A first
+  version kept a second `IdentityHashMap` keyed by class; the canonicalization replaced it with no
+  extra structure. Array types still miss on every lookup (0.3% of calls) and are left alone: a
+  fresh `ArrayType` is built per erasure and a special case is not worth about 5 ms.
 - The `Collections.synchronizedMap` wrapper around
   `AnnotatedTypeFactory.annotationClassNames` is gone. The wrapper was
   carried over from a 2020 refactor of a previously static
@@ -2004,6 +2019,163 @@ in `UBQualifier$LessThanLengthOf` — a null path yields an unparseable offset e
 layers from the cause. If this is revisited, the clear has to happen strictly before anything is
 cached for the new unit, and the Index Checker is the canary.
 
+*Update (October 2026, PR #2339).* This is now done: `TreePathCacher#useUnit` clears the cache
+only when the compilation unit changes, and every checker's `setRoot` calls it, so the paths that
+the CFG builder registered for artificial trees survive the parent checker's `setRoot`. Wall time
+on plume-util with its `@SuppressWarnings` removed (JDK 25, 5 interleaved runs after a warm-up,
+median [min-max]): Resource Leak Checker 10.43 s [9.44-10.94] on master and 8.79 s [8.15-9.36] with
+the change (-15.7%); Nullness Checker 11.65 s and 11.09 s, Index Checker 20.06 s and 19.37 s,
+within the machine's noise of 3-5%. A likely cause of the Resource Leak Checker's gain, not
+profiled: `RLCCalledMethodsAnnotatedTypeFactory#analyze` calls `rlc.setRoot(getRoot())` after each
+CFG it analyzes, and the Resource Leak Checker, the ultimate parent, cleared the whole cache there.
+A separate map of artificial trees was tried first and dropped: more code, and it kept the lossy
+null result.
+The shared cache now lives for the whole compilation unit instead of being cleared by each
+`setRoot`; no memory problem was observed, and its size is bounded by the unit.
+
+The real paths of artificial trees exposed two older bugs. The Index Checker crashed on an upper
+bound offset with an error, which a null path had hidden (fixed in PR #2308). And
+`Resolver#getEnvForPath` resolved the names at an artificial tree in the scope of the whole method,
+without its local variables: `Trees#getScope` attributes a copy of the method body up to the copy
+of the leaf and never finds an artificial leaf. So `@LTLengthOf("b")` for a local `b` in the type
+of `j -= 1` gave a false positive; the Less Than Checker, which registers the paths itself, had
+this bug on master. Artificial trees are now marked: `TreePathCacher#addArtificialPath`, which
+`AnnotatedTypeFactory#setPathForArtificialTree` calls, records them, and
+`StringToJavaExpression#atPath` drops the marked trees from the end of the path, so an expression
+at an artificial tree is resolved in the scope of the construct it was created for. That costs one
+identity-set lookup per parse; `Resolver` is unchanged from master. A first version instead inferred
+from the shape of the path, in `Resolver`, which trees are artificial, and searched the method body
+when the path was not a chain of children; it was replaced by the marking, which is about 180 fewer
+lines in `Resolver`. Re-measured with the marking, same setup, against master: Resource Leak
+Checker 11.59 s [10.98-11.89] on master and 10.33 s [9.69-10.68] with the change (-10.9%); Index
+Checker 20.42 s [20.16-24.44] and 19.87 s [19.74-20.47], within the noise.
+The changelog's "about 6-16% faster" for the Resource Leak Checker is the range over all of
+these rounds, including a reviewer's 6.4%: the -15.7% above and the -10.9% of the re-measurement
+both lie in it.
+
+### Index Checker: quadratic in the statements of one method (October 2026, eisop#2357)
+
+Workload: one method `void m(int[] a) { int j = 0; <N times: j -= 1; j += 1;> }` under the Index
+Checker, `java -jar checker.jar -proc:only`, JDK 21. With PR #2360, N = 500/1000/2000/4000 took
+3.3/6.9/18.4/60.9 s (medians of 3 interleaved runs; master: 4.5/10.9/34.3/136 s on JDK 25).
+
+JFR at N = 2000 (1469 samples): 74% inclusive in `Resolver#computeEnvForPath` →
+`JavacTrees#getScope` → `Attr#attribStatToTree`, reached from
+`DependentTypesTreeAnnotator#visitTypeCast` through `StringToJavaExpression#atPath` and
+`Resolver#findLocalVariableOrParameter`. The type of `j - 1` is `@LessThan("j")`, so the artificial
+cast of each `j -= 1` parses `"j"` at that compound assignment. The leaf self-time under it is javac
+re-attributing the statements before the leaf (`Operators#resolveBinary` → `Types#unboxedType`
+52%, `StringNameTable#fromString` 20%): `getScope` attributes a copy of the method body up to the
+copy of the leaf, so each location costs time linear in its position, and there are N locations.
+The per-leaf `envCache` computes each location once; it cannot help across locations.
+
+Fix: `Resolver#pathWithSameScope` maps the expression of an expression statement in a block (or `case`) to the
+expression of the first statement of its run of expression statements, and `getEnvForPath` computes
+and caches the environment at that statement. An expression statement adds nothing to the scope of
+the statements after it (no pattern binding is in scope after an expression statement), except a
+`this(...)` or `super(...)` call, which ends a constructor prologue, so such calls end a run. The
+environment at the expression of a statement is the block's environment after the statements before
+it, which is the same for every statement of the run; `findVar` still gets the original leaf as its
+position. The repro now computes one environment instead of N: 2.5/3.3/5.1/8.7 s for N =
+500/1000/2000/4000. `ResolverTest#runOfExpressionStatements` and `#constructorCallEndsRun` check
+that a declaration and a `this(...)` call end a run, and which statements share an environment. The
+statements of an old-style `case` form runs too (`#runOfExpressionStatementsInCase`); a `case` rule
+has a single statement. Statements separated by
+declarations, or nested in `if`, loops, or `try`, still each cost a re-attribution; the lookup in
+the source below avoids it for local variables. Finding the start of the run
+walks the block's statements, linear per query, about 1% of the samples at N = 4000.
+
+Index Checker and Resource Leak Checker diagnostics on plume-util with its `@SuppressWarnings`
+removed are unchanged (189 and 22 warnings), except for the element order of `@LTLengthOf(value=...,
+offset=...)` in a few messages (one to six, depending on the build). That order comes from the
+`HashMap` keyed by element symbols in `DependentTypesHelper#convertAnnotationMirror`, which iterates
+in identity-hash order, and the change allocates differently. With `-XX:hashCode=2` (constant
+identity hash codes) the messages of both versions are identical.
+
+After that fix, JFR at N = 4000 (805 samples) showed a second quadratic: 32% self-time in
+`AnnotatedTypeFactory#declarationFromElement`, at its `TreeInfo.declarationFor` calls, reached from
+`GenericAnnotatedTypeFactory#getAnnotatedTypeLhs` for `j`. `getAnnotatedTypeLhs` sets
+`shouldCache` to false while it computes the type of the left-hand side, and
+`declarationFromElement` used `elementToTreeCache` only when `shouldCache` was true, so it scanned
+the method body for the declaration of `j` at each assignment. The declaration of an element does
+not depend on the types computed so far, so the cache is now used whenever it exists. It is null
+only with `-AatfDoNotCache`, which therefore still scans each time. N = 500/1000/2000/4000: 2.2/2.9/3.9/5.8 s, about 1 ms per pair
+from N = 1000 on, so linear; the N = 4000 profile no longer has a leaf above 8%. Plume-util
+diagnostics are as with the first fix.
+
+Wall time of the repro (s, medians of 3 interleaved runs, JDK 21):
+
+| N | PR #2360 | shared environments | and declaration cache |
+| ---: | ---: | ---: | ---: |
+| 500 | 3.28 | 2.45 | 2.23 |
+| 1000 | 6.94 | 3.30 | 2.92 |
+| 2000 | 18.40 | 5.06 | 3.87 |
+| 4000 | 60.92 | 8.72 | 5.80 |
+
+On plume-util with its `@SuppressWarnings` removed (JDK 25, medians of 5 interleaved runs after a
+warm-up), master and both changes took 10.29 s and 9.30 s under the Resource Leak Checker, and
+19.83 s and 19.63 s under the Index Checker. The Resource Leak Checker's gain is presumably that of
+PR #2360: an earlier build of its branch took about as long as both changes (3 interleaved runs).
+
+Shared environments help only consecutive expression statements. With other statements between the
+compound assignments, the repro stayed quadratic (Index Checker, JDK 25, one run each, s):
+
+| statements per pair | N = 500 | 1000 | 2000 |
+| --- | ---: | ---: | ---: |
+| `j -= 1; j += 1;` | 2.0 | 2.6 | 3.9 |
+| `int k<i> = j; j -= 1; j += 1;` | 3.6 | 7.8 | 22.0 |
+| `if (j > 0) { j -= 1; } j += 1;` | 4.4 | 8.9 | 27.3 |
+| `try { j -= 1; } finally { j += 1; }` | 3.7 | 6.9 | 18.3 |
+| `for (int k = 0; k < 1; k++) { j -= 1; } j += 1;` | 6.6 | 16.5 | 52.9 |
+
+(master: 3.2/6.6/18.4, 3.7/8.6/22.9, 4.6/9.6/27.6, 4.0/7.4/20.0, and 7.0/18.2/60.9 s for N =
+500/1000/2000.) Each run of expression statements still computes its own environment, and a
+statement in a nested block starts a run of its own.
+
+Fix: `Resolver#findLocalVariableOrParameter` first looks for the declaration in the source
+(`Resolver#localDeclarationInScope`): it walks up the path to the innermost enclosing class and
+collects the declarations before the leaf in each enclosing block or `case`, the variables of an
+enclosing `for`, enhanced `for`, `catch`, and `try`-with-resources, and the parameters of an
+enclosing lambda or method. A variable found that way is the answer, because a local variable must
+not be redeclared within its scope (JLS 6.4), so nothing else in scope has its name; a field of a
+local or anonymous class can hide it, which is why the search stops at a class. If nothing is found
+and the leaf is in a member of a class that is not in code, and no variable anywhere in that member
+(pattern variables included) has the name, no local variable of that name is in scope, and the
+method returns null without javac. Only otherwise, such as for pattern variables, a variable of an
+earlier `case` of an old-style `switch`, or code in a local or anonymous class, does it compute the
+environment as before. The names declared in a member are computed once per member, in a
+single-entry cache. It assumes that the queries come in runs per member, as they do while the
+dataflow analysis and the visitor process one method. A workload that alternates between members
+recomputes the names at each switch, at the cost of one `TreeScanner` pass over the member. That is
+linear in the size of the member, as is the re-attribution that one javac lookup there costs, so such
+a workload does not become quadratic. After this change (s):
+
+| statements per pair | N = 500 | 1000 | 2000 | 4000 |
+| --- | ---: | ---: | ---: | ---: |
+| `j -= 1; j += 1;` | 2.1 | 2.7 | 5.0 | 5.7 |
+| `int k<i> = j; j -= 1; j += 1;` | 2.3 | 3.3 | 5.2 | 6.1 |
+| `if (j > 0) { j -= 1; } j += 1;` | 2.4 | 3.3 | 5.3 | 7.0 |
+| `try { j -= 1; } finally { j += 1; }` | 2.3 | 4.1 | 4.4 | 6.4 |
+| `for (int k = 0; k < 1; k++) { j -= 1; } j += 1;` | 4.1 | 10.6 | 22.7 | 121 (OOM) |
+
+The `for` mix is still quadratic for a different reason: JFR at N = 2000 (2050 samples) has no
+`Resolver` frame; 63% is inclusive in `CFAbstractStore#leastUpperBound` → `mergeMap` at the merges
+of the loops, with self-time in `IdentityHashMap#get`, `HashMap#getNode`, and
+`CFAbstractValue#canBeMissingAnnotations`. Presumably the store grows with the loop variables `k`,
+which stay in it after their loops, so each merge is linear in the number of loops before it (a
+hypothesis, not checked). The Nullness Checker on the same mix is close to linear (5.4/9.1/20.0 s for
+N = 1000/2000/4000). The remaining quadratic cost is eisop#2374.
+
+The variable found in the source is the symbol of its declaration, whereas the environment that
+`Trees#getScope` computes holds copies made by attributing a copy of the method. `LocalVariable`
+compares variables by name, position, and owner, so both are the same `LocalVariable`. But javac's
+flow analysis does not run on the copy, so a copy lacks the `EFFECTIVELY_FINAL` flag: the Lock
+Checker reported `lock.expression.not.final` for `@GuardedBy("localLock")` on an effectively final
+local variable `localLock`, as the expected errors of `checker/tests/lock/Issue524.java` recorded
+(the test's comment says the desired result is no diagnostic). The source lookup removes that false
+positive; it remains where the lookup falls back to javac (eisop#2375). The checker JUnit tests pass with the
+two expected errors removed.
+
 ### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
 
 `CheckerFrameworkPerDirectoryTest` previously hardcoded `-AajavaChecks` across all directory tests.
@@ -2118,11 +2290,302 @@ warm-up): plume-util 14.06 [13.24-14.16] → 13.81 [13.61-17.07] s; `framework/s
 52.27 [51.87-55.08] → 51.94 [50.86-52.23] s — within noise. Diagnostics are byte-identical on all
 workloads above.
 
-Remaining at N=4000 on the static shape, as follow-ups (not addressed here):
-`TreePathCacher.getPath` from `QualifierDefaults.nearestEnclosingExceptLocal` (eisop#2260) is 20%
-inclusive (mostly `TreeScanner.scan` self-time, plausibly a per-call scan of the 4000-statement
-method body), and parsing the `Map.put` postcondition (`JavaExpressionParseUtil.parse` →
-`JavacParse.parseExpression`) on every call (eisop#2261) is 19%.
+Remaining at N=4000 on the static shape, as follow-ups: parsing the `Map.put` postcondition
+(`JavaExpressionParseUtil.parse` → `JavacParse.parseExpression`) on every call (eisop#2261) is 19%
+inclusive. The other remaining item, `TreePathCacher.getPath` from
+`QualifierDefaults.nearestEnclosingExceptLocal` (eisop#2260), was 28% inclusive and is fixed
+below.
+
+**`TreePathCacher` indexes a leaf that keeps missing (eisop#2260).** Dataflow points
+`visitorTreePath` at the method body, so each `getPath` for a literal or identifier in the body
+is a miss that `getPath(TreePath, Tree)` answers by scanning the body from its first statement
+(the lazy search caches only the path to the target, not the statements it passes). N lookups
+cost O(N^2): a JFR of the N=4000 static shape put 169 of 590 samples under
+`nearestEnclosingExceptLocal`. After 32 consecutive misses with the same leaf the cacher now
+records a child-to-parent map of that leaf's subtree (one map, replaced when another leaf
+qualifies, dropped in `clear`), and later lookups under that leaf walk the parent chain. The
+result is the same path the scan finds, also for trees that occur twice (the shared type tree of
+`Integer a, b;`): the map keeps the first occurrence in scan order. Static shape, `-proc:only`,
+JDK 21, median of 3 interleaved runs: N=2000 8.08 → 7.57 s, N=4000 15.14 → 12.37 s,
+N=8000 33.99 → 25.87 s; `nearestEnclosingExceptLocal` falls to 3 of 448 samples. javacutil +
+dataflow sources (209 files), 5 interleaved runs: 21.9 → 22.2 s, within noise.
+
+*Tried and rejected for this:* recording the paths of the CFG builder's tree scan in the cacher.
+`CFGTranslationPhaseOne` skips tree levels (it scans the receiver identifier of `a.b()` from the
+invocation, not from the `MemberSelectTree`) and creates artificial trees, so its paths differ
+from the real ones for thousands of trees in the nullness tests. Short-circuiting
+`nearestEnclosingExceptLocal` for declaration trees (whose result needs no path) moves the cost
+to `InitializationAnnotatedTypeFactory.isInitializedInTargetStore`, which does the same per-field
+scan, and was slower overall.
+
+### Reuse the javac parser state for contract expression strings (eisop#2261)
+
+`JavaExpressionParseUtil.parse` parsed the expression string with `JavacParse.parseExpression`
+every time. `StringToJavaExpression.atMethodDecl` calls it for each postcondition string of each
+call (`@EnsuresKeyFor(value={"#1"}, map={"this"})` and `@EnsuresNonEmpty("this")` on `Map.put`).
+The parse is expensive because `JavacParse.parseCompilationUnit` built a new javac `Context`,
+`JavacFileManager` and `ParserFactory` per string: on the 4000-call workload (Nullness Checker,
+JDK 21, before eisop#2260's fix) `JavacParse.parseExpression` was 200 of 1191 samples (16.8%
+inclusive, of which `ParserFactory.instance` was 15%), while converting the parsed tree to a
+`JavaExpression` was about 1%.
+
+`JavacParse.parseCompilationUnit(JavaFileObject)` now keeps one such state per thread and reuses
+it: about 2.5 microseconds per parse instead of 230 (JDK 21, 4000 parses of 50 distinct strings).
+The state is replaced after a parse that produced a diagnostic (javac's `Log` counts errors and
+stops reporting after a maximum). It is held through a weak reference, so the garbage collector
+also discards it, with the name table of its context, which only grows.
+
+*Tried first and replaced:* a bounded (2000 entries) static LRU cache of the parsed
+`ExpressionTree` per string. Each cached tree keeps the name table of the `Context` that parsed
+it reachable: 274 KB per tree, 535 MB at the bound (measured with 2000 distinct strings, JDK 21).
+Reusing the parser needs no cache, retains no trees, and was faster on the benchmark.
+
+Nullness Checker, `-proc:only`, JDK 25, 4000 fields and 4000 calls, 3 interleaved runs: no
+change 11.6 to 12.0 s, LRU cache 10.6 to 11.0 s, reused parser 8.7 to 9.0 s. Real code
+(javacutil sources 9.6 to 8.9 s, dataflow sources 15.8 to 15.2 s): within noise or slightly
+faster. Diagnostics are identical on all three workloads.
+
+### Anonymous classes created with a diamond (eisop#2271, PR #2306)
+
+`new C<>(args) {...}` has no explicit type arguments; the supertype of the anonymous class is
+inferred from the arguments and the context (JLS 15.9.3), and javac's own supertype, with defaulted
+type arguments, is wrong. The inference is correct but costs time, and three things made it much
+more expensive than necessary. Workload: Nullness Checker, `-proc:only`, JDK 25, 300 anonymous
+diamond classes with 3 methods of 16 calls each.
+
+1. *Eager constraint descriptions.* The type-inference constraints stored `"..." + invocation`
+   as their `source`, which is used only by `TypeConstraint.constraintHistory()`. For an anonymous
+   class, `toString()` prints the whole class body, for every constraint. It was 68% of the samples
+   on a case with 8 large classes. `InferenceFactory.describe` names the method select or class
+   instead. Keep a tree out of any string that is built eagerly.
+2. *Caches gated on finality.* The types of the members of the anonymous class depend on the
+   inferred supertype, which can change while dataflow analysis refines the types of the arguments,
+   so `methodFromUse` and `getDirectSupertypes` skip their caches for such a class and infer the
+   supertype again for each call in the body. Once dataflow analysis of the anonymous class has
+   started, which is after that of its enclosing method, the supertype is final and the caches are
+   used. A supertype that is not the inferred one (inference re-entered, or failed) is never
+   cached.
+3. *A factory that never becomes final must forward or short-circuit.*
+   `isAnonymousDiamondSupertypeFinal` reads `scannedClasses` of the `GenericAnnotatedTypeFactory`,
+   which only `performFlowAnalysisForClass` fills. A factory that does not run it never became
+   final, and never cached:
+   - `InitializationAnnotatedTypeFactory` reuses the analysis of the
+     `InitializationFieldAccessSubchecker`, so its `scannedClasses` stays empty. 74,100 of 75,300
+     inferences came from it, 247 per class instead of 1. It now asks the field access factory.
+   - A factory without dataflow analysis (`useFlow` false, as in the Units and GUI Effect
+     Checkers) is final from the start, since the types of the arguments cannot change:
+     `!everUseFlow`. On two classes whose bodies call a method 50 times each,
+     `getAnonymousDiamondSupertype` ran 506 times in the Units Checker and 414 times in the GUI
+     Effect Checker, and once per class after the change.
+   - With `-AassumeInitialized` the `InitializationFieldAccessAnnotatedTypeFactory` does not
+     perform the analysis either. Nothing looks up members through it, so it inferred only twice
+     and needs no shortcut.
+
+   A profile showed the problem without the code: `getAnonymousDiamondSupertype` was 29% inclusive,
+   called from `methodFromUse` while visiting the body, long after dataflow analysis. Counting the
+   calls per factory identified the factory.
+
+Master against the PR (wall time, noisy by about 0.5 s). Master reports false positives on the first
+three inputs (3,856, 7,800 and 28,920), so it prints more and infers less:
+
+| Input | master | this PR |
+| --- | --- | --- |
+| 8 large classes, 40 methods of 24 calls each | 6.0 to 6.3 s | 5.3 to 7.2 s |
+| 300 classes, 3 methods of 16 calls each | 12.9 to 13.2 s | 13.0 to 13.3 s |
+| 60 classes, 40 methods each | 24.6 s | 20.5 s |
+| Index Checker on plume-util (no anonymous diamonds) | 22.64 s | 22.62 s |
+
+Anonymous diamonds are rare (8 in the framework, none in plume-util, daikon or guava), so only large
+or generated code is affected.
+
+*Not done:* making `TreeUtils.isPolyExpression` return true for anonymous diamonds would remove
+the `InferenceFactory.isPolyExpression` wrapper, but the Initialization Checker uses
+`isStandaloneExpression` to select the constructor arguments to check and would skip such an
+argument.
+
+### `Resolver.getEnvForPath`: cache the attribution environment per location (October 2026, PR #2305)
+
+`Resolver.getEnvForPath` calls `Trees.getScope`, which copies the enclosing method and attributes
+the copy up to the given tree. The Index Checker resolves the identifiers of Java expression
+strings (the arguments of `@LTLengthOf`, `@SameLen`, ...) at the same locations again and again:
+per dataflow iteration, per type factory and per identifier. On plume-util 84% of the 5,661 calls
+repeat a location already seen (74% of 698 on the javacutil sources). Other checkers barely call
+it.
+
+Fix: an LRU map (300 entries) from the path's leaf to the `Env`, stored in the compiler `Context`
+under a `Context.Key`, so all `Resolver`s of one compilation share it and it dies with the
+compilation. The environment of a location does not change during type-checking.
+
+JFR (JDK 25 sampler, Index Checker, plume-util, 3 recordings combined, inclusive share of
+samples): `Resolver.getEnvForPath` 2.89% to 1.40%; `StringToJavaExpression.atPath` 3.98% to 2.50%;
+`JavaExpressionParseUtil.parse` 4.62% to 2.85%; total samples 5,632 to 5,438. Wall time 22.8 s to
+22.1 s (median of 3), within noise, so the benefit is the JFR share. Peak RSS did not grow
+(753, 741, 740 MB before; 727, 728, 712 MB after). What remains in `getEnvForPath` is the first
+query of each location. The cached `Env` references the real compilation's `Context`, not a new
+one, so it does not repeat the name-table retention that sank the parsed-tree LRU above; it does
+retain the copied method body, which the 300-entry bound limits.
+
+*Not done:* memoizing `StringToJavaExpression.atPath` per (string, location), the 2.5% inclusive
+that remains. The result depends on the path context and `JavaExpression`s are shared mutable
+state in places, so it needs an audit first.
+
+### Types of flow-dependent expressions after dataflow (October 2026, PR #2307)
+
+`AnnotatedTypeFactory.fromExpression` cached the types of most trees in every phase and never
+cached new class, new array, and conditional expressions, because their types depend on the
+dataflow store and a fixpoint iteration would cache wrong annotations (Issue #602). Almost all
+queries come after the analysis of their class, though: the visitor asks for the type of each `new`
+several times (`constructorFromUse` with and without inference, `validateTypeOf`,
+`getAnnotatedType`, the enclosing assignment check), and the Index Checker's Lower Bound and Upper
+Bound factories ask the Value factory for the type of every expression. Each query reran
+`constructorFromUse`, including type argument inference for a diamond. JFR, Index Checker on
+plume-util: `TypeFromExpressionVisitor.visitNewClass` 15.5% inclusive.
+
+*Which trees are flow-dependent.* A cached type is valid only if it equals what `-AatfDoNotCache`
+computes: the refined types of the subexpressions it read are final, `useFlow` equals `everUseFlow`,
+and no `DefaultTypeArgumentInference` problem is running. A temporary mode recomputed the type at
+every cache hit and counted differences: about 146M hits over `:framework:test`, 89 of the 97
+`:checker:test` suites, plume-util, and javacutil. Method invocations (store and inference), new
+class, conditional, and switch expressions, and field accesses on an instance receiver differ; array
+accesses are flow-dependent by reading the visitor, with no difference observed; new array
+expressions, identifiers, literals, and casts never differed, so the new array exclusion was
+needless. On plume-util, the Index Checker cached `Integer.valueOf(i)` as `@UpperBoundBottom` where
+the uncached type is `@LTLengthOf`.
+
+*The rule.* One map, `fromExpressionTreeCache`; `isFlowDependent(tree)` classifies the trees above.
+Other trees are cached in every phase. `canUseCachedFlowDependentType` and
+`canCacheFlowDependentType` decide for a flow-dependent tree, and `GenericAnnotatedTypeFactory`
+overrides both. Neither holds if flow refinement is temporarily disabled (`useFlow != everUseFlow`).
+After the analysis of the classes (no `performFlowAnalysisForClass` is active) both hold. While a
+class is analyzed, a type is cached only when the analysis computes the value of the tree's own node
+(`analysis.getCurrentTree() == tree`) and the tree is its own inference root
+(`DefaultTypeArgumentInference.outerInference(tree, parentPath) == tree`). A cached type is used
+only for a tree that is evaluated before the current tree: a proper subexpression of it, or part of
+the receiver or of an earlier argument of an enclosing invocation (the artificial varargs array
+counts as after all arguments). The current tree is `analysis.getCurrentTree()`, or the tree of
+`analysis.getCurrentNode()` when a transfer function queries a type outside `getValueFromFactory`,
+as `RLCCalledMethodsTransfer` does; without that fallback, `ReturnsReceiverPerformance` (a chain of
+29 `@This` calls) did not finish within minutes, as every level typed its receiver again. The nodes
+of those trees were visited before the current node in
+this pass, and a tree that is its own inference root depends only on its subexpressions, so the
+cached type is the current one. This relies on the node visit order of a forward analysis, as all
+analyses here are; a backward analysis would need another rule. During a
+`DefaultTypeArgumentInference` problem nothing flow-dependent is cached (the expressions of the
+problem are typed without inferring their type arguments), but a type cached before can be used
+under the same read rule; not using it took 22 s instead of 2 s for the chain of generic calls with
+lambdas in jtreg `Issue2853`, as every level typed its receiver again. The receivers there are read
+while the varargs array of `add` is the current tree, which is why that array is ordered after the
+arguments; with the proper-subexpression rule alone the test took 12 s. A checker with its own
+`TypeArgumentInference` never caches them. The map is cleared when a class analysis starts, which
+drops the entries cached for a class that was not analyzed yet. A second map for the previously
+excluded kinds only was tried; it left method invocations, switch expressions, and array accesses
+cached during dataflow, so one map replaced it.
+
+*Cost.* Without the own-node rule, method invocations were not cached during dataflow at all, which
+doubled their computations for the Index Checker on plume-util (21.8k to 47.0k) and took 39 s on
+`Issue2853` (master 2.7 s). With the first version of the own-node rule: 27.9k computations, 2.0 s.
+JFR, Index Checker on plume-util, JDK 25, first version of the rule (`fromExpression` inclusive,
+`inferTypeArgs` inclusive, on-CPU samples): master 30.1%, 19.1%, 1800; without the own-node rule
+23.6%, 10.5%, 1701; with it 18.0%, 8.9%, 1602. The computation counts and JFR shares were not
+repeated for the final rule (own node, reads only of trees evaluated before the current tree, writes
+only at inference roots), whose read check walks the path of the tree for each cached read during
+analysis.
+
+Wall time was measured with the final rule: median of interleaved runs, JDK 25, against `master` at
+2539117c22 (the merge base), after a warm-up run per side: Index on plume-util 21.3 to 19.6 s (8
+runs), Nullness on plume-util 12.1 to 11.5 s (7 runs). With the first version of the rule, against
+an earlier master: Index on javacutil 14.6 to 14.3 s (4 runs), Value on plume-util 7.9 to 7.7 s (6
+runs); against the same earlier master the final rule gave Index on javacutil 14.25 to 14.27 s (4
+runs) and Value on plume-util 7.4 to 7.2 s (6 runs). Diagnostic counts on plume-util and javacutil
+are unchanged. `Issue2853` takes 1.8 s with the final rule. A temporary mode that recomputed the
+type at every cache use found no difference to the uncached type for the first version of the rule
+on plume-util (Index, Nullness, Value; 813k uses); it did not catch the sibling hazard below.
+
+*Sibling inference hazard.* The first version of the rule used a cached type for every tree except
+the current one. That was unsound with type argument inference: `outerInference` widens the problem
+of a poly expression to the enclosing invocation, so computing `bar()` at its own node in
+`first(bar(), pid(x))` inside a loop also typed the later argument `pid(x)`, whose node had not been
+visited in this pass; its entry from the previous iteration was read and the stale type flowed into
+the type cached for `bar()` and into its dataflow value. With `static <T> List<T> bar()` and
+`static <T> void foo(List<T> a, T b)`, `foo(bar(), pid(x)); x = y;` in a loop reported a false
+`argument.type.incompatible`; with a `@PolyNull` result, a `dereference.of.nullable` was missed. The
+Value Checker had the same hole with `@PolyValue`. Both parts of the fix are needed: the read rule
+keeps the later sibling from being read, and the write rule keeps `bar()`, whose type depends on
+the later sibling, from being cached. The recompute-at-every-use mode did not catch this on
+plume-util, because no such call shape occurs there; the loop corpus and the new tests in
+`Issue602.java` and the Value `FlowDependentLoop.java` do.
+
+*Clearing the whole map.* `performFlowAnalysisForClass` clears the map at every class analysis, which
+also drops the entries of trees that are not flow-dependent. A/B on generated files, Nullness
+(Index in parentheses), median of 7 interleaved runs, JDK 25: 300 top-level classes 10.25 s (19.67 s)
+with the full clear, 10.48 s (19.72 s) with no clear (unsound; it bounds the cost of the clear), and
+11.21 s (20.90 s) when removing only the flow-dependent keys, which is slower because the map then
+grows to the size of the compilation unit and is scanned at every class start. A second map for the
+flow-dependent trees that is the only one cleared took 10.33 s (19.47 s), the same as the full clear.
+One class with 100 nested, 100 anonymous, and 100 local classes: 8.45 s with the full clear, 8.35 s
+with no clear. Counters showed that no cleared entry was ever requested again (76,843 dropped
+entries over 1200 clears on the first file), and JFR attributes no samples to `clear()`. Index on
+plume-util: 20.70 s with the full clear, 20.60 s with no clear. So the full clear stays. *Hypothesis:*
+the trees of a class are queried only while it is analyzed and checked; this held on these six
+workload and checker pairs, not on every checker.
+
+*Not done:* a flag on `TypeArgumentInference` instead of the `instanceof` check. A default method
+that returns false would let a custom inference use the cache, which is unsafe if it also types
+sub-expressions without inference. Identifiers and `C.this` are not classified as flow-dependent
+although the Initialization Checker's `getSelfType` reads `getStoreBefore(tree)`. *Hypothesis, not
+proved:* the set of initialized fields at a program point only grows along a path, and the store at
+the head of a loop is the intersection of the entry store and the back edge's, which is the entry
+store, so the type of `this` that an early fixpoint iteration caches is never more initialized than
+the final one. A probe with `this` passed as an `@UnderInitialization` argument before and after
+field assignments in `while` and `for` loops reported the same errors with and without
+`-AatfDoNotCache`. The difference between the cached type of `this` and a recomputed one after
+dataflow (eisop#2344) turned out to be in the recomputation, not in the cache. The Nullness visitor's
+assignment check asks for the store before `this.f`, which `AnalysisResult#runAnalysisFor` answers
+by re-running the transfer functions of the block with `isRunning` set. The transfer function for
+`this` recomputes its type, and `getSelfType` asks the running analysis for the store before the
+tree; the analysis's tree lookup and `currentInput` still belonged to the last CFG analyzed, so the
+answer was null (superclass frame) or the final store of that other CFG (every field initialized).
+The first query for a `this` tree always comes from the real analysis of its CFG, so the cache held
+the right type on plume-util and the nullness-initialization tests. The re-run now sets
+`currentInput` per node and the running-analysis lookup answers the current node's own tree from its
+input; with that, a recompute-and-compare probe reports no `this`/`super` mismatch on either corpus.
+`this` and `super` therefore stay out of `isFlowDependent`.
+
+### Type caches for constructor arguments in the Initialization Checker (October 2026, PR #2309)
+
+`InitializationParentAnnotatedTypeFactory.CommitmentTreeAnnotator.visitNewClass` typed the standalone
+arguments of a `new` expression with `shouldCache` turned off, which disabled every type factory
+cache for the argument and all of its subexpressions. The annotator runs at every query for the
+type of a `new` expression. The toggle came in with the rewrite of type argument inference; its
+commit message gives no reason. The change removes it, as typetools did (the same removal is part of
+typetools 3.51.1; the EISOP import of that release took only the test change).
+
+*Measured* (Nullness, JDK 25, wall time, median of 6 interleaved runs after a warm-up, master
+85e069f50d against the branch): plume-util 12.09 s to 11.73 s (-3.0%, faster in 6 of 6 pairs, at the
+edge of the +-3-5% run-to-run spread); framework sources, 1142 warnings, 43.89 s to 43.81 s (no
+measurable change). An earlier measurement of -4.5% on the framework sources, taken on top of other
+open perf PRs, did not reproduce. The harness's old framework snapshot has three javac errors, after
+which `SourceChecker` skips every later class, so that workload checks only a prefix and must not
+be used for this.
+
+*Where it matters:* nested constructor calls inside lambdas, the pattern of the `Issue6623` test,
+where the toggle made the time grow exponentially. `Issue6623.java` takes 5.5-6.3 s on master and
+1.8-2.1 s with the change; a three-level variant 20.0 s and 3.1 s; a four-level variant 87.4 s and
+6.9 s. With `-AatfDoNotCache` both take the same time (36.4 s on the three-level variant), so the
+whole gain comes from the caches. The earlier JFR figure (4.6% inclusive for `visitNewClass`,
+0.7% after) was measured on a different base and has not been repeated. The test is no longer
+skipped: the timing-based `slow.typechecking` expectation that made it too fast to run on GitHub
+Actions is gone.
+
+*Why it is sound, as far as tried:* `getAnnotatedType` caches only the `fromExpression` result. The
+tree annotators, the defaults and the flow refinement are not cached, so `visitNewClass` and its
+`isInitialized` and `isFbcBottom` checks run again at every query; the argument's cached type passes
+through the guards of the previous section. Inputs with an under-initialization `this` passed to
+constructors before, between and after field assignments, nested `new`, `this(...)` and `super(...)`,
+anonymous classes, lambdas, field initializers, and loops that change the initialization state of an
+argument gave identical output on master and on the branch, with and without `-AatfDoNotCache`, as
+did the `nullness`, `nullness-initialization`, `initialization` and `all-systems` test directories.
+No input was found on which the toggle changes a diagnostic.
 
 ---
 
@@ -2795,11 +3258,11 @@ Capture format: hot method, hypothesis, blockers.
     O(D) queries = O(D²); same flow-dependence wall as Short-list `getAnnotatedType` #3). A secondary
     *CPU* cost is `TernaryExpressionNode.equals` at 32% inclusive via `AbstractAnalysis.getValue`'s
     structural `contains` (see *Tried and rejected*: the identity fix for that regresses allocation).
-    **Possibly-fixable angle (untested):** #602 forbids caching conditionals *during dataflow*, but
-    the *post-dataflow* visitor pass has a final, stable store where a conditional-type cache could be
-    sound. Sizing = measure conditional-query provenance (dataflow iterations vs. post-analysis
-    visitor). Realistic conditionals are shallow, so the everyday win is small; this is mostly
-    worst-case (generated-code) protection.
+    **Possibly-fixable angle (applied in PR #2307, October 2026, not re-measured on this shape):**
+    #602 forbids caching conditionals *during dataflow*, but the *post-dataflow* visitor pass has a
+    final, stable store where a conditional-type cache is sound. Sizing = measure conditional-query
+    provenance (dataflow iterations vs. post-analysis visitor). Realistic conditionals are shallow,
+    so the everyday win is small; this is mostly worst-case (generated-code) protection.
   - **`inherit` (depth-D class chain + D up-assignments) — quadratic.** 320 MB → 4.6 GB at D =
     20→160; `AsSuperVisitor.visitDeclared_Declared` 22% + repeated `getDirectSupertypes` /
     `AnnotatedDeclaredType.directSupertypes` 17% — the asSuper/supertype walk is super-linear in
@@ -2957,10 +3420,11 @@ Capture format: hot method, hypothesis, blockers.
      cacheable tree** — not cacheable away. The only remaining redundancy is the Issue #602 exclusions
      (`NewClassTree`/`NewArrayTree`/`ConditionalExpressionTree`): on all-systems, ~20% of build time
      (an upper bound — build timing is inclusive of nested re-entrant `fromExpression` calls) is spent
-     rebuilding just 153 distinct trees ~16× each (94% repeats). That is **blocked by #602**: those
-     trees' types are flow-dependent (they change across fixpoint iterations), the same soundness crux
-     that rejected the per-analysis `getValueFromFactory` memo (#1, where 8–18% of flow-dependent
-     repeats return a *different* type). No safe caching win remains. Do not pursue.
+     rebuilding just 153 distinct trees ~16× each (94% repeats). During dataflow their types are
+     flow-dependent (they change across fixpoint iterations), the same soundness crux that rejected
+     the per-analysis `getValueFromFactory` memo (#1, where 8–18% of flow-dependent repeats return a
+     *different* type). #602 blocked caching them until PR #2307 (October 2026 section), which
+     caches them once dataflow is final. No safe caching win remains during dataflow. Do not pursue.
   4. **Cache the *applied* defaults** (not just the `DefaultSet`, which is already cached) per
      (element, structural shape) to skip the per-call `DefaultApplierElementImpl.scan` (~12% incl).
      **MEASURED AND REJECTED (June 2026)** — prototype built and A/B'd; see *Per-CU tree-defaults

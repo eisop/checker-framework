@@ -9,8 +9,10 @@ import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 
 /**
  * TreePathCacher is a TreeScanner that creates and caches a TreePath for a target Tree.
@@ -51,6 +53,63 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
     /** The stack of nodes currently being traversed. */
     private final List<Tree> currentStack = new ArrayList<>();
 
+    /**
+     * The number of consecutive {@link #getPath(TreePath, Tree)} cache misses with the same leaf
+     * after which that leaf's subtree is indexed. A search that starts at a large leaf, such as a
+     * long method body, rescans the leaf's earlier children each time, so the cost of N lookups
+     * grows quadratically with the size of the leaf; the index makes each lookup cost the depth of
+     * the target. The threshold keeps small leaves, which are cheap to rescan, from being indexed.
+     */
+    private static final int INDEX_AFTER_MISSES = 32;
+
+    /**
+     * The leaf of the {@code rootPath} of the previous cache miss in {@link #getPath(TreePath,
+     * Tree)}.
+     */
+    private @Nullable Tree lastMissLeaf;
+
+    /** The number of consecutive cache misses with {@link #lastMissLeaf} as the leaf. */
+    private int lastMissCount;
+
+    /** The leaf whose subtree {@link #parentInIndex} describes, or null if there is no index. */
+    private @Nullable Tree indexedLeaf;
+
+    /**
+     * Maps each tree in the subtree of {@link #indexedLeaf}, except the leaf itself, to its parent
+     * tree. A tree that occurs more than once in the subtree maps to the parent of its first
+     * occurrence in scan order, which is the occurrence a search finds.
+     */
+    private final IdentityHashMap<Tree, Tree> parentInIndex = new IdentityHashMap<>();
+
+    /**
+     * The artificial trees whose paths were registered with {@link #addArtificialPath}. An
+     * artificial tree is one that the CFG builder created; see {@link #addArtificialPath}.
+     */
+    private final Set<Tree> artificialTrees = Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /** The compilation unit whose paths are cached. */
+    private @Nullable CompilationUnitTree unit;
+
+    /**
+     * Prepares the cache for the given compilation unit: clears it, unless it is already for that
+     * unit. The checkers of a compound checker share one cache, and each of them calls this when it
+     * starts a compilation unit.
+     *
+     * <p>Clearing the cache when a later checker starts the same unit would lose the paths of the
+     * artificial trees that a CFG builder registered. A scan cannot find an artificial tree, so the
+     * registered path is the only source of its path.
+     *
+     * @param newUnit the compilation unit that is about to be checked
+     */
+    public void useUnit(CompilationUnitTree newUnit) {
+        @SuppressWarnings("interning:not.interned") // reference equality of compilation units
+        boolean changed = newUnit != unit;
+        if (changed) {
+            clear();
+            unit = newUnit;
+        }
+    }
+
     /** Construct a TreePathCacher. */
     public TreePathCacher() {}
 
@@ -89,6 +148,32 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
      */
     public void addPath(Tree target, TreePath path) {
         foundPaths.put(target, path);
+    }
+
+    /**
+     * Adds the path of an artificial tree to the cache and records that the tree is artificial.
+     *
+     * <p>An artificial tree is one that the CFG builder created, such as the binary operation of a
+     * compound assignment. It is not in the compilation unit, so a scan cannot find it, and the
+     * path registered here is the only source of its path.
+     *
+     * @param tree the artificial tree
+     * @param path the path of {@code tree}
+     */
+    public void addArtificialPath(Tree tree, TreePath path) {
+        artificialTrees.add(tree);
+        addPath(tree, path);
+    }
+
+    /**
+     * Returns true if {@code tree} is an artificial tree, whose path was registered with {@link
+     * #addArtificialPath} for the current compilation unit.
+     *
+     * @param tree a tree
+     * @return true if {@code tree} is an artificial tree
+     */
+    public boolean isArtificial(@FindDistinct Tree tree) {
+        return artificialTrees.contains(tree);
     }
 
     /**
@@ -152,6 +237,7 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
      * @return the TreePath corresponding to target, or null if target is not in the compilation
      *     unit
      */
+    @SuppressWarnings("interning:not.interned") // identity comparison of trees
     public @Nullable TreePath getPath(TreePath rootPath, @FindDistinct Tree target) {
         TreePath cached = foundPaths.get(target);
         if (cached != null) {
@@ -162,8 +248,27 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
             return null;
         }
 
-        if (rootPath.getLeaf() == target) {
+        Tree leaf = rootPath.getLeaf();
+        if (leaf == target) {
             return rootPath;
+        }
+
+        if (leaf == indexedLeaf) {
+            TreePath indexed = pathFromIndex(rootPath, target);
+            if (indexed != null) {
+                return indexed;
+            }
+        } else if (leaf == lastMissLeaf) {
+            if (++lastMissCount >= INDEX_AFTER_MISSES) {
+                buildIndex(leaf);
+                TreePath indexed = pathFromIndex(rootPath, target);
+                if (indexed != null) {
+                    return indexed;
+                }
+            }
+        } else {
+            lastMissLeaf = leaf;
+            lastMissCount = 1;
         }
 
         CompilationUnitTree prevRoot = this.currentRoot;
@@ -210,6 +315,65 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
         return null;
     }
 
+    /**
+     * Makes {@link #parentInIndex} describe the subtree of {@code leaf}, replacing any earlier
+     * index.
+     *
+     * @param leaf the tree whose subtree to index
+     */
+    private void buildIndex(Tree leaf) {
+        parentInIndex.clear();
+        indexedLeaf = leaf;
+        new TreeScanner<@Nullable Void, @Nullable Tree>() {
+            @Override
+            public @Nullable Void scan(@Nullable Tree tree, @Nullable Tree parent) {
+                if (tree == null) {
+                    return null;
+                }
+                if (parent != null) {
+                    parentInIndex.putIfAbsent(tree, parent);
+                }
+                // The children of tree are scanned with tree as their parent.
+                return super.scan(tree, tree);
+            }
+        }.scan(leaf, null);
+    }
+
+    /**
+     * Returns the path of {@code target} using the index, or null if {@code target} is not in the
+     * indexed subtree. The index must be for the leaf of {@code rootPath}.
+     *
+     * @param rootPath the path of the indexed leaf
+     * @param target the tree to look for
+     * @return the path of {@code target}, or null if {@code target} is not in the indexed subtree
+     */
+    @SuppressWarnings("interning:not.interned") // identity comparison with the indexed leaf
+    private @Nullable TreePath pathFromIndex(TreePath rootPath, @FindDistinct Tree target) {
+        Tree leaf = rootPath.getLeaf();
+        // The trees from target up to, but excluding, the leaf.
+        List<Tree> chain = new ArrayList<>();
+        Tree tree = target;
+        while (tree != leaf) {
+            Tree parent = parentInIndex.get(tree);
+            if (parent == null) {
+                return null;
+            }
+            chain.add(tree);
+            tree = parent;
+        }
+        TreePath lastPath = rootPath;
+        for (int i = chain.size() - 1; i >= 0; --i) {
+            Tree node = chain.get(i);
+            TreePath nodePath = foundPaths.get(node);
+            if (nodePath == null) {
+                nodePath = new TreePath(lastPath, node);
+                foundPaths.put(node, nodePath);
+            }
+            lastPath = nodePath;
+        }
+        return lastPath;
+    }
+
     /** The result of {@link #getPath}. This exception is used for control flow. */
     private static class Result extends Error {
         /** Unique identifier for serialization. */
@@ -233,9 +397,19 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
         }
     }
 
-    /** Clear the {@code foundPaths} and re-initialize with a new {@code IdentityHashMap}. */
+    /**
+     * Clear the {@code foundPaths} and re-initialize with a new {@code IdentityHashMap}, and drop
+     * the subtree index and the set of artificial trees. The cache is then for no compilation unit,
+     * so the next {@link #useUnit} clears it again.
+     */
     public void clear() {
+        unit = null;
         foundPaths = new IdentityHashMap<>(32);
+        artificialTrees.clear();
+        lastMissLeaf = null;
+        lastMissCount = 0;
+        indexedLeaf = null;
+        parentInIndex.clear();
     }
 
     /**

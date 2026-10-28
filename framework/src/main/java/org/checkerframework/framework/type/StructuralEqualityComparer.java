@@ -238,6 +238,23 @@ public class StructuralEqualityComparer extends AbstractAtmComboVisitor<Boolean,
         // Prevent infinite recursion e.g. in Issue1587b
         visitHistory.put(type1, type2, currentTop, true);
 
+        boolean result = areTypeArgsEqual(type1, type2);
+        visitHistory.put(type1, type2, currentTop, result);
+        return result;
+    }
+
+    /**
+     * Returns true if the type arguments of {@code type1} and {@code type2} are equal. The type
+     * arguments of an inner class type include those of its enclosing types (JLS 4.5), so this
+     * method also compares the type arguments of the enclosing types. It does not compare the
+     * primary annotations of the enclosing types.
+     *
+     * @param type1 a declared type
+     * @param type2 a declared type
+     * @return true if the type arguments of {@code type1} and {@code type2}, including those of
+     *     their enclosing types, are equal
+     */
+    private boolean areTypeArgsEqual(AnnotatedDeclaredType type1, AnnotatedDeclaredType type2) {
         List<AnnotatedTypeMirror> type1Args = type1.getTypeArguments();
         List<AnnotatedTypeMirror> type2Args = type2.getTypeArguments();
 
@@ -286,8 +303,18 @@ public class StructuralEqualityComparer extends AbstractAtmComboVisitor<Boolean,
         }
 
         visitHistory.put(capturedType1, capturedType2, currentTop, result);
-        visitHistory.put(type1, type2, currentTop, result);
-        return result;
+        if (!result) {
+            return false;
+        }
+
+        AnnotatedDeclaredType enclosing1 = type1.getEnclosingType();
+        AnnotatedDeclaredType enclosing2 = type2.getEnclosingType();
+        if (enclosing1 == null
+                || enclosing2 == null
+                || enclosing1.getTypeArguments().size() != enclosing2.getTypeArguments().size()) {
+            return true;
+        }
+        return areTypeArgsEqual(enclosing1, enclosing2);
     }
 
     /**

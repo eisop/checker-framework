@@ -223,7 +223,21 @@ public class AElement implements Cloneable {
         };
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Copies the contents of one vivifying map into another, cloning each value.
+     *
+     * @param <K> the type of the keys
+     * @param <V> the type of the values
+     * @param orig the map to copy from
+     * @param copy the map to copy into
+     */
+    @SuppressWarnings({
+        "unchecked",
+        // The cast type has the qualifiers of the operand, which V need not accept.
+        "interning:argument.type.incompatible",
+        "rlccalledmethods:argument.type.incompatible",
+        "signature:argument.type.incompatible"
+    })
     static <K, V extends AElement> void copyMapContents(
             VivifyingMap<K, V> orig, VivifyingMap<K, V> copy) {
         for (K key : orig.keySet()) {

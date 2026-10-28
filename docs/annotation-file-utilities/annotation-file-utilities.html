@@ -193,13 +193,74 @@ The source code is in the <code>annotation-file-utilities</code> directory of th
 EISOP Checker Framework repository
 <a href="https://github.com/eisop/checker-framework">https://github.com/eisop/checker-framework</a>.
 The Annotation File Utilities are also available from Maven Central, as
-<code>io.github.eisop:annotation-file-utilities</code>.
+<code>io.github.eisop:annotation-file-utilities</code>
+(see <a href="#maven">Using the Maven artifact</a>).
 </p>
 
 <p>
 To compile and run tests, do
 <code>../gradlew build</code> from the <code>annotation-file-utilities</code>
 subdirectory.
+</p>
+
+
+<hr />
+<h2 id="maven">Using the Maven artifact</h2>
+
+<p>
+The Annotation File Utilities are published to Maven Central as
+<code>io.github.eisop:annotation-file-utilities</code>, with the same version
+as the Checker Framework release.
+It depends on ASM, Guava, plume-util, options, and reflection-util, but not
+on the checkers or the framework.
+This is the way to get the Annotation File Utilities without the whole
+Checker Framework: the Checker Framework's <code>checker.jar</code> does not
+contain them.
+</p>
+
+<p>
+In a Gradle build, add:
+</p>
+
+<pre>
+dependencies {
+    implementation("io.github.eisop:annotation-file-utilities:VERSION")
+}
+</pre>
+
+<p>
+In a Maven build, add:
+</p>
+
+<pre>
+&lt;dependency&gt;
+  &lt;groupId&gt;io.github.eisop&lt;/groupId&gt;
+  &lt;artifactId&gt;annotation-file-utilities&lt;/artifactId&gt;
+  &lt;version&gt;VERSION&lt;/version&gt;
+&lt;/dependency&gt;
+</pre>
+
+<p>
+The inserter, the equivalent of <code>insert-annotations-to-source</code>, is
+the class <code>org.checkerframework.afu.annotator.Main</code>.
+It takes the same arguments as the script, for example:
+<code>java -cp <var>classpath</var> org.checkerframework.afu.annotator.Main -d <var>outdir</var> Foo.jaif Foo.java</code>.
+On JDK 9 and later, run it with
+<code>--add-opens=jdk.compiler/com.sun.tools.javac.<var>pkg</var>=ALL-UNNAMED</code>
+for <var>pkg</var> in <code>api</code>, <code>code</code>, <code>main</code>,
+<code>tree</code>, and <code>util</code>, and with
+<code>--add-opens=jdk.internal.opt/jdk.internal.opt=ALL-UNNAMED</code>;
+the script <code>bin/insert-annotations-to-source</code> in the distribution
+shows the exact command line.
+A complete Gradle example that runs the inserter from the artifact is
+<a href="https://github.com/eisop/checker-framework/tree/master/docs/examples/afu-consumer"><code>docs/examples/afu-consumer</code></a>
+in the EISOP Checker Framework repository; it is run by the release test.
+</p>
+
+<p>
+Do not put the artifact and a <code>org.checkerframework:checker</code> jar
+from the Checker Framework of the typetools project on the same classpath:
+both contain the package <code>org.checkerframework.afu</code>.
 </p>
 
 
@@ -399,20 +460,21 @@ running <code>insert-annotations-to-source --help</code>.
              Directory in which output files are written. [default: annotated/]
             <li id="option:in-place"><b>-i</b> <b>--in-place=</b><i>boolean</i>.
              If true, overwrite original source files (making a backup first). Furthermore, if the backup
- files already exist, they are used instead of the .java files. This behavior permits a user to
- tweak the <code>.jaif</code> file and re-run the annotator.
+ files already exist, they are used instead of the .java files. This behavior permits a user
+ to tweak the <code>.jaif</code> file and re-run the annotator.
 
- <p>Note that if the user runs the annotator with --in-place, makes edits, and then re-runs the
- annotator with this --in-place option, those edits are lost. Similarly, if the user runs the
- annotator twice in a row with --in-place, only the last set of annotations will appear in the
- codebase at the end.
+ <p>Note that if the user runs the annotator with <code>--in-place</code>, makes edits, and then
+ re-runs the annotator with this <code>--in-place</code> option, those edits are lost. Similarly,
+ if the user runs the annotator twice in a row with <code>--in-place</code>, only the last set of
+ annotations will appear in the codebase at the end.
 
- <p>To preserve changes when using the --in-place option, first remove the backup files. Or, use
- the <code>-d .</code> option, which makes (and reads) no backup, instead of --in-place. [default: false]
+ <p>To preserve changes when using the <code>--in-place</code> option, first remove the backup
+ files. Or, use the <code>-d .</code> option, which makes (and reads) no backup, instead of <code>
+ --in-place</code>. [default: false]
             <li id="option:abbreviate"><b>-a</b> <b>--abbreviate=</b><i>boolean</i>.
              If true, insert <code>import</code> statements as necessary. [default: true]
             <li id="option:omit-annotation"><b>-o</b> <b>--omit-annotation=</b><i>string</i>.
-             Omit given annotation
+             Don't insert the given annotation.
             <li id="option:nowarn"><b>--nowarn=</b><i>boolean</i>.
              Suppress warnings about disallowed insertions [default: false]
             <li id="option:convert-jaifs"><b>--convert-jaifs=</b><i>boolean</i>.

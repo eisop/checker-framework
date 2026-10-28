@@ -62,9 +62,10 @@ import javax.tools.Diagnostic;
  *       excluded; see {@link #comparedAnnotationNames} for the full rationale.
  *   <li>Annotated types ({@link AnnotationFileAnnotations#atypes}) are compared per element key by
  *       a parallel, cycle-safe structural walk that compares the set of annotation names at every
- *       source-annotatable type component (see {@link #compareAtm} for the derived positions that
- *       are excluded and why). An entry present on only one side is reported only if it carries
- *       non-derived annotations.
+ *       type component except some wildcard and type variable bounds (see {@link #compareAtm} for
+ *       which and why). An entry present on only one side is reported only if it carries an
+ *       annotation outside wildcard and type variable bounds (see {@link
+ *       #hasNonDerivedAnnotation}).
  *   <li>Fake overrides ({@link AnnotationFileAnnotations#fakeOverrides}) are compared by which
  *       (overridden method, subtype) entries exist, in both directions -- not by the stored types,
  *       whose baselines differ between the two loaders. Both directions are needed: the binary path
@@ -125,6 +126,18 @@ public class BinaryStubDiffChecker {
                 continue;
             }
             String className = entry.getKey();
+
+            // Load the class from the binary form first, as a compilation does before it uses
+            // the class. The text parser below marks the class as being processed, which keeps
+            // AnnotationFileElementTypes from loading it during the parse. Then a plain ? whose
+            // type variable is declared in the class takes the bounds of the class file's
+            // declaration, defaulted as if the class had no @NullMarked or other stub annotation.
+            @SuppressWarnings("signature:argument.type.incompatible") // a binary-stub class name
+            TypeElement realTypeElt =
+                    atypeFactory.getProcessingEnv().getElementUtils().getTypeElement(className);
+            if (realTypeElt != null) {
+                elementTypes.getDeclAnnotations(realTypeElt);
+            }
 
             AnnotationFileAnnotations textAnnos = new AnnotationFileAnnotations();
             if (!elementTypes.parseJdkSourceInto(className, textAnnos)) {
@@ -373,11 +386,25 @@ public class BinaryStubDiffChecker {
         if (!appliedTops.add(className)) {
             return;
         }
+        List<BinaryStubData.ClassRecord> innerCrs =
+                elementTypes.getInnerClassesFromBinary(className);
+        // As AnnotationFileElementTypes applies the annotated JDK: type parameters first.
+        BinaryStubReader.applyClassTypeParamRecords(
+                cr, className, atypeFactory, elementTypes, data, binaryAnnos, null);
+        for (BinaryStubData.ClassRecord innerCr : innerCrs) {
+            BinaryStubReader.applyClassTypeParamRecords(
+                    innerCr,
+                    data.stringPool[innerCr.nameIndex],
+                    atypeFactory,
+                    elementTypes,
+                    data,
+                    binaryAnnos,
+                    null);
+        }
         BinaryStubReader.applyClassRecord(
                 cr, className, atypeFactory, elementTypes, data, binaryAnnos);
         appliedRecords.add(cr);
-        for (BinaryStubData.ClassRecord innerCr :
-                elementTypes.getInnerClassesFromBinary(className)) {
+        for (BinaryStubData.ClassRecord innerCr : innerCrs) {
             String innerName = data.stringPool[innerCr.nameIndex];
             BinaryStubReader.applyClassRecord(
                     innerCr, innerName, atypeFactory, elementTypes, data, binaryAnnos);
@@ -601,6 +628,10 @@ public class BinaryStubDiffChecker {
                 if (boundAnnos.length == 0) continue;
                 Set<String> promisedBound = new TreeSet<>();
                 for (BinaryStubData.TypeAnno ta : boundAnnos) {
+                    if (ta.isUnboundedWildcard()) {
+                        // A marker, not an annotation; it promises nothing by name.
+                        continue;
+                    }
                     promisedBound.add(data.stringPool[data.annotationPool[ta.annoIndex].nameIndex]);
                 }
                 promisedBound.removeIf(name -> !atypeFactory.isSupportedQualifier(name));
@@ -842,16 +873,19 @@ public class BinaryStubDiffChecker {
      * (already-visited text component, binary component) pair is not revisited, which terminates
      * recursion through F-bounded type variables such as {@code Enum<E extends Enum<E>>}.
      *
-     * <p>Derived positions are excluded from the comparison: the bounds of implicit (unbounded)
-     * wildcards and the bounds of type-variable <em>uses</em> cannot carry source annotations —
-     * whatever annotations they hold were computed at parse/load time from the type-parameter
-     * declaration (the text parser bakes parse-time {@code getAnnotatedType} results into them,
-     * which is order-dependent), and {@code mergeAnnotationFileAnnosIntoType}'s target recomputes
-     * that information at lookup time. Type-variable <em>declarations</em> ({@code
-     * atypes[TypeParameterElement]} entries, the direct type arguments of a class entry, and a
-     * method's {@code getTypeVariables()}) are source-annotatable, but their baselines also diverge
-     * (fromElement vs. createType), so their explicit annotations are guarded by the record-driven
-     * presence check in {@link #verifyRecordApplied} rather than by this comparison.
+     * <p>Of a wildcard, both bounds of a plain {@code ?} in the class file are compared, and of a
+     * wildcard with a bound in the class file, that bound. The other bound of such a wildcard is
+     * created by the type factory, differently in the two loaders (fromElement vs. createType). A
+     * plain {@code ?} in the stub sets the bounds from its type variable's declaration in both
+     * loaders ({@code AnnotationFileParser.annotateUnannotatedUnboundedWildcard}; the binary form
+     * has a marker), which is why {@link #run} loads each class before text-parsing it.
+     *
+     * <p>The bounds of a type variable use are not compared: they are those of its declaration or,
+     * for an annotated use such as {@code @A T}, {@code @A}. The use's own annotations are
+     * compared. Type variable declarations ({@code atypes[TypeParameterElement]} entries, the
+     * direct type arguments of a class entry, and a method's {@code getTypeVariables()}) have
+     * baselines that also differ (fromElement vs. createType), so their annotations are checked
+     * against the binary record by {@link #verifyRecordApplied} instead.
      *
      * @param text the text parser's type
      * @param binary the binary reader's type
@@ -918,17 +952,17 @@ public class BinaryStubDiffChecker {
                     visited);
         } else if (text instanceof AnnotatedWildcardType
                 && binary instanceof AnnotatedWildcardType) {
-            // Only explicit (source-written) wildcard bounds are compared; the bounds of an
-            // unbounded wildcard are derived state (see the method comment).
+            // See the method comment for which bounds are compared.
             WildcardType underlying = ((AnnotatedWildcardType) text).getUnderlyingType();
-            if (underlying.getExtendsBound() != null) {
+            if (underlying.getSuperBound() == null) {
                 compareAtm(
                         ((AnnotatedWildcardType) text).getExtendsBound(),
                         ((AnnotatedWildcardType) binary).getExtendsBound(),
                         path + ".extendsBound",
                         diffs,
                         visited);
-            } else if (underlying.getSuperBound() != null) {
+            }
+            if (underlying.getExtendsBound() == null) {
                 compareAtm(
                         ((AnnotatedWildcardType) text).getSuperBound(),
                         ((AnnotatedWildcardType) binary).getSuperBound(),
@@ -1116,18 +1150,13 @@ public class BinaryStubDiffChecker {
     }
 
     /**
-     * Returns true if {@code atm} carries an annotation anywhere outside a derived position. A
-     * derived position is inside the bounds of a wildcard or of any {@code AnnotatedTypeVariable}
-     * -- this method does not distinguish a type-variable declaration (e.g. the {@code T} of {@code
-     * <T extends Foo>} itself) from a type-variable use (e.g. a parameter of type {@code T}): both
-     * are bounds source code cannot annotate directly, so any annotation there was computed by the
-     * text parser (implicit-wildcard-bound and type-variable-bound copying) from information that
-     * is available elsewhere. An entry stored only by the text parser whose every annotation is in
-     * a derived position is therefore benign: the binary path stores no entry, and checking
-     * recomputes the same information from the type-parameter declarations.
-     *
-     * <p>By contrast, if the member had any source annotation, the binary writer recorded it and
-     * the binary reader stores an entry, so the entry would not be one-sided in the first place.
+     * Returns true if {@code atm} carries an annotation outside the bounds of its wildcards and
+     * type variables (the "derived positions"). Decides whether an entry that only the text parser
+     * stored is a mismatch. The binary reader stores no type for an annotated JDK member whose
+     * record has no annotations or markers. The text parser stores one, whose annotations in
+     * derived positions come from type variable declarations, which both loaders store. An
+     * annotation outside them would have been in the binary record, so the entry would not be
+     * one-sided.
      *
      * @param atm the type to scan, may be {@code null}
      * @param inDerivedPosition true if the current component is inside a wildcard or type-variable

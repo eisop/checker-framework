@@ -28,7 +28,13 @@ public class ArrayAccess extends JavaExpression {
         this.index = index;
     }
 
-    @SuppressWarnings("unchecked") // generic cast
+    @SuppressWarnings({
+        "unchecked", // generic cast
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     @Override
     public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
         if (getClass() == clazz) {
@@ -42,8 +48,8 @@ public class ArrayAccess extends JavaExpression {
     }
 
     @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
-        return array.isDeterministic(provider) && index.isDeterministic(provider);
+    public boolean isPure(AnnotationProvider provider) {
+        return array.isPure(provider) && index.isPure(provider);
     }
 
     /**

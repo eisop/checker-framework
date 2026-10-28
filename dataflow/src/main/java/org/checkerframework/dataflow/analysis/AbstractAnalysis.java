@@ -122,6 +122,15 @@ public abstract class AbstractAnalysis<
     }
 
     /**
+     * Returns the node whose transfer function is currently running.
+     *
+     * @return the node whose transfer function is currently running, or null if none is
+     */
+    public @Nullable Node getCurrentNode() {
+        return currentNode;
+    }
+
+    /**
      * Set the tree that is currently being looked at.
      *
      * @param currentTree the tree that should be currently looked at
@@ -277,6 +286,15 @@ public abstract class AbstractAnalysis<
         if (!isRunning()) {
             throw new BugInCF(
                     "AbstractAnalysis::getStoreBefore() should only be called when the analysis is running.");
+        }
+        @SuppressWarnings("interning:not.interned") // Tree identity
+        boolean isCurrentNodesTree = currentNode != null && currentNode.getTree() == tree;
+        if (isCurrentNodesTree && currentInput != null) {
+            // The store before the node being processed is its input. This also answers a query
+            // made while an AnalysisResult re-runs the transfer functions of a block of a
+            // finished analysis (AnalysisResult#runAnalysisFor): the tree lookup of this analysis
+            // then belongs to the last CFG analyzed, which need not be the CFG being re-run.
+            return currentInput.getRegularStore();
         }
         Set<Node> nodes = getNodesForTree(tree);
         if (nodes == null) {

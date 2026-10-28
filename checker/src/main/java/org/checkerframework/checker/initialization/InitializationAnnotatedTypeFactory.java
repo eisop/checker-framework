@@ -2,6 +2,7 @@ package org.checkerframework.checker.initialization;
 
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
@@ -104,9 +105,22 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
         return getFieldAccessFactory().getAnalysis();
     }
 
+    /**
+     * Runs no analysis of its own: the flow result is the one of the {@link
+     * InitializationFieldAccessAnnotatedTypeFactory}, which analyzes the class before this factory
+     * is queried for it. This overrides the implementation method and not {@link
+     * #performFlowAnalysisForClass(ClassTree)}, which does the bookkeeping that every factory needs
+     * and is final.
+     */
     @Override
-    protected void performFlowAnalysisForClass(ClassTree classTree) {
+    protected void performFlowAnalysisForClassImpl(ClassTree classTree) {
         flowResult = getFieldAccessFactory().getFlowResult();
+    }
+
+    @Override
+    public boolean isAnonymousDiamondSupertypeFinal(NewClassTree creation) {
+        // This factory does not keep track of the classes that were analyzed.
+        return getFieldAccessFactory().isAnonymousDiamondSupertypeFinal(creation);
     }
 
     @Override

@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 from release_utils import (
@@ -229,6 +230,19 @@ def build_checker_framework_release(
         f"./gradlew copyToWebsite -Prelease=true -PcfWebsite={checker_framework_interm_dir}"
     )
     execute(gradle_cmd, CHECKER_FRAMEWORK)
+
+    # Check the links of the pages that the zip ships, including the external ones, before
+    # anything is pushed.  Fix a broken link and start over.
+    with tempfile.TemporaryDirectory() as unpack_dir:
+        execute(
+            f"unzip -q {checker_framework_interm_dir}/checker-framework-{version}.zip"
+            f" -d {unpack_dir}"
+        )
+        execute(
+            f"python3 checker/bin-devel/check-release-links.py --online"
+            f" {unpack_dir}/checker-framework-{version}",
+            working_dir=CHECKER_FRAMEWORK,
+        )
 
     # clean no longer necessary files left over from building the checker framework tutorial
     checker_tutorial_dir = Path(CHECKER_FRAMEWORK) / "docs" / "tutorial"

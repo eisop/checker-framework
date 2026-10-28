@@ -1,0 +1,3 @@
+class Insert {
+  Object f;
+}

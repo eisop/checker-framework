@@ -16,7 +16,9 @@ import java.lang.annotation.Target;
  * later invocation of the method, with the same arguments and in the same environment, returns the
  * same value as an earlier one. Because a deterministic method that is not side-effect-free can
  * change the environment itself, both are needed for a fact learned about the result of one
- * invocation to hold for the result of the next; see {@link Deterministic} for an example.
+ * invocation to hold for the result of the next; see {@link Deterministic} for an example. The
+ * Checker Framework therefore keeps a refinement of the result of a method call only if the method
+ * is {@code @Pure} (or both {@code @Deterministic} and {@code @SideEffectFree}).
  *
  * <p>For a discussion of the meaning of {@code Pure} on a constructor, see the documentation of
  * {@link Deterministic}.

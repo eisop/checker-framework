@@ -1,6 +1,7 @@
 package org.checkerframework.framework.type;
 
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -9,10 +10,12 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiv
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeVisitor;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
@@ -23,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
@@ -209,8 +213,62 @@ final class SupertypeFinder {
                                         .getTypeVarSubstitutor()
                                         .substitute(typeVarToTypeArg, dt));
             }
+            if (typeElement.getNestingKind() == NestingKind.ANONYMOUS && !superTypesNew.isEmpty()) {
+                adaptAnonymousSuperclassEnclosingType(type, superTypesNew.get(0));
+            }
 
             return superTypesNew;
+        }
+
+        /**
+         * Sets the enclosing type of the superclass of an anonymous class to the type of the
+         * enclosing instance.
+         *
+         * <p>The enclosing type of the type of an anonymous class instance creation such as {@code
+         * outer.new Inner() {}} is the type of the enclosing instance, here the type of {@code
+         * outer} (see {@link AnnotatedTypeFactory#getConstructorReceiverType}). The superclass of
+         * the anonymous class is {@code Inner} as a member of that type, but the type created from
+         * the class tree has the defaulted annotations of the Java type instead. Without this
+         * method, an {@code Outer<@Nullable String>.Inner} would not be a supertype of {@code
+         * outer.new Inner() {}} when {@code outer} has type {@code Outer<@Nullable String>}.
+         *
+         * @param type the type of an anonymous class
+         * @param superclass the superclass of {@code type}; side-effected by this method
+         */
+        private void adaptAnonymousSuperclassEnclosingType(
+                AnnotatedDeclaredType type, AnnotatedDeclaredType superclass) {
+            AnnotatedDeclaredType enclosing = type.getEnclosingType();
+            AnnotatedDeclaredType superclassEnclosing = superclass.getEnclosingType();
+            if (enclosing == null || superclassEnclosing == null) {
+                return;
+            }
+            // Without an explicit enclosing instance, the enclosing instance of the superclass is
+            // the innermost enclosing instance of a subclass of the superclass's enclosing class
+            // (JLS 15.9.2), which need not be the anonymous class's own enclosing instance.
+            while (enclosing != null
+                    && !TypesUtils.isErasedSubtype(
+                            enclosing.getUnderlyingType(),
+                            superclassEnclosing.getUnderlyingType(),
+                            types)) {
+                enclosing = enclosing.getEnclosingType();
+            }
+            if (enclosing == null) {
+                return;
+            }
+            TypeMirror enclosingAsSuper =
+                    TypesUtils.asSuper(
+                            enclosing.getUnderlyingType(),
+                            superclassEnclosing.getUnderlyingType(),
+                            atypeFactory.getProcessingEnv());
+            // Only replace the enclosing type if it is the same Java type, that is, if the
+            // enclosing type of `type` is the type of the enclosing instance of the superclass.
+            if (enclosingAsSuper == null
+                    || !types.isSameType(
+                            enclosingAsSuper, superclassEnclosing.getUnderlyingType())) {
+                return;
+            }
+            superclass.setEnclosingType(
+                    AnnotatedTypes.asSuper(atypeFactory, enclosing, superclassEnclosing));
         }
 
         /**
@@ -358,6 +416,18 @@ final class SupertypeFinder {
                         (AnnotatedDeclaredType)
                                 atypeFactory.getAnnotatedTypeFromTypeTree(implemented);
                 supertypes.add(adt);
+            }
+
+            NewClassTree anonymousDiamond = atypeFactory.getAnonymousDiamondCreation(type);
+            if (anonymousDiamond != null) {
+                // javac's supertype of `new C<>(args) {...}` has defaulted type arguments. Use the
+                // type arguments inferred from the creation expression instead.
+                AnnotatedDeclaredType inferred =
+                        atypeFactory.getAnonymousDiamondSupertype(anonymousDiamond);
+                if (inferred != null) {
+                    int index = classTree.getExtendsClause() != null ? 0 : supertypes.size() - 1;
+                    supertypes.set(index, inferred);
+                }
             }
 
             TypeElement elem = TreeUtils.elementFromDeclaration(classTree);

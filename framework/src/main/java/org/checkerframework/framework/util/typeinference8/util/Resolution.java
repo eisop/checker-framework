@@ -1,5 +1,6 @@
 package org.checkerframework.framework.util.typeinference8.util;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.QualifierHierarchy;
@@ -16,6 +17,7 @@ import org.checkerframework.framework.util.typeinference8.types.VariableBounds.B
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -360,6 +362,44 @@ public class Resolution {
     }
 
     /**
+     * Returns the greatest lower bound of {@code upperBounds}, the upper bounds of an inference
+     * variable (JLS 18.4: glb(U1 θ, ..., Uk θ)), or null if there are none.
+     *
+     * <p>The bounds that are another inference variable are added last. If one of them has no glb
+     * with the bounds so far, because both are classes (such as {@code Number} and {@code
+     * Enum<E>}), javac's glb is an error type that cannot be used as a bound, so that bound is
+     * skipped: the bounds of the fresh type variable of the other inference variable still hold it.
+     *
+     * @param upperBounds the upper bounds of an inference variable
+     * @param context the context
+     * @return the greatest lower bound of {@code upperBounds}, or null if there are none
+     */
+    private static @Nullable AbstractType glbOfUpperBounds(
+            Set<AbstractType> upperBounds, Java8InferenceContext context) {
+        Set<AbstractType> notVariables = new LinkedHashSet<>();
+        List<AbstractType> variables = new ArrayList<>();
+        for (AbstractType bound : upperBounds) {
+            if (bound.isUseOfVariable()) {
+                variables.add(bound);
+            } else {
+                notVariables.add(bound);
+            }
+        }
+        AbstractType glb = context.inferenceTypeFactory.glb(notVariables);
+        for (AbstractType variable : variables) {
+            if (glb == null) {
+                glb = variable;
+            } else if (TypesUtils.greatestLowerBound(
+                                    glb.getJavaType(), variable.getJavaType(), context.env)
+                            .getKind()
+                    != TypeKind.ERROR) {
+                glb = context.inferenceTypeFactory.glb(glb, variable);
+            }
+        }
+        return glb;
+    }
+
+    /**
      * Instantiates the variables in {@code as} by creating fresh type variables using the bounds of
      * the variables.
      *
@@ -402,7 +442,7 @@ public class Resolution {
             }
 
             Set<AbstractType> upperBounds = ai.getBounds().upperBounds();
-            AbstractType upperBound = context.inferenceTypeFactory.glb(upperBounds);
+            AbstractType upperBound = glbOfUpperBounds(upperBounds, context);
             Set<? extends AnnotationMirror> upperBoundAnnos;
             Set<AbstractQualifier> qualifierUpperBounds =
                     ai.getBounds().qualifierBounds.get(BoundKind.UPPER);
@@ -464,7 +504,13 @@ public class Resolution {
      * @param <T> the kind of type
      * @return {@code type}, or a copy of it with adjusted qualifiers
      */
-    @SuppressWarnings("unchecked") // create() returns the receiver's own class
+    @SuppressWarnings({
+        "unchecked", // create() returns the receiver's own class
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     private static <T extends AbstractType> T boundQualifiers(
             QualifierHierarchy qualHierarchy,
             T type,

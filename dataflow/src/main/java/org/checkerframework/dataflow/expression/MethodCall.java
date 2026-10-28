@@ -71,7 +71,13 @@ public class MethodCall extends JavaExpression {
         return Collections.unmodifiableList(arguments);
     }
 
-    @SuppressWarnings("unchecked") // generic cast
+    @SuppressWarnings({
+        "unchecked", // generic cast
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     @Override
     public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
 
@@ -92,18 +98,23 @@ public class MethodCall extends JavaExpression {
         return null;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>A deterministic method that modifies the heap may return a different value when it is
+     * called again, so a call is pure only if the method is also side-effect-free.
+     */
     @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
+    public boolean isPure(AnnotationProvider provider) {
         return (PurityUtils.isDeterministic(provider, method) || provider.isDeterministic(method))
-                && listIsDeterministic(arguments, provider);
+                && (PurityUtils.isSideEffectFree(provider, method)
+                        || provider.isSideEffectFree(method))
+                && receiver.isPure(provider)
+                && listIsPure(arguments, provider);
     }
 
     @Override
     public boolean isAssignableByOtherCode() {
-        // TODO: The following comment is no longer accurate.  It should be removed and the
-        // implementation changed.
-        // There is no need to check that the method is deterministic, because a MethodCall is
-        // only created for deterministic methods.
         if (receiver.isModifiableByOtherCode()) {
             return true;
         }
@@ -115,9 +126,20 @@ public class MethodCall extends JavaExpression {
         return false;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns true for every method call. The value of a call depends on the heap, not only on
+     * its receiver and its arguments: a call that reads a static field, such as {@code Foo.get()},
+     * has a class name as its receiver and no arguments, but its value changes when another method
+     * assigns the field. No annotation expresses that a method does not read the heap, so no call
+     * is exempt. (A call is still {@link #isAssignableByOtherCode} only if its receiver or an
+     * argument is, which decides whether the callee can change what the call denotes, as for {@code
+     * a.get().f}.)
+     */
     @Override
     public boolean isModifiableByOtherCode() {
-        return isAssignableByOtherCode();
+        return true;
     }
 
     @Override

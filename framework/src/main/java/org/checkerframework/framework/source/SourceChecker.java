@@ -33,6 +33,8 @@ import org.checkerframework.common.reflection.MethodValChecker;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.RelevantJavaTypes;
 import org.checkerframework.framework.qual.StubFiles;
+import org.checkerframework.framework.qual.TypeUseLocation;
+import org.checkerframework.framework.qual.UnannotatedFor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.util.OptionConfiguration;
 import org.checkerframework.framework.util.TreePathCacher;
@@ -62,7 +64,9 @@ import java.lang.management.MemoryPoolMXBean;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.security.CodeSource;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
@@ -901,10 +905,59 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
+     * Checks that the qualifier classes this checker runs with are the ones of its own release. A
+     * {@code checker-qual} jar of another Checker Framework that is earlier on the annotation
+     * processor path shadows them: {@code TypeUseLocation} is then the other jar's, which lacks the
+     * constants this release uses, and every compilation unit fails with a {@code
+     * NoSuchFieldError}. Report that once, with the jar, instead (eisop#2372).
+     *
+     * @throws UserError if the qualifier classes are not the ones of this release
+     */
+    private void checkQualifierClasses() {
+        // Not a reference to the constant: that is the NoSuchFieldError this method prevents.
+        String missing = "TypeUseLocation.TYPE_VARIABLE_USE";
+        for (TypeUseLocation location : TypeUseLocation.values()) {
+            if (location.name().equals("TYPE_VARIABLE_USE")) {
+                missing = null;
+                break;
+            }
+        }
+        CodeSource qualSource = TypeUseLocation.class.getProtectionDomain().getCodeSource();
+        CodeSource eisopSource = UnannotatedFor.class.getProtectionDomain().getCodeSource();
+        boolean mixed = !Objects.equals(qualSource, eisopSource);
+        if (missing == null && !mixed) {
+            return;
+        }
+        throw new UserError(
+                "The qualifier classes of the Checker Framework were loaded from %s, which is not the"
+                        + " checker-qual of this release (%s). A checker-qual jar of another"
+                        + " Checker Framework is earlier on the annotation processor path; put the"
+                        + " Checker Framework's checker.jar before it, or remove it from the"
+                        + " processor path.",
+                locationOf(qualSource),
+                missing != null
+                        ? "it lacks " + missing
+                        : "other qualifiers come from " + locationOf(eisopSource));
+    }
+
+    /**
+     * Returns the location of a code source, for a message.
+     *
+     * @param source a code source, or null if a class has none
+     * @return the location of {@code source}, or "an unknown location"
+     */
+    private static String locationOf(@Nullable CodeSource source) {
+        URL location = source == null ? null : source.getLocation();
+        return location == null ? "an unknown location" : location.toString();
+    }
+
+    /**
      * Reads the command-line options that {@link #init} acts on. Called by {@link #init}, which
      * reports a {@link UserError} thrown here as a compiler error.
      */
     private void initOptions() {
+        checkQualifierClasses();
+
         // Keep in sync with check in checker-framework/build.gradle .
         int jreVersion = SystemUtil.jreVersion;
         List<Integer> supportedJres = Arrays.asList(8, 11, 17, 21, 25, 27, 28);
@@ -1007,10 +1060,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected void setRoot(CompilationUnitTree newRoot) {
         this.currentRoot = newRoot;
         visitor.setRoot(currentRoot);
-        if (parentChecker == null) {
-            // Only clear the path cache if this is the main checker.
-            getTreePathCacher().clear();
-        }
+        // The cache is shared with the other checkers of a compound checker, which may have reached
+        // this compilation unit first. Clear it only when the unit changes.
+        getTreePathCacher().useUnit(newRoot);
     }
 
     /**
@@ -1558,7 +1610,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param checkerClass the class of the subchecker to return
      * @return the requested (immediate) subchecker or null if not found
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({
+        "unchecked",
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     public <T extends SourceChecker> @Nullable T getSubchecker(Class<T> checkerClass) {
         for (SourceChecker checker : immediateSubcheckers) {
             if (checker.getClass() == checkerClass) {
