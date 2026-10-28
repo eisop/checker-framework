@@ -76,6 +76,28 @@ public class AnnotatedTypes {
     private static @MonotonicNonNull AsSuperVisitor asSuperVisitor;
 
     /**
+     * Returns the innermost of {@code type} and its enclosing types whose erasure is a subtype of
+     * the erasure of {@code enclosingClass}, or null if there is none. Applied to the type of
+     * {@code this}, it gives the type of the enclosing instance of an inner class of {@code
+     * enclosingClass} that is created without an explicit enclosing instance (JLS 15.9.2).
+     *
+     * @param type a type, typically the type of {@code this}
+     * @param enclosingClass the type of the class that encloses the inner class
+     * @param types the type utilities
+     * @return the innermost of {@code type} and its enclosing types that is a subtype of {@code
+     *     enclosingClass}, or null if there is none
+     */
+    public static @Nullable AnnotatedDeclaredType innermostEnclosingSubtype(
+            AnnotatedDeclaredType type, TypeMirror enclosingClass, Types types) {
+        AnnotatedDeclaredType result = type;
+        while (result != null
+                && !TypesUtils.isErasedSubtype(result.getUnderlyingType(), enclosingClass, types)) {
+            result = result.getEnclosingType();
+        }
+        return result;
+    }
+
+    /**
      * Copies annotations from {@code type} to a copy of {@code superType} where the type variables
      * of {@code superType} have been substituted. How the annotations are copied depends on the
      * kinds of AnnotatedTypeMirrors given. Generally, if {@code type} and {@code superType} are
