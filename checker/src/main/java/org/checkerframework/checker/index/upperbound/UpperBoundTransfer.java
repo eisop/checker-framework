@@ -864,7 +864,7 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
         AnnotatedTypeMirror substringIndexType =
                 atypeFactory.getSubstringIndexAnnotatedTypeFactory().getAnnotatedType(nodeTree);
         AnnotationMirror substringIndexAnno =
-                substringIndexType.getAnnotation(SubstringIndexFor.class);
+                substringIndexType.getEffectiveAnnotation(SubstringIndexFor.class);
         // Annotation from the Lower bound hierarchy
         AnnotatedTypeMirror lowerBoundType =
                 atypeFactory.getLowerBoundAnnotatedTypeFactory().getAnnotatedType(nodeTree);

@@ -496,6 +496,11 @@ Other improvements and bug fixes:
   intersection type bounded by a boxed primitive type, such as `x++` for
   `<N extends Integer> N x`. The CFG now unboxes such an expression through
   its bound, as javac does.
+- The Index Checker no longer crashes on an expression whose type is a type
+  variable bounded by a boxed integral type, such as an array index `a[x]` for
+  `<N extends Integer> N x`, or such an argument of `Math.min`, `Math.max`, or
+  `Random.nextInt`: the qualifier of a type variable's bound is used where the
+  checker read the type's primary qualifier.
 - A `checker-qual` jar of another Checker Framework that is earlier on the
   annotation processor path than `checker.jar`, as Error Prone's configuration
   can arrange, is now reported once, with the jar it was loaded from, instead
@@ -665,6 +670,7 @@ eisop#2357,
 eisop#2358,
 eisop#2366,
 eisop#2372,
+eisop#2404,
 typetools#399,
 typetools#602,
 typetools#2816,
