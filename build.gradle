@@ -272,9 +272,11 @@ allprojects { currentProj ->
     // buildSrc/src/main/groovy/cf-spotless.gradle.
     apply plugin: "cf-spotless"
 
-    test {
+    // For every Test task, not only `test`: a task such as allNullnessTests otherwise gets
+    // Gradle's default of 512 MB, in which the binary stub diff test runs out of memory on JDK 11.
+    tasks.withType(Test).configureEach {
         minHeapSize = "256m" // initial heap size
-    maxHeapSize = "4g" // maximum heap size
+        maxHeapSize = "4g" // maximum heap size
     }
 
     boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersionInt)
