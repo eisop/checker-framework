@@ -566,6 +566,21 @@ public class MutabilityNoInitAnnotatedTypeFactory
         public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
             return null;
         }
+
+        /**
+         * Leaves a cast to a type variable from an operand that is not a type variable unannotated,
+         * so that {@code (E) elements[i]} is {@code E}. Such a cast is unchecked: the run time
+         * checks only the erasure of the type variable, and javac trusts the programmer with it.
+         * The Mutability Checker trusts it in the same way. Taking the operand's qualifier, as
+         * other type systems do, would reject every such cast, because no object has a qualifier
+         * below the {@code @MutabilityBottom} lower bound of a type variable.
+         *
+         * @param castType the type of the cast, a type variable
+         * @param exprType the type of the cast's operand, not a type variable
+         */
+        @Override
+        protected void addAnnoUnlessBelowLowerBound(
+                AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {}
     }
 
     /** Applies mutability-specific tree defaults. */

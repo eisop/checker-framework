@@ -405,7 +405,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      * @param castType the type of the cast, a type variable
      * @param exprType the type of the cast's operand, not a type variable
      */
-    private void addAnnoUnlessBelowLowerBound(
+    protected void addAnnoUnlessBelowLowerBound(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         AnnotationMirrorSet lowerBoundAnnos =
                 AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, castType);
