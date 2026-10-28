@@ -2053,6 +2053,129 @@ The changelog's "about 6-16% faster" for the Resource Leak Checker is the range 
 these rounds, including a reviewer's 6.4%: the -15.7% above and the -10.9% of the re-measurement
 both lie in it.
 
+### Index Checker: quadratic in the statements of one method (October 2026, eisop#2357)
+
+Workload: one method `void m(int[] a) { int j = 0; <N times: j -= 1; j += 1;> }` under the Index
+Checker, `java -jar checker.jar -proc:only`, JDK 21. With PR #2360, N = 500/1000/2000/4000 took
+3.3/6.9/18.4/60.9 s (medians of 3 interleaved runs; master: 4.5/10.9/34.3/136 s on JDK 25).
+
+JFR at N = 2000 (1469 samples): 74% inclusive in `Resolver#computeEnvForPath` →
+`JavacTrees#getScope` → `Attr#attribStatToTree`, reached from
+`DependentTypesTreeAnnotator#visitTypeCast` through `StringToJavaExpression#atPath` and
+`Resolver#findLocalVariableOrParameter`. The type of `j - 1` is `@LessThan("j")`, so the artificial
+cast of each `j -= 1` parses `"j"` at that compound assignment. The leaf self-time under it is javac
+re-attributing the statements before the leaf (`Operators#resolveBinary` → `Types#unboxedType`
+52%, `StringNameTable#fromString` 20%): `getScope` attributes a copy of the method body up to the
+copy of the leaf, so each location costs time linear in its position, and there are N locations.
+The per-leaf `envCache` computes each location once; it cannot help across locations.
+
+Fix: `Resolver#pathWithSameScope` maps the expression of an expression statement in a block (or `case`) to the
+expression of the first statement of its run of expression statements, and `getEnvForPath` computes
+and caches the environment at that statement. An expression statement adds nothing to the scope of
+the statements after it (no pattern binding is in scope after an expression statement), except a
+`this(...)` or `super(...)` call, which ends a constructor prologue, so such calls end a run. The
+environment at the expression of a statement is the block's environment after the statements before
+it, which is the same for every statement of the run; `findVar` still gets the original leaf as its
+position. The repro now computes one environment instead of N: 2.5/3.3/5.1/8.7 s for N =
+500/1000/2000/4000. `ResolverTest#runOfExpressionStatements` and `#constructorCallEndsRun` check
+that a declaration and a `this(...)` call end a run, and which statements share an environment. The
+statements of an old-style `case` form runs too (`#runOfExpressionStatementsInCase`); a `case` rule
+has a single statement. Statements separated by
+declarations, or nested in `if`, loops, or `try`, still each cost a re-attribution; the lookup in
+the source below avoids it for local variables. Finding the start of the run
+walks the block's statements, linear per query, about 1% of the samples at N = 4000.
+
+Index Checker and Resource Leak Checker diagnostics on plume-util with its `@SuppressWarnings`
+removed are unchanged (189 and 22 warnings), except for the element order of `@LTLengthOf(value=...,
+offset=...)` in a few messages (one to six, depending on the build). That order comes from the
+`HashMap` keyed by element symbols in `DependentTypesHelper#convertAnnotationMirror`, which iterates
+in identity-hash order, and the change allocates differently. With `-XX:hashCode=2` (constant
+identity hash codes) the messages of both versions are identical.
+
+After that fix, JFR at N = 4000 (805 samples) showed a second quadratic: 32% self-time in
+`AnnotatedTypeFactory#declarationFromElement`, at its `TreeInfo.declarationFor` calls, reached from
+`GenericAnnotatedTypeFactory#getAnnotatedTypeLhs` for `j`. `getAnnotatedTypeLhs` sets
+`shouldCache` to false while it computes the type of the left-hand side, and
+`declarationFromElement` used `elementToTreeCache` only when `shouldCache` was true, so it scanned
+the method body for the declaration of `j` at each assignment. The declaration of an element does
+not depend on the types computed so far, so the cache is now used whenever it exists. It is null
+only with `-AatfDoNotCache`, which therefore still scans each time. N = 500/1000/2000/4000: 2.2/2.9/3.9/5.8 s, about 1 ms per pair
+from N = 1000 on, so linear; the N = 4000 profile no longer has a leaf above 8%. Plume-util
+diagnostics are as with the first fix.
+
+Wall time of the repro (s, medians of 3 interleaved runs, JDK 21):
+
+| N | PR #2360 | shared environments | and declaration cache |
+| ---: | ---: | ---: | ---: |
+| 500 | 3.28 | 2.45 | 2.23 |
+| 1000 | 6.94 | 3.30 | 2.92 |
+| 2000 | 18.40 | 5.06 | 3.87 |
+| 4000 | 60.92 | 8.72 | 5.80 |
+
+On plume-util with its `@SuppressWarnings` removed (JDK 25, medians of 5 interleaved runs after a
+warm-up), master and both changes took 10.29 s and 9.30 s under the Resource Leak Checker, and
+19.83 s and 19.63 s under the Index Checker. The Resource Leak Checker's gain is presumably that of
+PR #2360: an earlier build of its branch took about as long as both changes (3 interleaved runs).
+
+Shared environments help only consecutive expression statements. With other statements between the
+compound assignments, the repro stayed quadratic (Index Checker, JDK 25, one run each, s):
+
+| statements per pair | N = 500 | 1000 | 2000 |
+| --- | ---: | ---: | ---: |
+| `j -= 1; j += 1;` | 2.0 | 2.6 | 3.9 |
+| `int k<i> = j; j -= 1; j += 1;` | 3.6 | 7.8 | 22.0 |
+| `if (j > 0) { j -= 1; } j += 1;` | 4.4 | 8.9 | 27.3 |
+| `try { j -= 1; } finally { j += 1; }` | 3.7 | 6.9 | 18.3 |
+| `for (int k = 0; k < 1; k++) { j -= 1; } j += 1;` | 6.6 | 16.5 | 52.9 |
+
+(master: 3.2/6.6/18.4, 3.7/8.6/22.9, 4.6/9.6/27.6, 4.0/7.4/20.0, and 7.0/18.2/60.9 s for N =
+500/1000/2000.) Each run of expression statements still computes its own environment, and a
+statement in a nested block starts a run of its own.
+
+Fix: `Resolver#findLocalVariableOrParameter` first looks for the declaration in the source
+(`Resolver#localDeclarationInScope`): it walks up the path to the innermost enclosing class and
+collects the declarations before the leaf in each enclosing block or `case`, the variables of an
+enclosing `for`, enhanced `for`, `catch`, and `try`-with-resources, and the parameters of an
+enclosing lambda or method. A variable found that way is the answer, because a local variable must
+not be redeclared within its scope (JLS 6.4), so nothing else in scope has its name; a field of a
+local or anonymous class can hide it, which is why the search stops at a class. If nothing is found
+and the leaf is in a member of a class that is not in code, and no variable anywhere in that member
+(pattern variables included) has the name, no local variable of that name is in scope, and the
+method returns null without javac. Only otherwise, such as for pattern variables, a variable of an
+earlier `case` of an old-style `switch`, or code in a local or anonymous class, does it compute the
+environment as before. The names declared in a member are computed once per member, in a
+single-entry cache. It assumes that the queries come in runs per member, as they do while the
+dataflow analysis and the visitor process one method. A workload that alternates between members
+recomputes the names at each switch, at the cost of one `TreeScanner` pass over the member. That is
+linear in the size of the member, as is the re-attribution that one javac lookup there costs, so such
+a workload does not become quadratic. After this change (s):
+
+| statements per pair | N = 500 | 1000 | 2000 | 4000 |
+| --- | ---: | ---: | ---: | ---: |
+| `j -= 1; j += 1;` | 2.1 | 2.7 | 5.0 | 5.7 |
+| `int k<i> = j; j -= 1; j += 1;` | 2.3 | 3.3 | 5.2 | 6.1 |
+| `if (j > 0) { j -= 1; } j += 1;` | 2.4 | 3.3 | 5.3 | 7.0 |
+| `try { j -= 1; } finally { j += 1; }` | 2.3 | 4.1 | 4.4 | 6.4 |
+| `for (int k = 0; k < 1; k++) { j -= 1; } j += 1;` | 4.1 | 10.6 | 22.7 | 121 (OOM) |
+
+The `for` mix is still quadratic for a different reason: JFR at N = 2000 (2050 samples) has no
+`Resolver` frame; 63% is inclusive in `CFAbstractStore#leastUpperBound` → `mergeMap` at the merges
+of the loops, with self-time in `IdentityHashMap#get`, `HashMap#getNode`, and
+`CFAbstractValue#canBeMissingAnnotations`. Presumably the store grows with the loop variables `k`,
+which stay in it after their loops, so each merge is linear in the number of loops before it (a
+hypothesis, not checked). The Nullness Checker on the same mix is close to linear (5.4/9.1/20.0 s for
+N = 1000/2000/4000). The remaining quadratic cost is eisop#2374.
+
+The variable found in the source is the symbol of its declaration, whereas the environment that
+`Trees#getScope` computes holds copies made by attributing a copy of the method. `LocalVariable`
+compares variables by name, position, and owner, so both are the same `LocalVariable`. But javac's
+flow analysis does not run on the copy, so a copy lacks the `EFFECTIVELY_FINAL` flag: the Lock
+Checker reported `lock.expression.not.final` for `@GuardedBy("localLock")` on an effectively final
+local variable `localLock`, as the expected errors of `checker/tests/lock/Issue524.java` recorded
+(the test's comment says the desired result is no diagnostic). The source lookup removes that false
+positive; it remains where the lookup falls back to javac (eisop#2375). The checker JUnit tests pass with the
+two expected errors removed.
+
 ### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
 
 `CheckerFrameworkPerDirectoryTest` previously hardcoded `-AajavaChecks` across all directory tests.
@@ -2415,8 +2538,18 @@ the head of a loop is the intersection of the entry store and the back edge's, w
 store, so the type of `this` that an early fixpoint iteration caches is never more initialized than
 the final one. A probe with `this` passed as an `@UnderInitialization` argument before and after
 field assignments in `while` and `for` loops reported the same errors with and without
-`-AatfDoNotCache`. Independently, the cached type of `this` differs from a recomputed one even when
-both queries come after dataflow (eisop#2344).
+`-AatfDoNotCache`. The difference between the cached type of `this` and a recomputed one after
+dataflow (eisop#2344) turned out to be in the recomputation, not in the cache. The Nullness visitor's
+assignment check asks for the store before `this.f`, which `AnalysisResult#runAnalysisFor` answers
+by re-running the transfer functions of the block with `isRunning` set. The transfer function for
+`this` recomputes its type, and `getSelfType` asks the running analysis for the store before the
+tree; the analysis's tree lookup and `currentInput` still belonged to the last CFG analyzed, so the
+answer was null (superclass frame) or the final store of that other CFG (every field initialized).
+The first query for a `this` tree always comes from the real analysis of its CFG, so the cache held
+the right type on plume-util and the nullness-initialization tests. The re-run now sets
+`currentInput` per node and the running-analysis lookup answers the current node's own tree from its
+input; with that, a recompute-and-compare probe reports no `this`/`super` mismatch on either corpus.
+`this` and `super` therefore stay out of `isFlowDependent`.
 
 ### Type caches for constructor arguments in the Initialization Checker (October 2026, PR #2309)
 

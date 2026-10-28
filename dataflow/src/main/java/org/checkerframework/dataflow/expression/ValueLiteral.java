@@ -102,7 +102,13 @@ public class ValueLiteral extends JavaExpression {
         return value;
     }
 
-    @SuppressWarnings("unchecked") // generic cast
+    @SuppressWarnings({
+        "unchecked", // generic cast
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     @Override
     public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
         return getClass() == clazz ? (T) this : null;

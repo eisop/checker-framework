@@ -330,7 +330,8 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                         IndexUtil.getLengthSequenceTree(dimensionTree, imf, processingEnv);
                 if (sequenceTree != null) {
                     AnnotationMirror sequenceAnno =
-                            getAnnotatedType(sequenceTree).getAnnotationInHierarchy(UNKNOWN);
+                            getAnnotatedType(sequenceTree)
+                                    .getEffectiveAnnotationInHierarchy(UNKNOWN);
 
                     JavaExpression sequenceExpr = JavaExpression.fromTree(sequenceTree);
                     if (mayAppearInSameLen(sequenceExpr)) {

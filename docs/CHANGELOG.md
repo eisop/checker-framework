@@ -103,6 +103,12 @@ Type-checking and subtyping improvements:
   `nondet().f`.
 - The Value Checker no longer refines the receiver of `startsWith` or `endsWith` if it is a call to
   a method that is not pure.
+- A cast to a type variable from an operand that is not a type variable now has
+  the qualifier of the operand, unless that qualifier is below the lower bound of
+  the type variable: `(T) o` for a `@Nullable Object o` is `@Nullable T`, so
+  returning it as a `T` is an error. It was typed as `T` and accepted. Code with
+  such unchecked casts, such as `(T) this` or `(T) map.get(k)`, may need
+  additional warning suppressions.
 
 JSpecify support in the Nullness Checker:
 
@@ -234,6 +240,11 @@ The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
 `@GuardedBy` expression whose lock is not held, as it does for an explicit
 dereference of that expression.
 
+The Lock Checker no longer reports `lock.expression.not.final` for an effectively final local
+variable named in a lock expression, except where the variable's declaration is not found in the
+source: for a variable declared in an earlier `case` of an old-style `switch`, a pattern variable,
+or a local variable of an enclosing method used in a local or anonymous class (eisop#2375).
+
 A crash while computing the type of the left-hand side of an assignment no longer disables
 flow-sensitive type refinement for the rest of the compilation. The compilation units checked
 after the crash reported false positives, such as a dereference after `if (x != null)`.
@@ -254,7 +265,20 @@ the dataflow analysis overrides the new `performFlowAnalysisForClassImpl` instea
 `AnnotatedTypeFactory#canUseCachedFlowDependentType` and `#canCacheFlowDependentType` decide when
 the type of a flow-dependent expression is cached; `AnnotatedTypeFactory#isAnonymousDiamondSupertypeFinal`
 now defaults to true, like them. New `AbstractAnalysis#getCurrentNode()` returns the node whose
-transfer function is running.
+transfer function is running. New `PurityUtils#isPure(AnnotationProvider, ExecutableElement)` is
+true for a method that is both deterministic and side-effect-free.
+
+`AnalysisResult#runAnalysisFor`, which re-runs the transfer functions of a block to answer a query
+on a finished analysis, now keeps the analysis's `currentInput` at the input of the node being
+re-run, and `AbstractAnalysis#getStoreBefore(Tree)` answers a query for the tree of the node being
+processed from that input, so a factory that reads the store from within a transfer function sees
+the store before the node in a re-run as well as in the analysis itself.
+
+The `installGitHooks` task, which every build runs, now does nothing in a linked git worktree:
+the hooks directory is shared by all worktrees, and a build of an old commit in a worktree replaced
+the shared pre-commit hook with that commit's version. The `Makefile` clones `.plume-scripts`
+without the `GIT_*` variables that git exports to a hook, so that a pre-commit hook of a checkout
+without that clone no longer writes the clone's tree into the repository's index.
 
 Performance optimizations:
 
@@ -298,6 +322,9 @@ Performance optimizations:
 - `Resolver.getEnvForPath` caches the attribution environment per location, so that
   resolving the identifiers of Java expression strings does not re-attribute the enclosing
   method each time.
+- The Index Checker no longer takes quadratic time in the number of statements of a method that
+  contains compound assignments, local variable declarations, `if`, or `try` statements: a method
+  with 4000 pairs of compound assignments takes about 6 s instead of about a minute.
 - `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
   by their class instead of missing for each new instance of the same type.
 - The types of method invocations, new class, conditional, and other flow-dependent expressions are
@@ -458,6 +485,55 @@ Other improvements and bug fixes:
 - `Arrays.copyOf` no longer crashes when component types differ.
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
+- No longer crashes on a type annotation on an array creation whose element
+  type has a wildcard type argument, such as `new @NonNull List<?>[0]`, inside a
+  method that has a parameter.
+- Type argument inference no longer crashes on a lambda or method reference whose
+  functional interface declares `throws E` and whose target type instantiates `E`
+  with a class, such as a `ThrowingSupplier<Exception>` parameter.
+- No longer crashes at start-up on a JDK 9 to 12 build whose `javac` lacks
+  `TypeVar.setUpperBound`: the upper bound of a type variable is set through
+  the method when it exists and through the `bound` field otherwise, instead
+  of choosing by JDK version.
+- No longer crashes on an increment, decrement, comparison, or arithmetic
+  operation on an expression whose type is a type variable, wildcard, or
+  intersection type bounded by a boxed primitive type, such as `x++` for
+  `<N extends Integer> N x`. The CFG now unboxes such an expression through
+  its bound, as javac does.
+- The Index Checker no longer crashes on an expression whose type is a type
+  variable bounded by a boxed integral type, such as an array index `a[x]` for
+  `<N extends Integer> N x`, or such an argument of `Math.min`, `Math.max`, or
+  `Random.nextInt`: the qualifier of a type variable's bound is used where the
+  checker read the type's primary qualifier.
+- A `checker-qual` jar of another Checker Framework that is earlier on the
+  annotation processor path than `checker.jar`, as Error Prone's configuration
+  can arrange, is now reported once, with the jar it was loaded from, instead
+  of every compilation unit failing with a `NoSuchFieldError`.
+- Type argument inference no longer crashes with "the return value of
+  `AbstractType.asSuper(...)` is null" when a wildcard whose bound is an
+  inference variable is captured, as for a lambda passed as
+  `Supplier<? extends List<? extends T>>`, or when a generic call that takes a
+  method reference or a lambda is the body of a lambda passed to a generic
+  method, as in `each(in, l -> each(l, Box::get))`, or an argument whose formal
+  parameter type is proper. A generic call passed to a generic method of a raw
+  type, as in `q.reduce(id(s))` for a raw `q`, no longer crashes either.
+- No longer crashes on a generic method reference, such as `C::glist` or
+  `ArrayList::new`, returned by a lambda whose target is a raw functional
+  interface type.
+- No longer crashes inferring a type variable whose bound mentions another
+  type variable, such as `B` in `<T, B extends Box<T>> B box()`, from the
+  assignment target.
+- A refined method call, or a fact about a call from a contract such as
+  `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
+  method with side effects, whatever the receiver and arguments of the call are.
+  Before, a call with a class name receiver and no modifiable argument, such as
+  `Foo.get()`, kept its refinement across every call, so a value that a side
+  effect had changed was still believed to be non-null.
+- The Lock Checker now requires a method called in a lock expression, such as
+  `@GuardedBy("lock()")` or `synchronized (lock())`, to be side-effect-free as
+  well as deterministic, that is, `@Pure`. Before, a method that was only
+  `@Deterministic` was accepted although it may change the heap, so that two
+  evaluations of the lock expression could name different locks.
 
 ### Closed issues
 
@@ -577,14 +653,33 @@ eisop#2267,
 eisop#2271,
 eisop#2287,
 eisop#2288,
+eisop#2290,
 eisop#2323,
+eisop#2324,
+eisop#2326,
+eisop#2329,
+eisop#2330,
+eisop#2332,
+eisop#2334,
+eisop#2335,
+eisop#2336,
+eisop#2337,
 eisop#2343,
+eisop#2344,
 eisop#2348,
 eisop#2349,
 eisop#2354,
 eisop#2355,
 eisop#2356,
+eisop#2357,
 eisop#2358,
+eisop#2366,
+eisop#2372,
+eisop#2389,
+eisop#2391,
+eisop#2404,
+eisop#2411,
+eisop#2418,
 typetools#399,
 typetools#602,
 typetools#2816,

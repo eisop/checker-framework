@@ -110,13 +110,17 @@ runs:
         restore-keys: |
           maven-${{ runner.os }}-
 
+    # docs/examples/BazelExample/Makefile runs Bazel only on JDK 21 and earlier.
     - name: Setup Bazel
-      if: ${{ inputs.script == 'cftests-nonjunit' }}
+      if: ${{ inputs.script == 'cftests-nonjunit' && fromJSON(inputs.target-jdk) <= 21 }}
       uses: bazel-contrib/setup-bazel@0.19.1
       with:
         bazelisk-cache: true
         disk-cache: ${{ github.workflow }}
         repository-cache: true
+        # The cache keys hash the example's MODULE.bazel and BUILD files.
+        module-root: docs/examples/BazelExample
+        cache-save: ${{ github.ref == 'refs/heads/master' }}
 
     - name: Set up misc test dependencies
       if: ${{ inputs.script == 'misc' || inputs.script == 'release' }}

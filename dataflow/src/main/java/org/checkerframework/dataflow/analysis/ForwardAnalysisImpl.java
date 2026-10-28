@@ -271,6 +271,7 @@ public class ForwardAnalysisImpl<
         Block block = node.getBlock();
         assert block != null : "@AssumeAssertion(nullness): invariant";
         Node oldCurrentNode = currentNode;
+        TransferInput<V, S> oldCurrentInput = currentInput;
 
         if (isRunning) {
             assert currentInput != null : "@AssumeAssertion(nullness): invariant";
@@ -313,6 +314,11 @@ public class ForwardAnalysisImpl<
                                     store = store.copy();
                                     copied = true;
                                 }
+                                // As in performAnalysisBlock, so that a query for the store
+                                // before the node being processed, made from within its transfer
+                                // function, sees this input rather than the input left behind by
+                                // the last analysis.
+                                currentInput = store;
                                 transferResult = callTransferFunction(n, store);
                                 if (cache != null) {
                                     cache.put(n, transferResult);
@@ -347,7 +353,8 @@ public class ForwardAnalysisImpl<
                         } else {
                             // Copy the store to avoid changing other blocks' transfer inputs in
                             // {@link #inputs}.
-                            transferResult = callTransferFunction(node, blockTransferInput.copy());
+                            currentInput = blockTransferInput.copy();
+                            transferResult = callTransferFunction(node, currentInput);
                             if (cache != null) {
                                 cache.put(node, transferResult);
                             }
@@ -360,6 +367,7 @@ public class ForwardAnalysisImpl<
             }
         } finally {
             setCurrentNode(oldCurrentNode);
+            currentInput = oldCurrentInput;
             isRunning = false;
         }
     }

@@ -413,10 +413,7 @@ public class OptionalImplVisitor
         if (isPresentReceiver instanceof MethodInvocationTree) {
             ExecutableElement ele =
                     TreeUtils.elementFromUse((MethodInvocationTree) isPresentReceiver);
-            boolean isPure =
-                    PurityUtils.isDeterministic(atypeFactory, ele)
-                            && PurityUtils.isSideEffectFree(atypeFactory, ele);
-            if (!isPure) {
+            if (!PurityUtils.isPure(atypeFactory, ele)) {
                 return;
             }
         }

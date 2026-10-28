@@ -1485,6 +1485,37 @@ similar to Java subtype rules, but taking the type qualifiers into account.
 \end{itemize}
 
 
+\subsectionAndLabel{Operations that the source code does not spell out}{creating-implicit-operations}
+
+Some Java statements perform operations that do not appear as separate
+trees, so a rule that you implement for the explicit operation is not
+applied to them.  The most common example is the enhanced \<for> loop
+(also known as a foreach loop).  A plain \<for> loop contains nothing that
+a type system needs to check beyond its parts, but
+\begin{Verbatim}
+  for (Object o : expr) { ... }
+\end{Verbatim}
+calls \<expr.iterator()> if \<expr> is an \<Iterable>, and reads
+the length and the elements of \<expr> if \<expr> is an array.
+A rule that applies to a method call or an array access, such as
+``the receiver or array must not be \<null>'' or ``the lock that guards the
+expression must be held'', is not applied to those calls and reads, because
+the visitor never sees a \<MethodInvocationTree> or an
+\<ArrayAccessTree>.
+
+If your type system has such a rule, override
+\refmethodterse{common/basetype}{BaseTypeVisitor}{visitEnhancedForLoop}{(com.sun.source.tree.EnhancedForLoopTree,java.lang.Void)}
+and apply the rule to \<tree.getExpression()>;
+the Nullness Checker and the Lock Checker do this.
+The same holds for other conversions that javac inserts, such as boxing and
+unboxing.  If your annotated type factory extends
+\refclass{common/basetype}{BaseAnnotatedTypeFactory}, the framework already
+checks the receiver and the arguments of the method calls that boxing,
+unboxing, and an enhanced \<for> loop over an \<Iterable> imply, against the
+declared types of those methods.  That check does not cover reading the
+elements of an array, and it is not performed if your factory extends
+\refclass{framework/type}{GenericAnnotatedTypeFactory} directly.
+
 \subsectionAndLabel{AST traversal}{creating-ast-traversal}
 
 The Checker Framework needs to do its own traversal of the AST even though

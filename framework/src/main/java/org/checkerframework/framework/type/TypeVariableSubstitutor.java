@@ -170,6 +170,12 @@ public class TypeVariableSubstitutor {
             this.typeArgumentsInferred = typeArgumentsInferred;
         }
 
+        @SuppressWarnings({
+            // The cast type has the qualifiers of the operand, which T need not accept.
+            "interning:return.type.incompatible",
+            "rlccalledmethods:return.type.incompatible",
+            "signature:return.type.incompatible"
+        })
         @Override
         protected <T extends AnnotatedTypeMirror> T makeCopy(T original) {
             if (original.getKind() == TypeKind.TYPEVAR) {

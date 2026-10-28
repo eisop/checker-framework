@@ -1,7 +1,6 @@
 import org.checkerframework.checker.lock.qual.GuardedBy;
 import org.checkerframework.checker.lock.qual.GuardedByUnknown;
 import org.checkerframework.checker.lock.qual.MayReleaseLocks;
-import org.checkerframework.dataflow.qual.Deterministic;
 import org.checkerframework.dataflow.qual.Pure;
 
 import java.util.concurrent.locks.ReentrantLock;
@@ -18,7 +17,7 @@ public class LockExpressionIsFinal {
         // checked.
         C1 field2;
 
-        @Deterministic
+        @Pure
         C1 getFieldDeterministic() {
             return field;
         }
@@ -93,7 +92,7 @@ public class LockExpressionIsFinal {
                 new C2(); // Infinite loop. The code is not meant to be executed, only type-checked.
         C2 field2;
 
-        @Deterministic
+        @Pure
         C2 getFieldDeterministic() {
             return field;
         }

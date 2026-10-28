@@ -28,7 +28,10 @@ public class ArrayWrapper<T> {
         delegate[index] = obj;
     }
 
-    @SuppressWarnings("unchecked") // required for normal Java compilation due to unchecked cast
+    // "unchecked" is required for normal Java compilation due to the unchecked cast.  The Index
+    // Checker cannot verify the cast either: the elements of delegate are Objects, and the cast
+    // gives them the qualifiers of Object, which are not those of every instantiation of T.
+    @SuppressWarnings({"unchecked", "index:return.type.incompatible"})
     public T get(@IndexFor("this") int index) {
         return (T) delegate[index];
     }

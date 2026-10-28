@@ -147,43 +147,64 @@ tasks.register("updateUserOptions") {
             )
 }
 
-tasks.register("updateUserOptionsJavadoc", Javadoc) {
-    dependsOn("assemble")
-    description = "Updates documentation of command-line arguments in Javadoc."
+/**
+ * Creates a task that runs plume-lib's OptionsDoclet, which rewrites the documentation of the
+ * annotator's command-line options in a docfile, between its "options doc" markers.
+ *
+ * @param taskName the name of the task to create
+ * @param taskDescription description of the task
+ * @param docfile the file to rewrite
+ * @param format the format of the documentation: "javadoc" or "html"
+ * @return the new task
+ */
+def createUpdateUserOptionsTask(taskName, taskDescription, docfile, format) {
+    tasks.register(taskName, Javadoc) {
+        description = taskDescription
 
-    // Include only sources from annotation-file-utilities, not from scene-lib.
-    source = fileTree(dir: "src", include: "**/*.java")
-    exclude("org.checkerframework.afu.scenelib.io.classfile/**")
-    classpath = project.sourceSets.main.compileClasspath + project.sourceSets.main.runtimeClasspath
-    options.memberLevel = JavadocMemberLevel.PRIVATE
-    options.docletpath = project.sourceSets.main.runtimeClasspath as List
-    options.doclet = "org.plumelib.options.OptionsDoclet"
-    options.addStringOption("docfile", "${projectDir}/src/annotator/Main.java")
-    options.addStringOption("format", "javadoc")
-    options.addStringOption("i", "-quiet")
-    options.addStringOption("source", "8")
-    options.noTimestamp(false)
-    title = ""
+        // Only the annotator's options, not those of scene-lib's ClassFileReader and
+        // ClassFileWriter.
+        source = sourceSets.main.java
+        exclude("org/checkerframework/afu/scenelib/io/classfile/**")
+        classpath = project.sourceSets.main.compileClasspath + project.sourceSets.main.runtimeClasspath
+        options.memberLevel = JavadocMemberLevel.PRIVATE
+        options.docletpath = project.sourceSets.main.runtimeClasspath as List
+        // With this doclet, the root build.gradle adds no taglet, which OptionsDoclet does not
+        // accept, and keeps the member level.
+        options.doclet = "org.plumelib.options.OptionsDoclet"
+        // OptionsDoclet 2 needs the doclet API of JDK 9 and later, and javadoc from JDK 25 on
+        // fails with "AssertionError: ignored flag: -Xlint:-options".
+        def jdkVersion = useJdkVersionInt
+        doFirst {
+            if (jdkVersion < 9 || jdkVersion > 24) {
+                throw new GradleException(
+                        "${taskName} needs JDK 9 to 24, but uses JDK ${jdkVersion}; run it with -PuseJdkVersion=21.")
+            }
+        }
+        // OptionsDoclet loads the annotator's classes, which use javac internals.
+        if (!isJava8) {
+            options.jFlags(*compilerArgsForRunningCF)
+        }
+        options.addStringOption("docfile", docfile)
+        options.addStringOption("format", format)
+        options.addStringOption("i", "-quiet")
+        options.noTimestamp(false)
+        title = ""
+        // Not the javadoc task's directory: OptionsDoclet writes nothing here.
+        destinationDir = layout.buildDirectory.dir("docs/${taskName}").get().asFile
+
+        // The result is the rewritten docfile, which is not a task output, so always run the
+        // task and never take it from the build cache.
+        outputs.upToDateWhen { false }
+        outputs.doNotCacheIf("The result is the docfile, which is rewritten in place") { true }
+    }
 }
 
-tasks.register("updateUserOptionsHtml", Javadoc) {
-    dependsOn("assemble")
-    description = "Updates documentation of command-line arguments in the manual."
-
-    // Include only sources from annotation-file-utilities, not from scene-lib.
-    source = fileTree(dir: "src", include: "**/*.java")
-    exclude("org.checkerframework.afu.scenelib.io.classfile/**")
-    classpath = project.sourceSets.main.compileClasspath + project.sourceSets.main.runtimeClasspath
-    options.memberLevel = JavadocMemberLevel.PRIVATE
-    options.docletpath = project.sourceSets.main.runtimeClasspath as List
-    options.doclet = "org.plumelib.options.OptionsDoclet"
-    options.addStringOption("docfile", "${projectDir}/annotation-file-utilities.html")
-    options.addStringOption("format", "html")
-    options.addStringOption("i", "-quiet")
-    options.addStringOption("source", "8")
-    options.noTimestamp(false)
-    title = ""
-}
+createUpdateUserOptionsTask("updateUserOptionsJavadoc",
+        "Updates documentation of command-line arguments in Javadoc.",
+        file("src/main/java/org/checkerframework/afu/annotator/Main.java").path, "javadoc")
+createUpdateUserOptionsTask("updateUserOptionsHtml",
+        "Updates documentation of command-line arguments in the manual.",
+        rootProject.file("docs/annotation-file-utilities/annotation-file-utilities.html").path, "html")
 
 tasks.named("assemble") {
     dependsOn(shadowJar)

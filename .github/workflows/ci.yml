@@ -19,7 +19,7 @@ permissions:
 
 env:
   PRIMARY_JDK: "21"
-  USE_BAZEL_VERSION: "9.3.0"
+  USE_BAZEL_VERSION: "9.3.1"
   # Pinned pre-release JDK build, from jdk.java.net. Renovate bumps JDK_EA_BUILD;
   # JDK_EA_MAJOR changes by hand when the next feature release opens.
   JDK_EA_MAJOR: "28"
@@ -119,7 +119,9 @@ jobs:
           jdk-ea-major: ${{ env.JDK_EA_MAJOR }}
           jdk-ea-build: ${{ env.JDK_EA_BUILD }}
           script: ${{ matrix.script }}
-          cache-read-only: ${{ github.ref != 'refs/heads/master' && matrix.java.version != env.PRIMARY_JDK }}
+          # Only master writes caches, which pull requests then read.  A pull request's own
+          # entries help only its reruns, and they push master's entries out of the cache.
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
 
       - name: Run test script checker/bin-devel/test-${{ matrix.script }}
         run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -136,7 +138,9 @@ jobs:
       fail-fast: false
       matrix:
         os: ['windows-latest', 'macos-latest']
-        script: ['cftests-junit']
+        # Two parts, as on Linux: a single job took 20 to 27 minutes on Windows and was the
+        # longest job of every run.
+        script: ['cftests-junit-part1', 'cftests-junit-part2']
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}

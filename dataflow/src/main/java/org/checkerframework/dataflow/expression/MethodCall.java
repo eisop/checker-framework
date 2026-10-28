@@ -71,7 +71,13 @@ public class MethodCall extends JavaExpression {
         return Collections.unmodifiableList(arguments);
     }
 
-    @SuppressWarnings("unchecked") // generic cast
+    @SuppressWarnings({
+        "unchecked", // generic cast
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     @Override
     public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
 
@@ -109,9 +115,6 @@ public class MethodCall extends JavaExpression {
 
     @Override
     public boolean isAssignableByOtherCode() {
-        // This ignores whether the method is pure, so a call that is not pure, with a ClassName
-        // receiver and unmodifiable arguments, is not evicted when a method with side effects is
-        // called; see https://github.com/eisop/checker-framework/issues/2326 .
         if (receiver.isModifiableByOtherCode()) {
             return true;
         }
@@ -123,9 +126,20 @@ public class MethodCall extends JavaExpression {
         return false;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns true for every method call. The value of a call depends on the heap, not only on
+     * its receiver and its arguments: a call that reads a static field, such as {@code Foo.get()},
+     * has a class name as its receiver and no arguments, but its value changes when another method
+     * assigns the field. No annotation expresses that a method does not read the heap, so no call
+     * is exempt. (A call is still {@link #isAssignableByOtherCode} only if its receiver or an
+     * argument is, which decides whether the callee can change what the call denotes, as for {@code
+     * a.get().f}.)
+     */
     @Override
     public boolean isModifiableByOtherCode() {
-        return isAssignableByOtherCode();
+        return true;
     }
 
     @Override
