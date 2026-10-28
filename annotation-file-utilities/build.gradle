@@ -159,7 +159,6 @@ tasks.register("updateUserOptions") {
  */
 def createUpdateUserOptionsTask(taskName, taskDescription, docfile, format) {
     tasks.register(taskName, Javadoc) {
-        dependsOn("assemble")
         description = taskDescription
 
         // Only the annotator's options, not those of scene-lib's ClassFileReader and
