@@ -15,7 +15,7 @@ ext {
     // A build is a snapshot of this release, with version "${releaseVersion}-SNAPSHOT", unless it
     // is run with -Prelease=true.  To make a snapshot release: ./gradlew publish
     // To make a release: see docs/developer/release/README-release-process.html.
-    releaseVersion = "3.49.5-eisop2"
+    releaseVersion = "3.55.1-eisop1"
 
     // Matches a released version, including EISOP's "-eisopN" suffix: 1.2.3, 1.2.3.4, 1.2.3-eisop4.
     releaseVersionRegex = "\\d\\.\\d+\\.\\d+(?:\\.\\d)?(?:-eisop\\d+)?"
