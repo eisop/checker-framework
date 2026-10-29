@@ -3913,7 +3913,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         varType.getKind(),
                         varType.toString());
             }
-            return true;
+            return false;
         }
 
         return commonAssignmentCheck(varType, valueExpTree, errorKey, extraArgs);
@@ -3990,7 +3990,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         varType.getKind(),
                         varType.toString());
             }
-            return result;
+            return false;
         }
         AnnotatedTypeMirror valueType = atypeFactory.getAnnotatedType(valueExpTree);
         assert valueType != null : "null type for expression: " + valueExpTree;
