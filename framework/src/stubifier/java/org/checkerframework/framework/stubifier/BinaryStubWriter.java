@@ -1499,7 +1499,9 @@ public class BinaryStubWriter {
             }
         } else if (expr instanceof StringLiteralExpr) {
             out.writeByte('s');
-            out.writeInt(pool.addString(((StringLiteralExpr) expr).getValue()));
+            // asString, not getValue: getValue is the literal as written in the source, with its
+            // escape sequences ("\\d" for the two characters \d).
+            out.writeInt(pool.addString(((StringLiteralExpr) expr).asString()));
         } else if (expr instanceof ClassExpr) {
             out.writeByte('c');
             Type type = ((ClassExpr) expr).getType();

@@ -1144,6 +1144,25 @@ public class BinaryStubWriterTest {
     }
 
     /**
+     * A string value is written unescaped, as {@code StringLiteralExpr#asString} gives it and as
+     * the text parser reads it: {@code "\\d+\t"} is the four characters backslash, d, plus, tab.
+     */
+    @Test
+    public void stringValueIsUnescaped() throws IOException {
+        BinaryStubData data =
+                roundTrip(
+                        "public class EscapedString {\n"
+                                + "  @SuppressWarnings(\"\\\\d+\\t\") void m() {}\n"
+                                + "  @SuppressWarnings({\"\\\"\"}) void n() {}\n"
+                                + "}\n",
+                        false);
+        BinaryStubData.ClassRecord cr = data.classes.get("EscapedString");
+        Assert.assertEquals("\\d+\t", soleDeclAnnoValue(data, cr, "m"));
+        Assert.assertEquals(
+                java.util.Collections.singletonList("\""), soleDeclAnnoValue(data, cr, "n"));
+    }
+
+    /**
      * An annotation named through its enclosing class, as {@code java.lang.invoke.VarHandle} writes
      * {@code @MethodHandle.PolymorphicSignature}, is resolved to its binary name so that its
      * {@code @Target} can be read. Such a name does not load as written: the binary name separates

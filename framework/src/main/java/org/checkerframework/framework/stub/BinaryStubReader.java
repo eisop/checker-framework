@@ -2122,7 +2122,7 @@ public class BinaryStubReader {
                     return coerceToKind(resolved, expectedKind);
                 }
             }
-            // Could not resolve — skip silently, matching AnnotationFileParser behavior.
+            // Could not resolve: the caller drops the whole annotation.
             return null;
         } else if (val instanceof BinaryStubData.AnnotationRecord) {
             return getAnnotationMirror(
@@ -2145,11 +2145,13 @@ public class BinaryStubReader {
      * @param atypeFactory the type factory of the currently-running checker
      * @param data the complete binary stub data, providing the string pool
      * @param elementTypes per-factory state including the annotation mirror cache
+     * @return true if the value was added; false if it, or one of its array elements, could not be
+     *     resolved, in which case nothing was added
      * @throws BugInCF if the annotation type declares no member named {@code name}, or if the
      *     resolved value does not fit that member's declared type
      */
     @SuppressWarnings("unchecked")
-    private static void addValueToBuilder(
+    private static boolean addValueToBuilder(
             AnnotationBuilder builder,
             String name,
             Object val,
@@ -2169,51 +2171,44 @@ public class BinaryStubReader {
                         ? ((ArrayType) returnType).getComponentType().getKind()
                         : returnType.getKind();
 
-        if (isArray) {
-            if (val instanceof List) {
-                List<Object> rawList = (List<Object>) val;
-                List<Object> resolvedList = new ArrayList<>(rawList.size());
-                for (Object item : rawList) {
-                    Object resolved =
-                            resolveSingleValue(
-                                    item,
-                                    expectedKind,
-                                    enclosingClassName,
-                                    atypeFactory,
-                                    data,
-                                    elementTypes);
-                    if (resolved != null) {
-                        resolvedList.add(resolved);
-                    }
-                }
-                builder.setValue(name, resolvedList);
-            } else {
-                // A single value for an array member denotes a one-element array.
+        if (val instanceof List) {
+            if (!isArray) {
+                return false;
+            }
+            List<Object> rawList = (List<Object>) val;
+            List<Object> resolvedList = new ArrayList<>(rawList.size());
+            for (Object item : rawList) {
                 Object resolved =
                         resolveSingleValue(
-                                val,
+                                item,
                                 expectedKind,
                                 enclosingClassName,
                                 atypeFactory,
                                 data,
                                 elementTypes);
-                if (resolved != null) {
-                    builder.setValue(name, Collections.singletonList(resolved));
+                if (resolved == null) {
+                    // AnnotationFileParser#builderAddElement fails on any unresolvable element
+                    // and drops the whole annotation; it never builds a shorter array.
+                    return false;
                 }
+                resolvedList.add(resolved);
             }
-        } else {
-            Object resolved =
-                    resolveSingleValue(
-                            val,
-                            expectedKind,
-                            enclosingClassName,
-                            atypeFactory,
-                            data,
-                            elementTypes);
-            if (resolved != null) {
-                dispatchSetValue(builder, name, resolved);
-            }
+            builder.setValue(name, resolvedList);
+            return true;
         }
+        Object resolved =
+                resolveSingleValue(
+                        val, expectedKind, enclosingClassName, atypeFactory, data, elementTypes);
+        if (resolved == null) {
+            return false;
+        }
+        if (isArray) {
+            // A single value for an array member denotes a one-element array.
+            builder.setValue(name, Collections.singletonList(resolved));
+        } else {
+            dispatchSetValue(builder, name, resolved);
+        }
+        return true;
     }
 
     /**
@@ -2307,14 +2302,20 @@ public class BinaryStubReader {
         try {
             for (Map.Entry<Integer, Object> entry : ar.elementValues.entrySet()) {
                 String memberName = data.stringPool[entry.getKey()];
-                addValueToBuilder(
+                if (!addValueToBuilder(
                         builder,
                         memberName,
                         entry.getValue(),
                         enclosingClassName,
                         atypeFactory,
                         data,
-                        elementTypes);
+                        elementTypes)) {
+                    // A value the writer recorded does not resolve here, e.g. a constant of a
+                    // class that is not on the classpath. AnnotationFileParser#getAnnotation
+                    // drops the whole annotation in that case, with a warning for a -Astubs file.
+                    elementTypes.warnUnresolvedBinaryStubValue(fqn, memberName);
+                    return null;
+                }
             }
             return builder.build();
         } catch (BugInCF e) {

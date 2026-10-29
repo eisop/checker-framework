@@ -1266,11 +1266,52 @@ public class AnnotationFileElementTypes {
             AnnotationFileResource resource,
             @Nullable URL textResourceURL) {
         if (decision.data != null) {
-            applyBinaryStub(decision.data, textResourceURL, resource.getDescription());
+            commandLineBinaryStubDescription = resource.getDescription();
+            try {
+                applyBinaryStub(decision.data, textResourceURL, resource.getDescription());
+            } finally {
+                commandLineBinaryStubDescription = null;
+            }
             return true;
         }
         parseCommandLineStubAsText(resource, decision.sourceBytes);
         return false;
+    }
+
+    /**
+     * The description of the {@code -Astubs} file whose binary form is being applied, or null while
+     * none is. Read by {@link #warnUnresolvedBinaryStubValue}.
+     */
+    private @Nullable String commandLineBinaryStubDescription = null;
+
+    /**
+     * Warns that the binary form of a {@code -Astubs} file has an annotation with a value that does
+     * not resolve, so that the annotation is skipped -- as {@code AnnotationFileParser} warns when
+     * it text-parses such a file. Does nothing for a built-in stub file or the annotated JDK, for
+     * which the text parser does not warn either.
+     *
+     * @param annotationName the fully-qualified name of the skipped annotation
+     * @param elementName the name of the annotation element whose value does not resolve
+     */
+    void warnUnresolvedBinaryStubValue(String annotationName, String elementName) {
+        if (commandLineBinaryStubDescription == null) {
+            return;
+        }
+        Diagnostic.Kind kind =
+                atypeFactory.getProcessingEnv().getOptions().containsKey("stubWarnNote")
+                        ? Diagnostic.Kind.NOTE
+                        : Diagnostic.Kind.WARNING;
+        atypeFactory
+                .getProcessingEnv()
+                .getMessager()
+                .printMessage(
+                        kind,
+                        commandLineBinaryStubDescription
+                                + ": for annotation @"
+                                + annotationName
+                                + ", could not add a value for "
+                                + elementName
+                                + ", so the annotation is skipped");
     }
 
     /**

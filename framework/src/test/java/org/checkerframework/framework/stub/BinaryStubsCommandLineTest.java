@@ -159,6 +159,40 @@ public class BinaryStubsCommandLineTest {
                     + "    }\n"
                     + "}\n";
 
+    /**
+     * The source of a class whose methods {@link #VALUES_STUB} annotates with declaration
+     * annotations that carry element values.
+     */
+    private static final String VALUES_LIB_SOURCE =
+            "public class Lib {\n"
+                    + "    public static final String C = \"c\";\n"
+                    + "    public static Object maybeEncrypted() { return null; }\n"
+                    + "    public static void escaped(Object o) {}\n"
+                    + "    public static void missingConstantInArray(Object o) {}\n"
+                    + "    public static void missingClass(Object o) {}\n"
+                    + "}\n";
+
+    /**
+     * A stub whose annotation values the text parser and the binary form must agree on: a string
+     * with escape sequences, and values that cannot be resolved, so that the whole annotation is
+     * dropped -- a constant of a class that does not exist (as one array element), and a class
+     * literal of a class that does not exist.
+     */
+    private static final String VALUES_STUB =
+            "import org.checkerframework.framework.qual.EnsuresQualifier;\n"
+                    + "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "public class Lib {\n"
+                    + "    public static @Encrypted Object maybeEncrypted();\n"
+                    + "    @EnsuresQualifier(expression = \"\\\\d+\\t\", qualifier = Encrypted.class)\n"
+                    + "    public static void escaped(Object o);\n"
+                    + "    @EnsuresQualifier(\n"
+                    + "            expression = {\"#1\", Missing.X},\n"
+                    + "            qualifier = Encrypted.class)\n"
+                    + "    public static void missingConstantInArray(Object o);\n"
+                    + "    @EnsuresQualifier(expression = \"#1\", qualifier = Missing.class)\n"
+                    + "    public static void missingClass(Object o);\n"
+                    + "}\n";
+
     /** A trivial, unrelated stub file, used to make a directory's binary setup incomplete. */
     private static final String OTHER_STUB = "class Other {\n}\n";
 
@@ -593,8 +627,7 @@ public class BinaryStubsCommandLineTest {
     }
 
     /**
-    /**
-     * A method whose own {@code @AnnotatedFor} excludes the running checker is skipped by text
+     * /** A method whose own {@code @AnnotatedFor} excludes the running checker is skipped by text
      * parsing ({@code AnnotationFileParser.processCallableDeclaration}) and by the binary form
      * alike, so its {@code @Encrypted} return type does not apply.
      */
@@ -644,6 +677,82 @@ public class BinaryStubsCommandLineTest {
                         libSource, useSource, "-Astubs=" + stubsDir, "-AbinaryStubDiffCheck");
         Assert.assertTrue("the binary form must not apply the stub", has(binary, MISMATCH_KEY));
         assertNoDiffCheckMismatch(binary);
+    }
+
+    /**
+     * The binary form of a stub applies the same annotation element values as text parsing does, as
+     * the differential check ({@code -AbinaryStubDiffCheck}) verifies by comparing the annotations
+     * of both, with their values: a string value is unescaped, and an annotation with a value that
+     * the text parser rejects or cannot resolve is dropped as a whole, not kept with the value
+     * evaluated anyway, resolved against the enclosing class, or left out.
+     */
+    @Test
+    public void annotationValuesMatchTextParsing() throws IOException {
+        Path stubsDir = tempDir.resolve("stubs");
+        write(stubsDir.resolve("Lib.astub"), VALUES_STUB);
+        BinaryStubFileGenerator.main(new String[] {stubsDir.toString(), stubsDir.toString()});
+        Assert.assertTrue(
+                "generator must have written a sibling binary",
+                Files.isRegularFile(stubsDir.resolve("Lib.astub.bin.gz")));
+
+        List<Diagnostic<? extends JavaFileObject>> diagnostics =
+                compileSources(
+                        VALUES_LIB_SOURCE,
+                        USE_SOURCE,
+                        "-Astubs=" + stubsDir,
+                        "-AbinaryStubDiffCheck");
+        Assert.assertFalse(
+                "the binary stub must have been applied", has(diagnostics, MISMATCH_KEY));
+        assertNoDiffCheckMismatch(diagnostics);
+    }
+
+    /**
+     * Like text parsing, applying the binary form of a {@code -Astubs} file warns about an
+     * annotation it skips because one of its values does not resolve.
+     */
+    @Test
+    public void unresolvableValueIsWarnedAbout() throws IOException {
+        Path stubsDir = tempDir.resolve("stubs");
+        write(stubsDir.resolve("Lib.astub"), VALUES_STUB);
+        BinaryStubFileGenerator.main(new String[] {stubsDir.toString(), stubsDir.toString()});
+
+        // -AstubWarnIfNotFound forces text parsing; see useBinaryForCommandLineStubs.
+        List<Diagnostic<? extends JavaFileObject>> text =
+                compileSources(
+                        VALUES_LIB_SOURCE,
+                        USE_SOURCE,
+                        "-Astubs=" + stubsDir,
+                        "-AstubWarnIfNotFound");
+        List<Diagnostic<? extends JavaFileObject>> binary =
+                compileSources(VALUES_LIB_SOURCE, USE_SOURCE, "-Astubs=" + stubsDir);
+        for (String element : new String[] {"expression", "qualifier"}) {
+            Assert.assertTrue(
+                    "text parsing must warn about the unresolvable " + element,
+                    hasWarningContaining(text, "could not add  " + element + "="));
+            Assert.assertTrue(
+                    "the binary form must warn about the unresolvable " + element,
+                    hasWarningContaining(binary, "could not add a value for " + element));
+        }
+    }
+
+    /**
+     * Returns true if {@code diagnostics} contains a warning whose message contains {@code text}.
+     *
+     * @param diagnostics the diagnostics to search
+     * @param text the text to look for
+     * @return true if found
+     */
+    private static boolean hasWarningContaining(
+            List<Diagnostic<? extends JavaFileObject>> diagnostics, String text) {
+        for (Diagnostic<? extends JavaFileObject> d : diagnostics) {
+            String message = d.getMessage(null);
+            if (d.getKind() == Diagnostic.Kind.WARNING
+                    && message != null
+                    && message.contains(text)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
