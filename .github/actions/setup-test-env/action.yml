@@ -118,6 +118,27 @@ runs:
         restore-keys: |
           maven-${{ runner.os }}-
 
+    # The downloadJtreg task in build.gradle skips the download when jtreg is already in ../jtreg.
+    # Key the cache by the name of the file that the task downloads, so that a new version of
+    # jtreg is downloaded once.
+    - name: Find the jtreg version
+      id: jtreg
+      if: ${{ inputs.script == 'cftests-nonjunit' }}
+      shell: bash
+      run: |
+        file=$(grep -o 'jtreg/jtreg-[^"]*\.zip' build.gradle | cut -d/ -f2)
+        test -n "$file"
+        echo "file=$file" >> "$GITHUB_OUTPUT"
+
+    - name: Cache jtreg
+      if: ${{ inputs.script == 'cftests-nonjunit' }}
+      uses: actions/cache@v6
+      with:
+        # The directory that contains the checkout, which is where build.gradle looks for jtreg.
+        # actions/cache rejects a path that contains "..".
+        path: ${{ runner.workspace }}/jtreg
+        key: ${{ steps.jtreg.outputs.file }}
+
     # docs/examples/BazelExample/Makefile runs Bazel only on JDK 21 and earlier.
     - name: Setup Bazel
       if: ${{ inputs.script == 'cftests-nonjunit' && fromJSON(inputs.target-jdk) <= 21 }}

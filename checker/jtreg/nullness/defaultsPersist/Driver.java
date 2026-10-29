@@ -51,7 +51,7 @@ public class Driver {
         }
         String name = args[0];
         Class<?> clazz = Class.forName(name);
-        new Driver().runDriver(clazz.newInstance());
+        new Driver().runDriver(clazz.getDeclaredConstructor().newInstance());
     }
 
     /**
