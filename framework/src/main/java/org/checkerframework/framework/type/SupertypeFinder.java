@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 
 import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
@@ -213,7 +212,7 @@ final class SupertypeFinder {
                                         .getTypeVarSubstitutor()
                                         .substitute(typeVarToTypeArg, dt));
             }
-            if (typeElement.getNestingKind() == NestingKind.ANONYMOUS && !superTypesNew.isEmpty()) {
+            if (ElementUtils.isAnonymous(typeElement) && !superTypesNew.isEmpty()) {
                 adaptAnonymousSuperclassEnclosingType(type, superTypesNew.get(0));
             }
 
@@ -245,13 +244,9 @@ final class SupertypeFinder {
             // Without an explicit enclosing instance, the enclosing instance of the superclass is
             // the innermost enclosing instance of a subclass of the superclass's enclosing class
             // (JLS 15.9.2), which need not be the anonymous class's own enclosing instance.
-            while (enclosing != null
-                    && !TypesUtils.isErasedSubtype(
-                            enclosing.getUnderlyingType(),
-                            superclassEnclosing.getUnderlyingType(),
-                            types)) {
-                enclosing = enclosing.getEnclosingType();
-            }
+            enclosing =
+                    AnnotatedTypes.innermostEnclosingSubtype(
+                            enclosing, superclassEnclosing.getUnderlyingType(), types);
             if (enclosing == null) {
                 return;
             }
