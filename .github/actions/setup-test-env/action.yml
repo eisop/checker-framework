@@ -10,14 +10,14 @@ inputs:
     description: 'Target JDK version for tests'
     required: false
     default: '21'
+  # No defaults: the only copy of these values is JDK_EA_MAJOR and JDK_EA_BUILD in ci.yml, which
+  # Renovate updates.
   jdk-ea-major:
     description: 'Major version of current Early Access JDK'
-    required: false
-    default: '28'
+    required: true
   jdk-ea-build:
     description: 'Build number of current Early Access JDK'
-    required: false
-    default: '15'
+    required: true
   script:
     description: 'Test script name (e.g. cftests-nonjunit, guava, misc)'
     required: false
@@ -30,6 +30,18 @@ inputs:
 runs:
   using: composite
   steps:
+    # GitHub does not enforce "required" for the inputs of a composite action.
+    - name: Check the early-access JDK inputs
+      shell: bash
+      env:
+        MAJOR: ${{ inputs.jdk-ea-major }}
+        BUILD: ${{ inputs.jdk-ea-build }}
+      run: |
+        if [ -z "$MAJOR" ] || [ -z "$BUILD" ]; then
+          echo "::error::Pass jdk-ea-major and jdk-ea-build, from JDK_EA_MAJOR and JDK_EA_BUILD in ci.yml."
+          exit 1
+        fi
+
     - name: Set up primary JDK ${{ inputs.primary-jdk }}
       uses: actions/setup-java@v6.1.0
       with:

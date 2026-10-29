@@ -269,6 +269,14 @@ about classes in your own project or its dependencies means that you have
 left your own project or its dependencies off the classpath when you
 invoked the compiler.
 
+\item
+A warning ``[class.not.completed] Cannot read a class file that is needed
+by ...'' means that the Checker Framework needed a class file, for example
+that of an annotation written on the named element or on an element it
+overrides, but could not read it.  The Checker Framework continues without
+the annotations it could not read, so its results may be imprecise.  Put
+the missing class on the classpath.
+
 \end{itemize}
 
 

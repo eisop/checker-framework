@@ -278,9 +278,11 @@ command-line option.)
   before a type parameter, on a pattern, on a type argument of a receiver parameter's
   type, or on the root type of a local variable, of a resource variable, of a cast, or
   of a method reference.  Each of these locations is reported under its own
-  \code{jspecify.unrecognized.location.*} message key (for example
-  \code{jspecify.unrecognized.location.wildcard}), the same way other diagnostics in
-  this manual distinguish one location from another.
+  \code{jspecify.unrecognized.location.*} message key, the same way other diagnostics in
+  this manual distinguish one location from another:  \code{.class}, \code{.wildcard},
+  \code{.typevar}, \code{.pattern}, \code{.receiver}, \code{.local},
+  \code{.resource}, \code{.cast}, and \code{.methodref}, in the order of the
+  locations above.
   Four related locations are reported whether or not you supply this option, because the
   Checker Framework gives an annotation there no meaning either:  the root of the type
   after \code{instanceof}, or of a type that a pattern binds, is reported as
@@ -714,6 +716,34 @@ Note: The nullness of the returned array doesn't depend on the passed array null
 This is a fact about
 \sunjavadoc{java.base/java/util/Collection.html\#toArray(T[])}{Collection.toArray(T[])},
 not a limitation of this heuristic.
+
+
+\subsectionAndLabel{Nullness and copying arrays}{nullness-arrays-copyof}
+
+% Implemented in org.checkerframework.checker.nullness.NullnessNoInitAnnotatedTypeFactory
+
+A call to \sunjavadoc{java.base/java/util/Arrays.html\#copyOf(T[],int)}{Arrays.copyOf}
+returns an array whose elements beyond the length of the original array are
+\<null>, so its component type is \<@Nullable> in general.  The Nullness
+Checker gives the result the component type of the original array, such as
+\<@NonNull>, when the length argument is the length of that same array and the
+array expression is side-effect-free and deterministic, as in
+\<Arrays.copyOf(a, a.length)>.  The same holds for
+\sunjavadoc{java.base/java/util/Arrays.html\#copyOfRange(T[],int,int)}{Arrays.copyOfRange}
+when its \<to> argument is the length of the original array.
+
+When the result of \<Arrays.copyOf> is assigned where an array of \<@NonNull>
+elements is required and the copied array's elements are \<@NonNull>, the
+Nullness Checker issues, in addition to the type error, a warning that says
+why it could not keep the component type:
+\begin{itemize}
+\item \<arrays.copyof.size.mismatch>:  the length argument is not an array
+  length access, as in \<Arrays.copyOf(a, n)>;
+\item \<arrays.copyof.array.mismatch>:  the length argument is the length of a
+  different array, as in \<Arrays.copyOf(a, b.length)>;
+\item \<arrays.copyof.impure>:  the array expression has side effects or is not
+  deterministic, as in \<Arrays.copyOf(getArray(), getArray().length)>.
+\end{itemize}
 
 
 \subsectionAndLabel{Nullness and queue or deque retrieval methods}{nullness-queue-retrieval}
@@ -2000,6 +2030,12 @@ Client.java:7: error: [method.invocation.invalid] call to process(int) not allow
   found   : @UnderInitialization(A.class) A
   required: @Initialized A
 \end{Verbatim}
+
+\noindent
+If the call is on \<this> and some fields of the current class have not yet
+been set at the call, the error is instead
+\<initialization.method.invocation.invalid>, and its message lists those
+fields.
 
 Here is a subclass and client code that crashes with a \<NullPointerException>.
 
