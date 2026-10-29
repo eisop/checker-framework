@@ -134,7 +134,9 @@ runs:
       if: ${{ inputs.script == 'cftests-nonjunit' }}
       uses: actions/cache@v6
       with:
-        path: ${{ github.workspace }}/../jtreg
+        # The directory that contains the checkout, which is where build.gradle looks for jtreg.
+        # actions/cache rejects a path that contains "..".
+        path: ${{ runner.workspace }}/jtreg
         key: ${{ steps.jtreg.outputs.file }}
 
     # docs/examples/BazelExample/Makefile runs Bazel only on JDK 21 and earlier.
