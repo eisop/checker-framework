@@ -250,6 +250,14 @@ or a local variable of an enclosing method used in a local or anonymous class (e
 
 ### Implementation details
 
+Removed methods that have been deprecated for more than two years:
+`TreeUtils.constructor(NewClassTree)` (use `elementFromUse`), `TreeUtils.yieldTreeGetValue`,
+`TreeUtils.isVarArgs` (both overloads), `TreeUtils.isVarArgMethodCall`,
+`AbstractAnalysis.getContainingMethod` and `getContainingClass`,
+`JavaExpression.isUnassignableByOtherCode` and `isUnmodifiableByOtherCode` (use
+`isAssignableByOtherCode` and `isModifiableByOtherCode`, which are now abstract), and
+`AnnotatedTypeMirror.removeNonTopAnnotationInHierarchy` and `isAnnotatedInHierarchy`.
+
 The test framework accepts an expected error key in square brackets, as in
 `// :: error: [assignment]`, as well as in parentheses, so tests written for
 typetools' bracket syntax work unchanged.

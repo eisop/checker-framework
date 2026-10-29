@@ -83,7 +83,6 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.CaseUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.JCVariableDeclUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
-import org.checkerframework.javacutil.TreeUtilsAfterJava11.YieldUtils;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.UniqueIdMap;
 
@@ -2179,19 +2178,6 @@ public final class TreeUtils {
     }
 
     /**
-     * Determines the symbol for a constructor given an invocation via {@code new}.
-     *
-     * @see #elementFromUse(NewClassTree)
-     * @param tree the constructor invocation
-     * @return the {@link ExecutableElement} corresponding to the constructor call in {@code tree}
-     * @deprecated use elementFromUse instead
-     */
-    @Deprecated // 2022-09-12
-    public static ExecutableElement constructor(NewClassTree tree) {
-        return (ExecutableElement) ((JCNewClass) tree).constructor;
-    }
-
-    /**
      * The type of the lambda or method reference tree is a functional interface type. This method
      * returns the single abstract method declared by that functional interface. (The type of this
      * method is referred to as the function type.)
@@ -2944,18 +2930,6 @@ public final class TreeUtils {
     }
 
     /**
-     * Returns the value (expression) for {@code yieldTree}.
-     *
-     * @param yieldTree the yield tree
-     * @return the value (expression) for {@code yieldTree}
-     * @deprecated use {@link YieldUtils#getValue(Tree)}
-     */
-    @Deprecated // 2023-09-26
-    public static ExpressionTree yieldTreeGetValue(Tree yieldTree) {
-        return YieldUtils.getValue(yieldTree);
-    }
-
-    /**
      * Returns true if the {@code variableTree} is declared using the {@code var} Java keyword.
      *
      * @param variableTree the variableTree to check
@@ -2998,18 +2972,6 @@ public final class TreeUtils {
             default:
                 return false;
         }
-    }
-
-    /**
-     * Returns true if the given method invocation is a varargs invocation.
-     *
-     * @param invok the method invocation
-     * @return true if the given method invocation is a varargs invocation
-     * @deprecated use {@link #isVarargsCall(MethodInvocationTree)}
-     */
-    @Deprecated // 2024-06-04
-    public static boolean isVarArgs(MethodInvocationTree invok) {
-        return ((JCMethodInvocation) invok).varargsElement != null;
     }
 
     /**
@@ -3087,18 +3049,6 @@ public final class TreeUtils {
         }
         int numParams = elementFromUse(newClassTree).getParameters().size();
         return newClassTree.getArguments().size() == numParams - 1;
-    }
-
-    /**
-     * Returns true if the given constructor invocation is a varargs invocation.
-     *
-     * @param newClassTree the constructor invocation
-     * @return true if the given method invocation is a varargs invocation
-     * @deprecated use {@link #isVarargsCall(NewClassTree)}
-     */
-    @Deprecated // 2024-06-04
-    public static boolean isVarArgs(NewClassTree newClassTree) {
-        return isVarargsCall(newClassTree);
     }
 
     /**
@@ -3308,23 +3258,6 @@ public final class TreeUtils {
             }
         }
         return false;
-    }
-
-    /**
-     * Was applicability by variable arity invocation necessary to determine the method signature?
-     *
-     * <p>This isn't the same as {@link ExecutableElement#isVarArgs()}. That method returns true if
-     * the method accepts a variable number of arguments. This method returns true if the method
-     * invocation actually used that fact to invoke the method.
-     *
-     * @param methodInvocation a method or constructor invocation
-     * @return true if applicability by variable arity invocation is necessary to determine the
-     *     method signature
-     * @deprecated use {@link #isVarargsCall(Tree)}
-     */
-    @Deprecated // 2024-06-04
-    public static boolean isVarArgMethodCall(ExpressionTree methodInvocation) {
-        return isVarargsCall(methodInvocation);
     }
 
     /**
