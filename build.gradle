@@ -60,7 +60,7 @@ ext {
 
     // The JDK that runs the JUnit tests, if not the one that compiles them.  CI job
     // cftests-junit-jdk21 compiles with JDK 21 and runs the tests on another JDK, as a user does
-    // who runs a release on that JDK.  JDK 11 or later.
+    // who runs a release on that JDK.
     String testJdkVersionProp = findProperty("testJdkVersion")
     testJdkVersionInt = (testJdkVersionProp == null) ? null : majorVersionToInt(testJdkVersionProp)
 
@@ -317,11 +317,13 @@ allprojects { currentProj ->
             // so classes from the cache were compiled by the same JDK.
             def compiler = tasks.named("compileJava", JavaCompile).flatMap { it.javaCompiler }
             def launcher = javaLauncher
-            doFirst { Task t ->
+            doFirst { Test t ->
                 t.logger.lifecycle("${t.path}: classes compiled by JDK "
                         + "${compiler.get().metadata.javaRuntimeVersion}, tests run on JDK "
                         + "${launcher.get().metadata.javaRuntimeVersion} "
                         + "(${launcher.get().executablePath})")
+                // SystemUtil.getToolsJar, which tests use on JDK 8, finds the JDK by JAVA_HOME.
+                t.environment("JAVA_HOME", launcher.get().metadata.installationPath.asFile.absolutePath)
             }
         }
     }
@@ -1518,7 +1520,8 @@ subprojects {
 
         // Configure JUnit tests
         tasks.withType(Test).configureEach {
-            if (isJava8) {
+            // How the tests get javac depends on the JDK that runs them.
+            if ((rootProject.ext.testJdkVersionInt ?: useJdkVersionInt) == 8) {
                 jvmArgs "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
             } else {
                 jvmArgs += compilerArgsForRunningCF

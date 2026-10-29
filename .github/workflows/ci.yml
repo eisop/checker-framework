@@ -60,6 +60,7 @@ jobs:
           - {script: 'typecheck-part1', java: {version: '8', experimental: false}}
           - {script: 'typecheck-part2', java: {version: '8', experimental: false}}
           - {script: 'guava', java: {version: '8', experimental: false}}
+          - {script: 'cftests-junit-jdk21', java: {version: '8', experimental: false}}
           # --- JDK 28 (experimental) ---
           - {script: 'cftests-junit-part1', java: {version: '28', experimental: true}}
           - {script: 'cftests-junit-part2', java: {version: '28', experimental: true}}
