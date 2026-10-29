@@ -115,6 +115,50 @@ public class BinaryStubsCommandLineTest {
                     + "    }\n"
                     + "}\n";
 
+    /**
+     * A stub annotating {@code Lib.maybeEncrypted()}'s return type as {@code @Encrypted}, on a
+     * method whose own {@code @AnnotatedFor} names only a different checker.
+     */
+    private static final String ANNOTATED_FOR_METHOD_STUB =
+            "import org.checkerframework.framework.qual.AnnotatedFor;\n"
+                    + "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "public class Lib {\n"
+                    + "    @AnnotatedFor(\"nullness\")\n"
+                    + "    public static @Encrypted Object maybeEncrypted();\n"
+                    + "}\n";
+
+    /** The source of a class with a nested class, whose method a stub annotates. */
+    private static final String NESTED_LIB_SOURCE =
+            "public class Lib {\n"
+                    + "    public static class Inner {\n"
+                    + "        public static Object maybeEncrypted() { return null; }\n"
+                    + "    }\n"
+                    + "}\n";
+
+    /**
+     * A stub annotating the method of a nested class as {@code @Encrypted}, in an enclosing class
+     * whose {@code @AnnotatedFor} names only a different checker.
+     */
+    private static final String ANNOTATED_FOR_OUTER_CLASS_STUB =
+            "import org.checkerframework.framework.qual.AnnotatedFor;\n"
+                    + "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "@AnnotatedFor(\"nullness\")\n"
+                    + "public class Lib {\n"
+                    + "    public static class Inner {\n"
+                    + "        public static @Encrypted Object maybeEncrypted();\n"
+                    + "    }\n"
+                    + "}\n";
+
+    /** Calls the nested class's stub-annotated method where {@code @Encrypted} is required. */
+    private static final String NESTED_USE_SOURCE =
+            "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "class Use {\n"
+                    + "    static void needsEncrypted(@Encrypted Object o) {}\n"
+                    + "    void m() {\n"
+                    + "        needsEncrypted(Lib.Inner.maybeEncrypted());\n"
+                    + "    }\n"
+                    + "}\n";
+
     /** A trivial, unrelated stub file, used to make a directory's binary setup incomplete. */
     private static final String OTHER_STUB = "class Other {\n}\n";
 
@@ -549,6 +593,59 @@ public class BinaryStubsCommandLineTest {
     }
 
     /**
+    /**
+     * A method whose own {@code @AnnotatedFor} excludes the running checker is skipped by text
+     * parsing ({@code AnnotationFileParser.processCallableDeclaration}) and by the binary form
+     * alike, so its {@code @Encrypted} return type does not apply.
+     */
+    @Test
+    public void annotatedForOnMethodExcludingTheCheckerSkipsIt() throws IOException {
+        assertStubNotApplied(ANNOTATED_FOR_METHOD_STUB, LIB_SOURCE, USE_SOURCE);
+    }
+
+    /**
+     * A nested class inside a class whose {@code @AnnotatedFor} excludes the running checker is
+     * skipped by text parsing ({@code AnnotationFileParser.processTypeDecl} never reaches the
+     * enclosing class's members) and by the binary form alike, although the binary form has a
+     * separate record for the nested class.
+     */
+    @Test
+    public void annotatedForOnOuterClassExcludingTheCheckerSkipsNestedClass() throws IOException {
+        assertStubNotApplied(ANNOTATED_FOR_OUTER_CLASS_STUB, NESTED_LIB_SOURCE, NESTED_USE_SOURCE);
+    }
+
+    /**
+     * Asserts that {@code stub}, as a {@code -Astubs} file, does not make {@code useSource}'s call
+     * type-check, both when text-parsed and when read from its binary form, and that the
+     * differential check finds no mismatch between the two forms.
+     *
+     * @param stub the content of the stub file
+     * @param libSource the source of {@code Lib}
+     * @param useSource the source of {@code Use}, which passes a stub-annotated method's result
+     *     where {@code @Encrypted} is required
+     * @throws IOException if writing or compiling a file fails
+     */
+    private void assertStubNotApplied(String stub, String libSource, String useSource)
+            throws IOException {
+        Path stubsDir = tempDir.resolve("stubs");
+        write(stubsDir.resolve("Lib.astub"), stub);
+        BinaryStubFileGenerator.main(new String[] {stubsDir.toString(), stubsDir.toString()});
+        Assert.assertTrue(
+                "generator must have written a sibling binary",
+                Files.isRegularFile(stubsDir.resolve("Lib.astub.bin.gz")));
+
+        // -AstubWarnIfNotFound forces text parsing; see useBinaryForCommandLineStubs.
+        List<Diagnostic<? extends JavaFileObject>> text =
+                compileSources(libSource, useSource, "-Astubs=" + stubsDir, "-AstubWarnIfNotFound");
+        Assert.assertTrue("text parsing must not apply the stub", has(text, MISMATCH_KEY));
+
+        List<Diagnostic<? extends JavaFileObject>> binary =
+                compileSources(
+                        libSource, useSource, "-Astubs=" + stubsDir, "-AbinaryStubDiffCheck");
+        Assert.assertTrue("the binary form must not apply the stub", has(binary, MISMATCH_KEY));
+        assertNoDiffCheckMismatch(binary);
+    }
+
      * A fresh bundle also passes the differential check; see {@link
      * #freshPerFileBinaryPassesDiffCheck}.
      */

@@ -214,6 +214,81 @@ public class BinaryStubReader {
     }
 
     /**
+     * Returns true if the text parser skips the class of {@code cr} in a stub file (not the JDK)
+     * because of {@code @AnnotatedFor}: the class's own {@code @AnnotatedFor}, or that of a class
+     * that (directly or indirectly) encloses it, excludes this checker. {@code
+     * AnnotationFileParser.processTypeDecl} returns before it reaches the members of such a class,
+     * so the text parser never applies a nested class's annotations either; the binary form has a
+     * separate record for the nested class, which must be skipped the same way.
+     *
+     * @param cr the class record
+     * @param className the fully-qualified name of the class
+     * @param data the complete binary stub data, providing the enclosing classes' records
+     * @param atypeFactory the factory used to evaluate {@code @AnnotatedFor}
+     * @param elementTypes per-factory state, including the annotation-mirror cache
+     * @return true if an {@code @AnnotatedFor} on the class or an enclosing class excludes this
+     *     checker
+     */
+    static boolean isExcludedByAnnotatedFor(
+            BinaryStubData.ClassRecord cr,
+            String className,
+            BinaryStubData data,
+            AnnotatedTypeFactory atypeFactory,
+            AnnotationFileElementTypes elementTypes) {
+        if (!isAnnotatedForThisChecker(
+                parseDeclAnnos(cr.declAnnos, className, data, atypeFactory, elementTypes),
+                atypeFactory)) {
+            return true;
+        }
+        if (cr.outerNameIndex == 0) {
+            return false;
+        }
+        String outermost = data.stringPool[cr.outerNameIndex];
+        // Record keys are canonical names, so each enclosing class's key is a prefix of this one.
+        String name = className;
+        while (!name.equals(outermost)) {
+            int lastDot = name.lastIndexOf('.');
+            if (lastDot == -1) {
+                return false;
+            }
+            name = name.substring(0, lastDot);
+            BinaryStubData.ClassRecord enclosing = data.classes.get(name);
+            if (enclosing != null
+                    && !isAnnotatedForThisChecker(
+                            parseDeclAnnos(
+                                    enclosing.declAnnos, name, data, atypeFactory, elementTypes),
+                            atypeFactory)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns true if the text parser skips the method or constructor of {@code mr} in a stub file
+     * (not the JDK) because its own {@code @AnnotatedFor} excludes this checker, as {@code
+     * AnnotationFileParser.processCallableDeclaration} does -- before marking it
+     * {@code @FromStubFile}.
+     *
+     * @param mr the method record
+     * @param className the fully-qualified name of the enclosing class
+     * @param data the complete binary stub data
+     * @param atypeFactory the factory used to evaluate {@code @AnnotatedFor}
+     * @param elementTypes per-factory state, including the annotation-mirror cache
+     * @return true if an {@code @AnnotatedFor} on the method excludes this checker
+     */
+    static boolean isExcludedByAnnotatedFor(
+            BinaryStubData.MethodRecord mr,
+            String className,
+            BinaryStubData data,
+            AnnotatedTypeFactory atypeFactory,
+            AnnotationFileElementTypes elementTypes) {
+        return !isAnnotatedForThisChecker(
+                parseDeclAnnos(mr.declAnnos, className, data, atypeFactory, elementTypes),
+                atypeFactory);
+    }
+
+    /**
      * Stores the class's type parameter declarations from {@code cr} in {@code target}, unless
      * {@code target} already has them, as {@link #applyClassRecord} would. Callers apply this to
      * every class record of a stub file, or of an annotated JDK source file, before applying any
@@ -258,9 +333,7 @@ public class BinaryStubReader {
             if (!anyAnnotated) {
                 return;
             }
-        } else if (!isAnnotatedForThisChecker(
-                parseDeclAnnos(cr.declAnnos, className, data, atypeFactory, elementTypes),
-                atypeFactory)) {
+        } else if (isExcludedByAnnotatedFor(cr, className, data, atypeFactory, elementTypes)) {
             return;
         }
         List<? extends TypeParameterElement> typeParamElts = typeElt.getTypeParameters();
@@ -385,7 +458,8 @@ public class BinaryStubReader {
         // unconditionally regressed hundreds of JDK classes carrying @AnnotatedFor for an
         // unrelated checker (e.g. @AnnotatedFor("interning")) to have no declaration annotations
         // at all under every other checker.
-        if (fromStubFileAnno != null && !isAnnotatedForThisChecker(classDeclAnnos, atypeFactory)) {
+        if (fromStubFileAnno != null
+                && isExcludedByAnnotatedFor(cr, className, data, atypeFactory, elementTypes)) {
             return;
         }
         if (!classDeclAnnos.isEmpty()) {
@@ -789,6 +863,12 @@ public class BinaryStubReader {
                             elementTypes,
                             target);
                 }
+                continue;
+            }
+            // @AnnotatedFor on the method itself, checked only for a stub file; see
+            // applyClassRecord.
+            if (fromStubFileAnno != null
+                    && isExcludedByAnnotatedFor(mr, className, data, atypeFactory, elementTypes)) {
                 continue;
             }
             if (fromStubFileAnno != null) {

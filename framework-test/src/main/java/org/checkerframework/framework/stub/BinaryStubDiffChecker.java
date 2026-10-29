@@ -188,6 +188,7 @@ public class BinaryStubDiffChecker {
                         binaryAnnos,
                         elementTypes,
                         atypeFactory,
+                        /* isStubFile= */ false,
                         reports);
             }
             compareClass(className, textAnnos, binaryAnnos, atypeFactory, reports);
@@ -351,6 +352,7 @@ public class BinaryStubDiffChecker {
                     binaryAnnos,
                     elementTypes,
                     atypeFactory,
+                    /* isStubFile= */ true,
                     reports);
         }
         compareClass(description, textAnnos, binaryAnnos, atypeFactory, reports);
@@ -468,6 +470,9 @@ public class BinaryStubDiffChecker {
      * @param binaryAnnos the annotations produced from the record by the binary reader
      * @param elementTypes the stub-types AFET, used for signature lookups
      * @param atypeFactory the factory used to resolve elements
+     * @param isStubFile true for a stub file, false for the annotated JDK; the reader skips a stub
+     *     file's class or method whose {@code @AnnotatedFor} excludes this checker, as the text
+     *     parser does, so nothing is promised for it
      * @param reports the list to append failure descriptions to
      */
     private static void verifyRecordApplied(
@@ -477,6 +482,7 @@ public class BinaryStubDiffChecker {
             AnnotationFileAnnotations binaryAnnos,
             AnnotationFileElementTypes elementTypes,
             AnnotatedTypeFactory atypeFactory,
+            boolean isStubFile,
             List<String> reports) {
         @SuppressWarnings("signature:argument.type.incompatible") // className is read from the
         // binary stub's string pool, which the binary stub writer populates only with
@@ -489,6 +495,11 @@ public class BinaryStubDiffChecker {
         if (BinaryStubReader.classRecordKind(typeElt.getKind()) != cr.kind) {
             // applyClassRecord skipped this record entirely for the same reason (see its own
             // comment): nothing was applied, so there is nothing to verify here either.
+            return;
+        }
+        if (isStubFile
+                && BinaryStubReader.isExcludedByAnnotatedFor(
+                        cr, className, data, atypeFactory, elementTypes)) {
             return;
         }
         List<? extends Element> classTypeParams = typeElt.getTypeParameters();
@@ -518,6 +529,11 @@ public class BinaryStubDiffChecker {
                             ? elementTypes.constructorSigIndex(typeElt).get(sig)
                             : elementTypes.methodSigIndex(typeElt).get(sig);
             if (ee != null) {
+                if (isStubFile
+                        && BinaryStubReader.isExcludedByAnnotatedFor(
+                                mr, className, data, atypeFactory, elementTypes)) {
+                    continue;
+                }
                 if (BinaryStubReader.hasTypeInfo(mr) && !binaryAnnos.atypes.containsKey(ee)) {
                     reports.add(
                             String.format(
