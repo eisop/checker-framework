@@ -646,6 +646,22 @@ public class BinaryStubsCommandLineTest {
         assertNoDiffCheckMismatch(binary);
     }
 
+    /**
+     * Under {@code -AmergeStubsWithSource}, text parsing of the annotated JDK applies the
+     * annotations of the private classes that the minimized JDK keeps (such as {@code
+     * java.util.AbstractList.Itr}), which the binary stub file omits. The annotated JDK is then
+     * text-parsed, so the differential check, which compares the two whenever the binary is read,
+     * finds no mismatch.
+     */
+    @Test
+    public void mergeStubsWithSourceTextParsesTheAnnotatedJdk() throws IOException {
+        List<Diagnostic<? extends JavaFileObject>> diagnostics =
+                compile("-AmergeStubsWithSource", "-AbinaryStubDiffCheck");
+        assertNoDiffCheckMismatch(diagnostics);
+        Assert.assertTrue("no stub applies @Encrypted", has(diagnostics, MISMATCH_KEY));
+    }
+
+    /**
      * A fresh bundle also passes the differential check; see {@link
      * #freshPerFileBinaryPassesDiffCheck}.
      */
