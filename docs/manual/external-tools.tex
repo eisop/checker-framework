@@ -919,6 +919,35 @@ written \<-ACheckerName\_option=value>.  Do \emph{not} use \<-XepOpt:> for Check
 options; \<-XepOpt:eisopcf:\ldots{}> configures only the plugin itself (currently just
 \<checkers>).
 
+Under Error Prone, the Checker Framework does not run as an annotation processor, so no
+annotation processor claims its \<-A> options.  If the compilation also runs some other
+annotation processor (AutoValue, Dagger, Lombok, \ldots{}), javac therefore warns:
+\begin{Verbatim}
+warning: The following options were not recognized by any processor: '[stubs]'
+\end{Verbatim}
+This warning is not controlled by \<-Xlint:-processing>, and with \<-Werror> it fails the
+compilation.  The options still take effect; only the warning is spurious.  To avoid it,
+add a processor that does nothing but declare the options.  Put it on the processor path
+and register it like any other processor:  in
+\<META-INF/services/javax.annotation.processing.Processor>, or in \<-processor> if you
+list processors explicitly.  It must accept all annotations, because javac counts the
+options of only those processors it calls:
+\begin{Verbatim}
+@SupportedAnnotationTypes("*")
+@SupportedOptions({"stubs", "suppressWarnings"}) // the -A options you pass, without "-A"
+public class CheckerFrameworkOptions extends AbstractProcessor {
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
+
+  @Override
+  public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment env) {
+    return false; // claim no annotations, so that other processors still see them
+  }
+}
+\end{Verbatim}
+
 \subsectionAndLabel{Severity}{error-prone-severity}
 
 \<eisopcf> is a single Error Prone check, so its severity is configured per check, not per
