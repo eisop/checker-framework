@@ -157,6 +157,13 @@ jobs:
           java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
 
+      # As in setup-test-env.
+      - name: Remove the javac problem matchers
+        shell: bash
+        run: |
+          echo "::remove-matcher owner=javac::"
+          echo "::remove-matcher owner=maven-javac::"
+
       - name: Setup Gradle
         timeout-minutes: 10
         uses: gradle/actions/setup-gradle@v6.4.0

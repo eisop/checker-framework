@@ -89,6 +89,16 @@ runs:
         uri: ${{ steps.ea-jdk.outputs.uri }}
         install-as-version: ${{ inputs.jdk-ea-major }}
 
+    # setup-java adds problem matchers that turn every "File.java:N: error:" and "warning:" line
+    # into an annotation.  The tests print such lines on purpose (expected checker errors and the
+    # commands that grep for them), and Javadoc prints thousands of warnings, so a passing run
+    # showed dozens of annotations.  A real compiler error still fails the step and is in its log.
+    - name: Remove the javac problem matchers
+      shell: bash
+      run: |
+        echo "::remove-matcher owner=javac::"
+        echo "::remove-matcher owner=maven-javac::"
+
     - name: Pin Gradle to primary JDK via gradle.properties
       if: ${{ inputs.target-jdk != inputs.primary-jdk }}
       shell: bash
