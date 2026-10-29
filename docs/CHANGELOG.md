@@ -3,7 +3,7 @@
 <!-- markdownlint-disable no-duplicate-heading -->
 <!-- pyml disable no-duplicate-heading -->
 
-## Version 3.49.5-eisop2 (June ?, 2026)
+## Version 3.55.1-eisop1 (June ?, 2026)
 
 ### User-visible changes
 
@@ -832,7 +832,7 @@ you need to add:
 ### Implementation details
 
 Moved the Annotation File Utilities code into the Checker Framework repository as a subproject.
-(EISOP note: EISOP builds it as the `annotation-file-utilities` subproject since 3.49.5-eisop2.)
+(EISOP note: EISOP builds it as the `annotation-file-utilities` subproject since 3.55.1-eisop1.)
 
 Java expressions in annotations, such as in contracts and dependent types, are now parsed with
 javac's parser instead of JavaParser.
