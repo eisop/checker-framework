@@ -35,6 +35,9 @@ public class EisopCheckerFrameworkPluginTest {
     private static final String INTERNING_CHECKER =
             "org.checkerframework.checker.interning.InterningChecker";
 
+    /** Fully-qualified name of the Lock Checker (lives in the :checker module, test-only dep). */
+    private static final String LOCK_CHECKER = "org.checkerframework.checker.lock.LockChecker";
+
     /**
      * javac flags Error Prone requires. The --add-exports/--add-opens needed to run in-process are
      * supplied as JVM args by the module's build.gradle (they have no effect as compiler args).
@@ -654,6 +657,148 @@ public class EisopCheckerFrameworkPluginTest {
                         "import org.checkerframework.checker.nullness.qual.Nullable;",
                         "import org.checkerframework.framework.qual.DefaultQualifier;",
                         "import org.checkerframework.framework.qual.TypeUseLocation;")
+                .doTest();
+    }
+
+    /**
+     * Returns the source lines of a class whose two {@code @DefaultQualifier} annotations conflict,
+     * so that the Checker Framework reports {@code conflicting.defaults} on the class's element
+     * rather than on a tree. The lines carry a {@code // BUG:} marker for that finding.
+     *
+     * @param className the simple name of the class, in package {@code demo}
+     * @return the source lines
+     */
+    private static String[] classWithConflictingDefaults(String className) {
+        return new String[] {
+            "package demo;",
+            "import org.checkerframework.checker.nullness.qual.NonNull;",
+            "import org.checkerframework.checker.nullness.qual.Nullable;",
+            "import org.checkerframework.framework.qual.DefaultQualifier;",
+            "import org.checkerframework.framework.qual.TypeUseLocation;",
+            "@DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.FIELD)",
+            "@DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.FIELD)",
+            "// BUG: Diagnostic contains: conflicting.defaults",
+            "public class " + className + " {}"
+        };
+    }
+
+    /**
+     * A finding the Checker Framework reports on an element (here {@code conflicting.defaults} on a
+     * class) is an {@code eisopcf} finding at the check's severity, like one reported on a tree.
+     * The check's default severity is WARNING, so the compilation succeeds; printed through javac's
+     * {@code Messager} instead, the finding would be an error whatever the severity.
+     */
+    @Test
+    public void elementFindingHonorsSeverity() {
+        helper.expectResult(Result.OK)
+                .addSourceLines(
+                        "demo/Conflicting.java", classWithConflictingDefaults("Conflicting"))
+                .doTest();
+    }
+
+    /**
+     * Like {@link #elementFindingHonorsSeverity}, for an element finding on a package declaration,
+     * which the plugin reaches through {@code matchCompilationUnit} rather than {@code matchClass}.
+     */
+    @Test
+    public void packageElementFindingHonorsSeverity() {
+        helper.expectResult(Result.OK)
+                .addSourceLines(
+                        "demo/package-info.java",
+                        "@DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.FIELD)",
+                        "@DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.FIELD)",
+                        "// BUG: Diagnostic contains: conflicting.defaults",
+                        "package demo;",
+                        "",
+                        "import org.checkerframework.checker.nullness.qual.NonNull;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "import org.checkerframework.framework.qual.DefaultQualifier;",
+                        "import org.checkerframework.framework.qual.TypeUseLocation;")
+                .doTest();
+    }
+
+    /**
+     * A finding reported on an element is suppressed by {@code @SuppressWarnings("eisopcf")} on
+     * that element. The suppressed class is nested: Error Prone does not run the check at all on a
+     * top-level class that suppresses it, so suppression there would hold whichever way the finding
+     * is reported.
+     */
+    @Test
+    public void elementFindingIsSuppressibleViaErrorProne() {
+        helper.expectNoDiagnostics()
+                .addSourceLines(
+                        "demo/Outer.java",
+                        "package demo;",
+                        "import org.checkerframework.checker.nullness.qual.NonNull;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "import org.checkerframework.framework.qual.DefaultQualifier;",
+                        "import org.checkerframework.framework.qual.TypeUseLocation;",
+                        "public class Outer {",
+                        "  @SuppressWarnings(\"eisopcf\")",
+                        "  @DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.FIELD)",
+                        "  @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.FIELD)",
+                        "  static class Inner {}",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * A finding reported on an element does not stop Error Prone from analyzing the compilation
+     * units that follow. Error Prone skips the remaining units once javac's error count exceeds the
+     * errors it reported itself, so an element finding that bypassed it as a javac error would
+     * leave the finding in {@code CSecond.java} unreported.
+     */
+    @Test
+    public void elementFindingDoesNotStopLaterUnits() {
+        helper.addSourceLines("demo/AFirst.java", classWithConflictingDefaults("AFirst"))
+                .addSourceLines(
+                        "demo/CSecond.java",
+                        "package demo;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "public class CSecond {",
+                        "    @Nullable Object field;",
+                        "    String m() {",
+                        "        // BUG: Diagnostic contains: dereference.of.nullable",
+                        "        return field.toString();",
+                        "    }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * {@code inconsistent.constructor.type}, which the Lock Checker reports on a constructor's
+     * element, is suppressed by {@code @SuppressWarnings("eisopcf")} on the constructor.
+     */
+    @Test
+    public void constructorElementFindingIsSuppressibleViaErrorProne() {
+        helperWith("-XepOpt:eisopcf:checkers=" + LOCK_CHECKER)
+                .expectNoDiagnostics()
+                .addSourceLines(
+                        "demo/Unknown.java",
+                        "package demo;",
+                        "import org.checkerframework.checker.lock.qual.GuardedByUnknown;",
+                        "public @GuardedByUnknown class Unknown {",
+                        "  @SuppressWarnings(\"eisopcf\")",
+                        "  Unknown() {}",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * Control for {@link #constructorElementFindingIsSuppressibleViaErrorProne}: without the
+     * suppression, the finding is reported.
+     */
+    @Test
+    public void constructorElementFindingIsReported() {
+        helperWith("-XepOpt:eisopcf:checkers=" + LOCK_CHECKER)
+                .addSourceLines(
+                        "demo/Unknown.java",
+                        "package demo;",
+                        "import org.checkerframework.checker.lock.qual.GuardedByUnknown;",
+                        "public @GuardedByUnknown class Unknown {",
+                        "  // BUG: Diagnostic contains: inconsistent.constructor.type",
+                        "  Unknown() {}",
+                        "}")
                 .doTest();
     }
 }

@@ -2073,7 +2073,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             // The message has no source position; report it against the compilation as a whole.
             messager.printMessage(kind, messageText);
         } else if (preciseSource instanceof Element) {
-            messager.printMessage(kind, messageText, (Element) preciseSource);
+            Element elt = (Element) preciseSource;
+            Tree declTree = diagnosticSink == null ? null : declarationInCurrentRoot(elt);
+            if (declTree != null) {
+                printOrStoreMessage(kind, messageText, declTree, currentRoot, fixes);
+            } else {
+                messager.printMessage(kind, messageText, elt);
+            }
         } else if (preciseSource instanceof Tree) {
             printOrStoreMessage(kind, messageText, (Tree) preciseSource, currentRoot, fixes);
         } else {
@@ -2083,6 +2089,31 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                             + ": "
                             + preciseSource);
         }
+    }
+
+    /**
+     * Returns the declaration tree of {@code elt} if it is in the current compilation unit, so that
+     * a finding reported on an element can reach the {@link DiagnosticSink} like one reported on a
+     * tree. A finding sent to javac's {@code Messager} instead bypasses the host: under the Error
+     * Prone plugin it ignores the check's severity and {@code @SuppressWarnings}, and an error
+     * raises javac's error count, after which Error Prone stops analyzing later compilation units.
+     *
+     * <p>Returns null for an element without source (read from bytecode) and for one declared in
+     * another compilation unit: the host positions a finding within the unit it is analyzing, so
+     * such a finding is left to the {@code Messager}, as in standalone mode.
+     *
+     * @param elt the element a finding is reported on
+     * @return the declaration tree of {@code elt} in the current compilation unit, or null
+     */
+    private @Nullable Tree declarationInCurrentRoot(Element elt) {
+        if (currentRoot == null) {
+            return null;
+        }
+        Tree tree = trees.getTree(elt);
+        if (tree == null || pathToTree(tree) == null) {
+            return null;
+        }
+        return tree;
     }
 
     /**
