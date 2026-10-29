@@ -927,7 +927,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
          * @param bAtv a type variable that does not have a primary annotation in {@code top}
          *     hierarchy
          * @param top the top annotation in the hierarchy
-         * @param canCombinedSetBeMissingAnnos true if TODO
+         * @param canCombinedSetBeMissingAnnos true if the combined set can be missing annotations
          * @return the result of combining the two type variables, which may be null
          */
         protected abstract @Nullable AnnotationMirror combineTwoTypeVars(
@@ -945,7 +945,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
          * @param annotation an annotation
          * @param typeVar a type variable that does not have a primary annotation in the hierarchy
          * @param top the top annotation of the hierarchy
-         * @param canCombinedSetBeMissingAnnos true if TODO
+         * @param canCombinedSetBeMissingAnnos true if the combined set can be missing annotations
          * @return the result of combining {@code annotation} with {@code typeVar}
          */
         protected abstract @Nullable AnnotationMirror combineAnnotationWithTypeVar(

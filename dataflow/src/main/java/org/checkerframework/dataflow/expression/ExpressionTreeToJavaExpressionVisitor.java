@@ -1001,7 +1001,7 @@ class ExpressionTreeToJavaExpressionVisitor extends SimpleTreeVisitor<JavaExpres
             String identifier = memberSelectTree.getIdentifier().toString();
             JavacParseResult<ExpressionTree> jpr = JavacParse.parseExpression(identifier);
             if (jpr.hasParseError()) {
-                throw new Error(identifier + " :" + jpr.getParseErrorMessages());
+                throw new BugInCF("%s: %s", identifier, jpr.getParseErrorMessages());
             }
             ExpressionTree parsed = jpr.getTree();
 
@@ -1055,9 +1055,6 @@ class ExpressionTreeToJavaExpressionVisitor extends SimpleTreeVisitor<JavaExpres
         } else if (typeTree instanceof JCTree.JCTypeApply) {
             return convertTreeToTypeMirror(((JCTree.JCTypeApply) typeTree).getType());
         } else {
-            System.out.printf(
-                    "convertTreeToTypeMirror does not handle %s [%s]%n",
-                    typeTree, typeTree.getClass().getSimpleName());
             return null;
         }
     }
