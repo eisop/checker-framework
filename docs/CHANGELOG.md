@@ -90,6 +90,10 @@ Type-checking and subtyping improvements:
   qualifiers of the superclass's type arguments from the target type and the
   arguments, as for `new C<>(args)`. They were defaulted, which caused false
   positives and checked the arguments against the defaulted type.
+- Type argument inference resolves a type variable that appears in a `throws`
+  clause to `RuntimeException` only if every upper bound is a supertype of
+  `RuntimeException`, as the JLS and javac do. It did so if any upper bound
+  was, which caused false `type.arguments.not.inferred` errors.
 - CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
   try-with-resources) are now type-checked, with diagnostics pointing at the
   source construct.
