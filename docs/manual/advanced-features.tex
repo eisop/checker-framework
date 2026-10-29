@@ -319,6 +319,15 @@ class MyClass {
 
 You may write multiple
 \refqualclass{framework/qual}{DefaultQualifier} annotations at a single location.
+They must not set different qualifiers from the same type hierarchy as the
+default for the same location:  for example,
+\<@DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.FIELD)>
+together with
+\<@DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.FIELD)>.
+The Checker Framework issues a \<conflicting.defaults> error for such a
+declaration and uses the default that is written first.  (For a declaration
+read from a class file, which you cannot edit, it issues a warning instead.)
+Writing the same default twice is redundant but permitted.
 
 If \code{@DefaultQualifier}[\code{s}] is placed on a package (via the
 \<package-info.java> file), then it applies to the given package \emph{and}
@@ -333,7 +342,7 @@ permitted by the qualifier's \refqualclass{framework/qual}{TargetLocations}
 meta-annotation.  If \code{@DefaultQualifier} specifies a location prohibited
 by the qualifier's \code{@TargetLocations} (or if \code{locations} is omitted
 and the qualifier cannot be applied to all locations), the Checker Framework
-issues a compile-time error.  For example, bottom qualifiers typically
+issues a \<default.qualifier.prohibited.location> error.  For example, bottom qualifiers typically
 restrict their target locations to lower and upper bounds (preventing
 programmers from writing them explicitly on parameters, return types, or
 fields); therefore, attempting to set a bottom qualifier as a default on
