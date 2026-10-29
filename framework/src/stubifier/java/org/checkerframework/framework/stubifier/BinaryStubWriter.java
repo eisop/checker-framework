@@ -72,7 +72,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 
@@ -515,7 +514,7 @@ public class BinaryStubWriter {
                         "BinaryStubWriter: dropping "
                                 + anno
                                 + " in "
-                                + sourceDescription(anno)
+                                + writer.sourceDescription(anno)
                                 + " from the binary stub file, as the text parser does: "
                                 + e.getMessage());
                 return IGNORED;
@@ -1256,22 +1255,35 @@ public class BinaryStubWriter {
     }
 
     /**
-     * Returns a description of {@code node}'s source file for use in error messages, or the node's
-     * compilation unit if no file storage is available (e.g. a compilation unit parsed from a
-     * stream, as {@link BinaryStubFileGenerator} does).
+     * The name of the stub file being written, for diagnostics about a compilation unit that was
+     * parsed from a stream and so has no file storage, as {@link BinaryStubFileGenerator} parses
+     * it; or null if not set.
+     */
+    private @Nullable String sourceName = null;
+
+    /**
+     * Sets the name of the stub file being written, for diagnostics; see {@link #sourceName}.
+     *
+     * @param sourceName the name of the stub file
+     */
+    public void setSourceName(String sourceName) {
+        this.sourceName = sourceName;
+    }
+
+    /**
+     * Returns a description of {@code node}'s source file and line for use in error messages. The
+     * file is the compilation unit's storage if it has any, otherwise {@link #sourceName}.
      *
      * @param node an AST node
      * @return a description of the node's source, for diagnostics
      */
-    private static String sourceDescription(Node node) {
-        Optional<CompilationUnit> cu = node.findCompilationUnit();
-        if (!cu.isPresent()) {
-            return "<unknown source>";
-        }
-        return cu.get()
-                .getStorage()
-                .map(s -> s.getPath().toString())
-                .orElseGet(() -> cu.get().toString());
+    private String sourceDescription(Node node) {
+        String file =
+                node.findCompilationUnit()
+                        .flatMap(CompilationUnit::getStorage)
+                        .map(s -> s.getPath().toString())
+                        .orElse(sourceName != null ? sourceName : "<unknown source>");
+        return node.getBegin().map(position -> file + ":" + position.line).orElse(file);
     }
 
     /**

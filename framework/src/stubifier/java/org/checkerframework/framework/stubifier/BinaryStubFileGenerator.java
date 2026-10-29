@@ -513,6 +513,7 @@ public class BinaryStubFileGenerator {
             }
             List<CompilationUnit> cus = parseResult.getResult().get().getCompilationUnits();
             BinaryStubWriter writer = new BinaryStubWriter();
+            writer.setSourceName(description.toString());
             writer.processStubUnit(cus);
             writer.setSourceFingerprint(sourceBytes);
             ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
