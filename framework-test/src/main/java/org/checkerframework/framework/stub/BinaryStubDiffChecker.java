@@ -1117,11 +1117,15 @@ public class BinaryStubDiffChecker {
      * the unescaped one. A number carries its boxed type, since the two loaders convert literals to
      * the element's type separately.
      *
-     * @param value an annotation element value
+     * @param value an annotation element value, or an element of a list that is one
      * @return its description
      */
-    private static String describeValue(Object value) {
-        if (value instanceof String) {
+    private static String describeValue(@Nullable Object value) {
+        if (value == null) {
+            // A List<?> may contain null as far as the type system knows, though javac never
+            // puts null in the list of an array value.
+            return "null";
+        } else if (value instanceof String) {
             return "\"" + ((String) value).replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
         } else if (value instanceof List) {
             StringJoiner joiner = new StringJoiner(", ", "{", "}");

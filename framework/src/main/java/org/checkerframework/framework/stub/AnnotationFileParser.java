@@ -3051,8 +3051,9 @@ public class AnnotationFileParser {
         if (outer == null) {
             return null;
         }
-        TypeElement result =
-                elements.getTypeElement(outer.getQualifiedName() + name.substring(dot));
+        @SuppressWarnings("signature") // the canonical name of the outer type, then nested names
+        @CanonicalName String nestedName = outer.getQualifiedName() + name.substring(dot);
+        TypeElement result = elements.getTypeElement(nestedName);
         return result != null && result.getKind() == ElementKind.ANNOTATION_TYPE ? result : null;
     }
 
