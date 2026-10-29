@@ -159,7 +159,7 @@ jobs:
 
       - name: Setup Gradle
         timeout-minutes: 10
-        uses: gradle/actions/setup-gradle@v6.4.0
+        uses: gradle/actions/setup-gradle@v6.4.1
         with:
           # As for linux-tests, one job per operating system writes the cache.
           cache-read-only: ${{ github.ref != 'refs/heads/master' || matrix.script != 'cftests-junit-part1' }}
