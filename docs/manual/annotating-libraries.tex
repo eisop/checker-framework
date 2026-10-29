@@ -491,8 +491,9 @@ the same \<applyToSubpackages> element and is likewise repeatable.  Between
 two package annotations, the innermost one wins:  an \<@UnannotatedFor> on a
 package excludes its subpackages from an \<@AnnotatedFor> on an enclosing
 package, and vice versa.  When both are written on the same element and apply
-to the same checker, \<@AnnotatedFor> wins, since \<@UnannotatedFor> only
-subtracts from an \emph{enclosing} scope.  \<@UnannotatedFor> has no effect in
+to the same checker, the one written first on that element wins, as for
+conflicting \<@DefaultQualifier> annotations, and the checker issues a
+\<conflicting.annotatedfor> warning.  Remove one of the two annotations.  \<@UnannotatedFor> has no effect in
 a stub file (Section~\ref{stub}), where \<@AnnotatedFor> only decides whether
 each declaration's annotations are read.
 
