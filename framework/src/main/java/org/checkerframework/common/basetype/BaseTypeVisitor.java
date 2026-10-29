@@ -5496,12 +5496,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     // that encloses the inner class can be found. So either "this" is that
                     // enclosing type or "this" has an enclosing type that is that type.
                     receiverDecl = overrider.getReceiverType();
-                    receiverArg = atypeFactory.getSelfType(memberTree);
-                    while (!TypesUtils.isErasedSubtype(
-                            receiverArg.getUnderlyingType(),
-                            receiverDecl.getUnderlyingType(),
-                            types)) {
-                        receiverArg = ((AnnotatedDeclaredType) receiverArg).getEnclosingType();
+                    receiverArg =
+                            AnnotatedTypes.innermostEnclosingSubtype(
+                                    atypeFactory.getSelfType(memberTree),
+                                    receiverDecl.getUnderlyingType(),
+                                    types);
+                    if (receiverArg == null) {
+                        throw new BugInCF(
+                                "No enclosing instance of %s for %s", receiverDecl, memberTree);
                     }
 
                     break;

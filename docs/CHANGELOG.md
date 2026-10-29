@@ -3,16 +3,16 @@
 <!-- markdownlint-disable no-duplicate-heading -->
 <!-- pyml disable no-duplicate-heading -->
 
-## Version 3.49.5-eisop2 (June ?, 2026)
+## Version 3.55.1-eisop1 (June ?, 2026)
 
 ### User-visible changes
 
 Performance improvements over 3.49.5-eisop1:
 
-- `allNullnessTests`: 1m24s vs. 2m16s
-- `checkNullness`: 1m28s vs. 3m40s
-- `checkInterning`: 0m35s vs. 1m13s
-- `test`: 7m15s vs. 12m40s (lots of build overhead)
+- `allNullnessTests`: 1m42s vs. 2m14s
+- `checkNullness`: 1m35s vs. 3m53s
+- `checkInterning`: 0m41s vs. 1m12s
+- `test`: 7m48s vs. 10m41s
 
 Several optimizations also reduce GC pressure and superlinear behavior for
 large (e.g. auto-generated) files. Type-checking a class with many fields
@@ -30,7 +30,7 @@ binary stub falls back to text parsing with a warning (suppressible via
 `-Astubs` files with `BinaryStubFileGenerator`; see the manual's "Using a
 binary (pre-parsed) stub file" section.
 
-Runs under JDK 27 and JDK 28 b15 early-access builds.
+Runs under JDK 27 and JDK 28 early-access builds.
 
 Can now run as an Error Prone plugin (`eisopcf` check), published as
 `io.github.eisop:framework-errorprone` (requires JDK 21+). See the manual's
@@ -118,7 +118,6 @@ JSpecify support in the Nullness Checker:
   specifies: checks only `@AnnotatedFor` scope, treats `@NullMarked` as a
   defaulting annotation, skips initialization/map-key checking, assumes purity
   and enabled assertions, and applies permissive defaults to unscoped code.
-  Field reads through another object no longer crash (eisop#2259).
 - `@NullMarked` aliases `@AnnotatedFor` scoped to nullness (plus
   `@DefaultQualifier`), and `@NullUnmarked` aliases `@UnannotatedFor`. Both
   apply under `-AuseConservativeDefaultsForUncheckedCode` and compose with
@@ -157,6 +156,10 @@ Nullness Checker improvements:
 
 Initialization Checker improvements:
 
+- New method postcondition `@EnsuresInitialized`: after the method returns
+  normally, the given expressions are initialized. Use it instead of
+  `@EnsuresNonNull` for a field of primitive type, or to state only
+  initialization.
 - Respects an explicit receiver annotation on an inner class constructor
   (e.g. `Inner(@UnknownInitialization Outer Outer.this)`), instead of
   defaulting the enclosing instance to `@Initialized`.
@@ -250,6 +253,14 @@ flow-sensitive type refinement for the rest of the compilation. The compilation 
 after the crash reported false positives, such as a dereference after `if (x != null)`.
 
 ### Implementation details
+
+Removed methods that have been deprecated for more than two years:
+`TreeUtils.constructor(NewClassTree)` (use `elementFromUse`), `TreeUtils.yieldTreeGetValue`,
+`TreeUtils.isVarArgs` (both overloads), `TreeUtils.isVarArgMethodCall`,
+`AbstractAnalysis.getContainingMethod` and `getContainingClass`,
+`JavaExpression.isUnassignableByOtherCode` and `isUnmodifiableByOtherCode` (use
+`isAssignableByOtherCode` and `isModifiableByOtherCode`, which are now abstract), and
+`AnnotatedTypeMirror.removeNonTopAnnotationInHierarchy` and `isAnnotatedInHierarchy`.
 
 The test framework accepts an expected error key in square brackets, as in
 `// :: error: [assignment]`, as well as in parentheses, so tests written for
@@ -401,6 +412,10 @@ Other improvements and bug fixes:
   classes with an explicit enclosing instance (`outer.new Inner<>() {}`).
 - No longer crashes on a qualified anonymous subclass of an inner class with a
   varargs constructor (`outer.new Inner("a", "b") {}`).
+- When a checker fails to initialize, for example with an `OutOfMemoryError`, it reports
+  that failure instead of crashing with a `NullPointerException` in
+  `SourceChecker.visitDeclaration`, which happened when the JVM also spent much of its
+  time in garbage collection.
 - Error messages about the constructor of an anonymous class name its supertype,
   instead of printing an empty class name.
 - Type argument inference treats an `Error` thrown in a lambda body as an
@@ -473,7 +488,6 @@ Other improvements and bug fixes:
 - Stubifier resolves nested annotations through enclosing classes.
 - `AnnotationFileUtil.allAnnotationFiles(String, ...)` replaced by
   `resolveAnnotationFileLocation` plus `allAnnotationFiles(File, ...)`.
-- Custom annotated JDKs no longer load `checker.jar`'s binary JDK on top.
 - Fixed `-AwarnUnneededSuppressions` for values matching a checker prefix.
 - `-AwarnUnneededSuppressions` now also works with `-AassumeInitialized`.
 - Fixed missing `EnsuresNonNullIf` import in
@@ -482,7 +496,6 @@ Other improvements and bug fixes:
 - Fixed restoring dataflow-refined captured type variable bounds.
 - `AnnotatedTypeMirror.toString(false)` now matches `toString()`.
 - `@AnnotatedFor` scope checking unified and cached.
-- `Arrays.copyOf` no longer crashes when component types differ.
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
 - No longer crashes on a type annotation on an array creation whose element
@@ -835,8 +848,7 @@ you need to add:
 ### Implementation details
 
 Moved the Annotation File Utilities code into the Checker Framework repository as a subproject.
-(EISOP note: the code is in the `annotation-file-utilities` directory but is not part of the EISOP
-Gradle build.)
+(EISOP note: EISOP builds it as the `annotation-file-utilities` subproject since 3.55.1-eisop1.)
 
 Java expressions in annotations, such as in contracts and dependent types, are now parsed with
 javac's parser instead of JavaParser.

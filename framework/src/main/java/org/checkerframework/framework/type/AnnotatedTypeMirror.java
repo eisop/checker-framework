@@ -832,24 +832,6 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     }
 
     /**
-     * Remove an annotation that is in the same qualifier hierarchy as the parameter, unless it's
-     * the top annotation.
-     *
-     * @param a an annotation from the same qualifier hierarchy
-     * @return if an annotation was removed
-     * @deprecated This will be removed in a future release
-     */
-    @Deprecated // 2023-06-15
-    public boolean removeNonTopAnnotationInHierarchy(AnnotationMirror a) {
-        AnnotationMirror prev = this.getAnnotationInHierarchy(a);
-        QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
-        if (prev != null && !prev.equals(qualHierarchy.getTopAnnotation(a))) {
-            return this.removeAnnotation(prev);
-        }
-        return false;
-    }
-
-    /**
      * Removes multiple primary annotations from the type.
      *
      * @param annotations the annotations to remove
@@ -3273,20 +3255,6 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      */
     public List<? extends AnnotatedTypeMirror> directSupertypes() {
         return SupertypeFinder.directSupertypes(this);
-    }
-
-    /**
-     * Returns true if this type has a primary annotation in the same hierarchy as {@code
-     * annotation}.
-     *
-     * @param annotation the qualifier hierarchy to check for
-     * @return true iff this type has a primary annotation in the same hierarchy as {@code
-     *     annotation}.
-     * @deprecated use {@link #hasAnnotationInHierarchy(AnnotationMirror)}
-     */
-    @Deprecated // 2023-06-15
-    public boolean isAnnotatedInHierarchy(AnnotationMirror annotation) {
-        return hasAnnotationInHierarchy(annotation);
     }
 
     /** An ERROR TypeKind was found. */

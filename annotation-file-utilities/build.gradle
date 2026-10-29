@@ -167,18 +167,21 @@ def createUpdateUserOptionsTask(taskName, taskDescription, docfile, format) {
         exclude("org/checkerframework/afu/scenelib/io/classfile/**")
         classpath = project.sourceSets.main.compileClasspath + project.sourceSets.main.runtimeClasspath
         options.memberLevel = JavadocMemberLevel.PRIVATE
-        options.docletpath = project.sourceSets.main.runtimeClasspath as List
         // With this doclet, the root build.gradle adds no taglet, which OptionsDoclet does not
         // accept, and keeps the member level.
         options.doclet = "org.plumelib.options.OptionsDoclet"
-        // OptionsDoclet 2 needs the doclet API of JDK 9 and later, and javadoc from JDK 25 on
-        // fails with "AssertionError: ignored flag: -Xlint:-options".
+        // OptionsDoclet 2 needs the doclet API of JDK 9 and later.
         def jdkVersion = useJdkVersionInt
-        doFirst {
-            if (jdkVersion < 9 || jdkVersion > 24) {
+        def docletClasspath = project.sourceSets.main.runtimeClasspath
+        doFirst { Javadoc t ->
+            if (jdkVersion < 9) {
                 throw new GradleException(
-                        "${taskName} needs JDK 9 to 24, but uses JDK ${jdkVersion}; run it with -PuseJdkVersion=21.")
+                        "${taskName} needs JDK 9 or later, but uses JDK ${jdkVersion}; run it with -PuseJdkVersion=21.")
             }
+            // Only the directories that exist: javadoc from JDK 25 on crashes with
+            // "AssertionError: ignored flag: -Xlint:-options" when a -docletpath entry does not
+            // exist, such as build/resources/main of this project, which has no resources.
+            t.options.docletpath = docletClasspath.filter { it.exists() } as List
         }
         // OptionsDoclet loads the annotator's classes, which use javac internals.
         if (!isJava8) {

@@ -60,6 +60,7 @@ jobs:
           - {script: 'typecheck-part1', java: {version: '8', experimental: false}}
           - {script: 'typecheck-part2', java: {version: '8', experimental: false}}
           - {script: 'guava', java: {version: '8', experimental: false}}
+          - {script: 'cftests-junit-jdk21', java: {version: '8', experimental: false}}
           # --- JDK 28 (experimental) ---
           - {script: 'cftests-junit-part1', java: {version: '28', experimental: true}}
           - {script: 'cftests-junit-part2', java: {version: '28', experimental: true}}
@@ -121,7 +122,9 @@ jobs:
           script: ${{ matrix.script }}
           # Only master writes caches, which pull requests then read.  A pull request's own
           # entries help only its reruns, and they push master's entries out of the cache.
-          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+          # On master, only one job per JDK writes the Gradle cache; the other jobs on that JDK
+          # read it.  An entry from every job overflowed the repository's 10 GB cache limit.
+          cache-read-only: ${{ github.ref != 'refs/heads/master' || matrix.script != 'cftests-junit-part1' }}
 
       - name: Run test script checker/bin-devel/test-${{ matrix.script }}
         run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -154,11 +157,19 @@ jobs:
           java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
 
+      # As in setup-test-env.
+      - name: Remove the javac problem matchers
+        shell: bash
+        run: |
+          echo "::remove-matcher owner=javac::"
+          echo "::remove-matcher owner=maven-javac::"
+
       - name: Setup Gradle
         timeout-minutes: 10
-        uses: gradle/actions/setup-gradle@v6.4.0
+        uses: gradle/actions/setup-gradle@v6.4.1
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+          # As for linux-tests, one job per operating system writes the cache.
+          cache-read-only: ${{ github.ref != 'refs/heads/master' || matrix.script != 'cftests-junit-part1' }}
 
       - name: Install coreutils on macOS
         if: ${{ matrix.os == 'macos-latest' }}
@@ -198,7 +209,8 @@ jobs:
           target-jdk: ${{ env.PRIMARY_JDK }}
           jdk-ea-major: ${{ env.JDK_EA_MAJOR }}
           jdk-ea-build: ${{ env.JDK_EA_BUILD }}
-          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+          # Reads the cache that cftests-junit-part1 on the same JDK writes.
+          cache-read-only: 'true'
 
       - name: Build the jars
         run: ./gradlew assembleForJavac

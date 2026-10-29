@@ -83,7 +83,7 @@ dependencies {
         // Error Prone itself, the eisopcf plugin, and the Checker Framework checkers to run, all
         // on the errorprone (annotation processor) path.  The plugin resolves the selected checker
         // class by name at run time from this path.
-        errorprone("com.google.errorprone:error_prone_core:2.50.0")
+        errorprone("com.google.errorprone:error_prone_core:2.51.0")
         errorprone(files(frameworkErrorproneJar()))
         // Bundles all Checker Framework checkers.
         errorprone(files(cfDistJar("checker.jar")))
@@ -93,7 +93,7 @@ dependencies {
 
         // Error Prone itself, the published eisopcf plugin, and the Checker Framework checkers to
         // run, all on the errorprone (annotation processor) path.
-        errorprone("com.google.errorprone:error_prone_core:2.50.0")
+        errorprone("com.google.errorprone:error_prone_core:2.51.0")
         errorprone("io.github.eisop:framework-errorprone:${eisopVersion}")
         errorprone("io.github.eisop:checker:${eisopVersion}")
     }

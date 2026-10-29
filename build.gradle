@@ -58,6 +58,12 @@ ext {
         useJdkVersionInt = majorVersionToInt(useJdkVersionProp)
     }
 
+    // The JDK that runs the JUnit and jtreg tests; by default, the one that compiles them.  CI job
+    // cftests-junit-jdk21 compiles with JDK 21 and runs the tests on another JDK, as a user does
+    // who runs a release on that JDK.
+    String testJdkVersionProp = findProperty("testJdkVersion")
+    testJdkVersionInt = (testJdkVersionProp == null) ? useJdkVersionInt : majorVersionToInt(testJdkVersionProp)
+
     // On a Java 8 JVM, use error-prone javac and source/target 8.
     // On a Java 9+ JVM, use the host javac, default source/target, and required module flags.
     isJava8 = (useJdkVersionInt == 8)
@@ -150,6 +156,7 @@ allprojects { currentProj ->
     ext {
         currentRuntimeJavaVersion = rootProject.ext.currentRuntimeJavaVersion
         useJdkVersionInt = rootProject.ext.useJdkVersionInt
+        testJdkVersionInt = rootProject.ext.testJdkVersionInt
         isJava8 = rootProject.ext.isJava8
         skipDelombok = rootProject.ext.skipDelombok
         javadocMemberLevel = rootProject.ext.javadocMemberLevel
@@ -266,17 +273,22 @@ allprojects { currentProj ->
     // buildSrc/src/main/groovy/cf-spotless.gradle.
     apply plugin: "cf-spotless"
 
-    test {
+    // For every Test task, not only `test`: a task such as allNullnessTests otherwise gets
+    // Gradle's default of 512 MB, in which the binary stub diff test runs out of memory on JDK 11.
+    tasks.withType(Test).configureEach {
         minHeapSize = "256m" // initial heap size
-    maxHeapSize = "4g" // maximum heap size
+        maxHeapSize = "4g" // maximum heap size
+        // Compile only with C1.  C2 compiles the Checker Framework's code at a high CPU cost that
+        // the tests do not recoup.  For eight checker test classes on four CPUs, as on CI, this
+        // reduced the time from 247 s (937 s of CPU) to 174 s (399 s) on JDK 8, and the CPU time
+        // from 599 s to 354 s on JDK 21, at the same elapsed time.
+        jvmArgs("-XX:TieredStopAtLevel=1")
     }
 
     boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersionInt)
     if (useToolchains) {
         // This uses the requested Java toolchain.
         // On CI, gradle always runs with JDK 21 and different versions are selected as toolchains.
-        // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
-        // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
         //   https://docs.gradle.org/current/userguide/toolchains.html
         java {
             toolchain {
@@ -295,6 +307,46 @@ allprojects { currentProj ->
             javaCompiler = javaToolchains.compilerFor {
                 languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
             }
+        }
+    }
+
+    // Run the tests on another JDK than the one that compiles them, to find mismatches between
+    // the javac APIs that the Checker Framework is compiled against and those it runs with.
+    // A Test task otherwise runs on the toolchain JDK, or on Gradle's JDK if there is none.
+    int testJdkVersionInt = rootProject.ext.testJdkVersionInt
+    if (testJdkVersionInt != useJdkVersionInt) {
+        tasks.withType(Test).configureEach {
+            javaLauncher = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(testJdkVersionInt)
+            }
+            // Show that the JDKs differ.  The compiler is part of compileJava's build cache key,
+            // so classes from the cache were compiled by the same JDK.
+            def compiler = tasks.named("compileJava", JavaCompile).flatMap { it.javaCompiler }
+            def launcher = javaLauncher
+            doFirst { Test t ->
+                t.logger.lifecycle("${t.path}: classes compiled by JDK "
+                        + "${compiler.get().metadata.javaRuntimeVersion}, tests run on JDK "
+                        + "${launcher.get().metadata.javaRuntimeVersion} "
+                        + "(${launcher.get().executablePath})")
+                // SystemUtil.getToolsJar, which tests use on JDK 8, finds the JDK by JAVA_HOME.
+                t.environment("JAVA_HOME", launcher.get().metadata.installationPath.asFile.absolutePath)
+            }
+        }
+    }
+
+    // Run jtreg and its tests on the JDK that runs the tests, rather than on whichever JDK
+    // JAVA_HOME names.  A compiler, not a launcher, because jtreg needs a JDK, not a JRE.
+    tasks.withType(Exec).configureEach { Exec jtregTask ->
+        if (!jtregTask.name.startsWith("jtreg")) {
+            return
+        }
+        def testJdk = javaToolchains.compilerFor {
+            languageVersion = JavaLanguageVersion.of(testJdkVersionInt)
+        }
+        jtregTask.doFirst { Exec t ->
+            File testJdkHome = testJdk.get().metadata.installationPath.asFile
+            t.environment("JTREG_JAVA", new File(testJdkHome, "bin/java").absolutePath)
+            t.args = ["-jdk:${testJdkHome.absolutePath}".toString()] + t.args
         }
     }
 
@@ -463,7 +515,7 @@ allprojects { currentProj ->
                 // Error Prone must be available in the annotation processor path
                 options.annotationProcessorPath = configurations.errorProneAnnotationProcessor
                 // Enable Error Prone. Also note the minimum version for the dependency itself.
-                options.errorprone.enabled = (useJdkVersionInt >= 21) && (useJdkVersionInt <= 26)
+                options.errorprone.enabled = (useJdkVersionInt >= 21)
                 options.errorprone.disableWarningsInGeneratedCode = true
                 options.errorprone.errorproneArgs = [
                     // -------------------------------------------------------------------------
@@ -622,6 +674,8 @@ allprojects { currentProj ->
                         "-Xep:SystemExitOutsideMain:OFF",
                         "-Xep:TypeEquals:OFF",
                         "-Xep:UnnecessaryDefaultInEnumSwitch:OFF",
+                        // New in Error Prone 2.51.0.
+                        "-Xep:CompareToZero:OFF",
                     ])
                 }
 
@@ -629,6 +683,8 @@ allprojects { currentProj ->
                     options.errorprone.errorproneArgs.addAll([
                         // Some Value Checker tests use int literals intentionally.
                         "-Xep:IntLiteralCast:OFF",
+                        // Would require TestParameterInjector as a test dependency.
+                        "-Xep:LoopToTestParameter:OFF",
                     ])
                 }
 
@@ -1078,7 +1134,7 @@ tasks.register("downloadJtreg", Download) {
     // src "https://checkerframework.org/jtreg-4.2.0-tip.tar.gz"
     // dest new File(buildDir, "jtreg-4.2.0-tip.tar.gz")
     // src "https://builds.shipilev.net/jtreg/jtreg4.2-b16.zip"
-    src "https://builds.shipilev.net/jtreg/jtreg-7.5+1.zip"
+    src "https://builds.shipilev.net/jtreg/jtreg-8.3+1.zip"
     dest layout.buildDirectory.file("jtreg.zip").get().asFile
     overwrite true
     retries 3
@@ -1398,7 +1454,7 @@ subprojects {
 
         // Add jtregTests to framework and checker modules.
         // Jtreg only works on Java 11+.
-        if (useJdkVersionInt >= 11 && (isFramework || isChecker)) {
+        if (testJdkVersionInt >= 11 && (isFramework || isChecker)) {
             tasks.register("jtregTests", Exec) {
                 group = "Verification"
                 description = "Run the jtreg tests. Requires jtreg to be installed."
@@ -1414,7 +1470,9 @@ subprojects {
                 executable = "${rootProject.jtregHome}/bin/jtreg"
                 args = [
                     "-dir:${projectDir}/jtreg",
-                    "-workDir:${jtregOutput}/${name}/work",
+                    // jtreg reuses the classes it compiled in its work directory, so keep one
+                    // per JDK: classes compiled by a newer JDK do not run on an older one.
+                    "-workDir:${jtregOutput}/${name}/work-jdk${testJdkVersionInt}",
                     "-reportDir:${jtregOutput}/${name}/report",
                     "-verbose:error,fail,nopass",
                     // Don't add debugging information
@@ -1433,7 +1491,7 @@ subprojects {
                 // themselves guarded by "@requires jdk.version.major <= 24", and the
                 // java.lang.classfile harness that replaces them on 25+ needs no such flag, so
                 // pass these only where they apply.
-                if (useJdkVersionInt <= 24) {
+                if (testJdkVersionInt <= 24) {
                     args += [
                         "-javacoptions:--add-modules jdk.jdeps",
                         "-javacoptions:--add-exports=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED",
@@ -1486,7 +1544,8 @@ subprojects {
 
         // Configure JUnit tests
         tasks.withType(Test).configureEach {
-            if (isJava8) {
+            // How the tests get javac depends on the JDK that runs them.
+            if (testJdkVersionInt == 8) {
                 jvmArgs "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
             } else {
                 jvmArgs += compilerArgsForRunningCF
@@ -1593,7 +1652,7 @@ subprojects {
         tasks.register("nonJunitTests") {
             group = "Verification"
             description = "Run all Checker Framework tests except for the JUnit tests and inference tests."
-            if (useJdkVersionInt >= 11 && (isFramework || isChecker)) {
+            if (testJdkVersionInt >= 11 && (isFramework || isChecker)) {
                 dependsOn("jtregTests")
             }
             if (isFramework) {
@@ -1601,7 +1660,7 @@ subprojects {
             }
 
             if (isChecker) {
-                if (!isJava8) {
+                if (testJdkVersionInt >= 11) {
                     dependsOn("jtregJdk11Tests")
                 }
                 dependsOn("nullnessExtraTests", "commandLineTests", "tutorialTests")

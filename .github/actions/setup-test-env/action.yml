@@ -89,6 +89,16 @@ runs:
         uri: ${{ steps.ea-jdk.outputs.uri }}
         install-as-version: ${{ inputs.jdk-ea-major }}
 
+    # setup-java adds problem matchers that turn every "File.java:N: error:" and "warning:" line
+    # into an annotation.  The tests print such lines on purpose (expected checker errors and the
+    # commands that grep for them), and Javadoc prints thousands of warnings, so a passing run
+    # showed dozens of annotations.  A real compiler error still fails the step and is in its log.
+    - name: Remove the javac problem matchers
+      shell: bash
+      run: |
+        echo "::remove-matcher owner=javac::"
+        echo "::remove-matcher owner=maven-javac::"
+
     - name: Pin Gradle to primary JDK via gradle.properties
       if: ${{ inputs.target-jdk != inputs.primary-jdk }}
       shell: bash
@@ -96,8 +106,16 @@ runs:
         mkdir -p ~/.gradle
         echo "org.gradle.java.home=$JAVA_HOME_${{ inputs.primary-jdk }}_X64" >> ~/.gradle/gradle.properties
 
+    # By default, a job whose own cache entry is missing restores the newest entry of any job
+    # in the matrix, whose build cache holds the outputs for a different JDK.  Key the entries
+    # by the JDK that compiles: the target JDK, except for cftests-junit-jdk21, which compiles
+    # with JDK 21.  Set in GITHUB_ENV so that the post step that saves the cache sees it, too.
+    - name: Key the Gradle cache by the compiling JDK
+      shell: bash
+      run: echo "GRADLE_BUILD_ACTION_CACHE_KEY_JOB=tests-jdk${{ inputs.script == 'cftests-junit-jdk21' && '21' || inputs.target-jdk }}" >> "$GITHUB_ENV"
+
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v6.4.0
+      uses: gradle/actions/setup-gradle@v6.4.1
       with:
         cache-read-only: ${{ inputs.cache-read-only == 'true' }}
 
@@ -109,6 +127,27 @@ runs:
         key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
           maven-${{ runner.os }}-
+
+    # The downloadJtreg task in build.gradle skips the download when jtreg is already in ../jtreg.
+    # Key the cache by the name of the file that the task downloads, so that a new version of
+    # jtreg is downloaded once.
+    - name: Find the jtreg version
+      id: jtreg
+      if: ${{ inputs.script == 'cftests-nonjunit' }}
+      shell: bash
+      run: |
+        file=$(grep -o 'jtreg/jtreg-[^"]*\.zip' build.gradle | cut -d/ -f2)
+        test -n "$file"
+        echo "file=$file" >> "$GITHUB_OUTPUT"
+
+    - name: Cache jtreg
+      if: ${{ inputs.script == 'cftests-nonjunit' }}
+      uses: actions/cache@v6
+      with:
+        # The directory that contains the checkout, which is where build.gradle looks for jtreg.
+        # actions/cache rejects a path that contains "..".
+        path: ${{ runner.workspace }}/jtreg
+        key: ${{ steps.jtreg.outputs.file }}
 
     # docs/examples/BazelExample/Makefile runs Bazel only on JDK 21 and earlier.
     - name: Setup Bazel

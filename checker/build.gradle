@@ -562,7 +562,8 @@ tasks.register("jtregJdk11Tests", Exec) {
     executable = "${rootProject.jtregHome}/bin/jtreg"
     args = [
         "-dir:${projectDir}/jtregJdk11",
-        "-workDir:${jtregOutput}/${name}/work",
+        // One work directory per JDK, as for the jtregTests task in ../build.gradle.
+        "-workDir:${jtregOutput}/${name}/work-jdk${testJdkVersionInt}",
         "-reportDir:${jtregOutput}/${name}/report",
         "-verbose:summary",
         "-javacoptions:-g",
