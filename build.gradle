@@ -278,6 +278,11 @@ allprojects { currentProj ->
     tasks.withType(Test).configureEach {
         minHeapSize = "256m" // initial heap size
         maxHeapSize = "4g" // maximum heap size
+        // Compile only with C1.  C2 compiles the Checker Framework's code at a high CPU cost that
+        // the tests do not recoup.  For eight checker test classes on four CPUs, as on CI, this
+        // reduced the time from 247 s (937 s of CPU) to 174 s (399 s) on JDK 8, and the CPU time
+        // from 599 s to 354 s on JDK 21, at the same elapsed time.
+        jvmArgs("-XX:TieredStopAtLevel=1")
     }
 
     boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersionInt)
