@@ -1436,18 +1436,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the value of the {@code skipFiles} option
      */
     private Pattern getSkipFilesPattern(Map<String, String> options) {
-        boolean hasSkipFiles = options.containsKey("skipFiles");
-        boolean hasSkipDirs = options.containsKey("skipDirs");
-        if (hasSkipFiles && hasSkipDirs) {
-            throw new UserError(
-                    "Do not supply both -AskipFiles and -AskipDirs command-line options.");
-        }
-        // This logic isn't quite right because the checker.skipDirs property might exist.
-        if (hasSkipDirs) {
-            return getSkipPattern("skipDirs", options);
-        } else {
-            return getSkipPattern("skipFiles", options);
-        }
+        return getSkipPattern("skipFiles", options);
     }
 
     /**
