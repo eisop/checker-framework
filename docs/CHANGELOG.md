@@ -203,6 +203,14 @@ other type: annotations on its type arguments, such as the `@A` of
 `List<@A String>[]`, were ignored, and a `?` there, such as that of
 `Class<?>[]`, now takes the bounds of its type variable as it does elsewhere.
 
+In a stub file, an annotation element value can now be any constant
+expression, as in Java source: parentheses, unary, binary, and conditional
+operators, string concatenation, and casts. A simple name may refer to a
+constant of the enclosing class, as well as to a statically imported one, and
+a qualified name may start with a `java.lang` class such as `Byte`. Nested
+annotations (e.g. in `@EnsuresQualifier.List({...})`) and text blocks are
+supported. Such annotations used to be ignored.
+
 The Nullness Checker and the other checkers built on the Initialization Checker
 no longer fail with "fromClass can't load class ... PolyInitialized" when the
 compilation classpath has a checker-qual artifact without `@PolyInitialized`,

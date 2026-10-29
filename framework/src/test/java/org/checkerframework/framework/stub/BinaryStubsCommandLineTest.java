@@ -165,7 +165,6 @@ public class BinaryStubsCommandLineTest {
      */
     private static final String VALUES_LIB_SOURCE =
             "public class Lib {\n"
-                    + "    public static final String C = \"c\";\n"
                     + "    public static Object maybeEncrypted() { return null; }\n"
                     + "    public static void escaped(Object o) {}\n"
                     + "    public static void missingConstantInArray(Object o) {}\n"
@@ -191,6 +190,36 @@ public class BinaryStubsCommandLineTest {
                     + "    public static void missingConstantInArray(Object o);\n"
                     + "    @EnsuresQualifier(expression = \"#1\", qualifier = Missing.class)\n"
                     + "    public static void missingClass(Object o);\n"
+                    + "}\n";
+
+    /** The source of a class with a method that a stub gives a postcondition. */
+    private static final String ENSURES_LIB_SOURCE =
+            "public class Lib {\n" + "    public static void ensure(Object o) {}\n" + "}\n";
+
+    /**
+     * A stub that gives {@code Lib.ensure} the postcondition that its argument is
+     * {@code @Encrypted}, through the container annotation {@code @EnsuresQualifier.List}, whose
+     * value is an array of nested annotations.
+     */
+    private static final String NESTED_ANNOTATION_STUB =
+            "import org.checkerframework.framework.qual.EnsuresQualifier;\n"
+                    + "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "public class Lib {\n"
+                    + "    @EnsuresQualifier.List({\n"
+                    + "        @EnsuresQualifier(expression = \"#1\", qualifier = Encrypted.class)\n"
+                    + "    })\n"
+                    + "    public static void ensure(Object o);\n"
+                    + "}\n";
+
+    /** Relies on {@code Lib.ensure}'s postcondition. */
+    private static final String ENSURES_USE_SOURCE =
+            "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "class Use {\n"
+                    + "    static void needsEncrypted(@Encrypted Object o) {}\n"
+                    + "    void m(Object o) {\n"
+                    + "        Lib.ensure(o);\n"
+                    + "        needsEncrypted(o);\n"
+                    + "    }\n"
                     + "}\n";
 
     /** A trivial, unrelated stub file, used to make a directory's binary setup incomplete. */
@@ -319,7 +348,7 @@ public class BinaryStubsCommandLineTest {
      * @return the directory {@code Lib.class} was compiled into
      * @throws IOException if writing the source or compiling it fails
      */
-    private static File compileLib(Path dir, String libSource) throws IOException {
+    static File compileLib(Path dir, String libSource) throws IOException {
         File libFile = dir.resolve("lib-src").resolve("Lib.java").toFile();
         write(libFile.toPath(), libSource);
         File libClasses = dir.resolve("lib-classes").toFile();
@@ -753,6 +782,37 @@ public class BinaryStubsCommandLineTest {
             }
         }
         return false;
+    }
+
+    /**
+     * A nested annotation as an annotation element value -- here in the array value of a container
+     * annotation -- applies both when the stub file is text-parsed and when it is read from its
+     * binary form.
+     */
+    @Test
+    public void nestedAnnotationValueApplies() throws IOException {
+        Path stubsDir = tempDir.resolve("stubs");
+        write(stubsDir.resolve("Lib.astub"), NESTED_ANNOTATION_STUB);
+        BinaryStubFileGenerator.main(new String[] {stubsDir.toString(), stubsDir.toString()});
+
+        // -AstubWarnIfNotFound forces text parsing; see useBinaryForCommandLineStubs.
+        List<Diagnostic<? extends JavaFileObject>> text =
+                compileSources(
+                        ENSURES_LIB_SOURCE,
+                        ENSURES_USE_SOURCE,
+                        "-Astubs=" + stubsDir,
+                        "-AstubWarnIfNotFound");
+        Assert.assertFalse("text parsing must apply the postcondition", has(text, MISMATCH_KEY));
+
+        List<Diagnostic<? extends JavaFileObject>> binary =
+                compileSources(
+                        ENSURES_LIB_SOURCE,
+                        ENSURES_USE_SOURCE,
+                        "-Astubs=" + stubsDir,
+                        "-AbinaryStubDiffCheck");
+        assertNoDiffCheckMismatch(binary);
+        Assert.assertFalse(
+                "the binary form must apply the postcondition", has(binary, MISMATCH_KEY));
     }
 
     /**

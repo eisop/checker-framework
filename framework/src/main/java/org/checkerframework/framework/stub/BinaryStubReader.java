@@ -1923,7 +1923,7 @@ public class BinaryStubReader {
      * @param val the value to dispatch; must be a type handled by {@link
      *     AnnotationBuilder#setValue}
      */
-    private static void dispatchSetValue(AnnotationBuilder builder, String name, Object val) {
+    static void dispatchSetValue(AnnotationBuilder builder, String name, Object val) {
         if (val instanceof TypeMirror) {
             builder.setValue(name, (TypeMirror) val);
         } else if (val instanceof VariableElement) {
@@ -2023,107 +2023,15 @@ public class BinaryStubReader {
                 cache.resolvedClassTypesCache.put(fqName, type);
             }
             return type;
-        } else if (val instanceof BinaryStubData.EnumConstantValue) {
-            // Despite the name, the writer tags every FieldAccessExpr this way (see
-            // BinaryStubWriter#writeValue), so the referenced member need not be an enum
-            // constant: e.g. "@IntRange(to = Integer.MAX_VALUE)" refers to a plain static final
-            // field. Mirror AnnotationFileParser#getValueOfExpressionInAnnotation, which resolves
-            // the field first and only then asks for its constant value (an enum constant has
-            // none, so the element itself is used; a constant field's value is used and coerced).
-            BinaryStubData.EnumConstantValue ev = (BinaryStubData.EnumConstantValue) val;
-            AnnotationFileElementTypes.BinaryStubDataCache cache =
-                    elementTypes.getBinaryStubDataCache();
-            if (cache != null) {
-                Map<String, Object> innerCache = cache.resolvedConstantsCache.get(ev.enumClassName);
-                if (innerCache != null && innerCache.containsKey(ev.constantName)) {
-                    Object cachedVal = innerCache.get(ev.constantName);
-                    if (cachedVal != null) {
-                        // coerceToKind is a no-op for a cached enum-constant VariableElement; it
-                        // only converts a cached constant field's numeric/character value.
-                        return coerceToKind(cachedVal, expectedKind);
-                    }
-                    return null;
-                }
-            }
-
-            Object resolved = null;
-            @SuppressWarnings("signature:argument.type.incompatible") // ev.enumClassName is read
-            // from the binary stub's string pool, which BinaryStubWriter populates only with
-            // fully-qualified names
-            TypeElement enumClass = env.getElementUtils().getTypeElement(ev.enumClassName);
-            if (enumClass != null) {
-                for (Element elt : enumClass.getEnclosedElements()) {
-                    if (elt.getKind() == ElementKind.ENUM_CONSTANT
-                            && elt.getSimpleName().contentEquals(ev.constantName)) {
-                        resolved = elt;
-                        break;
-                    }
-                }
-                if (resolved == null) {
-                    VariableElement fieldElt = findFieldInType(enumClass, ev.constantName, env);
-                    if (fieldElt != null) {
-                        resolved = fieldElt.getConstantValue();
-                    }
-                }
-            }
-
-            if (cache != null) {
-                Map<String, Object> innerCache = cache.resolvedConstantsCache.get(ev.enumClassName);
-                if (innerCache == null) {
-                    innerCache = new HashMap<>();
-                    cache.resolvedConstantsCache.put(ev.enumClassName, innerCache);
-                }
-                innerCache.put(ev.constantName, resolved);
-            }
-
-            if (resolved != null) {
-                return coerceToKind(resolved, expectedKind);
-            }
-            return null;
-        } else if (val instanceof BinaryStubData.NameLiteralValue) {
-            // A simple-name reference to a constant in the enclosing class (or a supertype).
-            String constantName = ((BinaryStubData.NameLiteralValue) val).name;
-            if (enclosingClassName != null) {
-                AnnotationFileElementTypes.BinaryStubDataCache cache =
-                        elementTypes.getBinaryStubDataCache();
-                if (cache != null) {
-                    Map<String, Object> innerCache =
-                            cache.resolvedConstantsCache.get(enclosingClassName);
-                    if (innerCache != null && innerCache.containsKey(constantName)) {
-                        Object cachedVal = innerCache.get(constantName);
-                        if (cachedVal != null) {
-                            return coerceToKind(cachedVal, expectedKind);
-                        }
-                        return null;
-                    }
-                }
-
-                Object resolved = null;
-                @SuppressWarnings("signature:argument.type.incompatible") // enclosingClassName is
-                // read from the binary stub's string pool, which BinaryStubWriter populates only
-                // with fully-qualified names
-                TypeElement te = env.getElementUtils().getTypeElement(enclosingClassName);
-                VariableElement ve = findFieldInType(te, constantName, env);
-                if (ve != null) {
-                    resolved = ve.getConstantValue();
-                }
-
-                if (cache != null) {
-                    Map<String, Object> innerCache =
-                            cache.resolvedConstantsCache.get(enclosingClassName);
-                    if (innerCache == null) {
-                        innerCache = new HashMap<>();
-                        cache.resolvedConstantsCache.put(enclosingClassName, innerCache);
-                    }
-                    innerCache.put(constantName, resolved);
-                }
-
-                if (resolved != null) {
-                    return coerceToKind(resolved, expectedKind);
-                }
-            }
-            // Could not resolve: the caller drops the whole annotation.
-            return null;
+        } else if (val instanceof BinaryStubData.EnumConstantValue
+                || val instanceof BinaryStubData.NameLiteralValue) {
+            // An enum constant is the element itself; a constant field is its value, as in
+            // AnnotationFileParser#getValueOfExpressionInAnnotation.
+            Object resolved = resolveVariable(val, enclosingClassName, env, elementTypes);
+            return resolved == null ? null : coerceToKind(resolved, expectedKind);
+        } else if (val instanceof BinaryStubData.OperationValue) {
+            Object constant = evaluateConstant(val, enclosingClassName, env, elementTypes);
+            return constant == null ? null : coerceToKind(constant, expectedKind);
         } else if (val instanceof BinaryStubData.AnnotationRecord) {
             return getAnnotationMirror(
                     (BinaryStubData.AnnotationRecord) val,
@@ -2133,6 +2041,135 @@ public class BinaryStubReader {
                     elementTypes);
         }
         return null;
+    }
+
+    /**
+     * Returns the value of a constant expression in an annotation value, computed by {@link
+     * AnnotationConstants} exactly as {@code AnnotationFileParser#evaluateConstant} computes it
+     * from the text.
+     *
+     * @param val a literal value, a reference to a constant, or an {@link
+     *     BinaryStubData.OperationValue}
+     * @param enclosingClassName the fully-qualified name of the enclosing class, or null
+     * @param env the processing environment
+     * @param elementTypes per-factory state including the resolved-value caches
+     * @return the value, or null if it is not a constant
+     */
+    private static @Nullable Object evaluateConstant(
+            Object val,
+            @Nullable String enclosingClassName,
+            ProcessingEnvironment env,
+            AnnotationFileElementTypes elementTypes) {
+        if (val instanceof Boolean
+                || val instanceof String
+                || val instanceof Character
+                || val instanceof Number) {
+            return val;
+        } else if (val instanceof BinaryStubData.EnumConstantValue
+                || val instanceof BinaryStubData.NameLiteralValue) {
+            Object resolved = resolveVariable(val, enclosingClassName, env, elementTypes);
+            // An enum constant is not a constant expression.
+            return resolved instanceof VariableElement ? null : resolved;
+        } else if (!(val instanceof BinaryStubData.OperationValue)) {
+            return null;
+        }
+        BinaryStubData.OperationValue op = (BinaryStubData.OperationValue) val;
+        Object[] operands = new Object[op.operands.length];
+        for (int i = 0; i < operands.length; i++) {
+            operands[i] = evaluateConstant(op.operands[i], enclosingClassName, env, elementTypes);
+            if (operands[i] == null) {
+                return null;
+            }
+        }
+        switch (op.kind) {
+            case 'u':
+                return AnnotationConstants.unary(op.operator, operands[0]);
+            case 'b':
+                return AnnotationConstants.binary(op.operator, operands[0], operands[1]);
+            case '?':
+                return AnnotationConstants.conditional(operands[0], operands[1], operands[2]);
+            case 'x':
+                return AnnotationConstants.cast(op.operator, operands[0]);
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Resolves a reference to an enum constant or a constant field: a qualified name ({@link
+     * BinaryStubData.EnumConstantValue}) or a simple name ({@link
+     * BinaryStubData.NameLiteralValue}).
+     *
+     * @param val the reference
+     * @param enclosingClassName the fully-qualified name of the enclosing class, or null
+     * @param env the processing environment
+     * @param elementTypes per-factory state including the resolved-value caches
+     * @return the enum constant's element, the constant field's value, or null if the reference
+     *     does not resolve to either
+     */
+    private static @Nullable Object resolveVariable(
+            Object val,
+            @Nullable String enclosingClassName,
+            ProcessingEnvironment env,
+            AnnotationFileElementTypes elementTypes) {
+        if (val instanceof BinaryStubData.NameLiteralValue) {
+            // Not cached: the result depends on the enclosing class and on the stub file's
+            // imports, and a simple name is rare enough not to need it.
+            BinaryStubData.NameLiteralValue nv = (BinaryStubData.NameLiteralValue) val;
+            @SuppressWarnings("signature:argument.type.incompatible") // read from the string
+            // pool, which BinaryStubWriter populates only with fully-qualified names
+            TypeElement enclosing =
+                    enclosingClassName == null
+                            ? null
+                            : env.getElementUtils().getTypeElement(enclosingClassName);
+            VariableElement field =
+                    AnnotationConstants.findConstant(
+                            nv.name, enclosing, nv.candidateClasses, env.getElementUtils());
+            if (field == null) {
+                return null;
+            }
+            return field.getKind() == ElementKind.ENUM_CONSTANT ? field : field.getConstantValue();
+        }
+        // Despite the name, the writer tags every FieldAccessExpr this way (see
+        // BinaryStubWriter#writeValue), so the referenced member need not be an enum constant:
+        // e.g. "@IntRange(to = Integer.MAX_VALUE)" refers to a plain static final field.
+        BinaryStubData.EnumConstantValue ev = (BinaryStubData.EnumConstantValue) val;
+        AnnotationFileElementTypes.BinaryStubDataCache cache =
+                elementTypes.getBinaryStubDataCache();
+        if (cache != null) {
+            Map<String, Object> innerCache = cache.resolvedConstantsCache.get(ev.enumClassName);
+            if (innerCache != null && innerCache.containsKey(ev.constantName)) {
+                return innerCache.get(ev.constantName);
+            }
+        }
+
+        Object resolved = null;
+        @SuppressWarnings("signature:argument.type.incompatible") // ev.enumClassName is read
+        // from the binary stub's string pool, which BinaryStubWriter populates only with
+        // fully-qualified names
+        TypeElement enumClass = env.getElementUtils().getTypeElement(ev.enumClassName);
+        if (enumClass != null) {
+            for (Element elt : enumClass.getEnclosedElements()) {
+                if (elt.getKind() == ElementKind.ENUM_CONSTANT
+                        && elt.getSimpleName().contentEquals(ev.constantName)) {
+                    resolved = elt;
+                    break;
+                }
+            }
+            if (resolved == null) {
+                VariableElement fieldElt = findFieldInType(enumClass, ev.constantName, env);
+                if (fieldElt != null) {
+                    resolved = fieldElt.getConstantValue();
+                }
+            }
+        }
+
+        if (cache != null) {
+            cache.resolvedConstantsCache
+                    .computeIfAbsent(ev.enumClassName, k -> new HashMap<>())
+                    .put(ev.constantName, resolved);
+        }
+        return resolved;
     }
 
     /**
