@@ -1298,7 +1298,7 @@ public class AnnotationFileElementTypes {
             return;
         }
         Diagnostic.Kind kind =
-                atypeFactory.getProcessingEnv().getOptions().containsKey("stubWarnNote")
+                atypeFactory.getChecker().hasOption("stubWarnNote")
                         ? Diagnostic.Kind.NOTE
                         : Diagnostic.Kind.WARNING;
         atypeFactory
