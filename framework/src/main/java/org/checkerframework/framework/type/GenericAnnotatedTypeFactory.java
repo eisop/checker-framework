@@ -2325,6 +2325,28 @@ public abstract class GenericAnnotatedTypeFactory<
         shouldCache = false;
         computingAnnotatedTypeMirrorOfLhs = true;
 
+        try {
+            return getAnnotatedTypeLhsWithoutFlow(lhsTree, oldShouldCache);
+        } finally {
+            // In case computing the type crashed, restore the state: the next compilation unit
+            // uses this type factory, too.
+            useFlow = oldUseFlow;
+            shouldCache = oldShouldCache;
+            computingAnnotatedTypeMirrorOfLhs = oldComputingAnnotatedTypeMirrorOfLhs;
+        }
+    }
+
+    /**
+     * Computes the type of a left-hand side of an assignment, after {@link #getAnnotatedTypeLhs}
+     * has disabled flow-sensitive refinement and caching.
+     *
+     * @param lhsTree left-hand side of an assignment
+     * @param oldShouldCache the value of {@link #shouldCache} before {@link #getAnnotatedTypeLhs}
+     *     disabled caching; it is restored for a variable declared using {@code var}
+     * @return AnnotatedTypeMirror of {@code lhsTree}
+     */
+    private AnnotatedTypeMirror getAnnotatedTypeLhsWithoutFlow(
+            Tree lhsTree, boolean oldShouldCache) {
         AnnotatedTypeMirror res;
         switch (lhsTree.getKind()) {
             case VARIABLE:
@@ -2387,10 +2409,6 @@ public abstract class GenericAnnotatedTypeFactory<
                                     + lhsTree.getKind());
                 }
         }
-
-        useFlow = oldUseFlow;
-        shouldCache = oldShouldCache;
-        computingAnnotatedTypeMirrorOfLhs = oldComputingAnnotatedTypeMirrorOfLhs;
         return res;
     }
 
@@ -2407,9 +2425,11 @@ public abstract class GenericAnnotatedTypeFactory<
     /*package-private*/ AnnotatedTypeMirror getAnnotatedTypeWithReceiverRefinement(Tree tree) {
         boolean oldUseFlow = useFlow;
         useFlow = everUseFlow;
-        AnnotatedTypeMirror result = getAnnotatedType(tree);
-        useFlow = oldUseFlow;
-        return result;
+        try {
+            return getAnnotatedType(tree);
+        } finally {
+            useFlow = oldUseFlow;
+        }
     }
 
     /**
@@ -2553,8 +2573,11 @@ public abstract class GenericAnnotatedTypeFactory<
             Tree tree, AnnotatedTypeMirror type) {
         boolean oldUseflow = useFlow;
         useFlow = false;
-        addComputedTypeAnnotations(tree, type);
-        useFlow = oldUseflow;
+        try {
+            addComputedTypeAnnotations(tree, type);
+        } finally {
+            useFlow = oldUseflow;
+        }
     }
 
     /**

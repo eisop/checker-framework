@@ -260,6 +260,10 @@ variable named in a lock expression, except where the variable's declaration is 
 source: for a variable declared in an earlier `case` of an old-style `switch`, a pattern variable,
 or a local variable of an enclosing method used in a local or anonymous class (eisop#2375).
 
+A crash while computing the type of the left-hand side of an assignment no longer disables
+flow-sensitive type refinement for the rest of the compilation. The compilation units checked
+after the crash reported false positives, such as a dereference after `if (x != null)`.
+
 ### Implementation details
 
 Removed methods that have been deprecated for more than two years:
