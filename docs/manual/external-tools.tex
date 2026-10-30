@@ -912,12 +912,50 @@ the plugin on the processorpath without running it, turn the check off with
 
 \subsectionAndLabel{Command-line options for checkers}{error-prone-options}
 
-Pass Checker Framework command-line options exactly as when running standalone: with
-javac \<-A> options.  This includes both common options such as
-\<-Astubs=\ldots{}> and \<-AsuppressWarnings=\ldots{}>, and checker-specific options
-written \<-ACheckerName\_option=value>.  Do \emph{not} use \<-XepOpt:> for Checker Framework
-options; \<-XepOpt:eisopcf:\ldots{}> configures only the plugin itself (currently just
-\<checkers>).
+Pass Checker Framework command-line options as Error Prone flags, written
+\<-XepOpt:eisopcf:\emph{option}=\emph{value}>, where \emph{option} is the option as it is
+written after \<-A> when running standalone.  Every option of the selected checkers can be
+passed this way:  common options such as \<stubs> and \<suppressWarnings>, lint options, and
+checker-specific options written \<CheckerName\_option>.  Each flag is one command-line
+argument, so a value may contain commas, colons, and paths:
+\begin{Verbatim}
+-XepOpt:eisopcf:stubs=lib.astub:other.astub
+-XepOpt:eisopcf:suppressWarnings=nullness:dereference.of.nullable,initialization
+-XepOpt:eisopcf:lint=redundantNullComparison
+-XepOpt:eisopcf:warnUnneededSuppressions
+-XepOpt:eisopcf:NullnessChecker_lint=redundantNullComparison
+\end{Verbatim}
+With the Gradle Error Prone plugin, write
+\<options.errorprone.option('eisopcf:stubs', 'lib.astub')>, as for \<eisopcf:checkers>
+above.
+
+Error Prone gives a flag without a value, such as
+\<-XepOpt:eisopcf:warnUnneededSuppressions>, the value \<true>.  An option that is only
+tested for its presence, as \<-AwarnUnneededSuppressions> is, therefore behaves exactly as
+when running standalone.  An option that gives a missing value a meaning needs the value
+under Error Prone:  write \<-XepOpt:eisopcf:lint=all> for \<-Alint>.
+
+An option that no selected checker supports, such as a misspelled one, is a compile error,
+like an unresolvable checker name:
+\begin{Verbatim}
+error: The following Checker Framework options are not recognized by any selected
+checker: [stub]. ...
+\end{Verbatim}
+
+Javac \<-A> options are not used under the Error Prone plugin.  The Checker Framework does
+not run as an annotation processor there, so javac does not warn about an unused \<-A>
+option when no annotation processor runs, and if the compilation runs some other
+annotation processor (AutoValue, Dagger, Lombok, \ldots{}), javac warns that no processor
+recognized the option, which \<-Werror> turns into a failure.  So that an option written
+as \<-A> is not silently ignored, the plugin reports a \<-A> option that a selected
+checker supports as a compile error naming the flag to use instead:
+\begin{Verbatim}
+error: Under the Error Prone plugin, Checker Framework options are passed as Error Prone
+flags, not as javac -A options, which are ignored. Pass -Astubs=lib.astub as
+-XepOpt:eisopcf:stubs=lib.astub.
+\end{Verbatim}
+A \<-A> option that no selected checker supports is left alone, since it may belong to
+another annotation processor of the compilation.
 
 \subsectionAndLabel{Severity}{error-prone-severity}
 

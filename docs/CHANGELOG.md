@@ -90,6 +90,10 @@ Type-checking and subtyping improvements:
   qualifiers of the superclass's type arguments from the target type and the
   arguments, as for `new C<>(args)`. They were defaulted, which caused false
   positives and checked the arguments against the defaulted type.
+- Type argument inference resolves a type variable that appears in a `throws`
+  clause to `RuntimeException` only if every upper bound is a supertype of
+  `RuntimeException`, as the JLS and javac do. It did so if any upper bound
+  was, which caused false `type.arguments.not.inferred` errors.
 - CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
   try-with-resources) are now type-checked, with diagnostics pointing at the
   source construct.
@@ -203,6 +207,14 @@ other type: annotations on its type arguments, such as the `@A` of
 `List<@A String>[]`, were ignored, and a `?` there, such as that of
 `Class<?>[]`, now takes the bounds of its type variable as it does elsewhere.
 
+In a stub file, an annotation element value can now be any constant
+expression, as in Java source: parentheses, unary, binary, and conditional
+operators, string concatenation, and casts. A simple name may refer to a
+constant of the enclosing class, as well as to a statically imported one, and
+a qualified name may start with a `java.lang` class such as `Byte`. Nested
+annotations (e.g. in `@EnsuresQualifier.List({...})`) and text blocks are
+supported. Such annotations used to be ignored.
+
 The Nullness Checker and the other checkers built on the Initialization Checker
 no longer fail with "fromClass can't load class ... PolyInitialized" when the
 compilation classpath has a checker-qual artifact without `@PolyInitialized`,
@@ -270,6 +282,12 @@ typetools' bracket syntax work unchanged.
 `CFAbstractStore#insertValuePermitNondeterministic` is renamed `insertValuePermitImpure`. The unused
 `insertOrRefinePermitNondeterministic` and `CFAbstractTransfer#insertIntoStoresPermitNonDeterministic`
 are removed.
+
+`BaseTypeVisitor#checkConstructorResult` takes the constructor's `MethodTree` instead of its
+`ExecutableElement`, so that its diagnostics are reported on the declaration.
+`SourceChecker#shouldSuppressWarnings(TreePath, String)` now also calls the `Element` overload with
+the innermost enclosing declaration, so an override of that overload applies to diagnostics reported
+on trees, too.
 
 `GenericAnnotatedTypeFactory#performFlowAnalysisForClass` is now `final`; a subclass that customizes
 the dataflow analysis overrides the new `performFlowAnalysisForClassImpl` instead. New hooks

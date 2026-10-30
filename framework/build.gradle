@@ -22,6 +22,13 @@ ext {
     // this at wherever eisop's own clone actually lives. See
     // checker/bin-devel/test-jspecify-reference-checker.sh for a caller that uses this.
     annotatedJdkHome = project.findProperty("annotatedJdkHome") ?: "../../jdk"
+    // -PskipAnnotatedJdk builds without an annotated JDK: the annotated JDK is neither cloned
+    // nor copied and minimized, and the jars contain none.  For a build that supplies its own
+    // annotated JDK and needs none from this project, such as the jspecify-reference-checker,
+    // which checks out jspecify/jdk where this project expects eisop/jdk.
+    // A bare -PskipAnnotatedJdk has the value "", which Groovy's ?: would treat as false.
+    skipAnnotatedJdk = project.hasProperty("skipAnnotatedJdk")
+            && project.findProperty("skipAnnotatedJdk") != "false"
 }
 
 sourceSets {
@@ -143,6 +150,7 @@ tasks.register("cloneAnnotatedJdk", CloneOrUpdateRelatedTask) {
     description = "Obtain or update the annotated JDK, from the same organization and branch as this checkout of the Checker Framework if they exist there."
     relatedRepo = "jdk"
     cfDirectory = rootProject.layout.projectDirectory
+    enabled = !skipAnnotatedJdk
 }
 
 tasks.register("copyAndMinimizeAnnotatedJdkFiles", JavaExec) {
@@ -167,6 +175,7 @@ tasks.register("copyAndMinimizeAnnotatedJdkFiles", JavaExec) {
     // (The absolute output directory in the arguments is part of the cache key, so entries are
     // only reused by a checkout at the same path, as on CI.)
     outputs.cacheIf { true }
+    enabled = !skipAnnotatedJdk
 
     classpath = sourceSets.stubifier.runtimeClasspath
     standardOutput = System.out
@@ -222,6 +231,13 @@ tasks.register("copyAndMinimizeAnnotatedJdkFiles", JavaExec) {
                 }
             }
         }
+        if (annotatedForFiles.isEmpty()) {
+            // Otherwise the jars would silently contain an empty annotated JDK.
+            throw new GradleException(
+                    "No file in ${inputDirFile} is annotated for the Checker Framework, so the"
+                    + " annotated JDK would be empty.  Is ${absolutejdkHome} a checkout of"
+                    + " eisop/jdk?  To build without an annotated JDK, pass -PskipAnnotatedJdk.")
+        }
         injectedFiles.fs.copy {
             from(jdkHomeFile)
             into(outputDir)
@@ -238,6 +254,12 @@ tasks.register("copyAndMinimizeAnnotatedJdkFiles", JavaExec) {
 
 tasks.named("sourcesJar").configure { dependsOn "copyAndMinimizeAnnotatedJdkFiles" }
 tasks.named("processResources").configure { dependsOn "copyAndMinimizeAnnotatedJdkFiles" }
+if (skipAnnotatedJdk) {
+    // An annotated JDK from an earlier build without -PskipAnnotatedJdk stays in the build
+    // directory, since copyAndMinimizeAnnotatedJdkFiles does not run; leave it out of the jars.
+    tasks.named("processResources").configure { exclude("annotated-jdk/**") }
+    tasks.named("sourcesJar").configure { exclude("annotated-jdk/**") }
+}
 
 tasks.register("allSourcesJar", Jar) {
     group = "Build"
