@@ -1967,6 +1967,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Reports an error. By default, prints it to the screen via the compiler's internal messager.
      *
+     * <p>Prefer a Tree: pass an Element only for a declaration that has none, such as one read from
+     * bytecode. Under a host that collects diagnostics, such as the Error Prone plugin, an Element
+     * declared in the current compilation unit is reported on its declaration; any other Element is
+     * reported directly to javac, bypassing the host's severity and suppression.
+     *
      * @param source the source position information; may be an Element or a Tree. Null means the
      *     error has no source position -- for example, it is issued while the checker is
      *     initializing, before any source file is processed -- and is reported against the
@@ -1981,6 +1986,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Reports a warning. By default, prints it to the screen via the compiler's internal messager.
+     *
+     * <p>Prefer a Tree: pass an Element only for a declaration that has none, such as one read from
+     * bytecode. Under a host that collects diagnostics, such as the Error Prone plugin, an Element
+     * declared in the current compilation unit is reported on its declaration; any other Element is
+     * reported directly to javac, bypassing the host's severity and suppression.
      *
      * @param source the source position information; may be an Element or a Tree. Null means the
      *     warning has no source position -- for example, it is issued while the checker is

@@ -423,7 +423,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
         if (varElement.getKind().isField()
                 && !noLightweightOwnership
                 && rlTypeFactory.getDeclAnnotation(varElement, Owning.class) != null) {
-            checkOwningField(varElement);
+            checkOwningField(tree);
         }
 
         return super.visitVariable(tree, p);
@@ -431,7 +431,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
 
     /**
      * An obligation that must be satisfied by a destructor. Helper type for {@link
-     * #checkOwningField(VariableElement)}.
+     * #checkOwningField(VariableTree)}.
      */
     // TODO: In the future, this class should be a record.
     private static final class DestructorObligation {
@@ -478,9 +478,10 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
      * {@code m2} has an annotation {@code @EnsuresCalledMethods(value = "this.field", methods =
      * "m")}, guaranteeing that the {@code @MustCall} obligation of the field will be satisfied.
      *
-     * @param field the declaration of the field to check
+     * @param fieldTree the declaration of the field to check
      */
-    private void checkOwningField(VariableElement field) {
+    private void checkOwningField(VariableTree fieldTree) {
+        VariableElement field = TreeUtils.elementFromDeclaration(fieldTree);
 
         if (checker.shouldSkipUses(field)) {
             return;
@@ -601,7 +602,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
             }
 
             checker.reportError(
-                    field,
+                    fieldTree,
                     "required.method.not.called",
                     MustCallConsistencyAnalyzer.formatMissingMustCallMethods(
                             new ArrayList<>(missingMethods)),

@@ -1,11 +1,11 @@
 package org.checkerframework.checker.sqlquotes;
 
+import com.sun.source.tree.MethodTree;
+
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-
-import javax.lang.model.element.ExecutableElement;
 
 /** Visitor for the {@link SqlQuotesChecker}. */
 public class SqlQuotesVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
@@ -25,5 +25,5 @@ public class SqlQuotesVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> 
      */
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {}
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {}
 }
