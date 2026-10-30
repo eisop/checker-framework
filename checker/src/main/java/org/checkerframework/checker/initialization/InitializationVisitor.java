@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.StringJoiner;
 
 import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 
 /* NO-AFU
@@ -109,7 +108,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
 
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
         // Nothing to check
     }
 

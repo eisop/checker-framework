@@ -90,6 +90,10 @@ Type-checking and subtyping improvements:
   qualifiers of the superclass's type arguments from the target type and the
   arguments, as for `new C<>(args)`. They were defaulted, which caused false
   positives and checked the arguments against the defaulted type.
+- Type argument inference resolves a type variable that appears in a `throws`
+  clause to `RuntimeException` only if every upper bound is a supertype of
+  `RuntimeException`, as the JLS and javac do. It did so if any upper bound
+  was, which caused false `type.arguments.not.inferred` errors.
 - CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
   try-with-resources) are now type-checked, with diagnostics pointing at the
   source construct.
@@ -274,6 +278,12 @@ typetools' bracket syntax work unchanged.
 `CFAbstractStore#insertValuePermitNondeterministic` is renamed `insertValuePermitImpure`. The unused
 `insertOrRefinePermitNondeterministic` and `CFAbstractTransfer#insertIntoStoresPermitNonDeterministic`
 are removed.
+
+`BaseTypeVisitor#checkConstructorResult` takes the constructor's `MethodTree` instead of its
+`ExecutableElement`, so that its diagnostics are reported on the declaration.
+`SourceChecker#shouldSuppressWarnings(TreePath, String)` now also calls the `Element` overload with
+the innermost enclosing declaration, so an override of that overload applies to diagnostics reported
+on trees, too.
 
 `GenericAnnotatedTypeFactory#performFlowAnalysisForClass` is now `final`; a subclass that customizes
 the dataflow analysis overrides the new `performFlowAnalysisForClassImpl` instead. New hooks
