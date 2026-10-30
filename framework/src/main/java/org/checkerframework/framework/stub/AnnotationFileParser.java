@@ -495,9 +495,9 @@ public class AnnotationFileParser {
         this.root = null;
         this.fileElementTypes = fileElementTypes;
 
-        // TODO: This should use SourceChecker.getOptions() to allow
-        // setting these flags per checker.
-        Map<String, String> options = processingEnv.getOptions();
+        // The checker's options, not processingEnv.getOptions(): the checker resolves the
+        // CheckerName_option prefixes and adds the options a host passes it.
+        Map<String, String> options = atypeFactory.getChecker().getOptions();
         boolean stubWarnIfNotFoundOption = options.containsKey("stubWarnIfNotFound");
         boolean stubNoWarnIfNotFoundOption = options.containsKey("stubNoWarnIfNotFound");
         if (stubWarnIfNotFoundOption && stubNoWarnIfNotFoundOption) {
@@ -819,8 +819,7 @@ public class AnnotationFileParser {
             ProcessingEnvironment processingEnv,
             AnnotationFileAnnotations stubAnnos,
             AnnotationFileElementTypes fileElementTypes) {
-        Map<String, String> options = processingEnv.getOptions();
-        boolean debugAnnotationFileParser = options.containsKey("stubDebug");
+        boolean debugAnnotationFileParser = atypeFactory.getChecker().hasOption("stubDebug");
         if (debugAnnotationFileParser) {
             stubDebugStatic(
                     processingEnv,
@@ -3760,7 +3759,7 @@ public class AnnotationFileParser {
      */
     private String fileAndLine(NodeWithRange<?> astNode) {
         String filenamePrinted =
-                (processingEnv.getOptions().containsKey("nomsgtext")
+                (atypeFactory.getChecker().hasOption("nomsgtext")
                         ? new File(filename).getName()
                         : filename);
 
