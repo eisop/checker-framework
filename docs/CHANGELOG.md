@@ -269,6 +269,9 @@ are removed.
 
 `BaseTypeVisitor#checkConstructorResult` takes the constructor's `MethodTree` instead of its
 `ExecutableElement`, so that its diagnostics are reported on the declaration.
+`SourceChecker#shouldSuppressWarnings(TreePath, String)` now also calls the `Element` overload with
+the innermost enclosing declaration, so an override of that overload applies to diagnostics reported
+on trees, too.
 
 `GenericAnnotatedTypeFactory#performFlowAnalysisForClass` is now `final`; a subclass that customizes
 the dataflow analysis overrides the new `performFlowAnalysisForClassImpl` instead. New hooks

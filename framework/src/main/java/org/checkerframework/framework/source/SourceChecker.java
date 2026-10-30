@@ -3788,8 +3788,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return true;
         }
 
-        // The innermost declaration enclosing path.  The @AnnotatedFor scope question is asked
-        // about it once, after the loop.
+        // The innermost declaration enclosing path, which is asked about after the loop.
         Element innermostDecl = null;
 
         // iterate through the path; continue until path contains no declarations
@@ -3824,29 +3823,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
-        // A diagnostic about the @AnnotatedFor/@UnannotatedFor pair itself must not be silenced
-        // by the scope those annotations define: when the @UnannotatedFor wins, the declaration is
-        // outside the scope, and suppressing here would leave the contradiction unreported in
-        // exactly one of its two orders. An explicit @SuppressWarnings, handled above, still
-        // silences it.
-        if (errKey.equals(CONFLICTING_ANNOTATED_FOR_KEY)) {
-            return false;
+        if (innermostDecl == null) {
+            // No declaration encloses path, so it is outside every @AnnotatedFor scope; see the
+            // Element overload for these conditions.
+            return !errKey.equals(CONFLICTING_ANNOTATED_FOR_KEY)
+                    && (useConservativeDefaultsSource
+                            || usePermissiveDefaultsSource
+                            || onlyAnnotatedFor);
         }
-
-        // Fast path: both branches below return false when neither flag is set, so the
-        // @AnnotatedFor scope resolution -- a walk that reads declaration annotations off every
-        // enclosing element -- would be discarded. This method runs for every reported diagnostic.
-        if (!useConservativeDefaultsSource && !usePermissiveDefaultsSource && !onlyAnnotatedFor) {
-            return false;
-        }
-
-        // Ask only about the innermost declaration:
-        // isElementAnnotatedForThisCheckerOrUpstreamChecker already resolves the enclosing scope,
-        // and asking about an enclosing element separately would ignore an @UnannotatedFor that
-        // excludes the innermost declaration from that scope.
-        // The fast path above guarantees a flag is set here, so code outside an @AnnotatedFor scope
-        // has its warning suppressed.
-        return !isElementAnnotatedForThisCheckerOrUpstreamChecker(innermostDecl);
+        // The rest is decided as for the innermost declaration: its @AnnotatedFor scope, and an
+        // override of the Element overload, which thus applies to a diagnostic reported on a tree
+        // as well as to one reported on an element.  The loop above checks the declarations that
+        // lexically enclose path; the Element overload checks the enclosing elements.
+        return shouldSuppressWarnings(innermostDecl, errKey);
     }
 
     /**
@@ -3957,6 +3946,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * -AuseConservativeDefaultsForUncheckedCode=source}, {@code
      * -AusePermissiveDefaultsForUncheckedCode=source}, or {@code -AonlyAnnotatedFor} is in effect.
      *
+     * <p>{@link #shouldSuppressWarnings(TreePath, String)} also calls this method, with the
+     * innermost declaration enclosing the tree, so an override applies to a diagnostic reported on
+     * a tree as well as to one reported on an element.
+     *
      * @param elt the Element that might be a source of, or related to, a warning
      * @param errKey the error key the checker is emitting
      * @return true if no warning should be emitted for the given Element, either because it is
@@ -3985,7 +3978,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return false;
         }
 
-        // Fast path, as in the TreePath overload above.
+        // Fast path: both branches below return false when neither flag is set, so the
+        // @AnnotatedFor scope resolution -- a walk that reads declaration annotations off every
+        // enclosing element -- would be discarded. This method runs for every reported diagnostic.
         if (!useConservativeDefaultsSource && !usePermissiveDefaultsSource && !onlyAnnotatedFor) {
             return false;
         }
