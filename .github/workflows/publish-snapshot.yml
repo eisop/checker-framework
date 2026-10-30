@@ -25,7 +25,8 @@ concurrency:
 
 jobs:
   check-configured:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
     outputs:
       configured: ${{ steps.check.outputs.configured }}
     steps:
@@ -43,7 +44,8 @@ jobs:
   publish:
     needs: check-configured
     if: needs.check-configured.outputs.configured == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
