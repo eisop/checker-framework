@@ -3186,7 +3186,7 @@ public class AnnotationFileParser {
      * @param literal an {@code IntegerLiteralExpr} or {@code LongLiteralExpr}
      * @return its value, an {@code Integer} or a {@code Long}
      */
-    static Number integralLiteralValue(Expression literal) {
+    private static Number integralLiteralValue(Expression literal) {
         return literal instanceof IntegerLiteralExpr
                 ? (Number) ((IntegerLiteralExpr) literal).asNumber().intValue()
                 : (Number) ((LongLiteralExpr) literal).asNumber().longValue();
@@ -3198,7 +3198,7 @@ public class AnnotationFileParser {
      * @param literal a floating-point literal
      * @return true if it has the suffix {@code f} or {@code F}
      */
-    static boolean isFloatLiteral(DoubleLiteralExpr literal) {
+    private static boolean isFloatLiteral(DoubleLiteralExpr literal) {
         String text = literal.getValue();
         return text.endsWith("f") || text.endsWith("F");
     }
@@ -3210,7 +3210,7 @@ public class AnnotationFileParser {
      * @param expr an expression
      * @return true if {@code expr} is the magnitude of the smallest {@code int} or {@code long}
      */
-    static boolean isMinValueMagnitude(Expression expr) {
+    private static boolean isMinValueMagnitude(Expression expr) {
         if (!(expr instanceof IntegerLiteralExpr || expr instanceof LongLiteralExpr)) {
             return false;
         }

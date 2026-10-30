@@ -303,7 +303,7 @@ final class AnnotationConstants {
      * @param staticOnly if true, only a static field counts, as for a static import
      * @return the field, or null
      */
-    private static @Nullable VariableElement findField(
+    static @Nullable VariableElement findField(
             TypeElement type, String name, Elements elements, boolean staticOnly) {
         for (VariableElement field : ElementUtils.getAllFieldsIn(type, elements)) {
             if ((field.getKind() == ElementKind.FIELD

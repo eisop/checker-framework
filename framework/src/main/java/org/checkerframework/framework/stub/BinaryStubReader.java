@@ -1943,41 +1943,6 @@ public class BinaryStubReader {
     }
 
     /**
-     * Looks up a field (not an enum constant) with the given simple name in a TypeElement, its
-     * superclasses, and its interfaces. Used to resolve simple-name constant references in
-     * annotation values (e.g. {@code @IntRange(from = MIN_CODE_POINT)}).
-     *
-     * <p>Traverses in the same order as the text parser's {@code
-     * AnnotationFileParser#findFieldElement}, which iterates {@link
-     * ElementUtils#getAllFieldsIn(TypeElement, javax.lang.model.util.Elements)}: the type's own
-     * fields first, then its superclasses and interfaces in {@link
-     * ElementUtils#getSuperTypes(TypeElement, javax.lang.model.util.Elements)}'s traversal order. A
-     * hand-rolled recursion that instead exhausts the whole superclass chain before looking at any
-     * interface can pick a different field than the text parser for an ambiguous simple name
-     * declared in both an interface and a deeper superclass.
-     *
-     * @param te the type element to search
-     * @param name the simple name of the field to find
-     * @param env the processing environment
-     * @return the resolved variable element, or {@code null} if not found
-     */
-    static VariableElement findFieldInType(TypeElement te, String name, ProcessingEnvironment env) {
-        if (te == null) {
-            return null;
-        }
-        for (VariableElement field : ElementUtils.getAllFieldsIn(te, env.getElementUtils())) {
-            // ElementFilter.fieldsIn (used by getAllFieldsIn) also matches ENUM_CONSTANT
-            // elements; skip those; callers use a separate ENUM_CONSTANT-specific lookup for
-            // that.
-            if (field.getKind() == ElementKind.FIELD
-                    && InternalUtils.sameName(field.getSimpleName(), name)) {
-                return field;
-            }
-        }
-        return null;
-    }
-
-    /**
      * Resolves a single structural value item, converting it to the expected element type where
      * necessary.
      *
@@ -2122,13 +2087,9 @@ public class BinaryStubReader {
                     enclosingClassName == null
                             ? null
                             : env.getElementUtils().getTypeElement(enclosingClassName);
-            VariableElement field =
+            return enumConstantOrValue(
                     AnnotationConstants.findConstant(
-                            nv.name, enclosing, nv.candidateClasses, env.getElementUtils());
-            if (field == null) {
-                return null;
-            }
-            return field.getKind() == ElementKind.ENUM_CONSTANT ? field : field.getConstantValue();
+                            nv.name, enclosing, nv.candidateClasses, env.getElementUtils()));
         }
         // Despite the name, the writer tags every FieldAccessExpr this way (see
         // BinaryStubWriter#writeValue), so the referenced member need not be an enum constant:
@@ -2143,26 +2104,16 @@ public class BinaryStubReader {
             }
         }
 
-        Object resolved = null;
         @SuppressWarnings("signature:argument.type.incompatible") // ev.enumClassName is read
         // from the binary stub's string pool, which BinaryStubWriter populates only with
         // fully-qualified names
-        TypeElement enumClass = env.getElementUtils().getTypeElement(ev.enumClassName);
-        if (enumClass != null) {
-            for (Element elt : enumClass.getEnclosedElements()) {
-                if (elt.getKind() == ElementKind.ENUM_CONSTANT
-                        && elt.getSimpleName().contentEquals(ev.constantName)) {
-                    resolved = elt;
-                    break;
-                }
-            }
-            if (resolved == null) {
-                VariableElement fieldElt = findFieldInType(enumClass, ev.constantName, env);
-                if (fieldElt != null) {
-                    resolved = fieldElt.getConstantValue();
-                }
-            }
-        }
+        TypeElement type = env.getElementUtils().getTypeElement(ev.enumClassName);
+        Object resolved =
+                type == null
+                        ? null
+                        : enumConstantOrValue(
+                                AnnotationConstants.findField(
+                                        type, ev.constantName, env.getElementUtils(), false));
 
         if (cache != null) {
             cache.resolvedConstantsCache
@@ -2170,6 +2121,21 @@ public class BinaryStubReader {
                     .put(ev.constantName, resolved);
         }
         return resolved;
+    }
+
+    /**
+     * Returns the value that a reference to {@code field} has in an annotation: the element of an
+     * enum constant, or the value of a constant field.
+     *
+     * @param field the referenced field or enum constant, or null if the reference did not resolve
+     * @return the enum constant's element, the field's constant value, or null if {@code field} is
+     *     null or not a constant
+     */
+    private static @Nullable Object enumConstantOrValue(@Nullable VariableElement field) {
+        if (field == null) {
+            return null;
+        }
+        return field.getKind() == ElementKind.ENUM_CONSTANT ? field : field.getConstantValue();
     }
 
     /**
