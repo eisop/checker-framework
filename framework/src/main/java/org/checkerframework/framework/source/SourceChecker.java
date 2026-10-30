@@ -77,6 +77,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -728,6 +729,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected @MonotonicNonNull Map<String, String> activeOptions;
 
     /**
+     * Options supplied by a host that embeds the Checker Framework, which {@link
+     * #getOptionsNoSubcheckers} reads in place of the {@code -A} options of the compilation; see
+     * {@link #setHostOptions}. Null when the Checker Framework runs as an annotation processor.
+     * Subcheckers share their parent's host options.
+     */
+    private @Nullable Map<String, String> hostOptions = null;
+
+    /**
      * Supported options for this checker. This is the set of all possible options that could be
      * passed to this checker. By contrast, {@link #activeOptions} is a map for options that were
      * passed for this run of the checker.
@@ -882,6 +891,25 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     public void setDiagnosticSink(@Nullable DiagnosticSink sink) {
         this.diagnosticSink = sink;
+    }
+
+    /**
+     * Supplies the options of a host that embeds the Checker Framework, which this checker and its
+     * subcheckers then read in place of the {@code -A} options of the compilation. Each entry is an
+     * option as it would be written after {@code -A} (so {@code stubs} or {@code
+     * NullnessChecker_stubs}) mapped to its value, or to {@code null} for an option without a
+     * value; the host's options are read exactly as the {@code -A} options are. Must be called
+     * before {@link #init(ProcessingEnvironment)}, which reads the options.
+     *
+     * @param options the host's options, as unprefixed {@code -A} option names mapped to values
+     */
+    public void setHostOptions(Map<String, String> options) {
+        if (processingEnv != null) {
+            throw new BugInCF(
+                    "setHostOptions must be called before init(ProcessingEnvironment), which"
+                            + " reads the options.");
+        }
+        this.hostOptions = Collections.unmodifiableMap(new LinkedHashMap<>(options));
     }
 
     // Also see initChecker().
@@ -1156,7 +1184,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (processingEnv == null) {
             return Collections.emptyMap();
         }
-        Map<String, String> options = createActiveOptions(processingEnv.getOptions());
+        // A host's options take the place of the -A options, before the checker-name prefixes are
+        // resolved, so that a host option is read exactly as the -A option of the same spelling.
+        Map<String, String> rawOptions =
+                hostOptions != null ? hostOptions : processingEnv.getOptions();
+        Map<String, String> options = createActiveOptions(rawOptions);
         // Before the mode's options are added, so that a deprecated option written on the command
         // line suppresses an "assumeAssertions" that the mode would otherwise add.
         normalizeDeprecatedAssumeAssertionsOptions(options);
@@ -1664,6 +1696,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             // its subcheckers too, since they are run from this checker's typeProcess.  Must
             // precede setProcessingEnvironment, which setExternallyDriven refuses to follow.
             instance.setExternallyDriven(this.isExternallyDriven());
+            // Likewise the host's options: a subchecker reads them as its parent does.
+            instance.hostOptions = this.hostOptions;
             instance.setProcessingEnvironment(this.processingEnv);
             instance.treePathCacher = this.getTreePathCacher();
             // Prevent the new checker from storing non-immediate subcheckers
@@ -2074,6 +2108,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             messager.printMessage(kind, messageText);
         } else if (preciseSource instanceof Element) {
             Element elt = (Element) preciseSource;
+            // A sink positions findings by tree, so report on the element's declaration if we can.
             Tree declTree = diagnosticSink == null ? null : declarationInCurrentRoot(elt);
             if (declTree != null) {
                 printOrStoreMessage(kind, messageText, declTree, currentRoot, fixes);
