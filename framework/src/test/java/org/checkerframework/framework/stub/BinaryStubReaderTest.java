@@ -215,22 +215,24 @@ public class BinaryStubReaderTest {
      * enum constant or a plain static final field, so the reader cannot tell which one it is from
      * the tag alone. {@code resolveSingleValue} used to only look for an {@code ENUM_CONSTANT}
      * member and silently drop the value otherwise, so a stub value like {@code IntRange(to =
-     * Integer.MAX_VALUE)} lost the member entirely. {@link BinaryStubReader#findFieldInType} is the
-     * fallback lookup the fix added for exactly this case; this test confirms it finds a real,
-     * non-enum constant field and that {@link BinaryStubReader#coerceToKind} then narrows its value
-     * to the annotation member's declared kind, matching what {@code
-     * AnnotationFileParser.getValueOfExpressionInAnnotation} does for the text parser.
+     * Integer.MAX_VALUE)} lost the member entirely. This test confirms that the lookup, {@link
+     * AnnotationConstants#findField}, finds a real, non-enum constant field and that {@link
+     * BinaryStubReader#coerceToKind} then narrows its value to the annotation member's declared
+     * kind, matching what {@code AnnotationFileParser.getValueOfExpressionInAnnotation} does for
+     * the text parser.
      */
     @Test
-    public void findFieldInTypeResolvesANonEnumStaticConstant() {
+    public void findFieldResolvesANonEnumStaticConstant() {
         ProcessingEnvironment env = freshProcessingEnvironment();
         TypeElement integerElt = env.getElementUtils().getTypeElement("java.lang.Integer");
         Assert.assertNotNull("java.lang.Integer must resolve", integerElt);
 
-        VariableElement maxValue = BinaryStubReader.findFieldInType(integerElt, "MAX_VALUE", env);
+        VariableElement maxValue =
+                AnnotationConstants.findField(
+                        integerElt, "MAX_VALUE", env.getElementUtils(), false);
         Assert.assertNotNull(
                 "MAX_VALUE is a plain static final field, not an enum constant, but"
-                        + " findFieldInType must still find it",
+                        + " findField must still find it",
                 maxValue);
         Assert.assertEquals(ElementKind.FIELD, maxValue.getKind());
         Assert.assertEquals(Integer.MAX_VALUE, maxValue.getConstantValue());
@@ -242,42 +244,39 @@ public class BinaryStubReaderTest {
     }
 
     /**
-     * Confirms {@link BinaryStubReader#findFieldInType} does not match a real enum constant: {@code
-     * TimeUnit.SECONDS} is an {@code ENUM_CONSTANT}, not a {@code FIELD}, so {@code
-     * resolveSingleValue}'s existing {@code ENUM_CONSTANT} loop -- not the fallback this task added
-     * -- is the one that must resolve it. This pins the two-step split in {@code
-     * resolveSingleValue}: try the enum-constant loop first, and only fall back to {@code
-     * findFieldInType} when that loop does not find the member.
+     * Confirms that {@link AnnotationConstants#findField} also finds an enum constant: {@code
+     * TimeUnit.SECONDS} is an {@code ENUM_CONSTANT}, not a {@code FIELD}, and the same lookup
+     * resolves both kinds of {@code 'e'} value.
      */
     @Test
-    public void findFieldInTypeDoesNotMatchAnEnumConstant() {
+    public void findFieldMatchesAnEnumConstant() {
         ProcessingEnvironment env = freshProcessingEnvironment();
         TypeElement timeUnitElt =
                 env.getElementUtils().getTypeElement("java.util.concurrent.TimeUnit");
         Assert.assertNotNull("java.util.concurrent.TimeUnit must resolve", timeUnitElt);
 
-        VariableElement secondsAsField =
-                BinaryStubReader.findFieldInType(timeUnitElt, "SECONDS", env);
-        Assert.assertNull(
-                "SECONDS is an ENUM_CONSTANT, not a FIELD, so findFieldInType must not match it",
-                secondsAsField);
+        VariableElement seconds =
+                AnnotationConstants.findField(timeUnitElt, "SECONDS", env.getElementUtils(), false);
+        Assert.assertNotNull("SECONDS must resolve", seconds);
+        Assert.assertEquals(ElementKind.ENUM_CONSTANT, seconds.getKind());
     }
 
     /**
-     * Regression test for {@link BinaryStubReader#findFieldInType}'s traversal order: it used to
-     * exhaust the whole superclass chain before ever looking at an interface, whereas the text
-     * parser's {@code AnnotationFileParser#findFieldElement} loops over {@code
-     * ElementUtils.getAllFieldsIn}, which interleaves interfaces with superclasses (a type's
-     * directly-implemented interfaces are visited before its superclass's superclass). For an
-     * ambiguous simple name declared in both {@code Iface} (implemented directly by {@code Child})
-     * and {@code Grandparent} (two levels up {@code Child}'s superclass chain), the old recursion
-     * returned the superclass field; {@code getAllFieldsIn} -- and so the text parser -- returns
-     * the interface field first. This test pins the field-lookup order to match the text parser.
+     * Regression test for the traversal order of the field lookup, {@link
+     * AnnotationConstants#findField}: the binary reader's lookup used to exhaust the whole
+     * superclass chain before ever looking at an interface, whereas the text parser's {@code
+     * AnnotationFileParser#findFieldElement} loops over {@code ElementUtils.getAllFieldsIn}, which
+     * interleaves interfaces with superclasses (a type's directly-implemented interfaces are
+     * visited before its superclass's superclass). For an ambiguous simple name declared in both
+     * {@code Iface} (implemented directly by {@code Child}) and {@code Grandparent} (two levels up
+     * {@code Child}'s superclass chain), the old recursion returned the superclass field; {@code
+     * getAllFieldsIn} -- and so the text parser -- returns the interface field first. This test
+     * pins the field-lookup order to match the text parser.
      *
      * @throws Exception if the test compilation cannot be created
      */
     @Test
-    public void findFieldInTypeMatchesTextParserOrderForAmbiguousName() throws Exception {
+    public void findFieldMatchesTextParserOrderForAmbiguousName() throws Exception {
         TypeElement childElt =
                 compileToTypeElement(
                         "Child",
@@ -287,7 +286,8 @@ public class BinaryStubReaderTest {
                                 + "interface Iface { int x = 1; }\n");
         ProcessingEnvironment env = freshProcessingEnvironment();
 
-        VariableElement field = BinaryStubReader.findFieldInType(childElt, "x", env);
+        VariableElement field =
+                AnnotationConstants.findField(childElt, "x", env.getElementUtils(), false);
         Assert.assertNotNull("field x must resolve via either Iface or Grandparent", field);
         Assert.assertEquals(
                 "getAllFieldsIn visits Child's directly-implemented interfaces before the"

@@ -25,14 +25,19 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringJoiner;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
+import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 
@@ -55,16 +60,17 @@ import javax.tools.Diagnostic;
  *
  * <ul>
  *   <li>Declaration annotations ({@link AnnotationFileAnnotations#declAnnos}) must have the same
- *       keys and, per key, the same set of annotation class names that some checker could act on.
- *       Java platform annotations no checker consumes ({@code @IntrinsicCandidate} and other {@code
- *       jdk.internal.*} annotations the text parser resolves but the binary writer never keeps by
- *       design, {@code java.lang.annotation.Retention}/{@code Target}, {@code @CFComment}) are
- *       excluded; see {@link #comparedAnnotationNames} for the full rationale.
+ *       keys and, per key, the same set of annotations that some checker could act on, compared by
+ *       class name and element values (see {@link #describe}). Java platform annotations no checker
+ *       consumes ({@code @IntrinsicCandidate} and other {@code jdk.internal.*} annotations the text
+ *       parser resolves but the binary writer never keeps by design, {@code
+ *       java.lang.annotation.Retention}/{@code Target}, {@code @CFComment}) are excluded; see
+ *       {@link #comparedAnnotationNames} for the full rationale.
  *   <li>Annotated types ({@link AnnotationFileAnnotations#atypes}) are compared per element key by
- *       a parallel, cycle-safe structural walk that compares the set of annotation names at every
- *       type component except some wildcard and type variable bounds (see {@link #compareAtm} for
- *       which and why). An entry present on only one side is reported only if it carries an
- *       annotation outside wildcard and type variable bounds (see {@link
+ *       a parallel, cycle-safe structural walk that compares the set of annotations (class names
+ *       and element values) at every type component except some wildcard and type variable bounds
+ *       (see {@link #compareAtm} for which and why). An entry present on only one side is reported
+ *       only if it carries an annotation outside wildcard and type variable bounds (see {@link
  *       #hasNonDerivedAnnotation}).
  *   <li>Fake overrides ({@link AnnotationFileAnnotations#fakeOverrides}) are compared by which
  *       (overridden method, subtype) entries exist, in both directions -- not by the stored types,
@@ -188,6 +194,7 @@ public class BinaryStubDiffChecker {
                         binaryAnnos,
                         elementTypes,
                         atypeFactory,
+                        /* isStubFile= */ false,
                         reports);
             }
             compareClass(className, textAnnos, binaryAnnos, atypeFactory, reports);
@@ -351,6 +358,7 @@ public class BinaryStubDiffChecker {
                     binaryAnnos,
                     elementTypes,
                     atypeFactory,
+                    /* isStubFile= */ true,
                     reports);
         }
         compareClass(description, textAnnos, binaryAnnos, atypeFactory, reports);
@@ -468,6 +476,9 @@ public class BinaryStubDiffChecker {
      * @param binaryAnnos the annotations produced from the record by the binary reader
      * @param elementTypes the stub-types AFET, used for signature lookups
      * @param atypeFactory the factory used to resolve elements
+     * @param isStubFile true for a stub file, false for the annotated JDK; the reader skips a stub
+     *     file's class or method whose {@code @AnnotatedFor} excludes this checker, as the text
+     *     parser does, so nothing is promised for it
      * @param reports the list to append failure descriptions to
      */
     private static void verifyRecordApplied(
@@ -477,6 +488,7 @@ public class BinaryStubDiffChecker {
             AnnotationFileAnnotations binaryAnnos,
             AnnotationFileElementTypes elementTypes,
             AnnotatedTypeFactory atypeFactory,
+            boolean isStubFile,
             List<String> reports) {
         @SuppressWarnings("signature:argument.type.incompatible") // className is read from the
         // binary stub's string pool, which the binary stub writer populates only with
@@ -489,6 +501,11 @@ public class BinaryStubDiffChecker {
         if (BinaryStubReader.classRecordKind(typeElt.getKind()) != cr.kind) {
             // applyClassRecord skipped this record entirely for the same reason (see its own
             // comment): nothing was applied, so there is nothing to verify here either.
+            return;
+        }
+        if (isStubFile
+                && BinaryStubReader.isExcludedByAnnotatedFor(
+                        cr, className, data, atypeFactory, elementTypes)) {
             return;
         }
         List<? extends Element> classTypeParams = typeElt.getTypeParameters();
@@ -518,6 +535,11 @@ public class BinaryStubDiffChecker {
                             ? elementTypes.constructorSigIndex(typeElt).get(sig)
                             : elementTypes.methodSigIndex(typeElt).get(sig);
             if (ee != null) {
+                if (isStubFile
+                        && BinaryStubReader.isExcludedByAnnotatedFor(
+                                mr, className, data, atypeFactory, elementTypes)) {
+                    continue;
+                }
                 if (BinaryStubReader.hasTypeInfo(mr) && !binaryAnnos.atypes.containsKey(ee)) {
                     reports.add(
                             String.format(
@@ -726,9 +748,9 @@ public class BinaryStubDiffChecker {
             AnnotatedTypeFactory atypeFactory,
             List<String> reports) {
         Types types = atypeFactory.getProcessingEnv().getTypeUtils();
-        // Declaration annotations: same keys, and per key the same annotation names. The
-        // comparison is restricted to Checker Framework annotations — the payload the stub
-        // pipeline exists to deliver. Whether java.* and JDK-internal declaration annotations
+        // Declaration annotations: same keys, and per key the same annotations, by name and
+        // values. The comparison is restricted to Checker Framework annotations — the payload the
+        // stub pipeline exists to deliver. Whether java.* and JDK-internal declaration annotations
         // (e.g. an unimported @Override, or a @DefinedBy resolvable only through a static
         // import) are kept differs between the two paths due to well-understood text-parser
         // name-resolution quirks, and no checker consumes them from stubs.
@@ -1028,11 +1050,11 @@ public class BinaryStubDiffChecker {
     }
 
     /**
-     * Returns the sorted set of annotation class names in the given annotations, or the empty set
-     * for {@code null}.
+     * Returns the sorted set of {@linkplain #describe descriptions} of the given annotations, or
+     * the empty set for {@code null}.
      *
      * @param annos the annotations, may be {@code null}
-     * @return the sorted annotation class names
+     * @return the sorted annotation descriptions
      */
     private static Set<String> annotationNames(
             @Nullable Iterable<? extends AnnotationMirror> annos) {
@@ -1041,26 +1063,107 @@ public class BinaryStubDiffChecker {
         }
         Set<String> names = new TreeSet<>();
         for (AnnotationMirror am : annos) {
-            names.add(AnnotationUtils.annotationName(am));
+            names.add(describe(am));
         }
         return names;
     }
 
     /**
-     * Returns the sorted set of annotation class names in the given set, or the empty set for
+     * Returns a description of {@code am} that two annotations share exactly when they have the
+     * same class and the same element values: the annotation's name followed by its element values,
+     * sorted by element name. Comparing values, not just names, catches a value that one loader
+     * decodes differently from the other (a string with an escape sequence, say) or that one of
+     * them could not resolve.
+     *
+     * <p>An element that is not written explicitly is described by its default value. The text
+     * parser builds a marker annotation such as {@code @CreatesMustCallFor} with every default
+     * value filled in ({@code AnnotationBuilder.fromName}), the binary reader with none; the two
+     * are the same annotation.
+     *
+     * @param am an annotation
+     * @return a description of {@code am} and its element values
+     */
+    static String describe(AnnotationMirror am) {
+        String name = AnnotationUtils.annotationName(am);
+        Map<String, AnnotationValue> values = new TreeMap<>();
+        for (ExecutableElement element :
+                ElementFilter.methodsIn(am.getAnnotationType().asElement().getEnclosedElements())) {
+            if (element.getDefaultValue() != null) {
+                values.put(element.getSimpleName().toString(), element.getDefaultValue());
+            }
+        }
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+                am.getElementValues().entrySet()) {
+            values.put(entry.getKey().getSimpleName().toString(), entry.getValue());
+        }
+        if (values.isEmpty()) {
+            return name;
+        }
+        Map<String, String> byElement = new TreeMap<>();
+        for (Map.Entry<String, AnnotationValue> entry : values.entrySet()) {
+            byElement.put(entry.getKey(), describeValue(entry.getValue().getValue()));
+        }
+        StringJoiner joiner = new StringJoiner(", ", name + "(", ")");
+        for (Map.Entry<String, String> entry : byElement.entrySet()) {
+            joiner.add(entry.getKey() + "=" + entry.getValue());
+        }
+        return joiner.toString();
+    }
+
+    /**
+     * Returns a description of an annotation element value, as {@link AnnotationValue#getValue}
+     * returns it, for {@link #describe}. A string is quoted with its backslashes and quotes
+     * escaped, so that a string that still contains its source escape sequences is told apart from
+     * the unescaped one. A number carries its boxed type, since the two loaders convert literals to
+     * the element's type separately.
+     *
+     * @param value an annotation element value, or an element of a list that is one
+     * @return its description
+     */
+    private static String describeValue(@Nullable Object value) {
+        if (value == null) {
+            // A List<?> may contain null as far as the type system knows, though javac never
+            // puts null in the list of an array value.
+            return "null";
+        } else if (value instanceof String) {
+            return "\"" + ((String) value).replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+        } else if (value instanceof List) {
+            StringJoiner joiner = new StringJoiner(", ", "{", "}");
+            for (Object item : (List<?>) value) {
+                joiner.add(
+                        describeValue(
+                                item instanceof AnnotationValue
+                                        ? ((AnnotationValue) item).getValue()
+                                        : item));
+            }
+            return joiner.toString();
+        } else if (value instanceof TypeMirror) {
+            return value + ".class";
+        } else if (value instanceof VariableElement) {
+            VariableElement constant = (VariableElement) value;
+            return constant.getEnclosingElement() + "." + constant.getSimpleName();
+        } else if (value instanceof AnnotationMirror) {
+            return "@" + describe((AnnotationMirror) value);
+        } else {
+            return value + ":" + value.getClass().getSimpleName();
+        }
+    }
+
+    /**
+     * Returns the sorted set of annotation descriptions in the given set, or the empty set for
      * {@code null}.
      *
      * @param annos the annotation set, may be {@code null}
-     * @return the sorted annotation class names
+     * @return the sorted annotation descriptions
      */
     private static Set<String> annotationNames(@Nullable AnnotationMirrorSet annos) {
         return annotationNames((Iterable<? extends AnnotationMirror>) annos);
     }
 
     /**
-     * Returns the sorted set of the names of the annotations in the given set that are compared, or
-     * the empty set for {@code null}: every annotation except the Java platform's own, and except
-     * {@code CFComment}.
+     * Returns the sorted set of the {@linkplain #describe descriptions} of the annotations in the
+     * given set that are compared, or the empty set for {@code null}: every annotation except the
+     * Java platform's own, and except {@code CFComment}.
      *
      * <p>An annotation a checker could act on is compared, whichever package it is in: a checker's
      * own qualifiers, and the third-party annotations a checker resolves by name as aliases --
@@ -1091,14 +1194,13 @@ public class BinaryStubDiffChecker {
      * would have consumed.
      *
      * <p>{@code CFComment} is excluded for a different reason: it is documentation for humans with
-     * no effect on checking, and the text parser drops it whenever its value uses string
-     * concatenation (which it cannot evaluate), whereas the binary writer evaluates the
-     * concatenation and keeps it.
+     * no effect on checking, and the binary writer never writes it, whereas the text parser keeps
+     * it unless its value uses string concatenation (which it cannot evaluate).
      *
      * @param annos the annotation set, may be {@code null}
      * @param atypeFactory the factory, which decides whether this checker can act on a platform
      *     annotation
-     * @return the sorted names of the annotations that are compared
+     * @return the sorted descriptions of the annotations that are compared
      */
     private static Set<String> comparedAnnotationNames(
             @Nullable AnnotationMirrorSet annos, AnnotatedTypeFactory atypeFactory) {
@@ -1127,7 +1229,7 @@ public class BinaryStubDiffChecker {
                     && AnnotationUtils.areSame(atypeFactory.canonicalAnnotation(am), am)) {
                 continue;
             }
-            names.add(name);
+            names.add(describe(am));
         }
         return names;
     }
