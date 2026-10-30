@@ -1,0 +1,167 @@
+// Nullness annotations for the Spring Framework utility methods that callers use as null
+// guards.  Spring declares these with its own @Contract (org.springframework.lang.Contract),
+// which the Nullness Checker does not read, so without this file every dereference guarded by
+// one of them is reported.  The translations are:
+//
+//   @Contract("null -> true")        null implies true,  so false implies non-null
+//   @Contract("null -> false")       null implies false, so true  implies non-null
+//   @Contract("null, _ -> false")    likewise, for the first argument
+//   @Contract("null, _ -> false; _, null -> false")
+//                                    true implies both arguments are non-null
+//   @Contract("null, _ -> fail")     null throws,        so a normal return implies non-null
+//   @Contract("_, null, _ -> fail")  likewise, for the second argument
+//   @Contract("false, _ -> fail")    false throws,       so a normal return implies true
+//                                    (@AssertMethod: the asserted condition holds afterwards)
+//
+// Scope: the methods of ObjectUtils, CollectionUtils, StringUtils and Assert whose @Contract
+// has one of these shapes.  Not covered:
+//  * contracts that imply no fact about a non-null argument, such as
+//    ObjectUtils.nullSafeEquals ("null, null -> true; ...": true holds when both are null) and
+//    Assert.isNull ("!null, _ -> fail");
+//  * contracts that describe the return value (@Contract("null -> null"), "!null -> !null");
+//    they want @PolyNull on the return type, which is a separate change;
+//  * methods of other Spring classes, such as ClassUtils and PatternMatchUtils.
+
+package org.springframework.util;
+
+import java.util.Collection;
+import java.util.Enumeration;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.function.Supplier;
+
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.AssertMethod;
+
+public abstract class ObjectUtils {
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean isArray(@Nullable Object obj);
+
+    @EnsuresNonNullIf(expression = "#1", result = false)
+    public static boolean isEmpty(@Nullable Object @Nullable [] array);
+
+    @EnsuresNonNullIf(expression = "#1", result = false)
+    public static boolean isEmpty(@Nullable Object obj);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean containsElement(@Nullable Object @Nullable [] array, @Nullable Object element);
+}
+
+public abstract class CollectionUtils {
+    @EnsuresNonNullIf(expression = "#1", result = false)
+    public static boolean isEmpty(@Nullable Collection<?> collection);
+
+    @EnsuresNonNullIf(expression = "#1", result = false)
+    public static boolean isEmpty(@Nullable Map<?, ?> map);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean contains(@Nullable Iterator<?> iterator, @Nullable Object element);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean contains(@Nullable Enumeration<?> enumeration, @Nullable Object element);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean containsInstance(@Nullable Collection<?> collection, @Nullable Object element);
+}
+
+public abstract class StringUtils {
+    @EnsuresNonNullIf(expression = "#1", result = false)
+    public static boolean isEmpty(@Nullable Object str);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean hasLength(@Nullable CharSequence str);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean hasLength(@Nullable String str);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean hasText(@Nullable CharSequence str);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean hasText(@Nullable String str);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean containsWhitespace(@Nullable CharSequence str);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean containsWhitespace(@Nullable String str);
+
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    public static boolean matchesCharacter(@Nullable String str, char singleCharacter);
+
+    @EnsuresNonNullIf(expression = {"#1", "#2"}, result = true)
+    public static boolean startsWithIgnoreCase(@Nullable String str, @Nullable String prefix);
+
+    @EnsuresNonNullIf(expression = {"#1", "#2"}, result = true)
+    public static boolean endsWithIgnoreCase(@Nullable String str, @Nullable String suffix);
+}
+
+public abstract class Assert {
+    @AssertMethod(IllegalStateException.class)
+    public static void state(boolean expression, String message);
+
+    @AssertMethod(IllegalStateException.class)
+    public static void state(boolean expression, Supplier<String> messageSupplier);
+
+    @AssertMethod(IllegalArgumentException.class)
+    public static void isTrue(boolean expression, String message);
+
+    @AssertMethod(IllegalArgumentException.class)
+    public static void isTrue(boolean expression, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#1")
+    public static void notNull(@Nullable Object object, String message);
+
+    @EnsuresNonNull("#1")
+    public static void notNull(@Nullable Object object, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#1")
+    public static void hasLength(@Nullable String text, String message);
+
+    @EnsuresNonNull("#1")
+    public static void hasLength(@Nullable String text, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#1")
+    public static void hasText(@Nullable String text, String message);
+
+    @EnsuresNonNull("#1")
+    public static void hasText(@Nullable String text, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#1")
+    public static void notEmpty(@Nullable Object @Nullable [] array, String message);
+
+    @EnsuresNonNull("#1")
+    public static void notEmpty(Object @Nullable [] array, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#1")
+    public static void notEmpty(@Nullable Collection<?> collection, String message);
+
+    @EnsuresNonNull("#1")
+    public static void notEmpty(@Nullable Collection<?> collection, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#1")
+    public static void notEmpty(@Nullable Map<?, ?> map, String message);
+
+    @EnsuresNonNull("#1")
+    public static void notEmpty(@Nullable Map<?, ?> map, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#2")
+    public static void isInstanceOf(Class<?> type, @Nullable Object obj, String message);
+
+    @EnsuresNonNull("#2")
+    public static void isInstanceOf(Class<?> type, @Nullable Object obj, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#2")
+    public static void isInstanceOf(Class<?> type, @Nullable Object obj);
+
+    @EnsuresNonNull("#2")
+    public static void isAssignable(Class<?> superType, @Nullable Class<?> subType, String message);
+
+    @EnsuresNonNull("#2")
+    public static void isAssignable(Class<?> superType, @Nullable Class<?> subType, Supplier<String> messageSupplier);
+
+    @EnsuresNonNull("#2")
+    public static void isAssignable(Class<?> superType, @Nullable Class<?> subType);
+}
