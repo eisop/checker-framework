@@ -693,7 +693,8 @@ local-variable level, each with a sibling finding that still reports). The manua
 
 ## ADR-0010: Checker Framework options are passed with javac `-A` (follow-up)
 
-**Status:** superseded by ADR-0013
+**Status:** superseded by ADR-0013. The probe below ran no other annotation processor; with
+one, javac does warn about these options (see ADR-0013).
 
 **Question.** How are Checker-Framework options (common `SourceChecker` options like
 `-Astubs=...`, and checker-specific options) passed in an Error Prone invocation? With
@@ -861,3 +862,9 @@ passes four options in one compilation (`stubs` with a path, value-less
 `dashAOptionOfASelectedCheckerIsReported`, `unrelatedDashAOptionIsIgnored`,
 `unsupportedCheckerOptionIsReported`, and `errorProneFlagsRaiseNoUnrecognizedOptionWarning`
 (another processor plus `-Werror`) cover the rules above.
+`unrecognizedDashAOptionFailsWithAnotherProcessorAndWerror` is the control for the last
+one: the same compilation plus one unclaimed `-A` option fails, so the processor does run
+and javac does warn. Checked directly with javac 21, which behaves the same because the
+plugin is not a processor: `-Astubs=x.astub` alone is silent (exit 0); with any processor
+javac warns "The following options were not recognized by any processor: '[stubs]'"; with
+`-Werror` as well, the compilation fails.

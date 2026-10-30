@@ -973,6 +973,32 @@ public class EisopCheckerFrameworkPluginTest {
     }
 
     /**
+     * The control for {@link #errorProneFlagsRaiseNoUnrecognizedOptionWarning()}: with {@link
+     * NoOpProcessor} and {@code -Werror}, a {@code -A} option that no processor recognizes makes
+     * javac warn and so fails the compilation. This is what a Checker Framework {@code -A} option
+     * did under the plugin; the option here is one no checker supports, so that the plugin itself
+     * does not report it.
+     */
+    @Test
+    public void unrecognizedDashAOptionFailsWithAnotherProcessorAndWerror() {
+        helperWith(
+                        "-processor",
+                        NoOpProcessor.class.getName(),
+                        "-Werror",
+                        "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER,
+                        "-XepOpt:eisopcf:suppressWarnings=nullness",
+                        "-Acom.example.unrecognized=1")
+                .expectResult(Result.ERROR)
+                .addSourceLines(
+                        "test/WithProcessor.java",
+                        "package test;",
+                        "class WithProcessor {",
+                        "  String m() { return null; }",
+                        "}")
+                .doTest();
+    }
+
+    /**
      * Under Error Prone, the Checker Framework is not an annotation processor, so when the
      * compilation runs some other annotation processor, javac would warn that no processor
      * recognized a Checker Framework {@code -A} option, and {@code -Werror} would fail the
