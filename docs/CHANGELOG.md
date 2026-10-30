@@ -416,7 +416,7 @@ Other improvements and bug fixes:
   wildcards, type-parameter mismatches, fake override scoping.
 - Extracted overridable hooks: `checkCapturedWildcardBounds`,
   `shouldCheckTypeArgument`, `reportTypeArgumentInferenceFailure`,
-  `areCollapsedWildcardBoundsEqual`, `shouldStripInvalidLocationQualifiers`.
+  `shouldStripInvalidLocationQualifiers`.
 - Type argument inference: no longer adds upper bound as extra lower bound
   (JLS 18.2.3); instantiates to requalified copies; displays captured type
   variables directly.

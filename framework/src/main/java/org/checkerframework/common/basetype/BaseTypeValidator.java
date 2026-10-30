@@ -922,8 +922,11 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 // For example, Set<@1 ? super @2 Object> will collapse into Set<@2 Object>.
                 // So, issue a warning if the annotations on the extends bound are not the
                 // same as the annotations on the super bound.
-                if (!areCollapsedWildcardBoundsEqual(
-                        wildcard.getExtendsBound(), wildcard.getSuperBound())) {
+                TypeHierarchy typeHierarchy = atypeFactory.getTypeHierarchy();
+                if (!typeHierarchy.isSubtypeShallowEffective(
+                                wildcard.getSuperBound(), wildcard.getExtendsBound())
+                        || !typeHierarchy.isSubtypeShallowEffective(
+                                wildcard.getExtendsBound(), wildcard.getSuperBound())) {
                     checker.reportError(
                             tree.getTypeArguments().get(i),
                             "type.invalid.super.wildcard",
@@ -932,34 +935,6 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 }
             }
         }
-    }
-
-    /**
-     * Returns true if, for the purposes of the JDK-8054309 collapsed-wildcard check in {@link
-     * #checkExplicitSuperBoundWildcards}, {@code extendsBound} and {@code superBound} count as the
-     * same bound.
-     *
-     * <p>The default implementation tests this via a bidirectional {@code
-     * isSubtypeShallowEffective} check, i.e. "each is a subtype of the other". That is a correct
-     * test for "same qualifier" only in an antisymmetric qualifier hierarchy, which is the case for
-     * all of CF's own type systems.
-     *
-     * <p>A checker whose qualifier hierarchy is not antisymmetric -- for example, one with an
-     * "unspecified" qualifier that is (by design) mutually a subtype of every other qualifier, so
-     * that it is compatible in both directions during subtype checks -- must override this method
-     * to compare the bounds directly (e.g. by comparing their effective annotation sets for
-     * equality) rather than relying on mutual subtyping, since mutual subtyping no longer implies
-     * equality in such a hierarchy.
-     *
-     * @param extendsBound the extends bound of the wildcard
-     * @param superBound the super bound of the wildcard
-     * @return true if the two bounds should be treated as equal for this check
-     */
-    protected boolean areCollapsedWildcardBoundsEqual(
-            AnnotatedTypeMirror extendsBound, AnnotatedTypeMirror superBound) {
-        TypeHierarchy typeHierarchy = atypeFactory.getTypeHierarchy();
-        return typeHierarchy.isSubtypeShallowEffective(superBound, extendsBound)
-                && typeHierarchy.isSubtypeShallowEffective(extendsBound, superBound);
     }
 
     @Override
