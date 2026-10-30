@@ -693,7 +693,7 @@ local-variable level, each with a sibling finding that still reports). The manua
 
 ## ADR-0010: Checker Framework options are passed with javac `-A` (follow-up)
 
-**Status:** accepted (post-Task-8 follow-up)
+**Status:** superseded by ADR-0013
 
 **Question.** How are Checker-Framework options (common `SourceChecker` options like
 `-Astubs=...`, and checker-specific options) passed in an Error Prone invocation? With
@@ -817,3 +817,47 @@ excluded from the build and not published. This is documented in the release REA
 **Docs.** The manual's "Error Prone" section states the plugin is published as
 `io.github.eisop:framework-errorprone`. The runnable example builds against it in its
 default mode and against the current checkout under `-PcfVersion=local` (see ADR-0008).
+
+---
+
+## ADR-0013: Checker Framework options are passed as `-XepOpt:eisopcf:<option>` flags
+
+**Status:** accepted (supersedes ADR-0010)
+
+**Problem.** ADR-0010 passed Checker Framework options as javac `-A` options. Under
+Error Prone the Checker Framework is not an annotation processor, so no processor claims
+them: when the compilation runs another annotation processor, javac warns "The following
+options were not recognized by any processor" (fatal with `-Werror`); when none runs,
+javac is silent, so a misspelled option is silently ignored. The earlier workaround, a
+user-written processor that only declares the options, is not acceptable advice.
+
+**Decision.** Like NullAway (`-XepOpt:NullAway:<Name>=<value>`), the plugin takes checker
+options only as Error Prone flags: every `eisopcf:` flag other than `eisopcf:checkers` is
+the Checker Framework option of the same name (`stubs`, `suppressWarnings`, `lint`,
+`NullnessChecker_lint`, ...), with the same value. `EisopCheckerFrameworkPlugin` collects
+them from `ErrorProneFlags.getFlagsMap()` and `CheckerFrameworkDriver.create` hands them
+to each checker through `SourceChecker.setHostOptions` before `init`. That is the one
+merge point: `SourceChecker.getOptionsNoSubcheckers` reads the host's options in place of
+`processingEnv.getOptions()`, before the `CheckerName_option` prefixes are resolved, so
+every reader (`getOption`, `hasOption`, `getLintOption`, subcheckers) sees them exactly
+as it would see the `-A` form. (`AnnotationFileParser` read `processingEnv.getOptions()`
+directly for its `stub*` options and now goes through the checker.)
+
+- A flag without `=` has the value `true` (Error Prone's `ErrorProneFlags.parseFlag`);
+  an option tested only for presence behaves as `-Afoo` does. `-Alint` alone meant
+  `lint=all`; under the plugin write `lint=all`.
+- An `eisopcf:` option that no selected checker supports (`getSupportedOptions()`, which
+  includes the prefixed forms, as javac checks `-A` options) is a configuration error,
+  reported once per compilation like an unresolvable checker name.
+- `-A` options are not read. One that a selected checker supports is a configuration
+  error naming the replacement (`Pass -Astubs=x as -XepOpt:eisopcf:stubs=x`), since
+  javac would not warn about it. One that no selected checker supports is left alone; it
+  may belong to another processor.
+
+**Test.** `EisopCheckerFrameworkPluginTest.checkerOptionsArePassedAsErrorProneFlags`
+passes four options in one compilation (`stubs` with a path, value-less
+`warnUnneededSuppressions`, `suppressWarnings` with commas and colons, and the prefixed
+`NullnessChecker_lint`), each with its own observable finding;
+`dashAOptionOfASelectedCheckerIsReported`, `unrelatedDashAOptionIsIgnored`,
+`unsupportedCheckerOptionIsReported`, and `errorProneFlagsRaiseNoUnrecognizedOptionWarning`
+(another processor plus `-Werror`) cover the rules above.
