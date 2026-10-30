@@ -752,7 +752,7 @@ public class QualifierDefaults {
      *     TypeUseLocation, boolean)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
      *     TypeUseLocation, boolean)}.
      */
-    @Deprecated
+    @Deprecated // 2026-09-25
     public void addUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
@@ -770,7 +770,7 @@ public class QualifierDefaults {
      *     TypeUseLocation)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
      *     TypeUseLocation)}.
      */
-    @Deprecated
+    @Deprecated // 2026-09-25
     public void addUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
         addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
@@ -786,7 +786,7 @@ public class QualifierDefaults {
      *     TypeUseLocation[])} or {@link #addPermissiveUncheckedCodeDefaults(AnnotationMirror,
      *     TypeUseLocation[])}.
      */
-    @Deprecated
+    @Deprecated // 2026-09-25
     public void addUncheckedCodeDefaults(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
         addConservativeUncheckedCodeDefaults(absoluteDefaultAnno, locations);
