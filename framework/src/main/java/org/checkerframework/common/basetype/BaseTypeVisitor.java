@@ -5607,24 +5607,49 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         private boolean isReceiverTypeArgumentOverrideValid(
                 AnnotatedDeclaredType overriderReceiver, AnnotatedDeclaredType overriddenReceiver) {
+            VariableTree receiverParameter =
+                    overriderTree instanceof MethodTree
+                            ? ((MethodTree) overriderTree).getReceiverParameter()
+                            : null;
+            if (overriderTree instanceof MethodTree && receiverParameter == null) {
+                // An implicit receiver is the type of "this": the class's own type parameters,
+                // carrying only the qualifiers that defaulting gives a use of them (a checker may
+                // default every type-variable use, so they need not be unannotated). It accepts
+                // every instance of the class and so cannot narrow the overridden receiver.
+                return true;
+            }
             // The overrider's class viewed as the overridden class, such as Parent<E>.
             AnnotatedDeclaredType seen =
                     AnnotatedTypes.asSuper(atypeFactory, overriderType, overriddenType);
             boolean isReceiver = true;
+            Tree receiverTypeTree = receiverParameter == null ? null : receiverParameter.getType();
             for (AnnotatedDeclaredType type = overriderReceiver;
                     type != null;
-                    type = type.getEnclosingType(), isReceiver = false) {
+                    type = type.getEnclosingType(),
+                            receiverTypeTree = enclosingTypeTree(receiverTypeTree),
+                            isReceiver = false) {
                 TypeElement typeElt = (TypeElement) type.getUnderlyingType().asElement();
                 List<? extends TypeParameterElement> params = typeElt.getTypeParameters();
                 List<? extends AnnotatedTypeMirror> args = type.getTypeArguments();
                 if (args.size() != params.size()) {
                     return false;
                 }
+                if (receiverParameter != null && receiverTypeTree == null) {
+                    // The explicit receiver does not spell out this enclosing type (as in
+                    // "EntrySet this" inside a generic outer class), so its type arguments are
+                    // the enclosing class's own type parameters: the type of the enclosing "this".
+                    continue;
+                }
+                List<? extends Tree> argTrees = typeArgumentTrees(receiverTypeTree);
                 AnnotatedDeclaredType pinning =
                         isReceiver ? seen : enclosingTypeOf(overriddenReceiver, typeElt);
                 for (int i = 0; i < args.size(); i++) {
                     AnnotatedTypeMirror arg = args.get(i);
-                    if (isOwnTypeParameter(arg, params.get(i))) {
+                    Tree argTree =
+                            argTrees != null && argTrees.size() == args.size()
+                                    ? argTrees.get(i)
+                                    : null;
+                    if (isOwnTypeParameter(arg, params.get(i), argTree)) {
                         // The type of "this" accepts every instance of the class.
                         continue;
                     }
@@ -5690,16 +5715,84 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
-         * Returns true if {@code typeArg} is the type variable for {@code param} without a primary
-         * annotation.
+         * Returns true if {@code typeArg} is the type variable for {@code param} on which the
+         * programmer wrote no annotation. When {@code typeArgTree} is available, that is decided
+         * from the source: a qualifier that defaulting put on the use (as a checker that defaults
+         * type-variable uses does) is not a narrowing. Without a tree, the type must carry no
+         * primary annotation at all.
          *
          * @param typeArg a type argument
          * @param param a type parameter of the class that {@code typeArg} is an argument for
+         * @param typeArgTree the tree of {@code typeArg} in an explicit receiver, or null
          * @return true if {@code typeArg} is the unannotated type variable for {@code param}
          */
         private boolean isOwnTypeParameter(
-                AnnotatedTypeMirror typeArg, TypeParameterElement param) {
-            return typeArg.getAnnotations().isEmpty() && isTypeVariableFor(typeArg, param);
+                AnnotatedTypeMirror typeArg,
+                TypeParameterElement param,
+                @Nullable Tree typeArgTree) {
+            if (!isTypeVariableFor(typeArg, param)) {
+                return false;
+            }
+            if (typeArgTree != null) {
+                if (typeArgTree instanceof AnnotatedTypeTree) {
+                    for (AnnotationTree annoTree :
+                            ((AnnotatedTypeTree) typeArgTree).getAnnotations()) {
+                        // Only this checker's qualifiers count; an annotation of another type
+                        // system (e.g. @NonNull for the Initialization Checker) is not a narrowing.
+                        if (atypeFactory.isSupportedQualifierOrAlias(
+                                TreeUtils.annotationFromAnnotationTree(annoTree))) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            return typeArg.getAnnotations().isEmpty();
+        }
+
+        /**
+         * Returns the type-argument trees of {@code typeTree}, a type in a receiver parameter, or
+         * null if it is not a parameterized type.
+         *
+         * @param typeTree a type tree, or null
+         * @return its type-argument trees, or null
+         */
+        private @Nullable List<? extends Tree> typeArgumentTrees(@Nullable Tree typeTree) {
+            Tree tree = stripTypeAnnotations(typeTree);
+            return tree instanceof ParameterizedTypeTree
+                    ? ((ParameterizedTypeTree) tree).getTypeArguments()
+                    : null;
+        }
+
+        /**
+         * Returns the tree of the enclosing type in {@code typeTree}, as in the {@code Outer<O>} of
+         * {@code Outer<O>.Inner<I>}, or null if {@code typeTree} does not spell one out.
+         *
+         * @param typeTree a type tree, or null
+         * @return the tree of its enclosing type, or null
+         */
+        private @Nullable Tree enclosingTypeTree(@Nullable Tree typeTree) {
+            Tree tree = stripTypeAnnotations(typeTree);
+            if (tree instanceof ParameterizedTypeTree) {
+                tree = ((ParameterizedTypeTree) tree).getType();
+            }
+            tree = stripTypeAnnotations(tree);
+            return tree instanceof MemberSelectTree
+                    ? ((MemberSelectTree) tree).getExpression()
+                    : null;
+        }
+
+        /**
+         * Returns {@code tree} without any enclosing {@link AnnotatedTypeTree}.
+         *
+         * @param tree a type tree, or null
+         * @return the type tree without its type annotations
+         */
+        private @Nullable Tree stripTypeAnnotations(@Nullable Tree tree) {
+            while (tree instanceof AnnotatedTypeTree) {
+                tree = ((AnnotatedTypeTree) tree).getUnderlyingType();
+            }
+            return tree;
         }
 
         /**
