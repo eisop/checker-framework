@@ -301,14 +301,15 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
      * declared type on the class, if one exists.
      *
      * @param constructorType an AnnotatedExecutableType for the constructor
-     * @param constructorElement element that declares the constructor
+     * @param constructorTree the declaration of the constructor
      */
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
         AnnotatedTypeMirror defaultType =
                 atypeFactory.getAnnotatedType(
-                        ElementUtils.enclosingTypeElement(constructorElement));
+                        ElementUtils.enclosingTypeElement(
+                                TreeUtils.elementFromDeclaration(constructorTree)));
         AnnotationMirror defaultAnno = defaultType.getAnnotationInHierarchy(atypeFactory.TOP);
         AnnotatedTypeMirror resultType = constructorType.getReturnType();
         AnnotationMirror resultAnno = resultType.getAnnotationInHierarchy(atypeFactory.TOP);
@@ -318,7 +319,7 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
                 resultAnno,
                 resultType.getUnderlyingType())) {
             checker.reportError(
-                    constructorElement, "inconsistent.constructor.type", resultAnno, defaultAnno);
+                    constructorTree, "inconsistent.constructor.type", resultAnno, defaultAnno);
         }
     }
 

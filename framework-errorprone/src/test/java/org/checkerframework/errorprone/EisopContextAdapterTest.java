@@ -59,7 +59,7 @@ public class EisopContextAdapterTest {
      * @param assertions the assertions to run against the live context
      * @param extraOptions additional javac options for the compilation
      */
-    private static void duringAnalyze(ContextAssertions assertions, String... extraOptions)
+    static void duringAnalyze(ContextAssertions assertions, String... extraOptions)
             throws Throwable {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         // Direct class output to a throwaway temp dir so the test does not emit .class files into
@@ -102,7 +102,7 @@ public class EisopContextAdapterTest {
     }
 
     /** Assertions run against a live javac {@link Context} during the ANALYZE phase. */
-    private interface ContextAssertions {
+    interface ContextAssertions {
         /**
          * Runs the assertions against the given context.
          *

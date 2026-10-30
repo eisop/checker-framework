@@ -261,7 +261,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
 
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
         // Skip this check.
     }
 

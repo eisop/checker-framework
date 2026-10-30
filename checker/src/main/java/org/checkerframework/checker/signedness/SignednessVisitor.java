@@ -394,5 +394,5 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
 
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {}
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {}
 }

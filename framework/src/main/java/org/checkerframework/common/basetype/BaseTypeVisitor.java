@@ -729,7 +729,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     public void processPackageTree(PackageTree tree, PackageElement elt) {
         checkConflictingAnnotatedFor(tree, elt);
-        atypeFactory.getQualifierDefaults().checkDefaultQualifiers(elt);
+        atypeFactory.getQualifierDefaults().checkDefaultQualifiers(elt, tree);
         checkQualifierParameterOnDeclaration(tree, elt);
     }
 
@@ -772,7 +772,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         TypeElement classElt = TreeUtils.elementFromDeclaration(classTree);
         checkConflictingAnnotatedFor(classTree, classElt);
         if (classElt != null) {
-            atypeFactory.getQualifierDefaults().checkDefaultQualifiers(classElt);
+            atypeFactory.getQualifierDefaults().checkDefaultQualifiers(classElt, classTree);
         }
         checkFieldInvariantDeclarations(classTree);
         if (!TreeUtils.hasExplicitConstructor(classTree)) {
@@ -1316,7 +1316,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(tree);
         checkConflictingAnnotatedFor(tree, methodElt);
         if (methodElt != null) {
-            atypeFactory.getQualifierDefaults().checkDefaultQualifiers(methodElt);
+            atypeFactory.getQualifierDefaults().checkDefaultQualifiers(methodElt, tree);
         }
         // boilerplate
         long startMillis = System.currentTimeMillis();
@@ -1350,7 +1350,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
 
             if (TreeUtils.isConstructor(tree)) {
-                checkConstructorResult(methodType, methodElement);
+                checkConstructorResult(methodType, tree);
             }
 
             checkPurityAnnotations(tree);
@@ -1585,10 +1585,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * #isValidUse(AnnotatedTypeMirror.AnnotatedDeclaredType,AnnotatedTypeMirror.AnnotatedDeclaredType,Tree)}.
      *
      * @param constructorType the AnnotatedExecutableType for the constructor
-     * @param constructorElement the element that declares the constructor
+     * @param constructorTree the declaration of the constructor
      */
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
         AnnotatedTypeMirror returnType = constructorType.getReturnType();
         AnnotationMirrorSet constructorAnnotations = returnType.getAnnotations();
         AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
@@ -1598,7 +1598,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     qualHierarchy.findAnnotationInHierarchy(constructorAnnotations, top);
             if (!AnnotationUtils.areSame(top, constructorAnno)) {
                 checker.reportWarning(
-                        constructorElement, "inconsistent.constructor.type", constructorAnno, top);
+                        constructorTree, "inconsistent.constructor.type", constructorAnno, top);
             }
         }
     }
@@ -1993,7 +1993,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         atypeFactory.getDependentTypesHelper().checkTypeForErrorExpressions(variableType, tree);
         Element varElt = TreeUtils.elementFromDeclaration(tree);
-        atypeFactory.getQualifierDefaults().checkDefaultQualifiers(varElt);
+        atypeFactory.getQualifierDefaults().checkDefaultQualifiers(varElt, tree);
         if (varElt.getKind() == ElementKind.ENUM_CONSTANT) {
             commonAssignmentCheck(
                     tree, tree.getInitializer(), "enum.declaration.type.incompatible");

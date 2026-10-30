@@ -6,11 +6,24 @@ import com.google.errorprone.scanner.ScannerSupplier;
 import com.sun.tools.javac.main.Main.Result;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.TypeElement;
 
 /**
  * End-to-end tests for {@link EisopCheckerFrameworkPlugin}: running Checker Framework type
@@ -35,22 +48,29 @@ public class EisopCheckerFrameworkPluginTest {
     private static final String INTERNING_CHECKER =
             "org.checkerframework.checker.interning.InterningChecker";
 
+    /** Fully-qualified name of the Lock Checker (lives in the :checker module, test-only dep). */
+    private static final String LOCK_CHECKER = "org.checkerframework.checker.lock.LockChecker";
+
     /**
      * javac flags Error Prone requires. The --add-exports/--add-opens needed to run in-process are
-     * supplied as JVM args by the module's build.gradle (they have no effect as compiler args).
-     * {@code -AnoJreVersionCheck} suppresses the Checker Framework's own NOTE about untested JRE
-     * versions, so that tests asserting an exact diagnostic count do not depend on which JDK runs
-     * the build (CI covers JDKs the Checker Framework does not consider "tested" yet, e.g. 24).
+     * supplied as JVM args by the module's build.gradle (they have no effect as compiler args). The
+     * Checker Framework option {@code noJreVersionCheck} suppresses the Checker Framework's own
+     * NOTE about untested JRE versions, so that tests asserting an exact diagnostic count do not
+     * depend on which JDK runs the build (CI covers JDKs the Checker Framework does not consider
+     * "tested" yet, e.g. 24).
      */
     private static final List<String> BASE_ARGS =
             Arrays.asList(
                     "-XDcompilePolicy=simple",
                     "--should-stop=ifError=FLOW",
                     "-XDaddTypeAnnotationsToSymbol=true",
-                    "-AnoJreVersionCheck");
+                    "-XepOpt:eisopcf:noJreVersionCheck");
 
     /** A helper running the {@code eisopcf} plugin with the Nullness Checker selected. */
     private CompilationTestHelper helper;
+
+    /** Holds the stub file that {@link #checkerOptionsArePassedAsErrorProneFlags} writes. */
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     /**
      * Sets up a {@link CompilationTestHelper} running the {@code eisopcf} plugin with the Nullness
@@ -500,29 +520,41 @@ public class EisopCheckerFrameworkPluginTest {
     }
 
     /**
-     * Checker Framework options are passed exactly as in standalone mode: with javac {@code -A}
-     * options, which reach the checkers through {@code processingEnv.getOptions()} (Error Prone
-     * runs with annotation processing enabled, so javac records {@code -A} options even though no
-     * Checker Framework annotation processor is registered). This covers both the common {@link
-     * org.checkerframework.framework.source.SourceChecker} options (e.g. {@code -Astubs=...}) and
-     * checker-specific options (written {@code -ACheckerName_option=...}).
-     *
-     * <p>Here the common {@code -AsuppressWarnings=nullness} option suppresses the Nullness Checker
-     * finding that {@link #nullnessCheckerReportsBadReturn()} otherwise reports, demonstrating that
-     * a {@code -A} option changes checker behavior under the {@code eisopcf} plugin.
+     * Under the plugin, Checker Framework options are passed only as Error Prone flags (see {@link
+     * #checkerOptionsArePassedAsErrorProneFlags()}); a javac {@code -A} option is not read. Javac
+     * does not warn about an unused {@code -A} option when no annotation processor runs, so a
+     * {@code -A} option that a selected checker supports would be silently ignored; the plugin
+     * reports it as a configuration error instead, naming the flag to use.
      */
     @Test
-    public void checkerOptionsArePassedWithDashA() {
-        helperWith(
-                        "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER,
-                        // A standard SourceChecker option, passed with -A as in standalone mode;
-                        // suppresses all "nullness"-prefixed findings.
-                        "-AsuppressWarnings=nullness")
-                .expectNoDiagnostics()
+    public void dashAOptionOfASelectedCheckerIsReported() {
+        // The diagnostic carries no source position, so it cannot be anchored with a
+        // "// BUG: Diagnostic contains:" marker; assert instead that the compilation fails.
+        helperWith("-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER, "-AsuppressWarnings=nullness")
+                .expectResult(Result.ERROR)
                 .addSourceLines(
                         "test/WithOption.java",
                         "package test;",
                         "class WithOption {",
+                        "  String m() { return \"x\"; }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * A {@code -A} option that no selected checker supports may belong to another annotation
+     * processor of the compilation, so it is left alone: the compilation succeeds and the checker
+     * runs as usual.
+     */
+    @Test
+    public void unrelatedDashAOptionIsIgnored() {
+        helperWith("-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER, "-Acom.example.other=1")
+                .expectResult(Result.OK)
+                .addSourceLines(
+                        "test/Unrelated.java",
+                        "package test;",
+                        "class Unrelated {",
+                        "  // BUG: Diagnostic contains: return.type.incompatible",
                         "  String m() { return null; }",
                         "}")
                 .doTest();
@@ -536,7 +568,9 @@ public class EisopCheckerFrameworkPluginTest {
      */
     @Test
     public void unneededSuppressionWarningIsReported() {
-        helperWith("-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER, "-AwarnUnneededSuppressions")
+        helperWith(
+                        "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER,
+                        "-XepOpt:eisopcf:warnUnneededSuppressions")
                 .addSourceLines(
                         "test/Unneeded.java",
                         "package test;",
@@ -654,6 +688,340 @@ public class EisopCheckerFrameworkPluginTest {
                         "import org.checkerframework.checker.nullness.qual.Nullable;",
                         "import org.checkerframework.framework.qual.DefaultQualifier;",
                         "import org.checkerframework.framework.qual.TypeUseLocation;")
+                .doTest();
+    }
+
+    /**
+     * Returns the source lines of a class whose two {@code @DefaultQualifier} annotations conflict,
+     * so that the Checker Framework reports {@code conflicting.defaults} on the class's element
+     * rather than on a tree. The lines carry a {@code // BUG:} marker for that finding.
+     *
+     * @param className the simple name of the class, in package {@code demo}
+     * @return the source lines
+     */
+    private static String[] classWithConflictingDefaults(String className) {
+        return new String[] {
+            "package demo;",
+            "import org.checkerframework.checker.nullness.qual.NonNull;",
+            "import org.checkerframework.checker.nullness.qual.Nullable;",
+            "import org.checkerframework.framework.qual.DefaultQualifier;",
+            "import org.checkerframework.framework.qual.TypeUseLocation;",
+            "@DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.FIELD)",
+            "@DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.FIELD)",
+            "// BUG: Diagnostic contains: conflicting.defaults",
+            "public class " + className + " {}"
+        };
+    }
+
+    /**
+     * A finding the Checker Framework reports on an element (here {@code conflicting.defaults} on a
+     * class) is an {@code eisopcf} finding at the check's severity, like one reported on a tree.
+     * The check's default severity is WARNING, so the compilation succeeds; printed through javac's
+     * {@code Messager} instead, the finding would be an error whatever the severity.
+     */
+    @Test
+    public void elementFindingHonorsSeverity() {
+        helper.expectResult(Result.OK)
+                .addSourceLines(
+                        "demo/Conflicting.java", classWithConflictingDefaults("Conflicting"))
+                .doTest();
+    }
+
+    /**
+     * Like {@link #elementFindingHonorsSeverity}, for an element finding on a package declaration,
+     * which the plugin reaches through {@code matchCompilationUnit} rather than {@code matchClass}.
+     */
+    @Test
+    public void packageElementFindingHonorsSeverity() {
+        helper.expectResult(Result.OK)
+                .addSourceLines(
+                        "demo/package-info.java",
+                        "@DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.FIELD)",
+                        "@DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.FIELD)",
+                        "// BUG: Diagnostic contains: conflicting.defaults",
+                        "package demo;",
+                        "",
+                        "import org.checkerframework.checker.nullness.qual.NonNull;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "import org.checkerframework.framework.qual.DefaultQualifier;",
+                        "import org.checkerframework.framework.qual.TypeUseLocation;")
+                .doTest();
+    }
+
+    /**
+     * A finding reported on an element is suppressed by {@code @SuppressWarnings("eisopcf")} on
+     * that element. The suppressed class is nested: Error Prone does not run the check at all on a
+     * top-level class that suppresses it, so suppression there would hold whichever way the finding
+     * is reported.
+     */
+    @Test
+    public void elementFindingIsSuppressibleViaErrorProne() {
+        helper.expectNoDiagnostics()
+                .addSourceLines(
+                        "demo/Outer.java",
+                        "package demo;",
+                        "import org.checkerframework.checker.nullness.qual.NonNull;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "import org.checkerframework.framework.qual.DefaultQualifier;",
+                        "import org.checkerframework.framework.qual.TypeUseLocation;",
+                        "public class Outer {",
+                        "  @SuppressWarnings(\"eisopcf\")",
+                        "  @DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.FIELD)",
+                        "  @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.FIELD)",
+                        "  static class Inner {}",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * A finding reported on an element does not stop Error Prone from analyzing the compilation
+     * units that follow. Error Prone skips the remaining units once javac's error count exceeds the
+     * errors it reported itself, so an element finding that bypassed it as a javac error would
+     * leave the finding in {@code CSecond.java} unreported.
+     */
+    @Test
+    public void elementFindingDoesNotStopLaterUnits() {
+        helper.addSourceLines("demo/AFirst.java", classWithConflictingDefaults("AFirst"))
+                .addSourceLines(
+                        "demo/CSecond.java",
+                        "package demo;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "public class CSecond {",
+                        "    @Nullable Object field;",
+                        "    String m() {",
+                        "        // BUG: Diagnostic contains: dereference.of.nullable",
+                        "        return field.toString();",
+                        "    }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * {@code inconsistent.constructor.type}, which the Lock Checker reports on a constructor's
+     * element, is suppressed by {@code @SuppressWarnings("eisopcf")} on the constructor.
+     */
+    @Test
+    public void constructorElementFindingIsSuppressibleViaErrorProne() {
+        helperWith("-XepOpt:eisopcf:checkers=" + LOCK_CHECKER)
+                .expectNoDiagnostics()
+                .addSourceLines(
+                        "demo/Unknown.java",
+                        "package demo;",
+                        "import org.checkerframework.checker.lock.qual.GuardedByUnknown;",
+                        "public @GuardedByUnknown class Unknown {",
+                        "  @SuppressWarnings(\"eisopcf\")",
+                        "  Unknown() {}",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * Control for {@link #constructorElementFindingIsSuppressibleViaErrorProne}: without the
+     * suppression, the finding is reported.
+     */
+    @Test
+    public void constructorElementFindingIsReported() {
+        helperWith("-XepOpt:eisopcf:checkers=" + LOCK_CHECKER)
+                .addSourceLines(
+                        "demo/Unknown.java",
+                        "package demo;",
+                        "import org.checkerframework.checker.lock.qual.GuardedByUnknown;",
+                        "public @GuardedByUnknown class Unknown {",
+                        "  // BUG: Diagnostic contains: inconsistent.constructor.type",
+                        "  Unknown() {}",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * Writes a stub file that makes {@code org.junit.runner.Description.getMethodName()} (an
+     * unannotated library method, which the Nullness Checker otherwise treats as returning {@code
+     * NonNull}) return {@code @Nullable}.
+     *
+     * @return the stub file
+     * @throws IOException if the file cannot be written
+     */
+    private File writeDescriptionStub() throws IOException {
+        File stub = temporaryFolder.newFile("Description.astub");
+        Files.write(
+                stub.toPath(),
+                Arrays.asList(
+                        "package org.junit.runner;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "public final class Description {",
+                        "  public @Nullable String getMethodName();",
+                        "}"),
+                StandardCharsets.UTF_8);
+        return stub;
+    }
+
+    /**
+     * Checker Framework options are passed as Error Prone flags, {@code
+     * -XepOpt:eisopcf:<option>=<value>}, each read as the {@code -A<option>=<value>} form would be.
+     * Several options are given in one compilation, and each has its own observable effect:
+     *
+     * <ul>
+     *   <li>{@code stubs}, whose value is a file path: the stub makes {@code getMethodName()}
+     *       nullable, so dereferencing its result is reported;
+     *   <li>{@code warnUnneededSuppressions}, without a value: Error Prone gives such a flag the
+     *       value {@code true}, which the checker (which only tests the option's presence) reads as
+     *       {@code -AwarnUnneededSuppressions}, so the unneeded suppression is reported;
+     *   <li>{@code suppressWarnings}, whose value contains commas and colons: exactly the two
+     *       listed message keys are suppressed, while the dereference is still reported;
+     *   <li>{@code NullnessChecker_lint}, a checker-prefixed option read through {@code
+     *       getLintOption} by a subchecker (the Nullness Checker's visitor belongs to {@code
+     *       NullnessNoInitSubchecker}): the redundant null comparison is reported.
+     * </ul>
+     *
+     * @throws IOException if the stub file cannot be written
+     */
+    @Test
+    public void checkerOptionsArePassedAsErrorProneFlags() throws IOException {
+        helperWith(
+                        "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER,
+                        "-XepOpt:eisopcf:stubs=" + writeDescriptionStub().getAbsolutePath(),
+                        "-XepOpt:eisopcf:warnUnneededSuppressions",
+                        "-XepOpt:eisopcf:suppressWarnings=nullness:return.type.incompatible,"
+                                + "nullness:assignment.type.incompatible",
+                        "-XepOpt:eisopcf:NullnessChecker_lint=redundantNullComparison")
+                .addSourceLines(
+                        "test/Options.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.NonNull;",
+                        "import org.junit.runner.Description;",
+                        "class Options {",
+                        "  String field = null;", // assignment.type.incompatible, suppressed
+                        "  String ret() { return null; }", // return.type.incompatible, suppressed
+                        "  int stubbed(Description d) {",
+                        "    // BUG: Diagnostic contains: dereference.of.nullable",
+                        "    return d.getMethodName().length();",
+                        "  }",
+                        "  // BUG: Diagnostic contains: unneeded.suppression",
+                        "  @SuppressWarnings(\"nullness\")",
+                        "  String clean() { return \"x\"; }",
+                        "  boolean lint(@NonNull String s) {",
+                        "    // BUG: Diagnostic contains: nulltest.redundant",
+                        "    return s == null;",
+                        "  }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * Control for {@link #checkerOptionsArePassedAsErrorProneFlags}: without the options, the
+     * program reports exactly the two findings that the options there suppress, and none of the
+     * three that the options there produce.
+     */
+    @Test
+    public void withoutTheOptionsTheProgramReportsItsOwnFindings() {
+        helper.addSourceLines(
+                        "test/Options.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.NonNull;",
+                        "import org.junit.runner.Description;",
+                        "class Options {",
+                        "  // BUG: Diagnostic contains: assignment.type.incompatible",
+                        "  String field = null;",
+                        "  // BUG: Diagnostic contains: return.type.incompatible",
+                        "  String ret() { return null; }",
+                        "  int stubbed(Description d) {",
+                        "    return d.getMethodName().length();",
+                        "  }",
+                        "  @SuppressWarnings(\"nullness\")",
+                        "  String clean() { return \"x\"; }",
+                        "  boolean lint(@NonNull String s) {",
+                        "    return s == null;",
+                        "  }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * An {@code eisopcf:} flag that names an option no selected checker supports (here a misspelled
+     * {@code stubs}) is a configuration error, like an unresolvable checker name: javac's "options
+     * were not recognized by any processor" warning does not cover Error Prone flags, and an
+     * ignored option would silently change what is checked.
+     */
+    @Test
+    public void unsupportedCheckerOptionIsReported() {
+        helperWith("-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER, "-XepOpt:eisopcf:stub=x.astub")
+                .expectResult(Result.ERROR)
+                .addSourceLines(
+                        "test/Any.java",
+                        "package test;",
+                        "class Any {",
+                        "  String m() { return \"x\"; }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * An annotation processor that does nothing. Running it makes javac warn about {@code -A}
+     * options that no processor recognizes, as any real processor (AutoValue, Dagger, ...) does.
+     */
+    @SupportedAnnotationTypes("*")
+    public static class NoOpProcessor extends AbstractProcessor {
+        @Override
+        public SourceVersion getSupportedSourceVersion() {
+            return SourceVersion.latestSupported();
+        }
+
+        @Override
+        public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment env) {
+            return false;
+        }
+    }
+
+    /**
+     * The control for {@link #errorProneFlagsRaiseNoUnrecognizedOptionWarning()}: with {@link
+     * NoOpProcessor} and {@code -Werror}, a {@code -A} option that no processor recognizes makes
+     * javac warn and so fails the compilation. This is what a Checker Framework {@code -A} option
+     * did under the plugin; the option here is one no checker supports, so that the plugin itself
+     * does not report it.
+     */
+    @Test
+    public void unrecognizedDashAOptionFailsWithAnotherProcessorAndWerror() {
+        helperWith(
+                        "-processor",
+                        NoOpProcessor.class.getName(),
+                        "-Werror",
+                        "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER,
+                        "-XepOpt:eisopcf:suppressWarnings=nullness",
+                        "-Acom.example.unrecognized=1")
+                .expectResult(Result.ERROR)
+                .addSourceLines(
+                        "test/WithProcessor.java",
+                        "package test;",
+                        "class WithProcessor {",
+                        "  String m() { return null; }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * Under Error Prone, the Checker Framework is not an annotation processor, so when the
+     * compilation runs some other annotation processor, javac would warn that no processor
+     * recognized a Checker Framework {@code -A} option, and {@code -Werror} would fail the
+     * compilation. The Error Prone flags are not {@code -A} options, so a compilation that runs
+     * {@link NoOpProcessor} with {@code -Werror} passes cleanly, and the options take effect (the
+     * {@code noJreVersionCheck} flag of {@link #BASE_ARGS} suppresses the JRE-version note, and the
+     * finding the program contains is suppressed).
+     */
+    @Test
+    public void errorProneFlagsRaiseNoUnrecognizedOptionWarning() {
+        helperWith(
+                        "-processor",
+                        NoOpProcessor.class.getName(),
+                        "-Werror",
+                        "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER,
+                        "-XepOpt:eisopcf:suppressWarnings=nullness")
+                .expectNoDiagnostics()
+                .addSourceLines(
+                        "test/WithProcessor.java",
+                        "package test;",
+                        "class WithProcessor {",
+                        "  String m() { return null; }",
+                        "}")
                 .doTest();
     }
 }
