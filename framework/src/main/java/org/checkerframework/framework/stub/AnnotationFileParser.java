@@ -3323,9 +3323,11 @@ public class AnnotationFileParser {
 
     /**
      * Mapping of a name access expression that has already been encountered to the resolved
-     * variable element.
+     * variable element. Keyed by identity: JavaParser nodes are equal if they have the same
+     * structure, but the same name can refer to different variables in different classes.
      */
-    private final Map<NameExpr, VariableElement> findVariableElementNameCache = new HashMap<>();
+    private final IdentityHashMap<NameExpr, VariableElement> findVariableElementNameCache =
+            new IdentityHashMap<>();
 
     /**
      * Returns the element for the given variable, resolved by {@link
@@ -3386,10 +3388,11 @@ public class AnnotationFileParser {
 
     /**
      * Mapping of a field access expression that has already been encountered to the resolved
-     * variable element.
+     * variable element. Keyed by identity, like {@link #findVariableElementNameCache}: the scope of
+     * a field access can name a member type of an enclosing class.
      */
-    private final Map<FieldAccessExpr, VariableElement> findVariableElementFieldCache =
-            new HashMap<>();
+    private final IdentityHashMap<FieldAccessExpr, VariableElement> findVariableElementFieldCache =
+            new IdentityHashMap<>();
 
     /**
      * Returns the VariableElement for the given field access.

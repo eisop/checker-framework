@@ -68,12 +68,17 @@ public class StubAnnotationValuesTest {
                     + "    public static class Inner {\n"
                     + "        public static int enclosing() { return 0; }\n"
                     + "    }\n"
+                    + "    public static class Shadow {\n"
+                    + "        public static final int BASE = 7;\n"
+                    + "        public static int shadowed() { return 0; }\n"
+                    + "    }\n"
                     + "}\n";
 
     /**
      * The stub file. {@code MAX_VALUE} is imported both by a single-static-import (from {@code
      * Integer}) and on demand (from {@code Short}): the single-static-import shadows the other, as
-     * in Java. {@code MIN_VALUE} is imported only on demand, from {@code Short}.
+     * in Java. {@code MIN_VALUE} is imported only on demand, from {@code Short}. {@code Shadow}'s
+     * own {@code BASE} shadows that of {@code Lib}, so the same name has a different value there.
      */
     private static final String STUB =
             "import static java.lang.Integer.MAX_VALUE;\n"
@@ -113,6 +118,10 @@ public class StubAnnotationValuesTest {
                     + "    public static class Inner {\n"
                     + "        public static @IntVal(BASE) int enclosing();\n"
                     + "    }\n"
+                    + "    public static class Shadow {\n"
+                    + "        public static final int BASE = 7;\n"
+                    + "        public static @IntVal(BASE) int shadowed();\n"
+                    + "    }\n"
                     + "}\n";
 
     /** The checked source, which states each expected value as the same expression in Java. */
@@ -150,6 +159,7 @@ public class StubAnnotationValuesTest {
                     + "        @IntVal({-2147483648, -9223372036854775808L, -9_223_372_036_854_775_808l}) long minValues ="
                     + " Lib.minValues();\n"
                     + "        @IntVal(Lib.BASE) int enclosing = Lib.Inner.enclosing();\n"
+                    + "        @IntVal(Lib.Shadow.BASE) int shadowed = Lib.Shadow.shadowed();\n"
                     + "    }\n"
                     + "}\n";
 
