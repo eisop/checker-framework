@@ -6,6 +6,7 @@ import com.sun.tools.javac.util.Context;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.source.DiagnosticSink;
 import org.checkerframework.framework.source.SourceChecker;
+import org.checkerframework.javacutil.UserError;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -81,11 +82,10 @@ public final class CheckerFrameworkDriver {
      *     checker (via {@link SourceChecker#setDiagnosticSink}), so findings go to the host instead
      *     of javac. Pass {@code null} for Checker-Framework-native reporting.
      * @return an initialized driver
-     * @throws IllegalArgumentException if {@code checkerClassNames} is empty, a name does not
-     *     resolve to an instantiable {@link SourceChecker}, an option is not supported by any
-     *     selected checker, or a {@code -A} option of the compilation is one that a selected
-     *     checker supports (the checkers do not read {@code -A} options, so it would be silently
-     *     ignored)
+     * @throws UserError if {@code checkerClassNames} is empty, a name does not resolve to an
+     *     instantiable {@link SourceChecker}, an option is not supported by any selected checker,
+     *     or a {@code -A} option of the compilation is one that a selected checker supports (the
+     *     checkers do not read {@code -A} options, so it would be silently ignored)
      */
     public static CheckerFrameworkDriver create(
             Context context,
@@ -93,7 +93,7 @@ public final class CheckerFrameworkDriver {
             Map<String, String> options,
             @Nullable DiagnosticSink sink) {
         if (checkerClassNames.isEmpty()) {
-            throw new IllegalArgumentException(
+            throw new UserError(
                     "No Checker Framework checkers selected; name at least one SourceChecker"
                             + " subclass.");
         }
@@ -125,7 +125,7 @@ public final class CheckerFrameworkDriver {
             problems.add(dashA);
         }
         if (problems.length() > 0) {
-            throw new IllegalArgumentException(problems.toString());
+            throw new UserError(problems.toString());
         }
         return new CheckerFrameworkDriver(initialized);
     }
@@ -202,13 +202,13 @@ public final class CheckerFrameworkDriver {
      *
      * @param className the fully-qualified class name
      * @return a new instance
-     * @throws IllegalArgumentException if the class cannot be found, is not a {@link
-     *     SourceChecker}, or cannot be instantiated
+     * @throws UserError if the class cannot be found, is not a {@link SourceChecker}, or cannot be
+     *     instantiated
      */
     private static SourceChecker instantiate(String className) {
         Class<?> clazz = loadCheckerClass(className);
         if (!SourceChecker.class.isAssignableFrom(clazz)) {
-            throw new IllegalArgumentException(
+            throw new UserError(
                     className
                             + " is not a "
                             + SourceChecker.class.getName()
@@ -218,9 +218,13 @@ public final class CheckerFrameworkDriver {
             Object instance = clazz.getDeclaredConstructor().newInstance();
             return (SourceChecker) instance;
         } catch (ReflectiveOperationException e) {
-            throw new IllegalArgumentException(
-                    "Could not instantiate checker " + className + " via its no-arg constructor.",
-                    e);
+            UserError error =
+                    new UserError(
+                            "Could not instantiate checker "
+                                    + className
+                                    + " via its no-arg constructor.");
+            error.initCause(e);
+            throw error;
         }
     }
 
@@ -235,7 +239,7 @@ public final class CheckerFrameworkDriver {
      *
      * @param className the fully-qualified checker class name
      * @return the loaded class
-     * @throws IllegalArgumentException if no candidate classloader can resolve the class
+     * @throws UserError if no candidate classloader can resolve the class
      */
     private static Class<?> loadCheckerClass(String className) {
         @Nullable ClassLoader[] candidates = {
@@ -262,12 +266,14 @@ public final class CheckerFrameworkDriver {
                 last = e;
             }
         }
-        throw new IllegalArgumentException(
-                "Checker class not found on the classpath: "
-                        + className
-                        + ". Ensure the module containing the checker (e.g. checker.jar) is on the"
-                        + " Error Prone processorpath (or classpath).",
-                last);
+        UserError error =
+                new UserError(
+                        "Checker class not found on the classpath: "
+                                + className
+                                + ". Ensure the module containing the checker (e.g. checker.jar)"
+                                + " is on the Error Prone processorpath (or classpath).");
+        error.initCause(last);
+        throw error;
     }
 
     /**

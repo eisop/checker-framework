@@ -29,6 +29,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.source.DiagnosticSink;
 import org.checkerframework.framework.source.SuggestedFixData;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.UserError;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -215,9 +216,9 @@ public class EisopCheckerFrameworkPlugin extends BugChecker
      *
      * @param context the compilation context
      * @return the initialized driver
-     * @throws IllegalArgumentException if no checker is selected, a selected name does not resolve
-     *     to an instantiable {@code SourceChecker}, or a checker option is not supported by any
-     *     selected checker
+     * @throws UserError if no checker is selected, a selected name does not resolve to an
+     *     instantiable {@code SourceChecker}, or a checker option is not supported by any selected
+     *     checker
      */
     private CheckerFrameworkDriver driverFor(Context context) {
         // The javac Context is compared by identity: it is unique per compilation.
@@ -499,7 +500,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker
         CheckerFrameworkDriver currentDriver;
         try {
             currentDriver = driverFor(state.context);
-        } catch (IllegalArgumentException e) {
+        } catch (UserError e) {
             // A configuration error, e.g. an unresolvable checker name.  Like an empty selection,
             // it means nothing is type-checked, so report it the same unconditional way.  Other
             // (unexpected) runtime exceptions are left to propagate.
@@ -578,7 +579,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker
         CheckerFrameworkDriver currentDriver;
         try {
             currentDriver = driverFor(state.context);
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (UserError | IllegalStateException e) {
             // Configuration errors are reported by matchClass, which sees the same context.
             return Description.NO_MATCH;
         }

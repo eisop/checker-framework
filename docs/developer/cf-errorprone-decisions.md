@@ -517,8 +517,9 @@ introduced.
 already covers multiple checkers (each reports through the sink). The plugin change
 is limited to surfacing a configuration error (e.g. an unresolvable checker name)
 once, as a clean error, instead of an unhandled plugin exception (`matchClass`
-catches `IllegalArgumentException` from driver creation and records the compilation
-`Context` it reported for, in `configErrorContext`).
+catches the `UserError` that driver creation throws for a configuration error (an
+`IllegalArgumentException` before ADR-0013, which also caught unrelated bugs) and
+records the compilation `Context` it reported for, in `configErrorContext`).
 
 **Verified (EisopCheckerFrameworkPluginTest).**
 
@@ -850,6 +851,8 @@ directly for its `stub*` options and now goes through the checker.)
 - An `eisopcf:` option that no selected checker supports (`getSupportedOptions()`, which
   includes the prefixed forms, as javac checks `-A` options) is a configuration error,
   reported once per compilation like an unresolvable checker name.
+- All of these are thrown as `UserError` and reported together, in one configuration
+  error; a bug inside driver creation propagates with its stack trace.
 - `-A` options are not read. One that a selected checker supports is a configuration
   error naming the replacement (`Pass -Astubs=x as -XepOpt:eisopcf:stubs=x`), since
   javac would not warn about it. One that no selected checker supports is left alone; it

@@ -1,5 +1,6 @@
 package org.checkerframework.errorprone;
 
+import org.checkerframework.javacutil.UserError;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -24,7 +25,7 @@ public class CheckerFrameworkDriverTest {
                                 Collections.singletonMap("stub", "x.astub"),
                                 null);
                         Assert.fail("expected a configuration error");
-                    } catch (IllegalArgumentException e) {
+                    } catch (UserError e) {
                         String message = e.getMessage();
                         Assert.assertTrue(
                                 message,
