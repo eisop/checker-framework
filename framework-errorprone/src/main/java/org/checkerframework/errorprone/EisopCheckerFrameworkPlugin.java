@@ -1,6 +1,7 @@
 package org.checkerframework.errorprone;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.BugPattern;
 import com.google.errorprone.ErrorProneFlags;
 import com.google.errorprone.SuppressionInfo;
@@ -28,11 +29,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.source.DiagnosticSink;
 import org.checkerframework.framework.source.SuggestedFixData;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.UserError;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.Map;
 
 import javax.inject.Inject;
 import javax.lang.model.element.Element;
@@ -60,6 +63,23 @@ import javax.tools.Diagnostic;
  * Framework distinct from the typetools Checker Framework. Multiple checkers may be given as a
  * comma-separated list (see {@link #CHECKERS_FLAG}); they run as independent type systems over one
  * shared AST, each building its own control-flow graph.
+ *
+ * <p><b>Checker options.</b> Every other {@code eisopcf:} flag is a Checker Framework option, named
+ * as it would be after {@code -A}, with the same value (see {@link #OPTION_FLAG_PREFIX}):
+ *
+ * <pre>{@code
+ * -XepOpt:eisopcf:stubs=lib.astub
+ * -XepOpt:eisopcf:suppressWarnings=nullness:dereference.of.nullable,initialization
+ * -XepOpt:eisopcf:warnUnneededSuppressions
+ * -XepOpt:eisopcf:NullnessChecker_lint=redundantNullComparison
+ * }</pre>
+ *
+ * Checkers read these exactly as they read {@code -A} options in standalone mode. The javac {@code
+ * -A} form is not used under the plugin, as the Checker Framework is not an annotation processor
+ * there: javac does not warn about an unused {@code -A} option when no annotation processor runs,
+ * and warns (failing with {@code -Werror}) when another one does. A {@code -A} option that a
+ * selected checker supports is therefore reported as a configuration error naming the flag to use;
+ * see the manual's "Error Prone" section.
  *
  * <p>Error Prone discovers this plugin through the {@code ServiceLoader} registration in {@code
  * META-INF/services/com.google.errorprone.bugpatterns.BugChecker} (a hand-written resource rather
@@ -100,10 +120,38 @@ public class EisopCheckerFrameworkPlugin extends BugChecker
     public static final String CHECKERS_FLAG = "eisopcf:checkers";
 
     /**
+     * The prefix of every Error Prone flag of this plugin. A flag {@code
+     * -XepOpt:eisopcf:<option>=<value>} other than {@link #CHECKERS_FLAG} passes the Checker
+     * Framework option {@code <option>} with value {@code <value>}, as {@code -A<option>=<value>}
+     * would, to the selected checkers: {@code -XepOpt:eisopcf:stubs=lib.astub}, {@code
+     * -XepOpt:eisopcf:NullnessChecker_lint=redundantNullComparison}. Error Prone gives a flag
+     * without {@code =} the value {@code "true"}, so {@code
+     * -XepOpt:eisopcf:warnUnneededSuppressions} passes {@code warnUnneededSuppressions=true}, which
+     * a checker that only tests for the option's presence reads as {@code
+     * -AwarnUnneededSuppressions}. An option that no selected checker supports is a configuration
+     * error, as is a javac {@code -A} option that a selected checker supports: the checkers do not
+     * read {@code -A} options under the plugin.
+     *
+     * <p>The options are flags rather than {@code -A} options because under Error Prone the Checker
+     * Framework is not an annotation processor, so no processor claims its {@code -A} options:
+     * javac ignores them silently when no annotation processor runs, and warns about them when
+     * another one does, which fails a compilation with {@code -Werror}. Since the checkers ignore
+     * the {@code -A} options (see {@code SourceChecker.setHostOptions}), the plugin can report them
+     * instead.
+     */
+    public static final String OPTION_FLAG_PREFIX = "eisopcf:";
+
+    /**
      * The comma-separated list of fully-qualified checker class names, from {@link #CHECKERS_FLAG}.
      * Resolved to actual checkers lazily, once per compilation (see {@link #driverFor}).
      */
     private final ImmutableList<String> checkerClassNames;
+
+    /**
+     * The Checker Framework options passed as Error Prone flags (see {@link #OPTION_FLAG_PREFIX}),
+     * with the prefix removed: each key is the option as it would be written after {@code -A}.
+     */
+    private final ImmutableMap<String, String> checkerOptions;
 
     /**
      * The driver for the current compilation, created lazily on the first {@link #matchClass}.
@@ -124,10 +172,10 @@ public class EisopCheckerFrameworkPlugin extends BugChecker
     private transient @Nullable VisitorState currentState;
 
     /**
-     * The context of the compilation for which a configuration error (no checker selected, or an
-     * unresolvable checker name) has already been reported, so it is surfaced once per compilation
-     * rather than on every class. Keyed by context, like {@link #driverContext}, so a reused plugin
-     * instance still reports the error in a later compilation.
+     * The context of the compilation for which a configuration error (no checker selected, an
+     * unresolvable checker name, or an unsupported checker option) has already been reported, so it
+     * is surfaced once per compilation rather than on every class. Keyed by context, like {@link
+     * #driverContext}, so a reused plugin instance still reports the error in a later compilation.
      */
     private transient @Nullable Context configErrorContext;
 
@@ -138,16 +186,26 @@ public class EisopCheckerFrameworkPlugin extends BugChecker
      */
     public EisopCheckerFrameworkPlugin() {
         this.checkerClassNames = ImmutableList.of();
+        this.checkerOptions = ImmutableMap.of();
     }
 
     /**
-     * Constructs the plugin from Error Prone flags, reading {@link #CHECKERS_FLAG}.
+     * Constructs the plugin from Error Prone flags, reading {@link #CHECKERS_FLAG} and the Checker
+     * Framework options among the other {@link #OPTION_FLAG_PREFIX} flags.
      *
      * @param flags the Error Prone flags for this compilation
      */
     @Inject
     public EisopCheckerFrameworkPlugin(ErrorProneFlags flags) {
         this.checkerClassNames = flags.getListOrEmpty(CHECKERS_FLAG);
+        ImmutableMap.Builder<String, String> options = ImmutableMap.builder();
+        for (Map.Entry<String, String> flag : flags.getFlagsMap().entrySet()) {
+            String key = flag.getKey();
+            if (key.startsWith(OPTION_FLAG_PREFIX) && !key.equals(CHECKERS_FLAG)) {
+                options.put(key.substring(OPTION_FLAG_PREFIX.length()), flag.getValue());
+            }
+        }
+        this.checkerOptions = options.buildOrThrow();
     }
 
     /**
@@ -158,8 +216,9 @@ public class EisopCheckerFrameworkPlugin extends BugChecker
      *
      * @param context the compilation context
      * @return the initialized driver
-     * @throws IllegalArgumentException if no checker is selected, or a selected name does not
-     *     resolve to an instantiable {@code SourceChecker}
+     * @throws UserError if no checker is selected, a selected name does not resolve to an
+     *     instantiable {@code SourceChecker}, or a checker option is not supported by any selected
+     *     checker
      */
     private CheckerFrameworkDriver driverFor(Context context) {
         // The javac Context is compared by identity: it is unique per compilation.
@@ -169,7 +228,8 @@ public class EisopCheckerFrameworkPlugin extends BugChecker
             return driver;
         }
         CheckerFrameworkDriver newDriver =
-                CheckerFrameworkDriver.create(context, checkerClassNames, diagnosticSink());
+                CheckerFrameworkDriver.create(
+                        context, checkerClassNames, checkerOptions, diagnosticSink());
         this.driver = newDriver;
         this.driverContext = context;
         // Run end-of-compilation processing when javac finishes.  A per-compilation-unit event is
@@ -374,9 +434,10 @@ public class EisopCheckerFrameworkPlugin extends BugChecker
     }
 
     /**
-     * Reports a configuration error once per compilation: either no checker is selected, or a
-     * selected name does not resolve to an instantiable {@code SourceChecker}. Both mean that
-     * nothing is type-checked, so both are reported the same way.
+     * Reports a configuration error once per compilation: no checker is selected, a selected name
+     * does not resolve to an instantiable {@code SourceChecker}, or a checker option (see {@link
+     * #OPTION_FLAG_PREFIX}) is supported by no selected checker. Each means that nothing is
+     * type-checked as configured, so all are reported the same way.
      *
      * <p>Raised through javac's {@code Messager} at {@link Diagnostic.Kind#ERROR}, deliberately
      * outside Error Prone's severity model. This is not a finding whose importance the {@code
@@ -439,7 +500,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker
         CheckerFrameworkDriver currentDriver;
         try {
             currentDriver = driverFor(state.context);
-        } catch (IllegalArgumentException e) {
+        } catch (UserError e) {
             // A configuration error, e.g. an unresolvable checker name.  Like an empty selection,
             // it means nothing is type-checked, so report it the same unconditional way.  Other
             // (unexpected) runtime exceptions are left to propagate.
@@ -518,7 +579,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker
         CheckerFrameworkDriver currentDriver;
         try {
             currentDriver = driverFor(state.context);
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (UserError | IllegalStateException e) {
             // Configuration errors are reported by matchClass, which sees the same context.
             return Description.NO_MATCH;
         }

@@ -349,12 +349,13 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
 
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
-        if (constructorElement.getEnclosingElement().getKind() == ElementKind.ENUM) {
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
+        if (TreeUtils.elementFromDeclaration(constructorTree).getEnclosingElement().getKind()
+                == ElementKind.ENUM) {
             // Enums constructor are only called once per enum constant.
             return;
         }
-        super.checkConstructorResult(constructorType, constructorElement);
+        super.checkConstructorResult(constructorType, constructorTree);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package org.checkerframework.checker.testchecker.ainfer;
 
 import com.sun.source.tree.AnnotationTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 
@@ -10,7 +11,6 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
 
 /** Visitor for a simple type system to test whole-program inference using .jaif files. */
 public class AinferTestVisitor extends BaseTypeVisitor<AinferTestAnnotatedTypeFactory> {
@@ -35,7 +35,7 @@ public class AinferTestVisitor extends BaseTypeVisitor<AinferTestAnnotatedTypeFa
 
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
         // Skip this check.
     }
 }

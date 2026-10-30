@@ -337,7 +337,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
         // Newly created objects are guarded by nothing, so allow @GuardedBy({}) on constructor
         // results.
         AnnotationMirror anno =
@@ -346,7 +346,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                         .getAnnotationInHierarchy(atypeFactory.GUARDEDBYUNKNOWN);
         if (AnnotationUtils.areSame(anno, atypeFactory.GUARDEDBYUNKNOWN)
                 || AnnotationUtils.areSame(anno, atypeFactory.GUARDEDBYBOTTOM)) {
-            checker.reportWarning(constructorElement, "inconsistent.constructor.type", anno, null);
+            checker.reportWarning(constructorTree, "inconsistent.constructor.type", anno, null);
         }
     }
 
