@@ -114,24 +114,35 @@ public final class CheckerFrameworkDriver {
             }
             initialized.add(checker);
         }
-        checkOptionsAreSupported(options, initialized);
-        checkNoDashAOptions(procEnv.getOptions(), initialized);
+        // Report both kinds of mistake together, so that one compilation shows all of them.
+        StringJoiner problems = new StringJoiner(" ");
+        String unsupported = unsupportedOptionsMessage(options, initialized);
+        if (unsupported != null) {
+            problems.add(unsupported);
+        }
+        String dashA = dashAOptionsMessage(procEnv.getOptions(), initialized);
+        if (dashA != null) {
+            problems.add(dashA);
+        }
+        if (problems.length() > 0) {
+            throw new IllegalArgumentException(problems.toString());
+        }
         return new CheckerFrameworkDriver(initialized);
     }
 
     /**
-     * Checks that no {@code -A} option of the compilation is one that a selected checker supports.
-     * The checkers read only the host's options (see {@link SourceChecker#setHostOptions}), and
-     * javac does not warn about an unused {@code -A} option when no annotation processor runs, so
-     * without this check a {@code -Astubs=...} written for standalone mode would be silently
-     * ignored. A {@code -A} option that no selected checker supports is left alone: it may belong
-     * to another annotation processor of the compilation.
+     * Returns an error message if a {@code -A} option of the compilation is one that a selected
+     * checker supports. The checkers read only the host's options (see {@link
+     * SourceChecker#setHostOptions}), and javac does not warn about an unused {@code -A} option
+     * when no annotation processor runs, so without this check a {@code -Astubs=...} written for
+     * standalone mode would be silently ignored. A {@code -A} option that no selected checker
+     * supports is left alone: it may belong to another annotation processor of the compilation.
      *
      * @param dashAOptions the {@code -A} options of the compilation, without the {@code -A}
      * @param checkers the initialized checkers
-     * @throws IllegalArgumentException if a {@code -A} option is supported by a checker
+     * @return a message naming the flags to pass instead, or null if there is no such option
      */
-    private static void checkNoDashAOptions(
+    private static @Nullable String dashAOptionsMessage(
             Map<String, String> dashAOptions, List<SourceChecker> checkers) {
         StringJoiner replacements = new StringJoiner(", ");
         for (Map.Entry<String, String> option : dashAOptions.entrySet()) {
@@ -146,17 +157,17 @@ public final class CheckerFrameworkDriver {
                 }
             }
         }
-        if (replacements.length() > 0) {
-            throw new IllegalArgumentException(
-                    "Under the Error Prone plugin, Checker Framework options are passed as Error"
-                            + " Prone flags, not as javac -A options, which are ignored. Pass "
-                            + replacements
-                            + ".");
+        if (replacements.length() == 0) {
+            return null;
         }
+        return "Under the Error Prone plugin, Checker Framework options are passed as Error Prone"
+                + " flags, not as javac -A options, which are ignored. Pass "
+                + replacements
+                + ".";
     }
 
     /**
-     * Checks that every host option is supported by at least one of the checkers, which is what
+     * Returns an error message if a host option is supported by none of the checkers. That is what
      * javac checks for {@code -A} options (it warns that an option "was not recognized by any
      * processor"). The host's options reach only these checkers, so an unrecognized one can only be
      * a mistake, such as a misspelling, and is reported as an error.
@@ -167,22 +178,22 @@ public final class CheckerFrameworkDriver {
      *
      * @param options the host's options
      * @param checkers the initialized checkers
-     * @throws IllegalArgumentException if an option is supported by none of the checkers
+     * @return a message naming the unsupported options, or null if every option is supported
      */
-    private static void checkOptionsAreSupported(
+    private static @Nullable String unsupportedOptionsMessage(
             Map<String, String> options, List<SourceChecker> checkers) {
         Set<String> unsupported = new LinkedHashSet<>(options.keySet());
         for (SourceChecker checker : checkers) {
             unsupported.removeAll(checker.getSupportedOptions());
         }
-        if (!unsupported.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "The following Checker Framework options are not recognized by any selected"
-                            + " checker: "
-                            + unsupported
-                            + ". Each must be an option of a selected checker, written as it"
-                            + " would be after -A (e.g. stubs or NullnessChecker_stubs).");
+        if (unsupported.isEmpty()) {
+            return null;
         }
+        return "The following Checker Framework options are not recognized by any selected"
+                + " checker: "
+                + unsupported
+                + ". Each must be an option of a selected checker, written as it would be after"
+                + " -A (e.g. stubs or NullnessChecker_stubs).";
     }
 
     /**
