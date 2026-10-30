@@ -25,6 +25,8 @@ permissions:
 jobs:
   dependency-submission:
     runs-on: ubuntu-26.04
+    # It takes under 6 minutes; without a limit, a hung job would hold a runner for 6 hours.
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
