@@ -77,6 +77,22 @@ public abstract class QualifierHierarchy {
     public abstract AnnotationMirrorSet getTopAnnotations();
 
     /**
+     * Returns the read-write dynamic qualifiers of this hierarchy: those that mean the top
+     * qualifier where the annotated expression is read and the bottom qualifier where it is
+     * written.
+     *
+     * <p>The default implementation returns the empty set, for type systems that have no such
+     * qualifier.
+     *
+     * @return the read-write dynamic qualifiers of this hierarchy, or an empty set if there are
+     *     none
+     * @see org.checkerframework.framework.qual.ReadWriteDynamicQualifier
+     */
+    public AnnotationMirrorSet getDynamicAnnotations() {
+        return AnnotationMirrorSet.emptySet();
+    }
+
+    /**
      * Returns true if the given qualifer is one of the top annotations for this qualifer hierarchy.
      *
      * @param qualifier any qualifier from one of the qualifier hierarchies represented by this

@@ -44,6 +44,9 @@ public class NoElementQualifierHierarchy extends QualifierHierarchy {
     /** Set of top annotation mirrors. */
     protected final AnnotationMirrorSet tops;
 
+    /** The set of dynamic annotation mirrors. */
+    protected final AnnotationMirrorSet dynamicAnnotations;
+
     /** Set of bottom annotation mirrors. */
     protected final AnnotationMirrorSet bottoms;
 
@@ -96,6 +99,7 @@ public class NoElementQualifierHierarchy extends QualifierHierarchy {
         this.elementToQualifierKind = createElementToQualifierKindMap();
 
         this.tops = createTops();
+        this.dynamicAnnotations = createDynamicAnnotations();
         this.bottoms = createBottoms();
     }
 
@@ -170,6 +174,28 @@ public class NoElementQualifierHierarchy extends QualifierHierarchy {
             tops.add(topAnno);
         }
         return AnnotationMirrorSet.unmodifiableSet(tops);
+    }
+
+    /**
+     * Creates and returns the unmodifiable set of dynamic {@link AnnotationMirror}s.
+     *
+     * @return the unmodifiable set of dynamic {@link AnnotationMirror}s
+     */
+    @RequiresNonNull({"this.kindToAnnotationMirror", "this.qualifierKindHierarchy"})
+    protected AnnotationMirrorSet createDynamicAnnotations(
+            @UnderInitialization NoElementQualifierHierarchy this) {
+        AnnotationMirrorSet dynamic = new AnnotationMirrorSet();
+        for (QualifierKind kind : qualifierKindHierarchy.allQualifierKinds()) {
+            if (kind.isDynamicAnnotation()) {
+                @SuppressWarnings(
+                        "nullness:assignment.type.incompatible" // All QualifierKinds are keys in
+                // kindToAnnotationMirror
+                )
+                @NonNull AnnotationMirror dynamicAnno = kindToAnnotationMirror.get(kind);
+                dynamic.add(dynamicAnno);
+            }
+        }
+        return AnnotationMirrorSet.unmodifiableSet(dynamic);
     }
 
     /**
@@ -255,6 +281,11 @@ public class NoElementQualifierHierarchy extends QualifierHierarchy {
     @Override
     public AnnotationMirrorSet getTopAnnotations() {
         return tops;
+    }
+
+    @Override
+    public AnnotationMirrorSet getDynamicAnnotations() {
+        return dynamicAnnotations;
     }
 
     @Override
