@@ -2418,8 +2418,7 @@ public class QualifierDefaults {
             return prev;
         }
 
-        TreePath declaredTypeVarEle = atypeFactory.getTreeUtils().getPath(typeParamElem);
-        Tree typeParamDecl = declaredTypeVarEle == null ? null : declaredTypeVarEle.getLeaf();
+        TypeParameterTree typeParamDecl = typeParameterTree(typeParamElem);
 
         final BoundType boundType;
         if (typeParamDecl == null) {
@@ -2436,26 +2435,44 @@ public class QualifierDefaults {
                 boundType = BoundType.TYPEVAR_UPPER;
             }
         } else {
-            if (typeParamDecl instanceof TypeParameterTree) {
-                TypeParameterTree tptree = (TypeParameterTree) typeParamDecl;
-
-                List<? extends Tree> bnds = tptree.getBounds();
-                if (bnds != null && !bnds.isEmpty()) {
-                    boundType = BoundType.TYPEVAR_UPPER;
-                } else {
-                    boundType = BoundType.TYPEVAR_UNBOUNDED;
-                }
+            List<? extends Tree> bnds = typeParamDecl.getBounds();
+            if (bnds != null && !bnds.isEmpty()) {
+                boundType = BoundType.TYPEVAR_UPPER;
             } else {
-                throw new BugInCF(
-                        StringsPlume.joinLines(
-                                "Unexpected tree type for typeVar Element:",
-                                "typeParamElem=" + typeParamElem,
-                                typeParamDecl));
+                boundType = BoundType.TYPEVAR_UNBOUNDED;
             }
         }
 
         elementToBoundType.put(typeParamElem, boundType);
         return boundType;
+    }
+
+    /**
+     * Returns the declaration of a type parameter, or null if its source code is not available.
+     * Looks among the type parameters of its generic class or method rather than searching the
+     * whole compilation unit for it, which made checking a file quadratic in its number of type
+     * parameters.
+     *
+     * @param typeParamElem a type parameter
+     * @return the declaration of {@code typeParamElem}, or null if its source code is not available
+     */
+    private @Nullable TypeParameterTree typeParameterTree(TypeParameterElement typeParamElem) {
+        Tree genericDecl = atypeFactory.declarationFromElement(typeParamElem.getGenericElement());
+        List<? extends TypeParameterTree> typeParams;
+        if (genericDecl instanceof MethodTree) {
+            typeParams = ((MethodTree) genericDecl).getTypeParameters();
+        } else if (genericDecl instanceof ClassTree) {
+            typeParams = ((ClassTree) genericDecl).getTypeParameters();
+        } else {
+            return null;
+        }
+        Name name = typeParamElem.getSimpleName();
+        for (TypeParameterTree typeParam : typeParams) {
+            if (typeParam.getName().equals(name)) {
+                return typeParam;
+            }
+        }
+        return null;
     }
 
     /**
