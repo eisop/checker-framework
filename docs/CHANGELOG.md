@@ -350,6 +350,8 @@ Performance optimizations:
 - The Index Checker no longer takes quadratic time in the number of statements of a method that
   contains compound assignments, local variable declarations, `if`, or `try` statements: a method
   with 4000 pairs of compound assignments takes about 6 s instead of about a minute.
+- Finding the supertypes of a type with generic enclosing types is no longer exponential in
+  the nesting depth: 32 nested generic inner classes took more than 10 minutes, now 3 s.
 - `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
   by their class instead of missing for each new instance of the same type.
 - The types of method invocations, new class, conditional, and other flow-dependent expressions are

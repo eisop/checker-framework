@@ -2587,6 +2587,33 @@ argument gave identical output on master and on the branch, with and without `-A
 did the `nullness`, `nullness-initialization`, `initialization` and `all-systems` test directories.
 No input was found on which the toggle changes a diagnostic.
 
+### Supertypes of nested generic inner classes: use the cached supertypes of enclosing types (October 2026)
+
+To substitute the type variables of a type's enclosing types, `SupertypeFinder`'s
+`addTypeVarsFromEnclosingTypes` walks the enclosing types and, for each, recurs on its direct
+supertypes. It computed those supertypes with the static `SupertypeFinder.directSupertypes`, uncached;
+that computation calls `addTypeVarsFromEnclosingTypes` on the enclosing types again. Each level of
+nesting therefore multiplied the work, and finding the supertypes of a generic inner class was
+exponential in its nesting depth. Found by the `inner` shape of `gen-shapes.py` (generic inner
+classes nested D deep, used as a method parameter) while profiling the JSpecify reference checker;
+the Nullness Checker has the same cost.
+
+The fix calls `AnnotatedDeclaredType#directSupertypes` instead, which returns the same result,
+including `postDirectSuperTypes`, from the factory's `directSupertypes` cache.
+
+*Measured* (Nullness Checker with `-Amode=jspecify`, `@NullMarked` input, 20 methods that assign
+and pass the innermost type, deterministic allocation, min of 2 runs):
+
+| nesting depth | master | after |
+| --- | --- | --- |
+| 8  | 148 MB | 147 MB |
+| 16 | 685 MB | 266 MB |
+| 32 | did not finish in 10 minutes | 992 MB, 2.9 s |
+
+The marginal allocation still grows about threefold per doubling of the depth after the fix, so the
+cost is now polynomial rather than linear; real code rarely nests generic classes more than two or
+three deep. On Guava (610 files) the wall time does not change measurably.
+
 ---
 
 ## Tried and rejected

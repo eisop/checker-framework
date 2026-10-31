@@ -321,7 +321,9 @@ final class SupertypeFinder {
                 AnnotatedDeclaredType enclosing, Map<TypeVariable, AnnotatedTypeMirror> mapping) {
             while (enclosing != null) {
                 addTypeVariablesToMapping(enclosing, mapping);
-                for (AnnotatedDeclaredType enclSuper : directSupertypes(enclosing)) {
+                // The cached supertypes: computing them uncached here walks the enclosing types of
+                // `enclosing` again, which made this exponential in the nesting depth.
+                for (AnnotatedDeclaredType enclSuper : enclosing.directSupertypes()) {
                     addTypeVarsFromEnclosingTypes(enclSuper, mapping);
                 }
                 enclosing = enclosing.getEnclosingType();
