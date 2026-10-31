@@ -1423,15 +1423,15 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             erased.addAnnotations(this.getAnnotationsField());
             AnnotatedDeclaredType erasedEnclosing = erased.getEnclosingType();
             AnnotatedDeclaredType thisEnclosing = this.getEnclosingType();
-            // Walk both enclosing-type chains in lockstep, copying this type's enclosing
-            // annotations onto the erased type's enclosing types. The two chains can have
-            // different lengths: the erased underlying type of an inner class retains its
-            // (erased) enclosing type, but the annotated type of an anonymous subclass of an
-            // inner class has no annotated enclosing type (its enclosingType is null). Stop as
-            // soon as either chain ends; there are no annotations to copy from a missing
-            // enclosing type. (Without the thisEnclosing != null guard this throws an NPE; see
-            // https://github.com/eisop/checker-framework/issues/2461.)
-            while (erasedEnclosing != null && thisEnclosing != null) {
+            // The enclosing types of this type need not be those of its underlying type: for an
+            // anonymous class `outer.new Inner() {}`, the enclosing type is the type of `outer`
+            // (see AnnotatedTypeFactory#getConstructorReceiverType), but javac's is the class
+            // that lexically encloses the anonymous class. Copy annotations only while both
+            // chains are at the same class.
+            while (erasedEnclosing != null
+                    && thisEnclosing != null
+                    && erasedEnclosing.getUnderlyingType().asElement()
+                            == thisEnclosing.getUnderlyingType().asElement()) {
                 erasedEnclosing.addAnnotations(thisEnclosing.getAnnotationsField());
                 erasedEnclosing = erasedEnclosing.getEnclosingType();
                 thisEnclosing = thisEnclosing.getEnclosingType();

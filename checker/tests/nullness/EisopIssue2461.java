@@ -1,9 +1,12 @@
+// @below-java9-jdk-skip-test
 // Test case for https://github.com/eisop/checker-framework/issues/2461
 // Checking an anonymous subclass of an inner class that is instantiated with an enclosing
 // instance crashed with a NullPointerException ("thisEnclosing is null") in
-// AnnotatedTypeMirror.AnnotatedDeclaredType.getErased: the erased underlying type of the
-// inner class still has an enclosing type, but the annotated type of the anonymous class has
-// no annotated enclosing type, so the two enclosing-type chains have different lengths.
+// AnnotatedTypeMirror.AnnotatedDeclaredType.getErased: the enclosing type of the annotated type
+// of the anonymous class is the type of the enclosing instance, but javac's is the class that
+// lexically encloses the anonymous class, and that chain was longer.
+
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class EisopIssue2461<K> {
     class It<T> {
@@ -56,5 +59,27 @@ public class EisopIssue2461<K> {
     void nestedNew(Object n) {
         Object x = new Top().new It<>(n) {}.t;
         x.toString();
+    }
+
+    static class Outer<E> {
+        class In {
+            E e;
+
+            In(E e) {
+                this.e = e;
+            }
+        }
+    }
+
+    // The type argument of the enclosing instance reaches the anonymous class's superclass.
+    class Uses {
+        void nullable(Outer<@Nullable String> o) {
+            // :: error: (dereference.of.nullable)
+            o.new In(null) {}.e.toString();
+        }
+
+        void nonNull(Outer<String> o) {
+            o.new In("") {}.e.toString();
+        }
     }
 }
