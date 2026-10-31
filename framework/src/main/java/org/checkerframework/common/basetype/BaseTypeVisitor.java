@@ -1941,7 +1941,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /**
      * Issues "explicit.annotation.ignored" warning if any explicit annotation on an intersection
      * bound -- or, if written as an alias, its canonical form -- is not the same as the primary
-     * annotation of the given intersection type.
+     * annotation of the given intersection type. A checker that overrides {@link
+     * AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy} so that every bound
+     * counts can override this method to issue no warning.
      *
      * @param intersection type to use
      * @param boundTrees trees of {@code intersection} bounds
