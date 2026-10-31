@@ -94,6 +94,11 @@ Type-checking and subtyping improvements:
   clause to `RuntimeException` only if every upper bound is a supertype of
   `RuntimeException`, as the JLS and javac do. It did so if any upper bound
   was, which caused false `type.arguments.not.inferred` errors.
+- Type argument inference keeps the primary annotation of a type parameter bound
+  that is an annotated use of another inference variable, such as
+  `class C<E, T extends @Nullable E>`, when that variable is instantiated.
+  `new C<>(arg)` with a nullable `T` reported a false
+  `type.arguments.not.inferred`, because the bound became `T <: E`.
 - CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
   try-with-resources) are now type-checked, with diagnostics pointing at the
   source construct.
