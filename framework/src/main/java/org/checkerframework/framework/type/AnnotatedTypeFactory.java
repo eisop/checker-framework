@@ -1526,12 +1526,58 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedExecutableType result =
                 AnnotatedTypes.asMemberOf(types, this, overriddenType, overriddenMethodElt);
         if (viewpointAdapter != null) {
+            AnnotatedDeclaredType substitutedReceiver = result.getReceiverType();
+            if (substitutedReceiver != null) {
+                substitutedReceiver = substitutedReceiver.deepCopy();
+            }
             // Adapt to a use of the class: the type arguments of its declaration are type variable
             // declarations, which cannot be type variable bounds.
             viewpointAdapter.viewpointAdaptMethod(
                     overriderType.asUse(), overriddenMethodElt, result);
+            if (substitutedReceiver != null && result.getReceiverType() != null) {
+                restoreRequalifiedTypeVariables(substitutedReceiver, result.getReceiverType());
+            }
         }
         return result;
+    }
+
+    /**
+     * Gives each type argument of {@code adapted} and of its enclosing types that is the same type
+     * variable as in {@code substituted}, but without primary annotations, the primary annotations
+     * it has in {@code substituted}.
+     *
+     * <p>{@link AnnotatedTypes#asMemberOf} substitutes the overridden class's type variables in the
+     * overridden receiver with the overrider's, so a requalified use such as {@code @A T} becomes
+     * {@code @A T} of the overrider. Viewpoint adaptation to a use of the overrider's class then
+     * substitutes each of the overrider's type variables with itself, which drops that qualifier.
+     *
+     * @param substituted the overridden receiver before viewpoint adaptation
+     * @param adapted the overridden receiver after viewpoint adaptation; side-effected by this
+     *     method
+     */
+    private void restoreRequalifiedTypeVariables(
+            AnnotatedDeclaredType substituted, AnnotatedDeclaredType adapted) {
+        for (AnnotatedDeclaredType before = substituted, after = adapted;
+                before != null && after != null;
+                before = before.getEnclosingType(), after = after.getEnclosingType()) {
+            List<AnnotatedTypeMirror> beforeArgs = before.getTypeArguments();
+            List<AnnotatedTypeMirror> afterArgs = after.getTypeArguments();
+            if (beforeArgs.size() != afterArgs.size()) {
+                return;
+            }
+            for (int i = 0; i < beforeArgs.size(); i++) {
+                AnnotatedTypeMirror beforeArg = beforeArgs.get(i);
+                AnnotatedTypeMirror afterArg = afterArgs.get(i);
+                if (beforeArg.getKind() == TypeKind.TYPEVAR
+                        && afterArg.getKind() == TypeKind.TYPEVAR
+                        && !beforeArg.getAnnotations().isEmpty()
+                        && afterArg.getAnnotations().isEmpty()
+                        && types.isSameType(
+                                beforeArg.getUnderlyingType(), afterArg.getUnderlyingType())) {
+                    afterArg.replaceAnnotations(beforeArg.getAnnotations());
+                }
+            }
+        }
     }
 
     /**
