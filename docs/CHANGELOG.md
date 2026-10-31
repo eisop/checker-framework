@@ -292,6 +292,9 @@ the type of a flow-dependent expression is cached; `AnnotatedTypeFactory#isAnony
 now defaults to true, like them. New `AbstractAnalysis#getCurrentNode()` returns the node whose
 transfer function is running. New `PurityUtils#isPure(AnnotationProvider, ExecutableElement)` is
 true for a method that is both deterministic and side-effect-free.
+New `AnnotatedTypeFactory#shouldStoreInBytecode` decides whether `postProcessClassTree` stores the
+computed qualifiers into the class file; a checker that must never store them overrides it instead
+of `postProcessClassTree`, which keeps running the type information presenter.
 
 `AnalysisResult#runAnalysisFor`, which re-runs the transfer functions of a block to answer a query
 on a finished analysis, now keeps the analysis's `currentInput` at the input of the node being
