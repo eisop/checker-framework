@@ -260,6 +260,15 @@ variable named in a lock expression, except where the variable's declaration is 
 source: for a variable declared in an earlier `case` of an old-style `switch`, a pattern variable,
 or a local variable of an enclosing method used in a local or anonymous class (eisop#2375).
 
+A super-bounded wildcard whose capture javac collapses to its bound (JDK-8054309), such as
+`List<? super Object>` or `Lib<? super @NonNull Object>` for `Lib<T extends @Nullable Object>`,
+is now captured to a fresh type variable that keeps both annotated bounds whenever the bounds'
+annotations differ. Reads through such a type see the upper bound and writes the lower bound, and
+`Lib<? super @NonNull Object>` is no longer a subtype of `Lib<? extends @NonNull Object>`. The
+`type.invalid.super.wildcard` error, which rejected these types at their declaration, is now
+reported only when the wildcard collapses to a type variable, as `Gen<F, ? super F>` for
+`Gen<T, S extends T>`.
+
 ### Implementation details
 
 Removed methods that have been deprecated for more than two years:
