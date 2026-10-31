@@ -51,6 +51,14 @@ The manual of the Annotation File Utilities documents the Maven artifact.
 The annotator and its tests now also work on Windows: an implicit class bound is no longer
 inserted one character too far to the right there.
 
+The Index Checker now also runs the Grow-only Checker, which came with the typetools 3.50.0
+merge. A collection annotated as `@GrowOnly` cannot shrink: the checker reports calls such as
+`remove()` or `clear()` on it, and the Index Checker then knows that an index into it stays valid
+across calls to methods with side effects. The new qualifiers are `@GrowOnly`, `@CanShrink`,
+`@UncheckedCanShrink`, `@UnshrinkableRef` (the default), `@BottomGrowShrink` and
+`@PolyGrowShrink`, in `org.checkerframework.checker.index.qual`. See the manual's "Grow-only
+Checker" section.
+
 Packaging fixes: published artifacts no longer transitively pull in
 `org.checkerframework:checker-qual`; Gradle consumers of
 `io.github.eisop:checker` now get the same jar Maven consumers get;
