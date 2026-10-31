@@ -488,9 +488,8 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         List<AnnotatedTypeMirror> bounds =
                 CollectionsPlume.mapList((Tree boundTree) -> visit(boundTree, f), tree.getBounds());
         type.setBounds(bounds);
-        // A cast target's unannotated hierarchies are filled from the cast operand, not from
-        // defaulting; see summarizeBounds's Javadoc.
-        type.summarizeBounds();
+        // Not summarized yet: a bound without a written qualifier gets the cast operand's
+        // qualifier first. PropagationTreeAnnotator#visitTypeCast does that, then summarizes.
         return type;
     }
 }
