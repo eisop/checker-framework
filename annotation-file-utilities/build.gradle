@@ -125,6 +125,8 @@ tasks.register("testAnnotator", Exec) {
     group = "Verification"
     workingDir = "${projectDir}/tests/"
     executable = "make"
+    // The tests run the annotator in a separate JVM each, one after another without -j.
+    args("-j${Runtime.runtime.availableProcessors()}")
 }
 
 tasks.register("cleanTestAnnotator", Exec) {

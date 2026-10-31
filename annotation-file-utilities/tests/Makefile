@@ -48,8 +48,14 @@ DEBUG :=
 
 default : all
 
+SUBDIRS := abbreviated converted enum-imports ad-hoc issue155 system-test source-extension
+
+# results and showdiffs depend on the tests, so that "make -j" runs them last.
 .PHONY: all
-all : $(DIFFS) abbreviated converted enum-imports ad-hoc issue155 system-test source-extension showdiffs results
+all : results
+
+# The subdirectories use bin/VerifyDiffs.class too; build it once, before them.
+$(SUBDIRS): bin/VerifyDiffs.class
 
 .PHONY: abbreviated
 abbreviated:
@@ -81,7 +87,7 @@ system-test:
 
 # Display results (OK or FAILED) for all .diff files.
 .PHONY: results
-results: bin/VerifyDiffs.class
+results: $(DIFFS) $(SUBDIRS) showdiffs bin/VerifyDiffs.class
 	@echo ""
 	@echo "=== RESULTS ==="
 	@echo ""
@@ -89,7 +95,7 @@ results: bin/VerifyDiffs.class
 
 # Show all .diff files; good for running under CI.
 .PHONY: showdiffs
-showdiffs: bin/VerifyDiffs.class
+showdiffs: $(DIFFS) bin/VerifyDiffs.class
 	cat *.diff
 
 # Remakes the little Java program that checks and compares diffs.
@@ -101,18 +107,21 @@ compile :
 	mkdir -p bin
 	$(JAVAC) -g -cp ../build/classes/java/main -d bin *.java
 
-.PRECIOUS : bin/annotator/tests/%.class
-bin/annotator/tests/%.class: %.java
-	mkdir -p bin
+# Each test compiles into its own directory.  Several tests declare a class of the same name, such
+# as Bla, and with "make -j" they would otherwise write the same class file at the same time.
+.PRECIOUS : bin/%/.compiled
+bin/%/.compiled: %.java
+	mkdir -p bin/$*
 # Added "-Xlint:-options" to see if it permits Jenkins job to succeed, due to
 # problem "target value 1.8 is obsolete and will be removed in a future release"
-	$(JAVAC) -Xlint:-options -g -cp "bin$(PATHSEP)../dist/annotation-file-utilities-all.jar" -d bin -sourcepath . $*.java
+	$(JAVAC) -Xlint:-options -g -cp "../dist/annotation-file-utilities-all.jar" -d bin/$* -sourcepath . $*.java
+	touch $@
 
 # Actually runs the annotator to create the annotated java file.
 .PRECIOUS: %.output
-%.output: %.jaif %.java bin/annotator/tests/%.class ../build/classes/java/main ../dist/annotation-file-utilities-all.jar
+%.output: %.jaif %.java bin/%/.compiled ../build/classes/java/main ../dist/annotation-file-utilities-all.jar
 	$(JAVA) \
-	-cp "../dist/annotation-file-utilities-all.jar$(PATHSEP)bin" \
+	-cp "../dist/annotation-file-utilities-all.jar$(PATHSEP)bin/$*" \
 	org.checkerframework.afu.annotator.Main \
 	${DEBUG} \
 	--abbreviate=false \

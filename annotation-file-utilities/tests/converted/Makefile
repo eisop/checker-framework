@@ -54,7 +54,7 @@ all : $(DIFFS) results
 
 # Display results of all .diff files.
 .PHONY: results
-results: ../bin/VerifyDiffs.class
+results: $(DIFFS) ../bin/VerifyDiffs.class
 	@echo ""
 	@echo "=== RESULTS ==="
 	@echo ""
@@ -69,12 +69,15 @@ compile :
 	mkdir -p bin
 	$(JAVAC) -g -cp ../../build/classes/java/main -d bin ../*.java
 
-.PRECIOUS : bin/annotator/tests/%.class
-bin/annotator/tests/%.class: %.java
-	mkdir -p bin
+# Each test compiles into its own directory.  Several tests declare a class of the same name, such
+# as Bla, and with "make -j" they would otherwise write the same class file at the same time.
+.PRECIOUS : bin/%/.compiled
+bin/%/.compiled: %.java
+	mkdir -p bin/$*
 # Added "-Xlint:-options" to see if it permits Jenkins job to succeed, due to
 # problem "target value 1.8 is obsolete and will be removed in a future release"
-	$(JAVAC) -Xlint:-options -g -cp "bin$(PATHSEP)../dist/annotation-file-utilities.jar" -d bin -sourcepath . $*.java
+	$(JAVAC) -Xlint:-options -g -cp "../dist/annotation-file-utilities.jar" -d bin/$* -sourcepath . $*.java
+	touch $@
 
 # Create a symbolic link for a .java file.
 .PRECIOUS: %.java
@@ -93,9 +96,9 @@ bin/annotator/tests/%.class: %.java
 # TODO: added `-` to these commands to proceed past failures
 # The failures will still show up in the summary, but it might
 # be better to fail earlier.
-%.output: %.jaif %.java bin/annotator/tests/%.class ../../build/classes/java/main ../../dist/annotation-file-utilities-all.jar
+%.output: %.jaif %.java bin/%/.compiled ../../build/classes/java/main ../../dist/annotation-file-utilities-all.jar
 	-$(JAVA) \
-	    -cp "../../dist/annotation-file-utilities-all.jar$(PATHSEP)bin" \
+	    -cp "../../dist/annotation-file-utilities-all.jar$(PATHSEP)bin/$*" \
 	    org.checkerframework.afu.annotator.Main \
 	    ${DEBUG} \
 	    --abbreviate=false \
