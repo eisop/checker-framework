@@ -470,12 +470,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private final boolean assumePureGetters;
 
-    /**
-     * True unless {@code -AstoreInBytecode=false} was supplied: whether to store into the class
-     * file the qualifiers that do not appear in the source code. See {@link #postProcessClassTree}.
-     */
-    private final boolean storeInBytecode;
-
     /** True if -AmergeStubsWithSource was provided on the command line. */
     private final boolean mergeStubsWithSource;
 
@@ -754,7 +748,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.assumeDeterministic =
                 checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
         this.assumePureGetters = checker.hasOption("assumePureGetters");
-        this.storeInBytecode = checker.getBooleanOption("storeInBytecode", true);
 
         this.trees = Trees.instance(processingEnv);
         this.elements = processingEnv.getElementUtils();
@@ -2025,18 +2018,33 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public void preProcessClassTree(ClassTree classTree) {}
 
     /**
+     * Returns whether {@link #postProcessClassTree} stores into the class file the qualifiers that
+     * do not appear in the source code (defaulted types and inherited declaration annotations).
+     *
+     * <p>The default implementation returns true unless {@code -AstoreInBytecode=false} was
+     * supplied. A checker whose computed qualifiers must never reach bytecode (for example, because
+     * they are an implementation detail that no reader of the class file should depend on) can
+     * override this to return false.
+     *
+     * @return whether to store computed qualifiers into the class file
+     */
+    protected boolean shouldStoreInBytecode() {
+        return checker.getBooleanOption("storeInBytecode", true);
+    }
+
+    /**
      * Called by {@link BaseTypeVisitor#visitClass(ClassTree, Void)} after the ClassTree has been
      * type checked.
      *
-     * <p>The default implementation uses this to store the defaulted AnnotatedTypeMirrors and
-     * inherited declaration annotations back into the corresponding Elements, unless {@code
-     * -AstoreInBytecode=false} was supplied. Subclasses might want to override this method if
-     * storing defaulted types is not desirable.
+     * <p>The default implementation stores the defaulted AnnotatedTypeMirrors and inherited
+     * declaration annotations back into the corresponding Elements, if {@link
+     * #shouldStoreInBytecode} returns true, and then runs the {@link TypeInformationPresenter}
+     * returned by {@link #createTypeInformationPresenter}, if any.
      *
      * @param tree the ClassTree that has been processed
      */
     public void postProcessClassTree(ClassTree tree) {
-        if (storeInBytecode) {
+        if (shouldStoreInBytecode()) {
             TypesIntoElements.store(processingEnv, this, tree);
             DeclarationsIntoElements.store(processingEnv, this, tree);
         }
