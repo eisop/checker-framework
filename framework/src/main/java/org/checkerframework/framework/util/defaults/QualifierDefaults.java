@@ -2468,7 +2468,7 @@ public class QualifierDefaults {
         }
         Name name = typeParamElem.getSimpleName();
         for (TypeParameterTree typeParam : typeParams) {
-            if (typeParam.getName().equals(name)) {
+            if (typeParam.getName() == name) {
                 return typeParam;
             }
         }
