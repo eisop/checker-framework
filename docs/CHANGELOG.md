@@ -113,6 +113,12 @@ Type-checking and subtyping improvements:
   returning it as a `T` is an error. It was typed as `T` and accepted. Code with
   such unchecked casts, such as `(T) this` or `(T) map.get(k)`, may need
   additional warning suppressions.
+- The type of a cast expression such as `(Entry<?, ?>) o` now uses javac's
+  captured type variables instead of fresh ones per query, so type argument
+  inference and the argument check see the same type variables. A type system
+  that distinguishes captured type variables of the same wildcard (as the
+  JSpecify reference checker does) rejected `m((Entry<?, ?>) o)` for
+  `<K, V> m(Entry<? extends K, ? extends V>)`.
 
 JSpecify support in the Nullness Checker:
 
