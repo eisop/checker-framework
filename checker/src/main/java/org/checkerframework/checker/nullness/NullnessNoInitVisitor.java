@@ -206,14 +206,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     @Override
-    protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
-        // Constructor results are always @NonNull. Other annotations are forbidden by
-        // #visitMethod.
-        // Nothing to check.
-    }
-
-    @Override
     protected void checkThisOrSuperConstructorCall(
             MethodInvocationTree superCall, @CompilerMessageKey String errorKey) {
         // Constructor results are always @NonNull, so the result type of a this/super call is

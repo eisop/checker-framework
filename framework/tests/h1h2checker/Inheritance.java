@@ -1,6 +1,6 @@
 import org.checkerframework.framework.testchecker.h1h2checker.quals.*;
 
-// :: warning: (inconsistent.constructor.type) :: error: (super.invocation.invalid)
+// :: error: (super.invocation.invalid)
 @H1S1 class Inheritance {
     void bar1(@H1Bot Inheritance param) {}
 

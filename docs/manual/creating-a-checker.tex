@@ -358,11 +358,14 @@ javacheck \
   javac -processor mypackage.MyChecker File1.java File2.java ...
 \end{Verbatim}
 
-  If the default qualifier is not the top qualifier, you may see \<warning:
-  (inconsistent.constructor.type)>.  If the checker should never issue such
-  an error (because a newly-constructed object can be correctly viewed as
-  any type at all), then copy \<TaintingVisitor.java> into your checker,
-  changing ``Tainting''.
+  If a constructor's result type is annotated with a qualifier below the
+  default for constructor results (the top qualifier, unless the checker
+  registers a default for \<TypeUseLocation.CONSTRUCTOR\_RESULT>), you may
+  see \<warning: (inconsistent.constructor.type)>.  If the checker should
+  never issue such a warning (because a newly-constructed object can be
+  correctly viewed as any type at all), then override
+  \<checkConstructorResult> in your visitor to do nothing, as
+  \<TaintingVisitor.java> does.
 
 \item
 \label{creating-tips-test-infrastructure}

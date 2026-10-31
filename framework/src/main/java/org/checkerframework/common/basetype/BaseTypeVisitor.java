@@ -1579,10 +1579,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     */
 
     /**
-     * Issue a warning if the result type of the constructor declaration is not top. If it is a
-     * supertype of the class, then a type.invalid.conflicting.annos error will also be issued by
-     * {@link
+     * Issue a warning if the result type of the constructor declaration is a strict subtype of the
+     * type an unannotated result of that constructor gets from the checker's computed annotations:
+     * its type annotators and its defaults, including a default registered for {@link
+     * org.checkerframework.framework.qual.TypeUseLocation#CONSTRUCTOR_RESULT}, a {@code
+     * DefaultQualifier} in scope, and the qualifier on the class declaration. That is the top
+     * qualifier for a checker with standard defaults. Such a result claims more than the
+     * constructor's body can be checked to establish. If the result type is a supertype of the
+     * class, then a type.invalid.conflicting.annos error will also be issued by {@link
      * #isValidUse(AnnotatedTypeMirror.AnnotatedDeclaredType,AnnotatedTypeMirror.AnnotatedDeclaredType,Tree)}.
+     *
+     * <p>A checker whose constructor results default to a qualifier below top therefore gets no
+     * warning for that default, only for a result annotated even lower.
      *
      * @param constructorType the AnnotatedExecutableType for the constructor
      * @param constructorTree the declaration of the constructor
@@ -1590,17 +1598,48 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected void checkConstructorResult(
             AnnotatedExecutableType constructorType, MethodTree constructorTree) {
         AnnotatedTypeMirror returnType = constructorType.getReturnType();
-        AnnotationMirrorSet constructorAnnotations = returnType.getAnnotations();
-        AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
+        TypeMirror returnTM = returnType.getUnderlyingType();
+        AnnotatedTypeMirror defaultReturnType = defaultConstructorResult(constructorTree);
 
-        for (AnnotationMirror top : tops) {
-            AnnotationMirror constructorAnno =
-                    qualHierarchy.findAnnotationInHierarchy(constructorAnnotations, top);
-            if (!AnnotationUtils.areSame(top, constructorAnno)) {
+        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+            AnnotationMirror constructorAnno = returnType.getAnnotationInHierarchy(top);
+            if (constructorAnno == null) {
+                continue;
+            }
+            AnnotationMirror defaultAnno = defaultReturnType.getAnnotationInHierarchy(top);
+            if (defaultAnno == null) {
+                defaultAnno = top;
+            }
+            if (!AnnotationUtils.areSame(constructorAnno, defaultAnno)
+                    && qualHierarchy.isSubtypeShallow(constructorAnno, defaultAnno, returnTM)
+                    && !qualHierarchy.isSubtypeShallow(defaultAnno, constructorAnno, returnTM)) {
                 checker.reportWarning(
-                        constructorTree, "inconsistent.constructor.type", constructorAnno, top);
+                        constructorTree,
+                        "inconsistent.constructor.type",
+                        constructorAnno,
+                        defaultAnno);
             }
         }
+    }
+
+    /**
+     * Returns the result type that the declaration of {@code constructorTree} would have without
+     * any annotation written on it: a fresh type for the constructor with only the computed
+     * annotations, that is, the type annotators and the defaults, including element defaults such
+     * as those from {@code @DefaultQualifier} on an enclosing element.
+     *
+     * @param constructorTree a constructor declaration
+     * @return the defaulted, unannotated result type of the constructor
+     */
+    private AnnotatedTypeMirror defaultConstructorResult(MethodTree constructorTree) {
+        ExecutableElement constructor = TreeUtils.elementFromDeclaration(constructorTree);
+        AnnotatedExecutableType defaulted =
+                (AnnotatedExecutableType)
+                        AnnotatedTypeMirror.createType(
+                                constructor.asType(), atypeFactory, /* isDeclaration= */ false);
+        defaulted.setElement(constructor);
+        atypeFactory.addComputedTypeAnnotations(constructor, defaulted);
+        return defaulted.getReturnType();
     }
 
     /**

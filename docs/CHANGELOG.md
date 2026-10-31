@@ -242,6 +242,14 @@ A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
 keeps the qualifier of the expression instead of taking the type variable's
 upper bound, which hid errors such as returning `null` as a `T`.
 
+`inconsistent.constructor.type` compares a constructor's result type with the type an
+unannotated result of that constructor would get from the checker's defaults and type
+annotators, instead of with the top qualifier. A checker whose constructor results default to a
+qualifier below top, such as the Nullness Checker's `@NonNull`, no longer needs to override
+`checkConstructorResult` to silence it, and a class whose declaration or `@DefaultQualifier`
+already gives its constructors that qualifier is no longer warned about. The warning is
+reported only for a result annotated strictly below what it would get unannotated.
+
 A lambda body keeps the refinement of a field with a monotonic qualifier to its
 target, such as a `@MonotonicNonNull` field that was checked to be non-null before
 the lambda.

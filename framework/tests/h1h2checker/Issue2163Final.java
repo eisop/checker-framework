@@ -25,7 +25,7 @@ import org.checkerframework.framework.testchecker.h1h2checker.quals.H1Top;
 }
 
 @H1S1 class Issue2163FinalBB {
-    // :: error: (super.invocation.invalid) :: warning: (inconsistent.constructor.type)
+    // :: error: (super.invocation.invalid)
     @H1S1 Issue2163FinalBB() {}
 }
 
@@ -40,13 +40,13 @@ import org.checkerframework.framework.testchecker.h1h2checker.quals.H1Top;
 }
 
 @H1Bot class Issue2163FinalCB {
-    // :: error: (type.invalid.annotations.on.use) :: warning: (inconsistent.constructor.type)
+    // :: error: (type.invalid.annotations.on.use)
     // :: error: (super.invocation.invalid)
     @H1S1 Issue2163FinalCB() {}
 }
 
 @H1Bot class Issue2163FinalCC {
-    // :: error: (super.invocation.invalid) :: warning: (inconsistent.constructor.type)
+    // :: error: (super.invocation.invalid)
     @H1Bot Issue2163FinalCC() {}
 }
 
