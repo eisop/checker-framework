@@ -4431,8 +4431,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param paramBounds the bounds of the type parameters from a class or method declaration
      * @param typeargs the type arguments from the type or method invocation
      * @param typeargTrees the type arguments as trees, used for error reporting
+     * @param typeOrMethodName the name of the type or method being invoked
+     * @param paramNames the names of the type parameters
+     * @return true if every type argument is within the bounds of its type parameter, false if an
+     *     error message was issued
      */
-    protected void checkTypeArguments(
+    protected boolean checkTypeArguments(
             Tree toptree,
             List<? extends AnnotatedTypeParameterBounds> paramBounds,
             List<? extends AnnotatedTypeMirror> typeargs,
@@ -4444,8 +4448,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         // If there are no type variables, do nothing.
         if (paramBounds.isEmpty()) {
-            return;
+            return true;
         }
+        boolean result = true;
 
         int size = paramBounds.size();
         assert size == typeargs.size()
@@ -4483,13 +4488,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 continue;
             }
 
-            commonAssignmentCheck(
-                    paramUpperBound,
-                    typeArg,
-                    reportErrorToTree,
-                    "type.argument.type.incompatible",
-                    paramName,
-                    typeOrMethodName);
+            result =
+                    commonAssignmentCheck(
+                                    paramUpperBound,
+                                    typeArg,
+                                    reportErrorToTree,
+                                    "type.argument.type.incompatible",
+                                    paramName,
+                                    typeOrMethodName)
+                            && result;
 
             if (!typeHierarchy.isSubtype(bounds.getLowerBound(), typeArg)) {
                 FoundRequired fr = FoundRequired.of(typeArg, bounds);
@@ -4505,8 +4512,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                                 return paramName + " " + fr.required;
                             }
                         });
+                result = false;
             }
         }
+        return result;
     }
 
     /**

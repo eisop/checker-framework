@@ -100,6 +100,11 @@ Type-checking and subtyping improvements:
 - Repeated `@RequiresNonEmpty` annotations on one method are now enforced:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
+- A type argument that violates its type parameter's bounds
+  (`type.argument.type.incompatible`) now makes the type invalid, as other
+  type-validity errors do. Checks that would only cascade from it are skipped:
+  the assignment to a variable of such a type, or from a `new` expression with
+  such a type, and the constructor-invocation check of such a `new` expression.
 - Flow-sensitive refinement of a method call's result now requires the method to be
   `@Deterministic` and `@SideEffectFree`, except for facts stated by a contract about the next
   evaluation of a call. A contract no longer refines an argument or receiver that is a call to a
@@ -273,6 +278,9 @@ Removed methods that have been deprecated for more than two years:
 The test framework accepts an expected error key in square brackets, as in
 `// :: error: [assignment]`, as well as in parentheses, so tests written for
 typetools' bracket syntax work unchanged.
+
+`BaseTypeVisitor.checkTypeArguments` returns `boolean`: whether every type argument is within the
+bounds of its type parameter. An override must return the result.
 
 `JavaExpression#isDeterministic` and `listIsDeterministic` are renamed `isPure` and `listIsPure`.
 `CFAbstractStore#insertValuePermitNondeterministic` is renamed `insertValuePermitImpure`. The unused

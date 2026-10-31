@@ -5,11 +5,9 @@ import java.util.Comparator;
 
 public class AnonymousClasses {
     private <@H1S1 T extends @H1S1 Comparator<T>> void testGenericAnonymous() {
-        // :: error: (type.argument.type.incompatible) :: warning:
-        // (cast.unsafe.constructor.invocation)
+        // :: error: (type.argument.type.incompatible)
         new @H1S1 Gen<T>() {};
-        // :: error: (type.argument.type.incompatible) :: warning:
-        // (cast.unsafe.constructor.invocation)
+        // :: error: (type.argument.type.incompatible)
         new @H1S1 GenInter<T>() {};
     }
 }

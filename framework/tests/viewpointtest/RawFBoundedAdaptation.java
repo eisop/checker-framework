@@ -50,9 +50,9 @@ public class RawFBoundedAdaptation {
     // bound is reached through the cycle, so these are the cases that pin adaptation of the
     // back edge.
     void adaptedBoundRejectsOtherQualifiers(@A Holder a, @B Holder b) {
-        // :: error: (type.argument.type.incompatible) :: error: (assignment.type.incompatible)
+        // :: error: (type.argument.type.incompatible)
         @A Rec<@B Sub> siblingFromA = a.explicitArg;
-        // :: error: (type.argument.type.incompatible) :: error: (assignment.type.incompatible)
+        // :: error: (type.argument.type.incompatible)
         @B Rec<@A Sub> siblingFromB = b.explicitArg;
 
         // @Top is outside Sub's declaration bound, so it is rejected at the use as well.
