@@ -9,9 +9,11 @@ echo "SHELLOPTS=${SHELLOPTS}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 source "$SCRIPT_DIR"/clone-related.sh
 
-# `./gradlew test` subsumes the other commands, but performing them
+# `./gradlew test` subsumes this command, but performing it
 # separately seems to avoid some out-of-memory errors.
-./gradlew assemble --warning-mode=all
+# The tests do not need `./gradlew assemble`, whose javadoc and sources jars take time.  The release
+# job builds all of them (with `buildAll`), and the nonjunit jobs build the published ones on every
+# JDK (with `publishToMavenLocal`).
 ./gradlew compileTestJava testClasses --warning-mode=all
 
 if [ "$#" -eq 0 ]; then
