@@ -5590,9 +5590,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * either
          *
          * <ol>
-         *   <li>it is the class's own type parameter without an annotation, as in {@code Child<E>
-         *       this} in {@code class Child<E>}; this is the type of {@code this} and accepts every
-         *       instance of the class, or
+         *   <li>it is the class's own type parameter on which no qualifier of this checker is
+         *       written, as in {@code Child<E> this} in {@code class Child<E>}; this is the type of
+         *       {@code this} and accepts every instance of the class, or
          *   <li>it is equal to the overridden receiver's type argument at every position that pins
          *       it, and at least one position does.
          * </ol>
