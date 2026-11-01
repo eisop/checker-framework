@@ -408,6 +408,11 @@ Other improvements and bug fixes:
   classes with an explicit enclosing instance (`outer.new Inner<>() {}`).
 - No longer crashes on a qualified anonymous subclass of an inner class with a
   varargs constructor (`outer.new Inner("a", "b") {}`).
+- No longer crashes with a `NullPointerException` in
+  `AnnotatedDeclaredType#getErased` on an anonymous subclass of an inner class
+  created with an explicit enclosing instance, such as `outer.new Inner<>(x) {}`
+  in a method of another inner class. `getErased` now copies the annotations of
+  an enclosing type only to the matching enclosing type of the erasure.
 - When a checker fails to initialize, for example with an `OutOfMemoryError`, it reports
   that failure instead of crashing with a `NullPointerException` in
   `SourceChecker.visitDeclaration`, which happened when the JVM also spent much of its
