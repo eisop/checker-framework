@@ -782,18 +782,16 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         List<AnnotatedTypeParameterBounds> bounds =
                 atypeFactory.typeVariablesFromUse(capturedType, element);
 
-        if (!visitor.checkTypeArguments(
+        // A type argument outside its bounds is reported, but does not make the type invalid:
+        // the type is well-formed, so the checks that compare it still run. See
+        // BaseTypeVisitor#validateType.
+        visitor.checkTypeArguments(
                 tree,
                 bounds,
                 capturedType.getTypeArguments(),
                 tree.getTypeArguments(),
                 element.getSimpleName(),
-                element.getTypeParameters())) {
-            // The error has been reported; the type is invalid, so callers skip checks that
-            // would only cascade from it (for example the assignment check of a variable with
-            // this type).
-            isValid = false;
-        }
+                element.getTypeParameters());
 
         @SuppressWarnings(
                 "interning:not.interned") // applyCaptureConversion returns the passed type if type

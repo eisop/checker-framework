@@ -39,8 +39,7 @@ abstract class EnclosingTypeArgs {
     static class Sub extends Min<String> {
         void make() {
             // The enclosing instance is `this`, whose type is a subtype of Min<@NonNull String>.
-            // The declared type is invalid, so the assignment itself is not checked.
-            // :: error: (type.argument.type.incompatible)
+            // :: error: (type.argument.type.incompatible) :: error: (assignment.type.incompatible)
             Min<@Nullable String>.Inner x = new Min<@Nullable String>.Inner();
         }
 

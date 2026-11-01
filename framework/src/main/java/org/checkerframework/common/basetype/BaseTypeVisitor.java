@@ -4431,12 +4431,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param paramBounds the bounds of the type parameters from a class or method declaration
      * @param typeargs the type arguments from the type or method invocation
      * @param typeargTrees the type arguments as trees, used for error reporting
-     * @param typeOrMethodName the name of the type or method being invoked
-     * @param paramNames the names of the type parameters
-     * @return true if every type argument is within the bounds of its type parameter, false if an
-     *     error message was issued
      */
-    protected boolean checkTypeArguments(
+    protected void checkTypeArguments(
             Tree toptree,
             List<? extends AnnotatedTypeParameterBounds> paramBounds,
             List<? extends AnnotatedTypeMirror> typeargs,
@@ -4448,9 +4444,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         // If there are no type variables, do nothing.
         if (paramBounds.isEmpty()) {
-            return true;
+            return;
         }
-        boolean result = true;
 
         int size = paramBounds.size();
         assert size == typeargs.size()
@@ -4488,15 +4483,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 continue;
             }
 
-            result =
-                    commonAssignmentCheck(
-                                    paramUpperBound,
-                                    typeArg,
-                                    reportErrorToTree,
-                                    "type.argument.type.incompatible",
-                                    paramName,
-                                    typeOrMethodName)
-                            && result;
+            commonAssignmentCheck(
+                    paramUpperBound,
+                    typeArg,
+                    reportErrorToTree,
+                    "type.argument.type.incompatible",
+                    paramName,
+                    typeOrMethodName);
 
             if (!typeHierarchy.isSubtype(bounds.getLowerBound(), typeArg)) {
                 FoundRequired fr = FoundRequired.of(typeArg, bounds);
@@ -4512,10 +4505,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                                 return paramName + " " + fr.required;
                             }
                         });
-                result = false;
             }
         }
-        return result;
     }
 
     /**
@@ -6565,6 +6556,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * Returns true if the type and corresponding type tree is a valid type, and emits an error if
      * that is not the case (e.g. '@Mutable String'). If the tree is a method or constructor, tests
      * the return type.
+     *
+     * <p>A type is invalid if it is ill-formed, for example if it has two qualifiers of one
+     * hierarchy or a qualifier that the type system forbids at that location. The checks that
+     * compare such a type with another, such as the assignment, {@code return}, enhanced {@code
+     * for}, {@code new}, and cast checks, are skipped: comparing an ill-formed type is not
+     * meaningful, and some comparisons assume one qualifier per hierarchy. An override that returns
+     * false must therefore have reported an error. A type argument that is outside the bounds of
+     * its type parameter is reported, but leaves the type valid: the type is well-formed, so the
+     * other checks still apply to it.
      *
      * @param tree the type tree supplied by the user
      * @param type the type corresponding to tree
