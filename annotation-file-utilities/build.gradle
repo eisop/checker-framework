@@ -119,10 +119,14 @@ tasks.register("testExample", JavaExec) {
 
 tasks.register("testAnnotator", Exec) {
     dependsOn(shadowJar)
+    // On JDK 8, the test Makefiles put the javac jar from lib/ on the bootclasspath.
+    dependsOn(copyJavacJar)
     description = "Run the annotator test."
     group = "Verification"
     workingDir = "${projectDir}/tests/"
     executable = "make"
+    // The tests run the annotator in a separate JVM each, one after another without -j.
+    args("-j${Runtime.runtime.availableProcessors()}")
 }
 
 tasks.register("cleanTestAnnotator", Exec) {

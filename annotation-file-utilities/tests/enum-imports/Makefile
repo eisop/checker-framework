@@ -56,7 +56,7 @@ all : $(DIFFS) results
 
 # Display results of all .diff files.
 .PHONY: results
-results: ../bin/VerifyDiffs.class
+results: $(DIFFS) ../bin/VerifyDiffs.class
 	@rm -rf output
 	@echo ""
 	@echo "=== RESULTS ==="
