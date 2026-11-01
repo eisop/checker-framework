@@ -1430,8 +1430,10 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             // chains are at the same class.
             while (erasedEnclosing != null
                     && thisEnclosing != null
-                    && erasedEnclosing.getUnderlyingType().asElement()
-                            == thisEnclosing.getUnderlyingType().asElement()) {
+                    && erasedEnclosing
+                            .getUnderlyingType()
+                            .asElement()
+                            .equals(thisEnclosing.getUnderlyingType().asElement())) {
                 erasedEnclosing.addAnnotations(thisEnclosing.getAnnotationsField());
                 erasedEnclosing = erasedEnclosing.getEnclosingType();
                 thisEnclosing = thisEnclosing.getEnclosingType();
