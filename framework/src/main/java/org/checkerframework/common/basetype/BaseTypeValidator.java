@@ -887,10 +887,13 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * Checks, for every wildcard type argument whose capture is not itself a captured type
      * variable, the special case described by JDK-8054309: if the super bound of the wildcard is
      * the same as the upper bound of the type parameter, then javac uses the bound rather than
-     * creating a fresh type variable. (See https://bugs.openjdk.org/browse/JDK-8054309.) In this
-     * case, the Checker Framework uses the annotations on the super bound of the wildcard and
-     * ignores the annotations on the extends bound. For example, {@code Set<@1 ? super @2 Object>}
-     * will collapse into {@code Set<@2 Object>}. This method issues the
+     * creating a fresh type variable. (See https://bugs.openjdk.org/browse/JDK-8054309.) If the
+     * collapsed type argument is a declared type and the bounds' annotations differ, {@link
+     * AnnotatedTypeFactory#applyCaptureConversion} creates the type variable javac did not, so the
+     * capture is a captured type variable and this method does not check it. If the collapsed type
+     * argument is a type variable, as for {@code Gen<F, ? super F>} with {@code Gen<T, S extends
+     * T>}, the Checker Framework uses the annotations on the super bound of the wildcard and
+     * ignores the annotations on the extends bound. This method issues the
      * "type.invalid.super.wildcard" error if the annotations on the extends bound are not the same
      * as the annotations on the super bound.
      *
@@ -917,11 +920,11 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 // type parameter, then javac uses the bound rather than creating a fresh
                 // type variable.
                 // (See https://bugs.openjdk.org/browse/JDK-8054309.)
-                // In this case, the Checker Framework uses the annotations on the super
-                // bound of the wildcard and ignores the annotations on the extends bound.
-                // For example, Set<@1 ? super @2 Object> will collapse into Set<@2 Object>.
-                // So, issue a warning if the annotations on the extends bound are not the
-                // same as the annotations on the super bound.
+                // If the bounds' annotations differ, applyCaptureConversion re-creates the type
+                // variable for a wildcard that collapsed to a declared type, so this can only
+                // fail for one that collapsed to a type variable. The Checker Framework uses the
+                // annotations on its super bound and ignores those on its extends bound, so
+                // issue an error if they are not the same.
                 if (!areCollapsedWildcardBoundsEqual(
                         wildcard.getExtendsBound(), wildcard.getSuperBound())) {
                     checker.reportError(

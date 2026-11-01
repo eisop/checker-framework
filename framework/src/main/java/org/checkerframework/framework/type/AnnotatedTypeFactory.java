@@ -7072,15 +7072,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         TypeElement element = (TypeElement) capturedTypeMirror.asElement();
         TypeMirror enclosing = capturedTypeMirror.getEnclosingType();
-        try {
-            if (enclosing.getKind() == TypeKind.DECLARED) {
-                return types.getDeclaredType((DeclaredType) enclosing, element, newArgs);
-            }
-            return types.getDeclaredType(element, newArgs);
-        } catch (IllegalArgumentException e) {
-            // Keep javac's collapsed type if the arguments cannot be recombined.
-            return capturedTypeMirror;
+        if (enclosing.getKind() == TypeKind.DECLARED) {
+            return types.getDeclaredType((DeclaredType) enclosing, element, newArgs);
         }
+        return types.getDeclaredType(element, newArgs);
     }
 
     /**
