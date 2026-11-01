@@ -16,6 +16,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.DeepCopyable;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
+import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
 
 import java.lang.annotation.Annotation;
@@ -2275,12 +2276,28 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         public AnnotatedTypeMirror getLowerBound() {
             if (lowerBound == null) { // lazy init
-                BoundsInitializer.initializeBounds(this);
-                fixupBoundAnnotations();
-                freezeLazyComponent(lowerBound);
-                freezeLazyComponent(upperBound);
+                initializeBounds();
             }
             return lowerBound;
+        }
+
+        /**
+         * Initializes both bounds from the underlying type. A use of a type variable also gets the
+         * annotations written on the bounds of its declaration, in the declaration's element or in
+         * an annotation file, as a use created from a tree or for an element does (see {@code
+         * TypeFromTypeTreeVisitor#getTypeVariableFromDeclaration} and {@code TypeVarUseApplier}).
+         * Without them, the bounds of a use created from a {@link TypeMirror}, such as in a
+         * supertype taken from a class's element, would only be defaulted, which differs from the
+         * declaration when its bound is annotated.
+         */
+        private void initializeBounds() {
+            BoundsInitializer.initializeBounds(this);
+            if (!declaration && !TypesUtils.isCapturedTypeVariable(getUnderlyingType())) {
+                ElementAnnotationApplier.annotateTypeVariableUse(this, atypeFactory);
+            }
+            fixupBoundAnnotations();
+            freezeLazyComponent(lowerBound);
+            freezeLazyComponent(upperBound);
         }
 
         // If the lower bound was not present in underlyingType, then its annotation was defaulted
@@ -2348,10 +2365,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         public AnnotatedTypeMirror getUpperBound() {
             if (upperBound == null) { // lazy init
-                BoundsInitializer.initializeBounds(this);
-                fixupBoundAnnotations();
-                freezeLazyComponent(upperBound);
-                freezeLazyComponent(lowerBound);
+                initializeBounds();
             }
             return upperBound;
         }

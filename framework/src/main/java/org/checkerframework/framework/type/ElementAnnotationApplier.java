@@ -236,26 +236,57 @@ public final class ElementAnnotationApplier {
     }
 
     /**
+     * Annotates a use of a type variable with the annotations written explicitly on the type
+     * parameter declaration and/or its upper bound, in the declaration's element or in an
+     * annotation file. A use with a primary annotation, or whose upper bound is already annotated,
+     * is left as is.
+     *
+     * @param type a use of a type variable; side-effected by this method
+     * @param factory the type factory that created {@code type}
+     */
+    /*package-private*/ static void annotateTypeVariableUse(
+            AnnotatedTypeVariable type, AnnotatedTypeFactory factory) {
+        TypeParameterElement tpelt = (TypeParameterElement) type.getUnderlyingType().asElement();
+
+        if (!type.getAnnotationsField().isEmpty()
+                || !type.getUpperBound().getAnnotationsField().isEmpty()
+                || tpelt.getEnclosingElement().getKind() == ElementKind.TYPE_PARAMETER) {
+            return;
+        }
+        // An annotation file takes precedence over the element, as in fromElement: if the file
+        // declares the type parameter, its bounds are the declared ones, annotated or not. The
+        // types created while a file is parsed get their annotations from the parser, and asking
+        // for the file's type of the declaration would start parsing it again.
+        AnnotatedTypeMirror declaration =
+                factory.stubTypes == null || factory.stubTypes.isParsing()
+                        ? null
+                        : factory.stubTypes.getAnnotatedTypeMirror(tpelt);
+        if (declaration instanceof AnnotatedTypeVariable) {
+            // Read the bound without initializing it: a bound the file did not annotate may be
+            // uninitialized, and initializing it would come back here.
+            AnnotatedTypeMirror declaredUpper =
+                    ((AnnotatedTypeVariable) declaration).getUpperBoundField();
+            if (declaredUpper != null) {
+                factory.replaceAnnotations(declaredUpper, type.getUpperBound());
+            }
+            return;
+        }
+        try {
+            applyInternal(type, tpelt, factory);
+        } catch (UnexpectedAnnotationLocationException e) {
+            // This may be the second call to applyInternal on this type and element, so any
+            // errors were already reported by the first call. (See the uses of this method.)
+        }
+    }
+
+    /**
      * Annotates uses of type variables with annotation written explicitly on the type parameter
-     * declaration and/or its upper bound.
+     * declaration and/or its upper bound. See {@link #annotateTypeVariableUse}.
      */
     private static class TypeVarAnnotator extends AnnotatedTypeScanner<Void, AnnotatedTypeFactory> {
         @Override
         public Void visitTypeVariable(AnnotatedTypeVariable type, AnnotatedTypeFactory factory) {
-            TypeParameterElement tpelt =
-                    (TypeParameterElement) type.getUnderlyingType().asElement();
-
-            if (type.getAnnotationsField().isEmpty()
-                    && type.getUpperBound().getAnnotationsField().isEmpty()
-                    && tpelt.getEnclosingElement().getKind() != ElementKind.TYPE_PARAMETER) {
-                try {
-                    ElementAnnotationApplier.applyInternal(type, tpelt, factory);
-                } catch (UnexpectedAnnotationLocationException e) {
-                    // The above is the second call to applyInternal on this type and element, so
-                    // any errors were already reported by the first call. (See the only use of this
-                    // class.)
-                }
-            }
+            annotateTypeVariableUse(type, factory);
             return super.visitTypeVariable(type, factory);
         }
     }
