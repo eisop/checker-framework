@@ -12,10 +12,14 @@ public class EnumInference {
         return defaultValue;
     }
 
+    // Enum.valueOf returns @PolyValue T, here @StringVal("one") T, which is not a subtype of T.
+    @SuppressWarnings("value:return.type.incompatible")
     static <T extends Enum<T>> T getElementValueEnum2(Object anno, Class<T> expectedType) {
         return Enum.valueOf(expectedType, "one");
     }
 
+    // Enum.valueOf returns @PolyValue T, here @StringVal("one") T, which is not a subtype of T.
+    @SuppressWarnings("value:return.type.incompatible")
     static <T extends Enum<T>> T fromClass(Class<T> expectedType) {
         return Enum.valueOf(expectedType, "one");
     }
