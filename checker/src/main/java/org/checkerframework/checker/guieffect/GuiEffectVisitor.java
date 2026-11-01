@@ -260,12 +260,6 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     }
 
     @Override
-    protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
-        // Skip this check.
-    }
-
-    @Override
     protected void warnInvalidPolymorphicQualifier(ClassTree classTree) {
         // Polymorphic qualifiers are legal on classes, so skip this check.
     }

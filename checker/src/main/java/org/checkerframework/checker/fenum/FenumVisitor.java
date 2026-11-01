@@ -3,7 +3,6 @@ package org.checkerframework.checker.fenum;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.ExpressionTree;
-import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.Tree;
@@ -71,12 +70,6 @@ public class FenumVisitor extends BaseTypeVisitor<FenumAnnotatedTypeFactory> {
     protected void checkConstructorInvocation(
             AnnotatedDeclaredType dt, AnnotatedExecutableType constructor, NewClassTree src) {
         // Ignore the default annotation on the constructor
-    }
-
-    @Override
-    protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
-        // Skip this check
     }
 
     @Override
