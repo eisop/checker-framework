@@ -284,6 +284,9 @@ public final class ElementAnnotationApplier {
      * declaration and/or its upper bound. See {@link #annotateTypeVariableUse}.
      */
     private static class TypeVarAnnotator extends AnnotatedTypeScanner<Void, AnnotatedTypeFactory> {
+        /** Creates a new TypeVarAnnotator. */
+        private TypeVarAnnotator() {}
+
         @Override
         public Void visitTypeVariable(AnnotatedTypeVariable type, AnnotatedTypeFactory factory) {
             annotateTypeVariableUse(type, factory);
