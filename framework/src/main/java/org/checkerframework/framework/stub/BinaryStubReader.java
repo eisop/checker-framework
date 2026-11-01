@@ -1512,9 +1512,9 @@ public class BinaryStubReader {
      *       variable itself become its primary annotation, covering both bounds. The bounds are
      *       otherwise the class file's (see {@code classFileElt}).
      *   <li>Otherwise, annotations on the type variable apply to the lower bound, and if exactly
-     *       one declared bound carries annotations (for a sole bound, a marker is enough), those
-     *       are applied to the upper bound after clearing its existing annotations (matching {@code
-     *       clearAnnotations} in the text parser's {@code annotate}). If more than one bound
+     *       one declared bound carries annotations (a sole bound is applied even without any),
+     *       those are applied to the upper bound after clearing its existing annotations (matching
+     *       {@code clearAnnotations} in the text parser's {@code annotate}). If more than one bound
      *       carries annotations, none are applied — the text parser has the same (unimplemented)
      *       intersection-bound limitation.
      * </ul>
@@ -1557,13 +1557,14 @@ public class BinaryStubReader {
             }
         }
 
-        // Find the single bound that carries annotations, if any. The text parser annotates a sole
-        // bound unconditionally, so a marker is enough there; of several bounds, it considers only
-        // those with annotations.
+        // Find the bound to apply to the upper bound, if any. The text parser annotates a sole
+        // bound
+        // unconditionally, so it replaces the upper bound's annotations even if it has none; of
+        // several bounds, it considers only those with annotations.
         boolean soleBound = tp.boundAnnos.length == 1;
         int annotatedBound = -1;
         for (int b = 0; b < tp.boundAnnos.length; b++) {
-            if (soleBound ? tp.boundAnnos[b].length > 0 : hasAnnotation(tp.boundAnnos[b])) {
+            if (soleBound || hasAnnotation(tp.boundAnnos[b])) {
                 if (annotatedBound >= 0) {
                     // More than one annotated bound: not supported, matching the text parser.
                     return;

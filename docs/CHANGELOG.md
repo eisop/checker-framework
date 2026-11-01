@@ -212,7 +212,10 @@ declaration in a stub file, as it has those written in source or bytecode. A
 use created from a javac type, such as in a supertype of a class whose tree is
 no longer available or in the method types of a class in bytecode, had only
 defaulted bounds, so `T extends @Nullable Object` in the annotated JDK read as
-`T extends Object` there.
+`T extends Object` there. A type variable in its own bound now also has the
+declared bound, so a method type parameter such as
+`<T extends @Nullable Comparable<T>>` is now rejected, as the same bound on a
+class already was: `Comparable` requires a non-null type argument.
 
 In a stub file, an annotation element value can now be any constant
 expression, as in Java source: parentheses, unary, binary, and conditional

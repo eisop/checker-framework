@@ -2292,7 +2292,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         private void initializeBounds() {
             BoundsInitializer.initializeBounds(this);
-            if (!declaration && !TypesUtils.isCapturedTypeVariable(getUnderlyingType())) {
+            if (!declaration
+                    && !TypesUtils.isCapturedTypeVariable(getUnderlyingType())
+                    && !atypeFactory.isParsingAnnotationFile()) {
                 ElementAnnotationApplier.annotateTypeVariableUse(this, atypeFactory);
             }
             fixupBoundAnnotations();
