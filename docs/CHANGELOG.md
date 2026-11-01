@@ -90,11 +90,6 @@ Type-checking and subtyping improvements:
   qualifiers of the superclass's type arguments from the target type and the
   arguments, as for `new C<>(args)`. They were defaulted, which caused false
   positives and checked the arguments against the defaulted type.
-- Such a diamond whose result has no target type, as in `new C<>(args) {...};`,
-  no longer crashes a checker whose type factory supplies a dummy target type
-  (the Value, Index, Called Methods, Resource Leak, and Formatter Checkers) with
-  `type.argument.inference.crashed`: the dummy was the anonymous class itself,
-  which is not a supertype of `C<...>`. Its supertype `C<...>` is used instead.
 - Type argument inference resolves a type variable that appears in a `throws`
   clause to `RuntimeException` only if every upper bound is a supertype of
   `RuntimeException`, as the JLS and javac do. It did so if any upper bound
