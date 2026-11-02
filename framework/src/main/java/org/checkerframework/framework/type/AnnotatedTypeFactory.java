@@ -471,11 +471,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private final boolean assumePureGetters;
 
     /**
-     * True unless {@code -AstoreInBytecode=false} was supplied: whether to store into the class
-     * file the qualifiers that do not appear in the source code. See {@link
-     * #shouldStoreInBytecode}.
+     * Whether to store into the class file the qualifiers that do not appear in the source code;
+     * the result of {@link #shouldStoreInBytecode}.
      */
-    private final boolean storeInBytecode;
+    // This field cannot be final because it is set in `postInit()`.
+    private boolean storeInBytecode;
 
     /** True if -AmergeStubsWithSource was provided on the command line. */
     private final boolean mergeStubsWithSource;
@@ -755,7 +755,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.assumeDeterministic =
                 checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
         this.assumePureGetters = checker.hasOption("assumePureGetters");
-        this.storeInBytecode = checker.getBooleanOption("storeInBytecode", true);
 
         this.trees = Trees.instance(processingEnv);
         this.elements = processingEnv.getElementUtils();
@@ -1172,6 +1171,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.typeArgumentInference = createTypeArgumentInference();
         this.viewpointAdapter = createViewpointAdapter();
         this.qualifierUpperBounds = createQualifierUpperBounds();
+        this.storeInBytecode = shouldStoreInBytecode();
 
         // TODO: is this the best location for declaring this alias?
         addAliasedDeclAnnotation(
@@ -2032,15 +2032,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * Returns whether {@link #postProcessClassTree} stores into the class file the qualifiers that
      * do not appear in the source code (defaulted types and inherited declaration annotations).
      *
-     * <p>The default implementation returns true unless {@code -AstoreInBytecode=false} was
-     * supplied; the option is read once, when this factory is created. A checker whose computed
-     * qualifiers must never reach bytecode (for example, because they are an implementation detail
-     * that no reader of the class file should depend on) can override this to return false.
+     * <p>Called once, by {@link #postInit}. The default implementation returns true unless {@code
+     * -AstoreInBytecode=false} was supplied. A checker whose computed qualifiers must never reach
+     * bytecode (for example, because they are an implementation detail that no reader of the class
+     * file should depend on) can override this to return false.
      *
      * @return whether to store computed qualifiers into the class file
      */
     protected boolean shouldStoreInBytecode() {
-        return storeInBytecode;
+        return checker.getBooleanOption("storeInBytecode", true);
     }
 
     /**
@@ -2049,13 +2049,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * <p>The default implementation stores the defaulted AnnotatedTypeMirrors and inherited
      * declaration annotations back into the corresponding Elements, if {@link
-     * #shouldStoreInBytecode} returns true, and then runs the {@link TypeInformationPresenter}
+     * #shouldStoreInBytecode} returned true, and then runs the {@link TypeInformationPresenter}
      * returned by {@link #createTypeInformationPresenter}, if any.
      *
      * @param tree the ClassTree that has been processed
      */
     public void postProcessClassTree(ClassTree tree) {
-        if (shouldStoreInBytecode()) {
+        if (storeInBytecode) {
             TypesIntoElements.store(processingEnv, this, tree);
             DeclarationsIntoElements.store(processingEnv, this, tree);
         }
