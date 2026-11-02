@@ -240,6 +240,9 @@ Previously only the receiver's primary annotations were compared. A receiver tha
 is the type of `this`, with the defaults of its class, is never reported, even if
 those defaults annotate every use of a type variable; a receiver that a default on
 the overriding method itself changes is checked like a written annotation.
+In a field initializer or an initializer block, the type of `this` now also has the
+defaults of its class, as in a method, so a call with an implicit receiver there
+is no longer reported as `method.invocation.invalid`.
 
 A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
 keeps the qualifier of the expression instead of taking the type variable's

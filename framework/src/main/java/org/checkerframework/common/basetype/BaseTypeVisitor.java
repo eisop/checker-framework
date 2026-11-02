@@ -5592,8 +5592,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * <ol>
          *   <li>it is the class's own type parameter and equal to the same type argument of the
          *       type of {@code this} in the class, as in {@code Child<E> this} in {@code class
-         *       Child<E>}; see {@link #selfType}. That type accepts every instance of the class, so
-         *       it cannot narrow the overridden receiver, or
+         *       Child<E>}; see {@link AnnotatedTypeFactory#getSelfType(TypeElement)}. That type
+         *       accepts every instance of the class, so it cannot narrow the overridden receiver,
+         *       or
          *   <li>it is equal to the overridden receiver's type argument at every position that pins
          *       it, and at least one position does.
          * </ol>
@@ -5627,7 +5628,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 for (int i = 0; i < args.size(); i++) {
                     AnnotatedTypeMirror arg = args.get(i);
                     if (isTypeVariableFor(arg, params.get(i))
-                            && isEqualType(arg, selfType(typeElt).getTypeArguments().get(i))) {
+                            && isEqualType(
+                                    arg,
+                                    atypeFactory.getSelfType(typeElt).getTypeArguments().get(i))) {
                         // The type of "this" accepts every instance of the class.
                         continue;
                     }
@@ -5690,29 +5693,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         private boolean isEqualType(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
             return typeHierarchy.isSubtype(type1, type2) && typeHierarchy.isSubtype(type2, type1);
-        }
-
-        /**
-         * Returns the type of {@code this} in {@code classElt}: the class applied to its own type
-         * parameters, with the annotations that the class's defaults give it. This is the receiver
-         * that a method of the class has when neither the method nor a default in its scope says
-         * otherwise. A default can annotate every use of a type variable, as the JSpecify reference
-         * checker does in unmarked code, so the type arguments need not be unannotated; but a
-         * default that only the overrider is in the scope of, such as a {@code DefaultQualifier} on
-         * the overrider itself, is not part of the type of {@code this}. Nor is a default of an
-         * inner class part of the type of its enclosing instance, which is the type of {@code this}
-         * in the enclosing class.
-         *
-         * @param classElt a class
-         * @return the type of {@code this} in {@code classElt}
-         */
-        private AnnotatedDeclaredType selfType(TypeElement classElt) {
-            // The declared type has the bounds of the type parameters; as a use, its type
-            // arguments then take the defaults that the class gives a use of a type variable.
-            AnnotatedDeclaredType selfType =
-                    atypeFactory.getAnnotatedType(classElt).asUse().deepCopy();
-            atypeFactory.addComputedTypeAnnotations(classElt, selfType);
-            return selfType;
         }
 
         /**
