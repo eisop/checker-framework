@@ -114,6 +114,12 @@ Type-checking and subtyping improvements:
   returning it as a `T` is an error. It was typed as `T` and accepted. Code with
   such unchecked casts, such as `(T) this` or `(T) map.get(k)`, may need
   additional warning suppressions.
+- The bounds of a type variable are defaulted with the defaults in scope at
+  its declaration. A `@DefaultQualifier` for `UPPER_BOUND` or `OTHERWISE` on
+  a method or an inner class no longer changes the bound of an enclosing
+  class's type variable inside that scope, which accepted a call whose
+  receiver's type argument was outside the bound. A method's own type
+  parameters still take the method's defaults.
 
 JSpecify support in the Nullness Checker:
 
@@ -714,6 +720,7 @@ eisop#2391,
 eisop#2404,
 eisop#2411,
 eisop#2418,
+eisop#2478,
 typetools#399,
 typetools#602,
 typetools#2816,

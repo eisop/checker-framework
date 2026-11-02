@@ -76,10 +76,12 @@ class ReceiverDefaultedTypeVarUseChild<E> extends ReceiverDefaultedTypeVarUsePar
         this.field.toString();
     }
 
+    // An UPPER_BOUND default does not change the bound of the class's type variable E, so the
+    // receiver is not narrowed, and the dereference is reported instead.
     @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.UPPER_BOUND)
     @Override
-    // :: error: (override.receiver.invalid)
     void upperBound() {
+        // :: error: (dereference.of.nullable)
         this.field.toString();
     }
 

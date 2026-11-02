@@ -56,6 +56,7 @@ import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 
@@ -1757,7 +1758,19 @@ public class QualifierDefaults {
             Element annotationScope, AnnotatedTypeMirror type, boolean fromTree) {
         DefaultApplierElement applier =
                 createDefaultApplierElement(atypeFactory, annotationScope, type, fromTree);
+        applier.applyDefaults(fusedDefaultsAt(annotationScope));
+    }
 
+    /**
+     * Returns the defaults to apply, in precedence order, to a type in the scope of {@code
+     * annotationScope}: the defaults in scope there, then the conservative or permissive
+     * unchecked-code defaults if they apply to that element, then the checked-code defaults.
+     *
+     * @param annotationScope the element representing the nearest enclosing default annotation
+     *     scope for the type
+     * @return the fused, ordered default list (shared and read-only; callers must not mutate it)
+     */
+    private List<Default> fusedDefaultsAt(Element annotationScope) {
         DefaultSet defaults = defaultsAt(annotationScope);
         UncheckedDefaultsMode mode;
         if (applyConservativeDefaults(annotationScope)) {
@@ -1768,8 +1781,7 @@ public class QualifierDefaults {
             // Checked code: fold in no unchecked-code defaults.
             mode = null;
         }
-
-        applier.applyDefaults(fusedDefaultsFor(defaults, mode));
+        return fusedDefaultsFor(defaults, mode);
     }
 
     /**
@@ -2243,16 +2255,30 @@ public class QualifierDefaults {
             if (hasVisited(type)) {
                 return null;
             }
-            if (type.isDeclaration()) {
-                // For a type variable declaration, apply the defaults to the bounds. Do not apply
-                // `TYPE_VARIABLE_USE` defaults.
-                visitBounds(type, type.getUpperBound(), type.getLowerBound(), true);
-                return null;
-            }
 
             // Always descend into the bounds FIRST so the bound/OTHERWISE defaults apply there
             // before any primary defaults (e.g., LOCAL_VARIABLE) can be smeared onto them.
-            visitBounds(type, type.getUpperBound(), type.getLowerBound(), true);
+            //
+            // The bounds belong to the type variable's declaration, so default them with the
+            // defaults in scope at the element that declares the type variable, not with those at
+            // this use. Otherwise an UPPER_BOUND (or OTHERWISE) default on a method or inner class
+            // would change the bound of an enclosing class's type variable inside that scope only,
+            // and a call with a receiver type argument outside the bound would be accepted
+            // (eisop#2478). A type variable declared in this scope, such as a method's own type
+            // parameter, still gets this scope's defaults.
+            List<Default> useSiteDefaults = outer.fusedDefaults;
+            outer.fusedDefaults = boundDefaults(type, useSiteDefaults);
+            try {
+                visitBounds(type, type.getUpperBound(), type.getLowerBound(), true);
+            } finally {
+                outer.fusedDefaults = useSiteDefaults;
+            }
+
+            if (type.isDeclaration()) {
+                // For a type variable declaration, only the bounds are defaulted. Do not apply
+                // `TYPE_VARIABLE_USE` defaults.
+                return null;
+            }
 
             boolean isTopLevelType = type == outer.type;
             boolean isLocalVariable =
@@ -2279,6 +2305,28 @@ public class QualifierDefaults {
                 }
             }
             return null;
+        }
+
+        /**
+         * Returns the defaults to apply to the bounds of {@code type}: those in scope at the
+         * element that declares the type variable. A captured type variable is declared nowhere;
+         * its bounds come from the wildcard at this use, so they get the use site's defaults.
+         *
+         * @param type a type variable, a declaration or a use
+         * @param useSiteDefaults the defaults in scope at the type being defaulted
+         * @return the defaults to apply to the bounds of {@code type}
+         */
+        private List<Default> boundDefaults(
+                AnnotatedTypeVariable type, List<Default> useSiteDefaults) {
+            TypeVariable typeVar = type.getUnderlyingType();
+            if (TypesUtils.isCapturedTypeVariable(typeVar)) {
+                return useSiteDefaults;
+            }
+            Element declaring = ((TypeParameterElement) typeVar.asElement()).getGenericElement();
+            if (declaring == null || declaring.equals(outer.scope)) {
+                return useSiteDefaults;
+            }
+            return fusedDefaultsAt(declaring);
         }
 
         @Override
