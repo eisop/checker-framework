@@ -76,7 +76,10 @@ Type-checking and subtyping improvements:
   (e.g. `<T extends @NonNull Object & @Nullable Serializable>`), the first
   bound's qualifier now wins (homogenization); override
   `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
-  customize.
+  customize, and `BaseTypeVisitor#checkExplicitAnnotationsOnIntersectionBounds`
+  to adjust the `explicit.annotation.ignored` warning to match.
+  In a cast to an intersection type, a bound without a written qualifier has the
+  operand's qualifier, so `(Lib & @Tainted Lib2) untainted` is `@Untainted`.
 - Issues `annotation.on.supertype` for a main annotation on a superclass or
   interface in `extends`/`implements` (type-argument annotations remain
   permitted); override `BaseTypeVisitor#checkAnnotationOnSupertype` to allow it.
@@ -236,7 +239,13 @@ An override whose receiver narrows the type arguments of the overridden method's
 receiver, such as `Child<@NonNull E> this` overriding `Parent<E> this`, is now
 reported as `override.receiver.invalid`, including a narrowed type argument of an
 enclosing type or of a type parameter that the overridden class does not see.
-Previously only the receiver's primary annotations were compared.
+Previously only the receiver's primary annotations were compared. A receiver that
+is the type of `this`, with the defaults of its class, is never reported, even if
+those defaults annotate every use of a type variable; a receiver that a default
+on the overriding method itself changes is checked like a written annotation. In
+a field initializer or an initializer block, the type of `this` now also has the
+defaults of its class, as in a method, so a call with an implicit receiver there
+is no longer reported as `method.invocation.invalid`.
 
 A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
 keeps the qualifier of the expression instead of taking the type variable's

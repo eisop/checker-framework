@@ -1893,9 +1893,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * hierarchy, into the single annotation used to summarize that hierarchy. Called by {@link
      * AnnotatedTypeMirror.AnnotatedIntersectionType#summarizeBounds()}: for a type variable's own
      * intersection upper bound, after each bound has been independently defaulted, so a bound's
-     * annotation may be explicit or defaulted; for an intersection cast target, before defaulting,
-     * so only explicit annotations are seen. Either way, this method is called only when two bounds
-     * carry different annotations in one hierarchy.
+     * annotation may be explicit or defaulted; for an intersection cast target, after each bound
+     * without a written qualifier got the cast operand's qualifier. Either way, this method is
+     * called only when two bounds carry different annotations in one hierarchy.
      *
      * <p>By default the annotation of the bound encountered first, in source order, wins
      * (first-bound-wins): the returned summary equals {@code existingAnnotation} and {@code
@@ -1904,20 +1904,23 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * equals one of the bounds' own annotations and the intersection is a subtype of each of its
      * bounds.
      *
-     * <p>A checker that wants an order-independent, more precise summary -- for example a
-     * JSpecify-style integration -- may override this to return {@code
-     * qualifierHierarchy.greatestLowerBoundQualifiersOnly(existingAnnotation, newAnnotation)}. This
-     * method decides only how the per-hierarchy summary is computed; that summary is always written
-     * back onto every bound (homogenization). Computing it via {@code
-     * greatestLowerBoundQualifiersOnly} additionally relies on {@link
-     * QualifierHierarchy#greatestLowerBoundQualifiers} being consistent with {@link
-     * QualifierHierarchy#isSubtypeQualifiers} for the qualifier hierarchy in use (see that method's
-     * documentation): if a qualifier hierarchy's true subtyping relation depends on something a
-     * static declarative lattice cannot express, such as a checker option, and its computation of
-     * the greatest lower bound was not updated to match, the summary this method returns can be a
-     * qualifier the qualifier hierarchy's own subtype check would not itself have derived,
-     * producing a spurious type error where none existed before the summary was combined -- not a
-     * fault of this method or of homogenization, but of that inconsistency.
+     * <p>A checker in which every bound constrains the intersection -- for example a JSpecify-style
+     * integration -- may override this to return {@code
+     * qualifierHierarchy.greatestLowerBoundQualifiersOnly(existingAnnotation, newAnnotation)}. Such
+     * a checker usually also overrides {@code
+     * BaseTypeVisitor#checkExplicitAnnotationsOnIntersectionBounds}, whose {@code
+     * explicit.annotation.ignored} warning assumes that only the first bound counts: under the
+     * greatest lower bound, no written qualifier is ignored. This method decides only how the
+     * per-hierarchy summary is computed; that summary is always written back onto every bound
+     * (homogenization). Computing it via {@code greatestLowerBoundQualifiersOnly} additionally
+     * relies on {@link QualifierHierarchy#greatestLowerBoundQualifiers} being consistent with
+     * {@link QualifierHierarchy#isSubtypeQualifiers} for the qualifier hierarchy in use (see that
+     * method's documentation): if a qualifier hierarchy's true subtyping relation depends on
+     * something a static declarative lattice cannot express, such as a checker option, and its
+     * computation of the greatest lower bound was not updated to match, the summary this method
+     * returns can be a qualifier the qualifier hierarchy's own subtype check would not itself have
+     * derived, producing a spurious type error where none existed before the summary was combined
+     * -- not a fault of this method or of homogenization, but of that inconsistency.
      *
      * @param existingAnnotation the annotation already chosen for this hierarchy, from an earlier
      *     bound in source order
@@ -3110,9 +3113,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the type of {@code this} at the location of {@code tree}
      */
     public @Nullable AnnotatedDeclaredType getSelfType(Tree tree) {
-        // The type of "this" is a use of the class, not its declaration.
         if (TreeUtils.isClassTree(tree)) {
-            return getAnnotatedType(TreeUtils.elementFromDeclaration((ClassTree) tree)).asUse();
+            return getSelfType(TreeUtils.elementFromDeclaration((ClassTree) tree));
         }
 
         Tree enclosingTree = getEnclosingClassOrMethod(tree);
@@ -3127,9 +3129,34 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 return getAnnotatedType(enclosingMethod).getReceiverType();
             }
         } else if (TreeUtils.isClassTree(enclosingTree)) {
-            return ((AnnotatedDeclaredType) getAnnotatedType(enclosingTree)).asUse();
+            return getSelfType(TreeUtils.elementFromDeclaration((ClassTree) enclosingTree));
         }
         return null;
+    }
+
+    /**
+     * Returns the type of {@code this} in {@code classElt}: the class applied to its own type
+     * parameters, with the annotations that the class's defaults give it. This is the receiver that
+     * a method of the class has when neither the method nor a default in its scope says otherwise,
+     * and the type of {@code this} in a field initializer or an initializer block. A default that
+     * only a method is in the scope of is not part of it. Its enclosing type is the type of this in
+     * the enclosing class, without the defaults of {@code classElt}: a default of an inner class
+     * says nothing about its enclosing instance.
+     *
+     * @param classElt a class
+     * @return the type of {@code this} in {@code classElt}
+     */
+    public AnnotatedDeclaredType getSelfType(TypeElement classElt) {
+        // The type of "this" is a use of the class, not its declaration. As a use, its type
+        // arguments take the defaults that the class gives a use of a type variable.
+        AnnotatedDeclaredType selfType = getAnnotatedType(classElt).asUse().deepCopy();
+        addComputedTypeAnnotations(classElt, selfType);
+        AnnotatedDeclaredType enclosing = selfType.getEnclosingType();
+        if (enclosing != null) {
+            selfType.setEnclosingType(
+                    getSelfType((TypeElement) enclosing.getUnderlyingType().asElement()));
+        }
+        return selfType;
     }
 
     /** A set containing class, method, and annotation tree kinds. */
