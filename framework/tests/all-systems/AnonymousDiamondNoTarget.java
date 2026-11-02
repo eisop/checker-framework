@@ -1,11 +1,13 @@
 // @below-java9-jdk-skip-test
-// Test case for an anonymous class created with a diamond whose constructor has arguments and
-// whose result has no target type. The Value Checker's getDummyAssignedTo returns the type of the
-// expression, which is the anonymous class; inference must use its supertype as the target.
+// An anonymous class created with a diamond whose result has no target type. The getDummyAssignedTo
+// of the Value, Called Methods and Formatter Checkers returns the type of the expression, which is
+// the anonymous class; inference must use its supertype as the target.
 public class AnonymousDiamondNoTarget {
     static class Nested<T> {
         T t;
 
+        // This constructor leaves the field unset.
+        @SuppressWarnings({"initialization", "initializedfields:contracts.postcondition"})
         Nested() {}
 
         Nested(T t) {
@@ -41,6 +43,8 @@ public class AnonymousDiamondNoTarget {
             this.u = u;
         }
 
+        // This constructor leaves the field unset.
+        @SuppressWarnings({"initialization", "initializedfields:contracts.postcondition"})
         Inner() {}
     }
 
