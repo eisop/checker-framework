@@ -6,10 +6,14 @@
 // class.  Its enclosing type is the type of "this" in the enclosing class, with that class's
 // defaults.  These overrides were reported as override.receiver.invalid.
 //
-// A default that only the overriding method, or only an inner class, is in the scope of is not part
-// of the type of "this" in the class that declares the type parameter, so a receiver that it
-// changes is still a narrowing: through a Parent<@Nullable String>, a caller could pass a receiver
-// whose field is null to a body that assumes it is non-null.
+// A default that only the overriding method is in the scope of is not part of the type of "this",
+// so a receiver that it changes is still a narrowing: through a Parent<@Nullable String>, a caller
+// could pass a receiver whose field is null to a body that assumes it is non-null.
+//
+// The type of the enclosing instance is not written in an inner class, so a default of the inner
+// class or of one of its methods does not change it; it stays the type of "this" in the enclosing
+// class, and a dereference of a nullable field of the enclosing instance is reported in the body.
+// See InnerEnclosingDefaults.java.
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -53,6 +57,8 @@ class ReceiverDefaultedTypeVarUseParent<T> {
     void upperBound() {}
 
     void written() {}
+
+    void writtenNonNull() {}
 }
 
 class ReceiverDefaultedTypeVarUseChild<E> extends ReceiverDefaultedTypeVarUseParent<E> {
@@ -107,24 +113,32 @@ class ReceiverDefaultedTypeVarUseOuter<O> {
         this.field = field;
     }
 
-    // A default on the overriding method also changes the enclosing type of its receiver.
+    // A default on the overriding method does not change the enclosing type of its receiver, which
+    // stays the type of "this" in the enclosing class, so the override is no narrowing.
     class Inner extends ReceiverDefaultedTypeVarUseParent<String> {
         @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.TYPE_VARIABLE_USE)
         @Override
-        // :: error: (override.receiver.invalid)
         void implicitReceiver() {
+            // :: error: (dereference.of.nullable)
             field.toString();
         }
 
         @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.TYPE_VARIABLE_USE)
         @Override
-        // :: error: (override.receiver.invalid)
         void explicitReceiver(Inner this) {
+            // :: error: (dereference.of.nullable)
             field.toString();
         }
 
         @Override
         void written(ReceiverDefaultedTypeVarUseOuter<O>.Inner this) {}
+
+        // A written annotation on the enclosing type is a narrowing.
+        @Override
+        // :: error: (override.receiver.invalid)
+        void writtenNonNull(ReceiverDefaultedTypeVarUseOuter<@NonNull O>.Inner this) {
+            field.toString();
+        }
     }
 }
 
@@ -137,7 +151,8 @@ class ReceiverDefaultedTypeVarUseBounded<E extends @NonNull Object>
 
 // A default of an inner class is not part of the type of its enclosing instance: through a
 // ReceiverDefaultedTypeVarUseParent<String>, a caller could pass an Inner whose enclosing instance
-// has a null field.
+// has a null field.  The receiver's enclosing type stays the type of "this" in the enclosing class,
+// so the dereference is reported in the body and the override is no narrowing.
 class ReceiverDefaultedTypeVarUseInnerDefault<O> {
     O field;
 
@@ -148,8 +163,8 @@ class ReceiverDefaultedTypeVarUseInnerDefault<O> {
     @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.TYPE_VARIABLE_USE)
     class Inner extends ReceiverDefaultedTypeVarUseParent<String> {
         @Override
-        // :: error: (override.receiver.invalid)
         void implicitReceiver() {
+            // :: error: (dereference.of.nullable)
             field.toString();
         }
     }
@@ -158,8 +173,8 @@ class ReceiverDefaultedTypeVarUseInnerDefault<O> {
     class Mid<M> {
         class Inner<I> {
             @Override
-            // :: error: (override.receiver.invalid)
             public String toString() {
+                // :: error: (dereference.of.nullable)
                 return field.toString();
             }
         }
@@ -169,7 +184,7 @@ class ReceiverDefaultedTypeVarUseInnerDefault<O> {
         ReceiverDefaultedTypeVarUseInnerDefault<@Nullable String> o =
                 new ReceiverDefaultedTypeVarUseInnerDefault<>(null);
         ReceiverDefaultedTypeVarUseParent<String> p = o.new Inner();
-        // Each of these calls throws a NullPointerException.
+        // Each of these calls would throw a NullPointerException if the bodies were accepted.
         p.implicitReceiver();
         Object x = o.new Mid<String>().new Inner<String>();
         x.toString();
@@ -220,8 +235,8 @@ class ReceiverDefaultedTypeVarUseLocal<O> {
         @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.TYPE_VARIABLE_USE)
         class Local extends ReceiverDefaultedTypeVarUseParent<String> {
             @Override
-            // :: error: (override.receiver.invalid)
             void implicitReceiver() {
+                // :: error: (dereference.of.nullable)
                 field.toString();
             }
         }
