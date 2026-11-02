@@ -78,6 +78,8 @@ Type-checking and subtyping improvements:
   `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
   customize, and `BaseTypeVisitor#checkExplicitAnnotationsOnIntersectionBounds`
   to adjust the `explicit.annotation.ignored` warning to match.
+  In a cast to an intersection type, a bound without a written qualifier has the
+  operand's qualifier, so `(Lib & @Tainted Lib2) untainted` is `@Untainted`.
 - Issues `annotation.on.supertype` for a main annotation on a superclass or
   interface in `extends`/`implements` (type-argument annotations remain
   permitted); override `BaseTypeVisitor#checkAnnotationOnSupertype` to allow it.
