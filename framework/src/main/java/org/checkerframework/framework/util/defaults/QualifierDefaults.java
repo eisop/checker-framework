@@ -2263,9 +2263,9 @@ public class QualifierDefaults {
             // defaults in scope at the element that declares the type variable, not with those at
             // this use. Otherwise an UPPER_BOUND (or OTHERWISE) default on a method or inner class
             // would change the bound of an enclosing class's type variable inside that scope only,
-            // and a call with a receiver type argument outside the bound would be accepted
-            // (eisop#2478). A type variable declared in this scope, such as a method's own type
-            // parameter, still gets this scope's defaults.
+            // and a call with a receiver type argument outside the bound would be accepted. A type
+            // variable declared in this scope, such as a method's own type parameter, still gets
+            // this scope's defaults.
             List<Default> useSiteDefaults = outer.fusedDefaults;
             outer.fusedDefaults = boundDefaults(type, useSiteDefaults);
             try {
