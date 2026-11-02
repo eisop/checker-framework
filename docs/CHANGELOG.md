@@ -76,7 +76,8 @@ Type-checking and subtyping improvements:
   (e.g. `<T extends @NonNull Object & @Nullable Serializable>`), the first
   bound's qualifier now wins (homogenization); override
   `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
-  customize.
+  customize, and `BaseTypeVisitor#checkExplicitAnnotationsOnIntersectionBounds`
+  to adjust the `explicit.annotation.ignored` warning to match.
 - Issues `annotation.on.supertype` for a main annotation on a superclass or
   interface in `extends`/`implements` (type-argument annotations remain
   permitted); override `BaseTypeVisitor#checkAnnotationOnSupertype` to allow it.
