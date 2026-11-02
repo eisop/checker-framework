@@ -114,6 +114,10 @@ Type-checking and subtyping improvements:
   returning it as a `T` is an error. It was typed as `T` and accepted. Code with
   such unchecked casts, such as `(T) this` or `(T) map.get(k)`, may need
   additional warning suppressions.
+- The type arguments of a cast's target type, such as `@Nullable String` in
+  `(Box<@Nullable String>) o` for a `Box<T extends @NonNull Object>`, are now
+  checked against their bounds, as those of a variable's type are. They were
+  not checked, so such a cast was accepted.
 
 JSpecify support in the Nullness Checker:
 
