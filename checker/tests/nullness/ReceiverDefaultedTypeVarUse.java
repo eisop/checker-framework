@@ -1,11 +1,13 @@
 // An override whose receiver is the type of "this" is never a narrowing, even when a default puts a
 // qualifier on every use of a type variable, as the JSpecify reference checker does in unmarked
 // code.  The type of "this" is the class applied to its own type parameters, with the class's
+// defaults; its enclosing type is the type of "this" in the enclosing class, with that class's
 // defaults.  These overrides were reported as override.receiver.invalid.
 //
-// A default that only the overriding method is in the scope of is not part of the type of "this",
-// so a receiver that it changes is still a narrowing: through a Parent<@Nullable String>, a caller
-// could pass a receiver whose field is null to a body that assumes it is non-null.
+// A default that only the overriding method, or only an inner class, is in the scope of is not
+// part of the type of "this" in the class that declares the type parameter, so a receiver that it
+// changes is still a narrowing: through a Parent<@Nullable String>, a caller could pass a receiver
+// whose field is null to a body that assumes it is non-null.
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -103,6 +105,7 @@ class ReceiverDefaultedTypeVarUseOuter<O> {
         this.field = field;
     }
 
+    // A default on the overriding method also changes the enclosing type of its receiver.
     class Inner extends ReceiverDefaultedTypeVarUseParent<String> {
         @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.TYPE_VARIABLE_USE)
         @Override
