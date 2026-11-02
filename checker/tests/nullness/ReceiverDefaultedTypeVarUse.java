@@ -173,3 +173,56 @@ class ReceiverDefaultedTypeVarUseInnerDefault<O> {
         x.toString();
     }
 }
+
+// A default of the class is part of the type of "this", but also of its extends clause and its
+// constructors, so no instance of the class can be seen as a
+// ReceiverDefaultedTypeVarUseParent<@Nullable String>, and the override is not a narrowing.  This
+// also holds for F, which the overridden class does not see.
+@DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.TYPE_VARIABLE_USE)
+class ReceiverDefaultedTypeVarUseNonNullClass<
+                E extends @Nullable Object, F extends @Nullable Object>
+        extends ReceiverDefaultedTypeVarUseParent<E> {
+    E field;
+    F other;
+
+    ReceiverDefaultedTypeVarUseNonNullClass(E field, F other) {
+        this.field = field;
+        this.other = other;
+    }
+
+    @Override
+    void implicitReceiver() {
+        field.toString();
+        other.toString();
+    }
+
+    static void use() {
+        ReceiverDefaultedTypeVarUseParent<@Nullable String> p =
+                // :: error: (assignment.type.incompatible)
+                new ReceiverDefaultedTypeVarUseNonNullClass<@Nullable String, @Nullable String>(
+                        "", "");
+        // :: error: (argument.type.incompatible)
+        new ReceiverDefaultedTypeVarUseNonNullClass<@Nullable String, @Nullable String>(null, "");
+    }
+}
+
+// A default of a local class is not part of the type of its enclosing instance either.
+class ReceiverDefaultedTypeVarUseLocal<O> {
+    O field;
+
+    ReceiverDefaultedTypeVarUseLocal(O field) {
+        this.field = field;
+    }
+
+    ReceiverDefaultedTypeVarUseParent<String> make() {
+        @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.TYPE_VARIABLE_USE)
+        class Local extends ReceiverDefaultedTypeVarUseParent<String> {
+            @Override
+            // :: error: (override.receiver.invalid)
+            void implicitReceiver() {
+                field.toString();
+            }
+        }
+        return new Local();
+    }
+}
