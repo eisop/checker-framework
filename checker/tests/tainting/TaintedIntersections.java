@@ -19,7 +19,8 @@ public class TaintedIntersections {
         // null is @Untainted
         @Untainted Object o1 = (@Untainted Object & MyInterface) null;
         @Untainted Object o3 = (Object & @Untainted MyInterface) null;
-        // :: error: (assignment.type.incompatible)
+        // The first bound has no written qualifier, so it gets the operand's, and it wins.
+        // :: warning: (explicit.annotation.ignored)
         @Untainted Object o2 = (Object & @Tainted MyInterface) null;
         // :: error: (assignment.type.incompatible)
         @Untainted Object o4 = (@Tainted Object & MyInterface) null;
@@ -39,7 +40,8 @@ public class TaintedIntersections {
     void test4(@Tainted MyInterface i) {
         // :: warning: (cast.unsafe)
         @Untainted Object o1 = (@Untainted Object & MyInterface) i;
-        // :: warning: (cast.unsafe)
+        // The first bound has no written qualifier, so it gets the operand's, and it wins.
+        // :: error: (assignment.type.incompatible) :: warning: (explicit.annotation.ignored)
         @Untainted Object o3 = (Object & @Untainted MyInterface) i;
         // :: error: (assignment.type.incompatible)
         @Untainted Object o2 = (Object & @Tainted MyInterface) i;

@@ -3,6 +3,7 @@ package org.checkerframework.checker.fenum;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.Tree;
@@ -17,8 +18,6 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.CaseUtils;
 
 import java.util.List;
-
-import javax.lang.model.element.ExecutableElement;
 
 /** The visitor for Fenum Checker. */
 public class FenumVisitor extends BaseTypeVisitor<FenumAnnotatedTypeFactory> {
@@ -76,7 +75,7 @@ public class FenumVisitor extends BaseTypeVisitor<FenumAnnotatedTypeFactory> {
 
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
         // Skip this check
     }
 

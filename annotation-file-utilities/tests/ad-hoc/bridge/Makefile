@@ -1,3 +1,6 @@
+# Both targets write C.jaif, so run them one at a time even under "make -j".
+.NOTPARALLEL:
+
 .PHONY: all
 all: bridge no-bridge
 

@@ -1,13 +1,12 @@
 package org.checkerframework.checker.tainting;
 
+import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-
-import javax.lang.model.element.ExecutableElement;
 
 /** Visitor for the {@link TaintingChecker}. */
 public class TaintingVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
@@ -27,7 +26,7 @@ public class TaintingVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
      */
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {}
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {}
 
     /** The Tainting Checker allows annotations on supertypes. */
     @Override

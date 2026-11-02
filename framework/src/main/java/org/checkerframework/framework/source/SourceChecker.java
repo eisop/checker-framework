@@ -77,6 +77,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -728,6 +729,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected @MonotonicNonNull Map<String, String> activeOptions;
 
     /**
+     * Options supplied by a host that embeds the Checker Framework, which {@link
+     * #getOptionsNoSubcheckers} reads in place of the {@code -A} options of the compilation; see
+     * {@link #setHostOptions}. Null when the Checker Framework runs as an annotation processor.
+     * Subcheckers share their parent's host options.
+     */
+    private @Nullable Map<String, String> hostOptions = null;
+
+    /**
      * Supported options for this checker. This is the set of all possible options that could be
      * passed to this checker. By contrast, {@link #activeOptions} is a map for options that were
      * passed for this run of the checker.
@@ -882,6 +891,25 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     public void setDiagnosticSink(@Nullable DiagnosticSink sink) {
         this.diagnosticSink = sink;
+    }
+
+    /**
+     * Supplies the options of a host that embeds the Checker Framework, which this checker and its
+     * subcheckers then read in place of the {@code -A} options of the compilation. Each entry is an
+     * option as it would be written after {@code -A} (so {@code stubs} or {@code
+     * NullnessChecker_stubs}) mapped to its value, or to {@code null} for an option without a
+     * value; the host's options are read exactly as the {@code -A} options are. Must be called
+     * before {@link #init(ProcessingEnvironment)}, which reads the options.
+     *
+     * @param options the host's options, as unprefixed {@code -A} option names mapped to values
+     */
+    public void setHostOptions(Map<String, String> options) {
+        if (processingEnv != null) {
+            throw new BugInCF(
+                    "setHostOptions must be called before init(ProcessingEnvironment), which"
+                            + " reads the options.");
+        }
+        this.hostOptions = Collections.unmodifiableMap(new LinkedHashMap<>(options));
     }
 
     // Also see initChecker().
@@ -1156,7 +1184,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (processingEnv == null) {
             return Collections.emptyMap();
         }
-        Map<String, String> options = createActiveOptions(processingEnv.getOptions());
+        // A host's options take the place of the -A options, before the checker-name prefixes are
+        // resolved, so that a host option is read exactly as the -A option of the same spelling.
+        Map<String, String> rawOptions =
+                hostOptions != null ? hostOptions : processingEnv.getOptions();
+        Map<String, String> options = createActiveOptions(rawOptions);
         // Before the mode's options are added, so that a deprecated option written on the command
         // line suppresses an "assumeAssertions" that the mode would otherwise add.
         normalizeDeprecatedAssumeAssertionsOptions(options);
@@ -1664,6 +1696,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             // its subcheckers too, since they are run from this checker's typeProcess.  Must
             // precede setProcessingEnvironment, which setExternallyDriven refuses to follow.
             instance.setExternallyDriven(this.isExternallyDriven());
+            // Likewise the host's options: a subchecker reads them as its parent does.
+            instance.hostOptions = this.hostOptions;
             instance.setProcessingEnvironment(this.processingEnv);
             instance.treePathCacher = this.getTreePathCacher();
             // Prevent the new checker from storing non-immediate subcheckers
@@ -1933,6 +1967,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Reports an error. By default, prints it to the screen via the compiler's internal messager.
      *
+     * <p>Prefer a Tree: pass an Element only for a declaration that has none, such as one read from
+     * bytecode. Under a host that collects diagnostics, such as the Error Prone plugin, an Element
+     * declared in the current compilation unit is reported on its declaration; any other Element is
+     * reported directly to javac, bypassing the host's severity and suppression.
+     *
      * @param source the source position information; may be an Element or a Tree. Null means the
      *     error has no source position -- for example, it is issued while the checker is
      *     initializing, before any source file is processed -- and is reported against the
@@ -1947,6 +1986,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Reports a warning. By default, prints it to the screen via the compiler's internal messager.
+     *
+     * <p>Prefer a Tree: pass an Element only for a declaration that has none, such as one read from
+     * bytecode. Under a host that collects diagnostics, such as the Error Prone plugin, an Element
+     * declared in the current compilation unit is reported on its declaration; any other Element is
+     * reported directly to javac, bypassing the host's severity and suppression.
      *
      * @param source the source position information; may be an Element or a Tree. Null means the
      *     warning has no source position -- for example, it is issued while the checker is
@@ -2073,7 +2117,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             // The message has no source position; report it against the compilation as a whole.
             messager.printMessage(kind, messageText);
         } else if (preciseSource instanceof Element) {
-            messager.printMessage(kind, messageText, (Element) preciseSource);
+            Element elt = (Element) preciseSource;
+            // A sink positions findings by tree, so report on the element's declaration if we can.
+            Tree declTree = diagnosticSink == null ? null : declarationInCurrentRoot(elt);
+            if (declTree != null) {
+                printOrStoreMessage(kind, messageText, declTree, currentRoot, fixes);
+            } else {
+                messager.printMessage(kind, messageText, elt);
+            }
         } else if (preciseSource instanceof Tree) {
             printOrStoreMessage(kind, messageText, (Tree) preciseSource, currentRoot, fixes);
         } else {
@@ -2083,6 +2134,31 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                             + ": "
                             + preciseSource);
         }
+    }
+
+    /**
+     * Returns the declaration tree of {@code elt} if it is in the current compilation unit, so that
+     * a finding reported on an element can reach the {@link DiagnosticSink} like one reported on a
+     * tree. A finding sent to javac's {@code Messager} instead bypasses the host: under the Error
+     * Prone plugin it ignores the check's severity and {@code @SuppressWarnings}, and an error
+     * raises javac's error count, after which Error Prone stops analyzing later compilation units.
+     *
+     * <p>Returns null for an element without source (read from bytecode) and for one declared in
+     * another compilation unit: the host positions a finding within the unit it is analyzing, so
+     * such a finding is left to the {@code Messager}, as in standalone mode.
+     *
+     * @param elt the element a finding is reported on
+     * @return the declaration tree of {@code elt} in the current compilation unit, or null
+     */
+    private @Nullable Tree declarationInCurrentRoot(Element elt) {
+        if (currentRoot == null) {
+            return null;
+        }
+        Tree tree = trees.getTree(elt);
+        if (tree == null || pathToTree(tree) == null) {
+            return null;
+        }
+        return tree;
     }
 
     /**
@@ -3712,8 +3788,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return true;
         }
 
-        // The innermost declaration enclosing path.  The @AnnotatedFor scope question is asked
-        // about it once, after the loop.
+        // The innermost declaration enclosing path, which is asked about after the loop.
         Element innermostDecl = null;
 
         // iterate through the path; continue until path contains no declarations
@@ -3748,29 +3823,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
-        // A diagnostic about the @AnnotatedFor/@UnannotatedFor pair itself must not be silenced
-        // by the scope those annotations define: when the @UnannotatedFor wins, the declaration is
-        // outside the scope, and suppressing here would leave the contradiction unreported in
-        // exactly one of its two orders. An explicit @SuppressWarnings, handled above, still
-        // silences it.
-        if (errKey.equals(CONFLICTING_ANNOTATED_FOR_KEY)) {
-            return false;
+        if (innermostDecl == null) {
+            // No declaration encloses path, so it is outside every @AnnotatedFor scope; see the
+            // Element overload for these conditions.
+            return !errKey.equals(CONFLICTING_ANNOTATED_FOR_KEY)
+                    && (useConservativeDefaultsSource
+                            || usePermissiveDefaultsSource
+                            || onlyAnnotatedFor);
         }
-
-        // Fast path: both branches below return false when neither flag is set, so the
-        // @AnnotatedFor scope resolution -- a walk that reads declaration annotations off every
-        // enclosing element -- would be discarded. This method runs for every reported diagnostic.
-        if (!useConservativeDefaultsSource && !usePermissiveDefaultsSource && !onlyAnnotatedFor) {
-            return false;
-        }
-
-        // Ask only about the innermost declaration:
-        // isElementAnnotatedForThisCheckerOrUpstreamChecker already resolves the enclosing scope,
-        // and asking about an enclosing element separately would ignore an @UnannotatedFor that
-        // excludes the innermost declaration from that scope.
-        // The fast path above guarantees a flag is set here, so code outside an @AnnotatedFor scope
-        // has its warning suppressed.
-        return !isElementAnnotatedForThisCheckerOrUpstreamChecker(innermostDecl);
+        // The rest is decided as for the innermost declaration: its @AnnotatedFor scope, and an
+        // override of the Element overload, which thus applies to a diagnostic reported on a tree
+        // as well as to one reported on an element.  The loop above checks the declarations that
+        // lexically enclose path; the Element overload checks the enclosing elements.
+        return shouldSuppressWarnings(innermostDecl, errKey);
     }
 
     /**
@@ -3881,6 +3946,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * -AuseConservativeDefaultsForUncheckedCode=source}, {@code
      * -AusePermissiveDefaultsForUncheckedCode=source}, or {@code -AonlyAnnotatedFor} is in effect.
      *
+     * <p>{@link #shouldSuppressWarnings(TreePath, String)} also calls this method, with the
+     * innermost declaration enclosing the tree, so an override applies to a diagnostic reported on
+     * a tree as well as to one reported on an element.
+     *
      * @param elt the Element that might be a source of, or related to, a warning
      * @param errKey the error key the checker is emitting
      * @return true if no warning should be emitted for the given Element, either because it is
@@ -3909,7 +3978,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return false;
         }
 
-        // Fast path, as in the TreePath overload above.
+        // Fast path: both branches below return false when neither flag is set, so the
+        // @AnnotatedFor scope resolution -- a walk that reads declaration annotations off every
+        // enclosing element -- would be discarded. This method runs for every reported diagnostic.
         if (!useConservativeDefaultsSource && !usePermissiveDefaultsSource && !onlyAnnotatedFor) {
             return false;
         }

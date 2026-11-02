@@ -363,7 +363,10 @@ stub file of a different annotated JDK in its place.
 
 If an annotated JDK has no binary stub file, the Checker Framework text-parses
 it and issues a warning.  Section~\ref{suppresswarnings-command-line} tells how
-to suppress that warning.
+to suppress that warning.  The Checker Framework also text-parses the annotated
+JDK, without a warning, when \<-AparseAllJdk> or \<-AmergeStubsWithSource> is
+supplied.  The binary stub file omits the JDK's private classes, whose
+annotations \<-AmergeStubsWithSource> applies.
 
 
 \sectionAndLabel{Compiling partially-annotated libraries}{compiling-libraries}

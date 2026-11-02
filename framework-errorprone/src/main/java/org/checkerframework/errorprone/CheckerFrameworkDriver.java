@@ -6,9 +6,14 @@ import com.sun.tools.javac.util.Context;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.source.DiagnosticSink;
 import org.checkerframework.framework.source.SourceChecker;
+import org.checkerframework.javacutil.UserError;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.StringJoiner;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.PackageElement;
@@ -68,17 +73,27 @@ public final class CheckerFrameworkDriver {
      *     VisitorState.context})
      * @param checkerClassNames the fully-qualified names of the {@link SourceChecker} subclasses to
      *     run
+     * @param options Checker Framework options supplied by the host, as the option names that would
+     *     follow {@code -A} (e.g. {@code stubs} or {@code NullnessChecker_stubs}) mapped to their
+     *     values. Every checker reads them in place of the compilation's {@code -A} options,
+     *     exactly as it would read those (see {@link SourceChecker#setHostOptions}). Each must be
+     *     supported by at least one selected checker, as javac requires of a {@code -A} option.
      * @param sink an optional destination for findings; if non-null it is installed on every
      *     checker (via {@link SourceChecker#setDiagnosticSink}), so findings go to the host instead
      *     of javac. Pass {@code null} for Checker-Framework-native reporting.
      * @return an initialized driver
-     * @throws IllegalArgumentException if {@code checkerClassNames} is empty, or a name does not
-     *     resolve to an instantiable {@link SourceChecker}
+     * @throws UserError if {@code checkerClassNames} is empty, a name does not resolve to an
+     *     instantiable {@link SourceChecker}, an option is not supported by any selected checker,
+     *     or a {@code -A} option of the compilation is one that a selected checker supports (the
+     *     checkers do not read {@code -A} options, so it would be silently ignored)
      */
     public static CheckerFrameworkDriver create(
-            Context context, List<String> checkerClassNames, @Nullable DiagnosticSink sink) {
+            Context context,
+            List<String> checkerClassNames,
+            Map<String, String> options,
+            @Nullable DiagnosticSink sink) {
         if (checkerClassNames.isEmpty()) {
-            throw new IllegalArgumentException(
+            throw new UserError(
                     "No Checker Framework checkers selected; name at least one SourceChecker"
                             + " subclass.");
         }
@@ -89,6 +104,8 @@ public final class CheckerFrameworkDriver {
             // Externally-driven: Error Prone owns the compilation TaskListener, so the checker must
             // not register its own AttributionTaskListener.  Must be set before init().
             checker.setExternallyDriven(true);
+            // Also before init(), which reads the options.
+            checker.setHostOptions(options);
             checker.init(procEnv);
             // After init(), so that any diagnostic init() itself issues still goes to javac: the
             // host's sink is only usable once the host is processing a class.
@@ -97,7 +114,86 @@ public final class CheckerFrameworkDriver {
             }
             initialized.add(checker);
         }
+        // Report both kinds of mistake together, so that one compilation shows all of them.
+        StringJoiner problems = new StringJoiner(" ");
+        String unsupported = unsupportedOptionsMessage(options, initialized);
+        if (unsupported != null) {
+            problems.add(unsupported);
+        }
+        String dashA = dashAOptionsMessage(procEnv.getOptions(), initialized);
+        if (dashA != null) {
+            problems.add(dashA);
+        }
+        if (problems.length() > 0) {
+            throw new UserError(problems.toString());
+        }
         return new CheckerFrameworkDriver(initialized);
+    }
+
+    /**
+     * Returns an error message if a {@code -A} option of the compilation is one that a selected
+     * checker supports. The checkers read only the host's options (see {@link
+     * SourceChecker#setHostOptions}), and javac does not warn about an unused {@code -A} option
+     * when no annotation processor runs, so without this check a {@code -Astubs=...} written for
+     * standalone mode would be silently ignored. A {@code -A} option that no selected checker
+     * supports is left alone: it may belong to another annotation processor of the compilation.
+     *
+     * @param dashAOptions the {@code -A} options of the compilation, without the {@code -A}
+     * @param checkers the initialized checkers
+     * @return a message naming the flags to pass instead, or null if there is no such option
+     */
+    private static @Nullable String dashAOptionsMessage(
+            Map<String, String> dashAOptions, List<SourceChecker> checkers) {
+        StringJoiner replacements = new StringJoiner(", ");
+        for (Map.Entry<String, String> option : dashAOptions.entrySet()) {
+            String key = option.getKey();
+            for (SourceChecker checker : checkers) {
+                if (checker.getSupportedOptions().contains(key)) {
+                    // javac records an option without a value, "-Afoo", as a null value.
+                    String value = option.getValue();
+                    String suffix = value == null ? "" : "=" + value;
+                    replacements.add("-A" + key + suffix + " as -XepOpt:eisopcf:" + key + suffix);
+                    break;
+                }
+            }
+        }
+        if (replacements.length() == 0) {
+            return null;
+        }
+        return "Under the Error Prone plugin, Checker Framework options are passed as Error Prone"
+                + " flags, not as javac -A options, which are ignored. Pass "
+                + replacements
+                + ".";
+    }
+
+    /**
+     * Returns an error message if a host option is supported by none of the checkers. That is what
+     * javac checks for {@code -A} options (it warns that an option "was not recognized by any
+     * processor"). The host's options reach only these checkers, so an unrecognized one can only be
+     * a mistake, such as a misspelling, and is reported as an error.
+     *
+     * <p>Called after {@link SourceChecker#init}, as javac calls {@link
+     * SourceChecker#getSupportedOptions} after {@code init}: computing the supported options
+     * instantiates the subcheckers, which needs the processing environment.
+     *
+     * @param options the host's options
+     * @param checkers the initialized checkers
+     * @return a message naming the unsupported options, or null if every option is supported
+     */
+    private static @Nullable String unsupportedOptionsMessage(
+            Map<String, String> options, List<SourceChecker> checkers) {
+        Set<String> unsupported = new LinkedHashSet<>(options.keySet());
+        for (SourceChecker checker : checkers) {
+            unsupported.removeAll(checker.getSupportedOptions());
+        }
+        if (unsupported.isEmpty()) {
+            return null;
+        }
+        return "The following Checker Framework options are not recognized by any selected"
+                + " checker: "
+                + unsupported
+                + ". Each must be an option of a selected checker, written as it would be after"
+                + " -A (e.g. stubs or NullnessChecker_stubs).";
     }
 
     /**
@@ -106,13 +202,13 @@ public final class CheckerFrameworkDriver {
      *
      * @param className the fully-qualified class name
      * @return a new instance
-     * @throws IllegalArgumentException if the class cannot be found, is not a {@link
-     *     SourceChecker}, or cannot be instantiated
+     * @throws UserError if the class cannot be found, is not a {@link SourceChecker}, or cannot be
+     *     instantiated
      */
     private static SourceChecker instantiate(String className) {
         Class<?> clazz = loadCheckerClass(className);
         if (!SourceChecker.class.isAssignableFrom(clazz)) {
-            throw new IllegalArgumentException(
+            throw new UserError(
                     className
                             + " is not a "
                             + SourceChecker.class.getName()
@@ -122,9 +218,13 @@ public final class CheckerFrameworkDriver {
             Object instance = clazz.getDeclaredConstructor().newInstance();
             return (SourceChecker) instance;
         } catch (ReflectiveOperationException e) {
-            throw new IllegalArgumentException(
-                    "Could not instantiate checker " + className + " via its no-arg constructor.",
-                    e);
+            UserError error =
+                    new UserError(
+                            "Could not instantiate checker "
+                                    + className
+                                    + " via its no-arg constructor.");
+            error.initCause(e);
+            throw error;
         }
     }
 
@@ -139,7 +239,7 @@ public final class CheckerFrameworkDriver {
      *
      * @param className the fully-qualified checker class name
      * @return the loaded class
-     * @throws IllegalArgumentException if no candidate classloader can resolve the class
+     * @throws UserError if no candidate classloader can resolve the class
      */
     private static Class<?> loadCheckerClass(String className) {
         @Nullable ClassLoader[] candidates = {
@@ -166,12 +266,14 @@ public final class CheckerFrameworkDriver {
                 last = e;
             }
         }
-        throw new IllegalArgumentException(
-                "Checker class not found on the classpath: "
-                        + className
-                        + ". Ensure the module containing the checker (e.g. checker.jar) is on the"
-                        + " Error Prone processorpath (or classpath).",
-                last);
+        UserError error =
+                new UserError(
+                        "Checker class not found on the classpath: "
+                                + className
+                                + ". Ensure the module containing the checker (e.g. checker.jar)"
+                                + " is on the Error Prone processorpath (or classpath).");
+        error.initCause(last);
+        throw error;
     }
 
     /**

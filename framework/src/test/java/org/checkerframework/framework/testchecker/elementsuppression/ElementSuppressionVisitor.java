@@ -8,7 +8,10 @@ import org.checkerframework.javacutil.TreeUtils;
 
 import javax.lang.model.element.Element;
 
-/** Reports a diagnostic on selected class elements to test element-based suppression. */
+/**
+ * Reports a diagnostic on selected class elements, or on their trees, to test element-based
+ * suppression.
+ */
 public class ElementSuppressionVisitor
         extends BaseTypeVisitor<org.checkerframework.common.basetype.BaseAnnotatedTypeFactory> {
 
@@ -28,6 +31,9 @@ public class ElementSuppressionVisitor
             // report a custom error on the Element itself!
             // "type.invalid" is a built-in error key we can misuse for testing.
             checker.reportError(elt, "type.invalid", "mock type", "mock message");
+        } else if (elt != null && elt.getSimpleName().toString().startsWith("ReportTreeOf")) {
+            // The same error, reported on the class's tree.
+            checker.reportError(node, "type.invalid", "mock type", "mock message");
         }
         super.processClassTree(node);
     }

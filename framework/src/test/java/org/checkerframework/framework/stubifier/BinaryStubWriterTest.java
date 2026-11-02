@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
 import java.nio.file.Files;
+import java.util.Collections;
 
 /** Tests for {@link BinaryStubWriter}. */
 public class BinaryStubWriterTest {
@@ -312,13 +313,11 @@ public class BinaryStubWriterTest {
      * A failed serialization must not consume an annotation-pool index.
      *
      * <p>{@code AnnotationPool.addAnnotation} used to record the new index before serializing the
-     * annotation into it. When {@code writeAnnotationInline} then threw -- here on {@code 1 + x},
-     * which {@code evaluateStringLiteralConcatenation} cannot fold -- the index was handed out but
-     * {@code serializedAnnos} never received a corresponding entry. Every later annotation's index
-     * shifted down by one relative to the pool it is written into, so a reader given such a file
-     * would apply the wrong annotation, or none, rather than fail. Both production callers happen
-     * to abort the whole writer on this exception, which is the only reason the desync has never
-     * been observed.
+     * annotation into it. When {@code writeAnnotationInline} then threw -- here on {@code null},
+     * which is not a legal annotation value, so the annotation is dropped -- the index was handed
+     * out but {@code serializedAnnos} never received a corresponding entry. Every later
+     * annotation's index shifted down by one relative to the pool it is written into, so a reader
+     * given such a file would apply the wrong annotation, or none, rather than fail.
      *
      * <p>Here the writer is reused across two {@code process} calls, as {@code JavaStubifier} does
      * across the files of one directory, so the surviving state is observable.
@@ -328,8 +327,8 @@ public class BinaryStubWriterTest {
         BinaryStubWriter writer = new BinaryStubWriter();
 
         CompilationUnit bad =
-                StaticJavaParser.parse("public class Bad { @SuppressWarnings(1 + x) Object f; }");
-        Assert.assertThrows(RuntimeException.class, () -> writer.process(bad));
+                StaticJavaParser.parse("public class Bad { @SuppressWarnings(null) Object f; }");
+        writer.process(bad);
 
         CompilationUnit good =
                 StaticJavaParser.parse("public class Good { @Deprecated Object g; }");
@@ -948,18 +947,13 @@ public class BinaryStubWriterTest {
 
     /**
      * A bare reference to a statically-imported constant (e.g. {@code MAX_VALUE} from {@code import
-     * static java.lang.Integer.MAX_VALUE;}) must be written the same way a qualified reference
-     * ({@code Integer.MAX_VALUE}) is -- the {@code 'e'} tag, qualified with the constant's
-     * declaring class -- not as an unqualified {@code NameLiteralValue}. {@code
-     * BinaryStubReader#findFieldInType}, which resolves an unqualified {@code NameLiteralValue},
-     * only searches the annotation's enclosing class and its supertypes; a constant from an
-     * unrelated class reached only through a static import is invisible to it and would otherwise
-     * be silently dropped, unlike the text parser ({@code
-     * AnnotationFileParser#findVariableElement(NameExpr)}), which resolves it through its {@code
-     * importedConstants} table.
+     * static java.lang.Integer.MAX_VALUE;}) is written as a name together with the classes the
+     * file's static imports can import it from, for the reader to resolve as the text parser does
+     * ({@code AnnotationConstants.findConstant}). Without the classes, the reader could look only
+     * in the enclosing class and would miss a constant of an unrelated class.
      */
     @Test
-    public void staticImportedConstantIsWrittenQualified() throws IOException {
+    public void staticImportedConstantIsWrittenWithItsImportClasses() throws IOException {
         BinaryStubWriter writer = new BinaryStubWriter();
         CompilationUnit cu =
                 StaticJavaParser.parse(
@@ -992,14 +986,10 @@ public class BinaryStubWriterTest {
                     "@IntRange(to = ...) has one element value", 1, ar.elementValues.size());
 
             Object value = ar.elementValues.values().iterator().next();
-            Assert.assertTrue(
-                    "the statically-imported MAX_VALUE must be written as an EnumConstantValue"
-                            + " (the 'e' tag), not a NameLiteralValue (the 'n' tag), but was: "
-                            + value,
-                    value instanceof BinaryStubData.EnumConstantValue);
-            BinaryStubData.EnumConstantValue ev = (BinaryStubData.EnumConstantValue) value;
-            Assert.assertEquals("java.lang.Integer", ev.enumClassName);
-            Assert.assertEquals("MAX_VALUE", ev.constantName);
+            Assert.assertEquals(
+                    new BinaryStubData.NameLiteralValue(
+                            "MAX_VALUE", Collections.singletonList("java.lang.Integer")),
+                    value);
         } finally {
             tmp.delete();
         }
@@ -1112,35 +1102,47 @@ public class BinaryStubWriterTest {
     }
 
     /**
-     * Confirms that evaluateStringLiteralConcatenation properly unwraps EnclosedExpr and evaluates
-     * fallback primitive literals using standard toString() coercion.
+     * A constant expression is written as its tree of operations, for the reader to evaluate as the
+     * text parser does; parentheses are not written. Literals keep their types: {@code 1} is an
+     * {@code int}, {@code 2.5f} a {@code float}.
      */
     @Test
-    public void stringLiteralConcatenationWithPrimitivesAndEnclosedExprIsEvaluated()
-            throws IOException {
-        BinaryStubWriter writer = new BinaryStubWriter();
-        CompilationUnit cu =
-                StaticJavaParser.parse(
+    public void constantExpressionIsWrittenAsATree() throws IOException {
+        BinaryStubData data =
+                roundTrip(
                         "public class ConcatExprTest {\n"
-                                + "  @SuppressWarnings(\"A\" + (\"B\" + \"C\") + 1 + 'D') void m() {}\n"
-                                + "}\n");
-        writer.process(cu);
+                                + "  @SuppressWarnings(\"A\" + (1 + 2.5f)) void m() {}\n"
+                                + "}\n",
+                        false);
+        BinaryStubData.ClassRecord cr = data.classes.get("ConcatExprTest");
+        BinaryStubData.OperationValue concat =
+                (BinaryStubData.OperationValue) soleDeclAnnoValue(data, cr, "m");
+        Assert.assertEquals('b', concat.kind);
+        Assert.assertEquals("+", concat.operator);
+        Assert.assertEquals("A", concat.operands[0]);
+        BinaryStubData.OperationValue sum = (BinaryStubData.OperationValue) concat.operands[1];
+        Assert.assertEquals("+", sum.operator);
+        Assert.assertEquals(1, sum.operands[0]);
+        Assert.assertEquals(2.5f, sum.operands[1]);
+    }
 
-        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
-        tmp.deleteOnExit();
-        try {
-            writer.writeTo(tmp);
-            BinaryStubData data;
-            try (InputStream in = Files.newInputStream(tmp.toPath())) {
-                data = new BinaryStubData(in);
-            }
-
-            BinaryStubData.ClassRecord cr = data.classes.get("ConcatExprTest");
-            Assert.assertNotNull("ConcatExprTest must be recorded", cr);
-            Assert.assertEquals("ABC1D", soleDeclAnnoValue(data, cr, "m"));
-        } finally {
-            tmp.delete();
-        }
+    /**
+     * A string value is written unescaped, as {@code StringLiteralExpr#asString} gives it and as
+     * the text parser reads it: {@code "\\d+\t"} is the four characters backslash, d, plus, tab.
+     */
+    @Test
+    public void stringValueIsUnescaped() throws IOException {
+        BinaryStubData data =
+                roundTrip(
+                        "public class EscapedString {\n"
+                                + "  @SuppressWarnings(\"\\\\d+\\t\") void m() {}\n"
+                                + "  @SuppressWarnings({\"\\\"\"}) void n() {}\n"
+                                + "}\n",
+                        false);
+        BinaryStubData.ClassRecord cr = data.classes.get("EscapedString");
+        Assert.assertEquals("\\d+\t", soleDeclAnnoValue(data, cr, "m"));
+        Assert.assertEquals(
+                java.util.Collections.singletonList("\""), soleDeclAnnoValue(data, cr, "n"));
     }
 
     /**

@@ -23,8 +23,10 @@ import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.BinaryExpr;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
+import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.CharLiteralExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
+import com.github.javaparser.ast.expr.ConditionalExpr;
 import com.github.javaparser.ast.expr.DoubleLiteralExpr;
 import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
@@ -36,9 +38,9 @@ import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
-import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.expr.TextBlockLiteralExpr;
 import com.github.javaparser.ast.expr.UnaryExpr;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
@@ -70,7 +72,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 
@@ -123,9 +124,12 @@ public class BinaryStubWriter {
      *       check of user-supplied {@code -Astubs} files (#1967).
      *   <li>3: markers for plain wildcards {@code ?} ({@link #TYPE_ANNO_UNBOUNDED_WILDCARD}); the
      *       annotations on a wildcard with a bound are written at the path of its other bound.
+     *   <li>4: constant expressions as trees of operations, evaluated by the reader; {@code int}
+     *       and {@code float} literals keep their types; a simple name lists the classes that
+     *       static imports can import it from; string values are unescaped.
      * </ul>
      */
-    public static final short VERSION = 3;
+    public static final short VERSION = 4;
 
     /**
      * Magic number identifying a binary stub <em>bundle</em>: a container of several per-file
@@ -295,7 +299,8 @@ public class BinaryStubWriter {
 
     /**
      * Sentinel returned by {@link AnnotationPool#addAnnotation} for annotations that are not
-     * written to the binary format ({@code @CFComment}). Callers must skip it.
+     * written to the binary format ({@code @CFComment}, and an annotation with an illegal value).
+     * Callers must skip it.
      */
     private static final int IGNORED = -1;
 
@@ -500,7 +505,20 @@ public class BinaryStubWriter {
             // never been observed.
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputStream dos = new DataOutputStream(baos);
-            writer.writeAnnotationInline(dos, qualified, cu);
+            try {
+                writer.writeAnnotationInline(dos, qualified, cu);
+            } catch (RejectedValueException e) {
+                // The text parser drops an annotation with such a value; drop it here too, and
+                // say so, since nothing reports it when the binary form is read.
+                System.err.println(
+                        "BinaryStubWriter: dropping "
+                                + anno
+                                + " in "
+                                + writer.sourceDescription(anno)
+                                + " from the binary stub file, as the text parser does: "
+                                + e.getMessage());
+                return IGNORED;
+            }
             dos.flush();
 
             int newIdx = serializedAnnos.size();
@@ -820,14 +838,12 @@ public class BinaryStubWriter {
     private final Map<String, String> simpleToFqn = new HashMap<>();
 
     /**
-     * Map from the simple name of a statically-imported constant to the fully-qualified name of its
-     * declaring class, e.g. {@code "MAX_VALUE" -> "java.lang.Integer"} for {@code import static
-     * java.lang.Integer.MAX_VALUE;}. Populated only from non-asterisk static imports; an asterisk
-     * static import ({@code import static java.lang.Integer.*;}) does not name the constant's
-     * declaring class up front, so it is left unresolved here the same way an asterisk (non-static)
-     * import is left out of {@link #simpleToFqn}.
+     * The static imports of the compilation unit currently being processed, in order: for {@code
+     * import static C.m;} the pair of {@code C}'s fully-qualified name and {@code m}, for {@code
+     * import static C.*;} the pair of {@code C}'s name and null. See {@link
+     * #staticImportCandidates}.
      */
-    private final Map<String, String> staticImportedConstants = new HashMap<>();
+    private final List<String[]> staticImports = new ArrayList<>();
 
     /**
      * Package names imported via asterisk imports ({@code import java.beans.*;}) in the compilation
@@ -893,6 +909,19 @@ public class BinaryStubWriter {
             }
         }
         return name;
+    }
+
+    /**
+     * Returns the canonical name of the annotation that {@code name} refers to, which is how the
+     * binary format names an annotation: {@code BinaryStubReader} looks it up with {@code
+     * Elements.getTypeElement}, which takes a canonical name, not a binary one.
+     *
+     * @param name the annotation name as written in the source
+     * @return the canonical name, or {@code name} if it cannot be resolved
+     * @see #fullyQualifyAnnotationName
+     */
+    private String canonicalAnnotationName(String name) {
+        return fullyQualifyAnnotationName(name).replace('$', '.');
     }
 
     /**
@@ -1226,22 +1255,35 @@ public class BinaryStubWriter {
     }
 
     /**
-     * Returns a description of {@code node}'s source file for use in error messages, or the node's
-     * compilation unit if no file storage is available (e.g. a compilation unit parsed from a
-     * stream, as {@link BinaryStubFileGenerator} does).
+     * The name of the stub file being written, for diagnostics about a compilation unit that was
+     * parsed from a stream and so has no file storage, as {@link BinaryStubFileGenerator} parses
+     * it; or null if not set.
+     */
+    private @Nullable String sourceName = null;
+
+    /**
+     * Sets the name of the stub file being written, for diagnostics; see {@link #sourceName}.
+     *
+     * @param sourceName the name of the stub file
+     */
+    public void setSourceName(String sourceName) {
+        this.sourceName = sourceName;
+    }
+
+    /**
+     * Returns a description of {@code node}'s source file and line for use in error messages. The
+     * file is the compilation unit's storage if it has any, otherwise {@link #sourceName}.
      *
      * @param node an AST node
      * @return a description of the node's source, for diagnostics
      */
-    private static String sourceDescription(Node node) {
-        Optional<CompilationUnit> cu = node.findCompilationUnit();
-        if (!cu.isPresent()) {
-            return "<unknown source>";
-        }
-        return cu.get()
-                .getStorage()
-                .map(s -> s.getPath().toString())
-                .orElseGet(() -> cu.get().toString());
+    private String sourceDescription(Node node) {
+        String file =
+                node.findCompilationUnit()
+                        .flatMap(CompilationUnit::getStorage)
+                        .map(s -> s.getPath().toString())
+                        .orElse(sourceName != null ? sourceName : "<unknown source>");
+        return node.getBegin().map(position -> file + ":" + position.line).orElse(file);
     }
 
     /**
@@ -1279,27 +1321,26 @@ public class BinaryStubWriter {
 
     /**
      * Initializes the per-file name-resolution tables ({@link #simpleToFqn}, {@link
-     * #asteriskImportPackages}, {@link #staticImportedConstants}) from the imports of the given
-     * compilation unit.
+     * #asteriskImportPackages}, {@link #staticImports}) from the imports of the given compilation
+     * unit.
      *
      * @param cu the compilation unit whose imports to use
      */
     private void initImportTables(CompilationUnit cu) {
         simpleToFqn.clear();
         asteriskImportPackages.clear();
-        staticImportedConstants.clear();
+        staticImports.clear();
         currentUnit = cu;
 
         for (ImportDeclaration imp : cu.getImports()) {
             if (imp.isStatic()) {
-                if (!imp.isAsterisk()) {
-                    String fqn = imp.getNameAsString();
-                    int lastDot = fqn.lastIndexOf('.');
-                    if (lastDot != -1) {
-                        String memberName = fqn.substring(lastDot + 1);
-                        String declaringClass = fqn.substring(0, lastDot);
-                        staticImportedConstants.put(memberName, declaringClass);
-                    }
+                String fqn = imp.getNameAsString();
+                int lastDot = fqn.lastIndexOf('.');
+                if (imp.isAsterisk()) {
+                    staticImports.add(new String[] {fqn, null});
+                } else if (lastDot != -1) {
+                    staticImports.add(
+                            new String[] {fqn.substring(0, lastDot), fqn.substring(lastDot + 1)});
                 }
                 continue;
             }
@@ -1426,19 +1467,19 @@ public class BinaryStubWriter {
 
                     @Override
                     public Visitable visit(MarkerAnnotationExpr n, Void arg) {
-                        n.setName(fullyQualifyAnnotationName(n.getNameAsString()));
+                        n.setName(canonicalAnnotationName(n.getNameAsString()));
                         return super.visit(n, arg);
                     }
 
                     @Override
                     public Visitable visit(NormalAnnotationExpr n, Void arg) {
-                        n.setName(fullyQualifyAnnotationName(n.getNameAsString()));
+                        n.setName(canonicalAnnotationName(n.getNameAsString()));
                         return super.visit(n, arg);
                     }
 
                     @Override
                     public Visitable visit(SingleMemberAnnotationExpr n, Void arg) {
-                        n.setName(fullyQualifyAnnotationName(n.getNameAsString()));
+                        n.setName(canonicalAnnotationName(n.getNameAsString()));
                         return super.visit(n, arg);
                     }
 
@@ -1455,52 +1496,129 @@ public class BinaryStubWriter {
         return copy;
     }
 
-    /** Serializes a single annotation value expression structurally to the stream. */
-    private void writeValue(DataOutputStream out, Expression expr, CompilationUnit cu)
+    /** Where in an annotation an expression being written is; see {@link #writeValue}. */
+    private enum ValuePosition {
+        /** The value of an annotation element. */
+        ELEMENT,
+        /** An element of an array initializer that is the value of an annotation element. */
+        ARRAY_ELEMENT,
+        /** An operand in a constant expression. */
+        OPERAND
+    }
+
+    /**
+     * Thrown by {@link #writeValue} for an expression that is not a legal annotation element value
+     * (JLS 9.7.1), such as {@code null} or a method call. {@code AnnotationFileParser} drops an
+     * annotation with such a value, so {@link AnnotationPool#addAnnotation} drops it too rather
+     * than failing the whole file.
+     */
+    private static class RejectedValueException extends IOException {
+        /** Serialization version, for an exception that is never serialized. */
+        private static final long serialVersionUID = 1L;
+
+        /**
+         * Creates an exception for an illegal annotation value.
+         *
+         * @param message why the value is rejected
+         */
+        RejectedValueException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Serializes an annotation element value structurally to the stream: a literal, a class
+     * literal, a nested annotation, an array initializer, or a constant expression (JLS 15.29). A
+     * constant expression is written as its tree of operations and references to constants, which
+     * {@code BinaryStubReader} evaluates where the stub file is read, exactly as {@code
+     * AnnotationFileParser} evaluates the text, so that a constant of another class has the value
+     * of the class on the classpath of the checker.
+     *
+     * @param out the stream to write to
+     * @param expr the expression to write
+     * @param cu the compilation unit, used to resolve names in the value
+     * @param position where {@code expr} is
+     * @throws RejectedValueException if {@code expr} is not a legal annotation element value
+     * @throws IOException if writing fails
+     */
+    private void writeValue(
+            DataOutputStream out, Expression expr, CompilationUnit cu, ValuePosition position)
             throws IOException {
-        if (expr instanceof EnclosedExpr) {
-            // Redundant parentheses are legal Java in an annotation value (e.g.
-            // "@SuppressWarnings((\"unchecked\"))"); unwrap them rather than falling through to
-            // the "unsupported" case below.
-            writeValue(out, ((EnclosedExpr) expr).getInner(), cu);
-        } else if (expr instanceof BooleanLiteralExpr) {
+        while (expr instanceof EnclosedExpr) {
+            expr = ((EnclosedExpr) expr).getInner();
+        }
+        boolean isElement = position != ValuePosition.OPERAND;
+        if (expr instanceof BooleanLiteralExpr) {
             out.writeByte('Z');
             out.writeBoolean(((BooleanLiteralExpr) expr).getValue());
         } else if (expr instanceof CharLiteralExpr) {
             out.writeByte('C');
             out.writeChar(((CharLiteralExpr) expr).asChar());
-        } else if (expr instanceof IntegerLiteralExpr) {
-            out.writeByte('J');
-            out.writeLong(((IntegerLiteralExpr) expr).asNumber().longValue());
-        } else if (expr instanceof LongLiteralExpr) {
+        } else if (expr instanceof IntegerLiteralExpr && !isMinValueMagnitude(expr)) {
+            out.writeByte('I');
+            out.writeInt(((IntegerLiteralExpr) expr).asNumber().intValue());
+        } else if (expr instanceof LongLiteralExpr && !isMinValueMagnitude(expr)) {
             out.writeByte('J');
             out.writeLong(((LongLiteralExpr) expr).asNumber().longValue());
         } else if (expr instanceof DoubleLiteralExpr) {
-            out.writeByte('D');
-            out.writeDouble(((DoubleLiteralExpr) expr).asDouble());
-        } else if (expr instanceof UnaryExpr) {
-            UnaryExpr ue = (UnaryExpr) expr;
-            if (ue.getOperator() == UnaryExpr.Operator.MINUS) {
-                Expression inner = ue.getExpression();
-                if (inner instanceof IntegerLiteralExpr) {
-                    out.writeByte('J');
-                    out.writeLong(-((IntegerLiteralExpr) inner).asNumber().longValue());
-                } else if (inner instanceof LongLiteralExpr) {
-                    out.writeByte('J');
-                    out.writeLong(-((LongLiteralExpr) inner).asNumber().longValue());
-                } else if (inner instanceof DoubleLiteralExpr) {
-                    out.writeByte('D');
-                    out.writeDouble(-((DoubleLiteralExpr) inner).asDouble());
-                } else {
-                    throw new IOException("Unsupported unary operator expression: " + expr);
-                }
+            DoubleLiteralExpr literal = (DoubleLiteralExpr) expr;
+            String text = literal.getValue();
+            if (text.endsWith("f") || text.endsWith("F")) {
+                out.writeByte('F');
+                out.writeFloat((float) literal.asDouble());
             } else {
-                throw new IOException("Unsupported unary operator: " + ue.getOperator());
+                out.writeByte('D');
+                out.writeDouble(literal.asDouble());
             }
         } else if (expr instanceof StringLiteralExpr) {
+            // asString, not getValue: getValue is the literal as written in the source, with its
+            // escape sequences ("\\d" for the two characters \d).
             out.writeByte('s');
-            out.writeInt(pool.addString(((StringLiteralExpr) expr).getValue()));
-        } else if (expr instanceof ClassExpr) {
+            out.writeInt(pool.addString(((StringLiteralExpr) expr).asString()));
+        } else if (expr instanceof TextBlockLiteralExpr) {
+            out.writeByte('s');
+            out.writeInt(pool.addString(((TextBlockLiteralExpr) expr).asString()));
+        } else if (expr instanceof UnaryExpr) {
+            UnaryExpr unary = (UnaryExpr) expr;
+            Expression operand = unary.getExpression();
+            UnaryExpr.Operator op = unary.getOperator();
+            if (op == UnaryExpr.Operator.MINUS && isMinValueMagnitude(operand)) {
+                // -2147483648 and -9223372036854775808L: the magnitude alone is out of range.
+                if (operand instanceof IntegerLiteralExpr) {
+                    out.writeByte('I');
+                    out.writeInt(Integer.MIN_VALUE);
+                } else {
+                    out.writeByte('J');
+                    out.writeLong(Long.MIN_VALUE);
+                }
+            } else if (op == UnaryExpr.Operator.PLUS
+                    || op == UnaryExpr.Operator.MINUS
+                    || op == UnaryExpr.Operator.BITWISE_COMPLEMENT
+                    || op == UnaryExpr.Operator.LOGICAL_COMPLEMENT) {
+                out.writeByte('u');
+                out.writeInt(pool.addString(op.asString()));
+                writeValue(out, operand, cu, ValuePosition.OPERAND);
+            } else {
+                throw new RejectedValueException("not a constant expression: " + expr);
+            }
+        } else if (expr instanceof BinaryExpr) {
+            BinaryExpr binary = (BinaryExpr) expr;
+            out.writeByte('b');
+            out.writeInt(pool.addString(binary.getOperator().asString()));
+            writeValue(out, binary.getLeft(), cu, ValuePosition.OPERAND);
+            writeValue(out, binary.getRight(), cu, ValuePosition.OPERAND);
+        } else if (expr instanceof ConditionalExpr) {
+            ConditionalExpr conditional = (ConditionalExpr) expr;
+            out.writeByte('?');
+            writeValue(out, conditional.getCondition(), cu, ValuePosition.OPERAND);
+            writeValue(out, conditional.getThenExpr(), cu, ValuePosition.OPERAND);
+            writeValue(out, conditional.getElseExpr(), cu, ValuePosition.OPERAND);
+        } else if (expr instanceof CastExpr) {
+            CastExpr cast = (CastExpr) expr;
+            out.writeByte('x');
+            out.writeInt(pool.addString(cast.getType().asString()));
+            writeValue(out, cast.getExpression(), cu, ValuePosition.OPERAND);
+        } else if (expr instanceof ClassExpr && isElement) {
             out.writeByte('c');
             Type type = ((ClassExpr) expr).getType();
             out.writeInt(pool.addString(fullyQualify(type, cu).toString()));
@@ -1509,75 +1627,71 @@ public class BinaryStubWriter {
             FieldAccessExpr fae = (FieldAccessExpr) expr;
             out.writeInt(pool.addString(fae.getScope().toString()));
             out.writeInt(pool.addString(fae.getNameAsString()));
-        } else if (expr instanceof AnnotationExpr) {
+        } else if (expr instanceof NameExpr) {
+            String name = ((NameExpr) expr).getNameAsString();
+            List<String> candidates = staticImportCandidates(name);
+            out.writeByte('n');
+            out.writeInt(pool.addString(name));
+            writeCount(out, candidates.size(), "static import candidates");
+            for (String candidate : candidates) {
+                out.writeInt(pool.addString(candidate));
+            }
+        } else if (expr instanceof AnnotationExpr && isElement) {
             out.writeByte('@');
             writeAnnotationInline(out, (AnnotationExpr) expr, cu);
-        } else if (expr instanceof ArrayInitializerExpr) {
+        } else if (expr instanceof ArrayInitializerExpr && position == ValuePosition.ELEMENT) {
             out.writeByte('[');
             List<Expression> vals = ((ArrayInitializerExpr) expr).getValues();
             writeCount(out, vals.size(), "annotation array elements");
             for (Expression val : vals) {
-                writeValue(out, val, cu);
+                writeValue(out, val, cu, ValuePosition.ARRAY_ELEMENT);
             }
-        } else if (expr instanceof NameExpr) {
-            String name = ((NameExpr) expr).getNameAsString();
-            String declaringClass = staticImportedConstants.get(name);
-            if (declaringClass != null) {
-                // A bare reference to a statically-imported constant (e.g. "MAX_VALUE" from
-                // "import static java.lang.Integer.MAX_VALUE;"). The reader's 'n'
-                // (NameLiteralValue) tag is resolved only against the enclosing class and its
-                // supertypes (BinaryStubReader#findFieldInType), which never finds a constant
-                // imported from an unrelated class. Emit it the same way a FieldAccessExpr is
-                // emitted instead (the 'e' tag, declaring class FQN + constant name), which
-                // BinaryStubReader#resolveSingleValue resolves via an enum-constant lookup or,
-                // since a static-imported constant is usually a plain field, the findFieldInType
-                // fallback. Mirrors AnnotationFileParser#findVariableElement(NameExpr), which
-                // resolves a bare name the same way via its importedConstants table.
-                out.writeByte('e');
-                out.writeInt(pool.addString(declaringClass));
-                out.writeInt(pool.addString(name));
-            } else {
-                out.writeByte('n');
-                out.writeInt(pool.addString(name));
-            }
-        } else if (expr instanceof BinaryExpr) {
-            String val = evaluateStringLiteralConcatenation(expr);
-            out.writeByte('s');
-            out.writeInt(pool.addString(val));
         } else {
-            throw new IOException(
-                    "Unsupported annotation value class: "
-                            + expr.getClass().getName()
-                            + " for expression: `"
-                            + expr
-                            + "`");
+            // null, a method call, a nested array initializer, ...: not a legal annotation value.
+            throw new RejectedValueException("illegal annotation value: " + expr);
         }
     }
 
     /**
-     * Recursively evaluates an expression that represents string literal concatenation.
+     * Returns true if {@code expr} is the literal 2147483648 or 9223372036854775808L, which can
+     * appear only as the operand of a minus sign. Must match {@code
+     * AnnotationFileParser#isMinValueMagnitude}.
      *
-     * @param expr the expression representing the string literal concatenation
-     * @return the fully concatenated string value
-     * @throws IOException if the expression contains non-literal values that cannot be evaluated
+     * @param expr an expression
+     * @return true if {@code expr} is the magnitude of the smallest {@code int} or {@code long}
      */
-    private String evaluateStringLiteralConcatenation(Expression expr) throws IOException {
-        if (expr instanceof LiteralStringValueExpr) {
-            return ((LiteralStringValueExpr) expr).getValue();
-        } else if (expr instanceof BooleanLiteralExpr) {
-            return String.valueOf(((BooleanLiteralExpr) expr).getValue());
-        } else if (expr instanceof NullLiteralExpr) {
-            return "null";
-        } else if (expr instanceof EnclosedExpr) {
-            return evaluateStringLiteralConcatenation(((EnclosedExpr) expr).getInner());
-        } else if (expr instanceof BinaryExpr) {
-            BinaryExpr be = (BinaryExpr) expr;
-            if (be.getOperator() == BinaryExpr.Operator.PLUS) {
-                return evaluateStringLiteralConcatenation(be.getLeft())
-                        + evaluateStringLiteralConcatenation(be.getRight());
+    private static boolean isMinValueMagnitude(Expression expr) {
+        if (!(expr instanceof IntegerLiteralExpr || expr instanceof LongLiteralExpr)) {
+            return false;
+        }
+        String digits =
+                ((LiteralStringValueExpr) expr).getValue().replace("_", "").replaceAll("[lL]$", "");
+        return digits.equals(
+                expr instanceof IntegerLiteralExpr ? "2147483648" : "9223372036854775808");
+    }
+
+    /**
+     * Returns the classes that this file's static imports can import a static member named {@code
+     * name} from: those of its single-static-imports of {@code name}, then those of its
+     * static-import-on-demand declarations, each in import order. Must match {@code
+     * AnnotationFileParser#staticImportCandidates}.
+     *
+     * @param name a simple name
+     * @return the fully-qualified names of the classes
+     */
+    private List<String> staticImportCandidates(String name) {
+        List<String> result = new ArrayList<>();
+        for (String[] imp : staticImports) {
+            if (name.equals(imp[1])) {
+                result.add(imp[0]);
             }
         }
-        throw new IOException("Cannot evaluate string concatenation for expression: " + expr);
+        for (String[] imp : staticImports) {
+            if (imp[1] == null) {
+                result.add(imp[0]);
+            }
+        }
+        return result;
     }
 
     /**
@@ -1597,13 +1711,17 @@ public class BinaryStubWriter {
         } else if (anno instanceof SingleMemberAnnotationExpr) {
             out.writeShort(1);
             out.writeInt(pool.addString("value"));
-            writeValue(out, ((SingleMemberAnnotationExpr) anno).getMemberValue(), cu);
+            writeValue(
+                    out,
+                    ((SingleMemberAnnotationExpr) anno).getMemberValue(),
+                    cu,
+                    ValuePosition.ELEMENT);
         } else if (anno instanceof NormalAnnotationExpr) {
             List<MemberValuePair> pairs = ((NormalAnnotationExpr) anno).getPairs();
             writeCount(out, pairs.size(), "annotation elements");
             for (MemberValuePair pair : pairs) {
                 out.writeInt(pool.addString(pair.getNameAsString()));
-                writeValue(out, pair.getValue(), cu);
+                writeValue(out, pair.getValue(), cu, ValuePosition.ELEMENT);
             }
         }
     }

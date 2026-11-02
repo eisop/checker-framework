@@ -31,11 +31,12 @@ cd ../jspecify
 
 cd ../jspecify-reference-checker
 
-# Clone JSpecify's own annotated-JDK fork to a directory separate from '../jdk' (which stays as
-# this project's own eisop/jdk clone -- framework:copyAndMinimizeAnnotatedJdkFiles always needs
-# it, even when this composite build is only assembling jspecify-reference-checker). Pass the new
-# directory as jspecifyJdkHome so jspecify-reference-checker's own build looks there instead of
-# its default '../jdk' (requires a matching override in jspecify-reference-checker's build.gradle).
+# Clone JSpecify's own annotated-JDK fork to a directory separate from '../jdk', which stays as
+# this project's own eisop/jdk clone for the assembleForJavac above. Pass the new directory as
+# jspecifyJdkHome so jspecify-reference-checker's own build looks there instead of its default
+# '../jdk' (requires a matching override in jspecify-reference-checker's build.gradle).
 "$SCRIPT_DIR/.git-scripts/git-clone-related" jspecify jdk ../jdk-jspecify
 
-JSPECIFY_CONFORMANCE_TEST_MODE=details ./gradlew build conformanceTests demoTest --console=plain --include-build "$CHECKERFRAMEWORK" --no-configuration-cache -PjspecifyJdkHome="$CHECKERFRAMEWORK/../jdk-jspecify"
+# jspecify-reference-checker builds its own annotated JDK from jspecify/jdk and uses no annotated
+# JDK from the Checker Framework, so -PskipAnnotatedJdk builds the Checker Framework without one.
+JSPECIFY_CONFORMANCE_TEST_MODE=details ./gradlew build conformanceTests demoTest --console=plain --include-build "$CHECKERFRAMEWORK" --no-configuration-cache -PjspecifyJdkHome="$CHECKERFRAMEWORK/../jdk-jspecify" -PskipAnnotatedJdk

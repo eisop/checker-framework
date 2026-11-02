@@ -33,4 +33,19 @@ public class ElementSuppressionTestCase {
         // :: error: (type.invalid)
         class ReportOnMe5 {}
     }
+
+    // Test 5: The checker overrides shouldSuppressWarnings(Element, String) to suppress
+    // everything within SuppressedByOverride*. That override also applies to a diagnostic
+    // reported on a tree, as on the class tree of ReportTreeOfInner.
+    @AnnotatedFor("elementsuppression")
+    class SuppressedByOverrideOuter {
+        class ReportTreeOfInner {}
+    }
+
+    // The same diagnostic on a tree outside the override's scope is reported.
+    @AnnotatedFor("elementsuppression")
+    class NotSuppressedOuter {
+        // :: error: (type.invalid)
+        class ReportTreeOfInner2 {}
+    }
 }

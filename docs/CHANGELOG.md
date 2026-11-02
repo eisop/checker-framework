@@ -76,7 +76,10 @@ Type-checking and subtyping improvements:
   (e.g. `<T extends @NonNull Object & @Nullable Serializable>`), the first
   bound's qualifier now wins (homogenization); override
   `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
-  customize.
+  customize, and `BaseTypeVisitor#checkExplicitAnnotationsOnIntersectionBounds`
+  to adjust the `explicit.annotation.ignored` warning to match.
+  In a cast to an intersection type, a bound without a written qualifier has the
+  operand's qualifier, so `(Lib & @Tainted Lib2) untainted` is `@Untainted`.
 - Issues `annotation.on.supertype` for a main annotation on a superclass or
   interface in `extends`/`implements` (type-argument annotations remain
   permitted); override `BaseTypeVisitor#checkAnnotationOnSupertype` to allow it.
@@ -90,6 +93,10 @@ Type-checking and subtyping improvements:
   qualifiers of the superclass's type arguments from the target type and the
   arguments, as for `new C<>(args)`. They were defaulted, which caused false
   positives and checked the arguments against the defaulted type.
+- Type argument inference resolves a type variable that appears in a `throws`
+  clause to `RuntimeException` only if every upper bound is a supertype of
+  `RuntimeException`, as the JLS and javac do. It did so if any upper bound
+  was, which caused false `type.arguments.not.inferred` errors.
 - CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
   try-with-resources) are now type-checked, with diagnostics pointing at the
   source construct.
@@ -203,6 +210,14 @@ other type: annotations on its type arguments, such as the `@A` of
 `List<@A String>[]`, were ignored, and a `?` there, such as that of
 `Class<?>[]`, now takes the bounds of its type variable as it does elsewhere.
 
+In a stub file, an annotation element value can now be any constant
+expression, as in Java source: parentheses, unary, binary, and conditional
+operators, string concatenation, and casts. A simple name may refer to a
+constant of the enclosing class, as well as to a statically imported one, and
+a qualified name may start with a `java.lang` class such as `Byte`. Nested
+annotations (e.g. in `@EnsuresQualifier.List({...})`) and text blocks are
+supported. Such annotations used to be ignored.
+
 The Nullness Checker and the other checkers built on the Initialization Checker
 no longer fail with "fromClass can't load class ... PolyInitialized" when the
 compilation classpath has a checker-qual artifact without `@PolyInitialized`,
@@ -224,7 +239,13 @@ An override whose receiver narrows the type arguments of the overridden method's
 receiver, such as `Child<@NonNull E> this` overriding `Parent<E> this`, is now
 reported as `override.receiver.invalid`, including a narrowed type argument of an
 enclosing type or of a type parameter that the overridden class does not see.
-Previously only the receiver's primary annotations were compared.
+Previously only the receiver's primary annotations were compared. A receiver that
+is the type of `this`, with the defaults of its class, is never reported, even if
+those defaults annotate every use of a type variable; a receiver that a default
+on the overriding method itself changes is checked like a written annotation. In
+a field initializer or an initializer block, the type of `this` now also has the
+defaults of its class, as in a method, so a call with an implicit receiver there
+is no longer reported as `method.invocation.invalid`.
 
 A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
 keeps the qualifier of the expression instead of taking the type variable's
@@ -267,6 +288,12 @@ typetools' bracket syntax work unchanged.
 `insertOrRefinePermitNondeterministic` and `CFAbstractTransfer#insertIntoStoresPermitNonDeterministic`
 are removed.
 
+`BaseTypeVisitor#checkConstructorResult` takes the constructor's `MethodTree` instead of its
+`ExecutableElement`, so that its diagnostics are reported on the declaration.
+`SourceChecker#shouldSuppressWarnings(TreePath, String)` now also calls the `Element` overload with
+the innermost enclosing declaration, so an override of that overload applies to diagnostics reported
+on trees, too.
+
 `GenericAnnotatedTypeFactory#performFlowAnalysisForClass` is now `final`; a subclass that customizes
 the dataflow analysis overrides the new `performFlowAnalysisForClassImpl` instead. New hooks
 `AnnotatedTypeFactory#canUseCachedFlowDependentType` and `#canCacheFlowDependentType` decide when
@@ -274,6 +301,9 @@ the type of a flow-dependent expression is cached; `AnnotatedTypeFactory#isAnony
 now defaults to true, like them. New `AbstractAnalysis#getCurrentNode()` returns the node whose
 transfer function is running. New `PurityUtils#isPure(AnnotationProvider, ExecutableElement)` is
 true for a method that is both deterministic and side-effect-free.
+New `AnnotatedTypeFactory#shouldStoreInBytecode` decides whether `postProcessClassTree` stores the
+computed qualifiers into the class file; a checker that must never store them overrides it instead
+of `postProcessClassTree`, which keeps running the type information presenter.
 
 `AnalysisResult#runAnalysisFor`, which re-runs the transfer functions of a block to answer a query
 on a finished analysis, now keeps the analysis's `currentInput` at the input of the node being
@@ -318,6 +348,9 @@ Performance optimizations:
   final locals indexed by declaring element; `ValueQualifierHierarchy` caches
   `value()` elements (~18% faster on constant-heavy classes).
 - `TreeUtils.sameTree()` uses a visitor instead of `toString()`.
+- Defaulting finds the declaration of a type parameter without searching the whole compilation
+  unit, which made checking a file quadratic in its number of type parameters (1600 generic
+  methods in one class: 7.1 s, now 3.3 s).
 - New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
   replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
@@ -332,6 +365,8 @@ Performance optimizations:
 - The Index Checker no longer takes quadratic time in the number of statements of a method that
   contains compound assignments, local variable declarations, `if`, or `try` statements: a method
   with 4000 pairs of compound assignments takes about 6 s instead of about a minute.
+- Finding the supertypes of a type with generic enclosing types is no longer exponential in
+  the nesting depth: 32 nested generic inner classes took more than 10 minutes, now 3 s.
 - `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
   by their class instead of missing for each new instance of the same type.
 - The types of method invocations, new class, conditional, and other flow-dependent expressions are

@@ -752,7 +752,7 @@ public class QualifierDefaults {
      *     TypeUseLocation, boolean)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
      *     TypeUseLocation, boolean)}.
      */
-    @Deprecated
+    @Deprecated // 2026-09-25
     public void addUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
@@ -770,7 +770,7 @@ public class QualifierDefaults {
      *     TypeUseLocation)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
      *     TypeUseLocation)}.
      */
-    @Deprecated
+    @Deprecated // 2026-09-25
     public void addUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
         addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
@@ -786,7 +786,7 @@ public class QualifierDefaults {
      *     TypeUseLocation[])} or {@link #addPermissiveUncheckedCodeDefaults(AnnotationMirror,
      *     TypeUseLocation[])}.
      */
-    @Deprecated
+    @Deprecated // 2026-09-25
     public void addUncheckedCodeDefaults(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
         addConservativeUncheckedCodeDefaults(absoluteDefaultAnno, locations);
@@ -948,20 +948,21 @@ public class QualifierDefaults {
      * @param elt the element whose {@code @DefaultQualifier} annotations conflict
      * @param newDefault the default that is discarded because of the conflict
      * @param conflicting the default it conflicts with, which stays in effect
-     * @param isError whether to report an error rather than a warning; true for a declaration in
-     *     source, which the user can edit, and false for one read from bytecode
+     * @param tree the declaration of {@code elt}, for a declaration in source, which the user can
+     *     edit and which gets an error; null for an element read from bytecode, which gets a
+     *     warning
      */
     private void reportConflictingWrittenDefaults(
-            Element elt, Default newDefault, Default conflicting, boolean isError) {
+            Element elt, Default newDefault, Default conflicting, @Nullable Tree tree) {
         DefaultSet alreadyReported =
                 reportedConflictingDefaults.computeIfAbsent(elt, key -> new DefaultSet());
         if (!alreadyReported.add(newDefault)) {
             return;
         }
-        if (isError) {
+        if (tree != null) {
             atypeFactory
                     .getChecker()
-                    .reportError(elt, "conflicting.defaults", elt, newDefault, conflicting);
+                    .reportError(tree, "conflicting.defaults", elt, newDefault, conflicting);
         } else {
             atypeFactory
                     .getChecker()
@@ -974,10 +975,11 @@ public class QualifierDefaults {
      * locations prohibited by the qualifier's {@link TargetLocations} meta-annotation.
      *
      * @param elt a declaration in source
+     * @param tree the declaration of {@code elt}, on which the diagnostics are reported
      */
-    public void checkDefaultQualifiers(Element elt) {
-        checkTargetLocations(elt);
-        checkConflictingDefaults(elt);
+    public void checkDefaultQualifiers(Element elt, Tree tree) {
+        checkTargetLocations(elt, tree);
+        checkConflictingDefaults(elt, tree);
     }
 
     /**
@@ -986,8 +988,9 @@ public class QualifierDefaults {
      * meta-annotation.
      *
      * @param elt an element that may carry @DefaultQualifier annotations
+     * @param tree the declaration of {@code elt}, on which the errors are reported
      */
-    public void checkTargetLocations(Element elt) {
+    public void checkTargetLocations(Element elt, Tree tree) {
         List<AnnotationMirror> dqAnnos = atypeFactory.getDefaultQualifierAnnotations(elt);
         if (dqAnnos.isEmpty()) {
             return;
@@ -1013,7 +1016,7 @@ public class QualifierDefaults {
                 if (!permittedAtLocation(anno, loc)) {
                     atypeFactory
                             .getChecker()
-                            .reportError(elt, "default.qualifier.prohibited.location", anno, loc);
+                            .reportError(tree, "default.qualifier.prohibited.location", anno, loc);
                 }
             }
         }
@@ -1029,8 +1032,9 @@ public class QualifierDefaults {
      * compiled it never runs at all. The winner is decided by source order, as it is there.
      *
      * @param elt a declaration in source
+     * @param tree the declaration of {@code elt}, on which the errors are reported
      */
-    public void checkConflictingDefaults(Element elt) {
+    public void checkConflictingDefaults(Element elt, Tree tree) {
         List<AnnotationMirror> dqAnnos = atypeFactory.getDefaultQualifierAnnotations(elt);
         if (dqAnnos.size() < 2) {
             // A single @DefaultQualifier cannot conflict with itself: its locations are distinct
@@ -1052,7 +1056,7 @@ public class QualifierDefaults {
                 if (conflicting == null) {
                     qualifiers.add(d);
                 } else {
-                    reportConflictingWrittenDefaults(elt, d, conflicting, true);
+                    reportConflictingWrittenDefaults(elt, d, conflicting, tree);
                 }
             }
         }
@@ -1486,7 +1490,7 @@ public class QualifierDefaults {
                     // method happens to run.  An element read from bytecode has no declaration to
                     // visit, so it is reported here instead, and only when asked for.
                     if (warnBytecodeConflicts && !ElementUtils.isElementFromSourceCode(elt)) {
-                        reportConflictingWrittenDefaults(elt, d, conflicting, false);
+                        reportConflictingWrittenDefaults(elt, d, conflicting, null);
                     }
                 }
             }
@@ -2414,8 +2418,7 @@ public class QualifierDefaults {
             return prev;
         }
 
-        TreePath declaredTypeVarEle = atypeFactory.getTreeUtils().getPath(typeParamElem);
-        Tree typeParamDecl = declaredTypeVarEle == null ? null : declaredTypeVarEle.getLeaf();
+        TypeParameterTree typeParamDecl = typeParameterTree(typeParamElem);
 
         final BoundType boundType;
         if (typeParamDecl == null) {
@@ -2432,26 +2435,50 @@ public class QualifierDefaults {
                 boundType = BoundType.TYPEVAR_UPPER;
             }
         } else {
-            if (typeParamDecl instanceof TypeParameterTree) {
-                TypeParameterTree tptree = (TypeParameterTree) typeParamDecl;
-
-                List<? extends Tree> bnds = tptree.getBounds();
-                if (bnds != null && !bnds.isEmpty()) {
-                    boundType = BoundType.TYPEVAR_UPPER;
-                } else {
-                    boundType = BoundType.TYPEVAR_UNBOUNDED;
-                }
+            List<? extends Tree> bnds = typeParamDecl.getBounds();
+            if (bnds != null && !bnds.isEmpty()) {
+                boundType = BoundType.TYPEVAR_UPPER;
             } else {
-                throw new BugInCF(
-                        StringsPlume.joinLines(
-                                "Unexpected tree type for typeVar Element:",
-                                "typeParamElem=" + typeParamElem,
-                                typeParamDecl));
+                boundType = BoundType.TYPEVAR_UNBOUNDED;
             }
         }
 
         elementToBoundType.put(typeParamElem, boundType);
         return boundType;
+    }
+
+    /**
+     * Returns the declaration of a type parameter, or null if its source code is not available.
+     * Looks among the type parameters of its generic class or method rather than searching the
+     * whole compilation unit for it, which made checking a file quadratic in its number of type
+     * parameters.
+     *
+     * @param typeParamElem a type parameter
+     * @return the declaration of {@code typeParamElem}, or null if its source code is not available
+     */
+    private @Nullable TypeParameterTree typeParameterTree(TypeParameterElement typeParamElem) {
+        // declarationFromElement finds nothing without a current compilation unit, and the caller
+        // caches the result, so a source type parameter looked up then would keep the bound type
+        // of one from bytecode.
+        assert atypeFactory.getRoot() != null
+                        || !ElementUtils.isElementFromSourceCode(typeParamElem)
+                : "No compilation unit to look up source type parameter " + typeParamElem;
+        Tree genericDecl = atypeFactory.declarationFromElement(typeParamElem.getGenericElement());
+        List<? extends TypeParameterTree> typeParams;
+        if (genericDecl instanceof MethodTree) {
+            typeParams = ((MethodTree) genericDecl).getTypeParameters();
+        } else if (genericDecl instanceof ClassTree) {
+            typeParams = ((ClassTree) genericDecl).getTypeParameters();
+        } else {
+            return null;
+        }
+        Name name = typeParamElem.getSimpleName();
+        for (TypeParameterTree typeParam : typeParams) {
+            if (typeParam.getName() == name) {
+                return typeParam;
+            }
+        }
+        return null;
     }
 
     /**

@@ -53,7 +53,7 @@ all : $(DIFFS) results
 
 # Display results of all .diff files.
 .PHONY: results
-results: ../bin/VerifyDiffs.class
+results: $(DIFFS) ../bin/VerifyDiffs.class
 	@echo ""
 	@echo "=== RESULTS ==="
 	@echo ""
@@ -70,16 +70,19 @@ compile : $(SRC)
 	$(JAVAC) -g -cp ../../build/classes/java/main -d bin $(SRC)
 
 # Compiles just one test case
-.PRECIOUS : bin/annotator/tests/%.class
-bin/annotator/tests/%.class: %.java
-	mkdir -p bin
-	$(JAVAC) -g -cp "bin$(PATHSEP)../../build/classes/java/main" -d bin -sourcepath . $<
+# Each test compiles into its own directory.  Several tests declare a class of the same name, such
+# as Bla, and with "make -j" they would otherwise write the same class file at the same time.
+.PRECIOUS : bin/%/.compiled
+bin/%/.compiled: %.java
+	mkdir -p bin/$*
+	$(JAVAC) -g -cp "../../build/classes/java/main" -d bin/$* -sourcepath . $<
+	touch $@
 
 # Actually runs the annotator to create the annotated java file.
 .PRECIOUS: %.output
-%.output: %.jaif %.java bin/annotator/tests/%.class ../../build/classes/java/main ../../dist/annotation-file-utilities-all.jar
+%.output: %.jaif %.java bin/%/.compiled ../../build/classes/java/main ../../dist/annotation-file-utilities-all.jar
 	$(JAVA) \
-	-cp "../../dist/annotation-file-utilities-all.jar$(PATHSEP)bin" \
+	-cp "../../dist/annotation-file-utilities-all.jar$(PATHSEP)bin/$*" \
 	org.checkerframework.afu.annotator.Main \
 	${DEBUG} \
 	--abbreviate=false \
