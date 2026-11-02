@@ -33,10 +33,24 @@ Shapes (which machinery each stresses):
                the real 625-file Guava module); this isolates the specific shape (many MUTUALLY
                bounded inference variables resolved via one wildcarded generic call) that a
                size sweep can check for super-linear cost in D.
+  gmeth        R classes x D generic methods  (per-type-parameter declaration lookup)
+  pmeth        R classes x D non-generic methods  (linear calibration for gmeth)
+  inner        generic inner classes nested D deep + R methods using the innermost type
+               (supertypes of enclosing types)
+  tvchain      R methods x D type variables, each bounded by the previous one
+  nestw        R methods using a type with D nested `? extends` wildcards
+  nests        R methods using a type with D nested `? super` wildcards
+  nestcall     R methods x one generic call nested D deep  (type-argument inference)
+  nullchk      R methods x D parameters, each null-checked and dereferenced  (dataflow store)
+
+--jspecify annotates every top-level type @NullMarked, for the JSpecify reference checker or
+-Amode=jspecify; compile with jspecify.jar on the classpath.
 
 Found (June 2026): `cond` is severe super-linear (28 GB at D=160; #602 conditional non-caching);
 `inherit` is quadratic (asSuper depth). `repeat`/`tryfin`/`loops` are linear; `chain`/`switchc`
-only mildly super-linear. See docs/developer/performance-notes.md (Short list size-sweep audit).
+only mildly super-linear. Found (October 2026): `inner` exponential and `gmeth` quadratic (both
+fixed); `tvchain`, `nestw`, `nests` and `nullchk` about quadratic; `nestcall` cubic. See
+docs/developer/performance-notes.md (Short list size-sweep audits).
 
 Usage:
     gen-shapes.py <D> --shape cond [--reps R]   > /tmp/cond_<D>.java
@@ -44,6 +58,7 @@ Usage:
 """
 
 import argparse
+import re
 import sys
 
 PREAMBLE = """\
@@ -270,6 +285,189 @@ def fbound(d: int, r: int) -> str:
     return "\n".join(out) + "\n"
 
 
+def gmeth(d: int, r: int) -> str:
+    """Return r classes that each declare d generic methods.
+
+    Args:
+        d: the number of generic methods per class
+        r: the number of classes
+
+    Returns:
+        the Java source text
+    """
+    out = []
+    for c in range(r):
+        out.append(f"class Big{c} {{")
+        out.extend(f"    <T> T gm_{i}(T x) {{ return x; }}" for i in range(d))
+        out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def pmeth(d: int, r: int) -> str:
+    """Return r classes that each declare d non-generic methods (the calibration for gmeth).
+
+    Args:
+        d: the number of methods per class
+        r: the number of classes
+
+    Returns:
+        the Java source text
+    """
+    out = []
+    for c in range(r):
+        out.append(f"class Big{c} {{")
+        out.extend(f"    Object pm_{i}(Object x) {{ return x; }}" for i in range(d))
+        out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def inner(d: int, r: int) -> str:
+    """Return a chain of d generic inner classes and r methods that use the innermost type.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
+    out = ["class O<T0> {"]
+    out.extend("  " * i + f"class I{i}<T{i}> {{" for i in range(1, d + 1))
+    out.extend("  " * i + "}" for i in range(d, 0, -1))
+    out.append("}")
+    ty = "O<String>" + "".join(f".I{i}<String>" for i in range(1, d + 1))
+    out.extend(["abstract class Big {", f"    abstract void take({ty} x);"])
+    out.extend(f"    void in_{k}({ty} a) {{ {ty} b = a; take(b); }}" for k in range(r))
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def tvchain(d: int, r: int) -> str:
+    """Return r methods that each declare d type variables, each bounded by the previous one.
+
+    Args:
+        d: the number of type variables per method
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
+    tps = ", ".join(["T1"] + [f"T{i} extends T{i - 1}" for i in range(2, d + 1)])
+    out = ["class Big {"]
+    out.extend(f"    <{tps}> T1 tv_{k}(T{d} t) {{ t.toString(); return t; }}" for k in range(r))
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def _nestwild(d: int, r: int, wild: str) -> str:
+    """Return r methods that assign and pass a type with d nested wildcards.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+        wild: the wildcard, "? extends" or "? super"
+
+    Returns:
+        the Java source text
+    """
+    ty = "Object"
+    for _ in range(d):
+        ty = f"Lib<{wild} {ty}>"
+    out = [
+        "interface Lib<T> { T get(); }",
+        "abstract class Big {",
+        f"    abstract void take({ty} x);",
+        f"    abstract {ty} make();",
+    ]
+    out.extend(
+        f"    void nw_{k}({ty} a) {{ {ty} b = a; take(b); b = make(); take(a); }}" for k in range(r)
+    )
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def nestw(d: int, r: int) -> str:
+    """Return r methods that use a type with d nested ``? extends`` wildcards.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
+    return _nestwild(d, r, "? extends")
+
+
+def nests(d: int, r: int) -> str:
+    """Return r methods that use a type with d nested ``? super`` wildcards.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
+    return _nestwild(d, r, "? super")
+
+
+def nestcall(d: int, r: int) -> str:
+    """Return r methods that each contain one generic invocation nested d deep.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
+    expr = "x"
+    for _ in range(d):
+        expr = f"C.id({expr})"
+    out = [PREAMBLE, "class Big {"]
+    out.extend(f"    String nc_{k}(String x) {{ return {expr}; }}" for k in range(r))
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def nullchk(d: int, r: int) -> str:
+    """Return r methods that each null-check and dereference d parameters.
+
+    Args:
+        d: the number of parameters per method
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
+    params = ", ".join(f"Object p{i}" for i in range(d))
+    out = ["class Big {"]
+    for k in range(r):
+        out.append(f"    void nn_{k}({params}) {{")
+        out.extend(f"        if (p{i} != null) {{ p{i}.toString(); }}" for i in range(d))
+        out.append("    }")
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+JSPECIFY_IMPORT = "import org.jspecify.annotations.NullMarked;\n"
+
+
+def null_marked(src: str) -> str:
+    """Return the source with every top-level class and interface annotated @NullMarked.
+
+    Args:
+        src: the Java source text
+
+    Returns:
+        the Java source text, with JSpecify annotations
+    """
+    return JSPECIFY_IMPORT + re.sub(
+        r"(?m)^((?:abstract |final )?(?:class|interface) )", r"@NullMarked\n\1", src
+    )
+
+
 SHAPES = {
     "control": control,
     "cond": cond,
@@ -280,6 +478,14 @@ SHAPES = {
     "tryfin": tryfin,
     "loops": loops,
     "fbound": fbound,
+    "gmeth": gmeth,
+    "pmeth": pmeth,
+    "inner": inner,
+    "tvchain": tvchain,
+    "nestw": nestw,
+    "nests": nests,
+    "nestcall": nestcall,
+    "nullchk": nullchk,
 }
 
 if __name__ == "__main__":
@@ -289,5 +495,11 @@ if __name__ == "__main__":
     p.add_argument("d", type=int, help="per-construct dimension D (depth/length/count)")
     p.add_argument("--shape", choices=sorted(SHAPES), required=True)
     p.add_argument("--reps", type=int, default=60, help="independent constructs per file")
+    p.add_argument(
+        "--jspecify",
+        action="store_true",
+        help="annotate every top-level type @NullMarked (needs jspecify on the classpath)",
+    )
     a = p.parse_args()
-    sys.stdout.write(SHAPES[a.shape](a.d, a.reps))
+    src = SHAPES[a.shape](a.d, a.reps)
+    sys.stdout.write(null_marked(src) if a.jspecify else src)
