@@ -474,8 +474,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * Whether to store into the class file the qualifiers that do not appear in the source code;
      * the result of {@link #shouldStoreInBytecode}.
      */
-    // This field cannot be final because it is set in `postInit()`.
-    private boolean storeInBytecode;
+    private final boolean storeInBytecode;
 
     /** True if -AmergeStubsWithSource was provided on the command line. */
     private final boolean mergeStubsWithSource;
@@ -802,6 +801,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.typeFormatter = createAnnotatedTypeFormatter();
         this.annotationFormatter = createAnnotationFormatter();
         this.typeInformationPresenter = createTypeInformationPresenter();
+        this.storeInBytecode = shouldStoreInBytecode();
 
         // Alias provided via -AaliasedTypeAnnos command-line option.
         // This can only be used for annotations whose attributes have the same names as in the
@@ -1171,7 +1171,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.typeArgumentInference = createTypeArgumentInference();
         this.viewpointAdapter = createViewpointAdapter();
         this.qualifierUpperBounds = createQualifierUpperBounds();
-        this.storeInBytecode = shouldStoreInBytecode();
 
         // TODO: is this the best location for declaring this alias?
         addAliasedDeclAnnotation(
@@ -1724,6 +1723,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * AnnotatedTypeMirror#toString()} and will affect the error messages printed for checkers that
      * use this type factory.
      *
+     * <p>Called from the {@code AnnotatedTypeFactory} constructor, before any subclass constructor
+     * body or field initializer runs, so an override must not depend on subclass state.
+     *
      * @return the {@link AnnotatedTypeFormatter} to pass to all {@link AnnotatedTypeMirror}s
      */
     protected AnnotatedTypeFormatter createAnnotatedTypeFormatter() {
@@ -1746,6 +1748,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Creates the {@link AnnotationFormatter} used by this type factory.
      *
+     * <p>Called from the {@code AnnotatedTypeFactory} constructor, before any subclass constructor
+     * body or field initializer runs, so an override must not depend on subclass state.
+     *
      * @return the {@link AnnotationFormatter} used by this type factory
      */
     protected AnnotationFormatter createAnnotationFormatter() {
@@ -1764,6 +1769,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Creates the {@link TypeInformationPresenter} used in {@link #postProcessClassTree(ClassTree)}
      * to output type information about the current class.
+     *
+     * <p>Called from the {@code AnnotatedTypeFactory} constructor, before any subclass constructor
+     * body or field initializer runs, so an override must not depend on subclass state.
      *
      * @return the {@link TypeInformationPresenter} used by this type factory, or null
      */
@@ -2032,10 +2040,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * Returns whether {@link #postProcessClassTree} stores into the class file the qualifiers that
      * do not appear in the source code (defaulted types and inherited declaration annotations).
      *
-     * <p>Called once, by {@link #postInit}. The default implementation returns true unless {@code
-     * -AstoreInBytecode=false} was supplied. A checker whose computed qualifiers must never reach
-     * bytecode (for example, because they are an implementation detail that no reader of the class
-     * file should depend on) can override this to return false.
+     * <p>The default implementation returns true unless {@code -AstoreInBytecode=false} was
+     * supplied. A checker whose computed qualifiers must never reach bytecode (for example, because
+     * they are an implementation detail that no reader of the class file should depend on) can
+     * override this to return false.
+     *
+     * <p>Called from the {@code AnnotatedTypeFactory} constructor, before any subclass constructor
+     * body or field initializer runs, so an override must not depend on subclass state.
      *
      * @return whether to store computed qualifiers into the class file
      */
