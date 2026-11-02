@@ -1530,6 +1530,34 @@ irreducible framework work (`HashMap`/`IdentityHashMap` lookups, `AnnotatedTypeS
 than tree scans. The sole remaining super-linear shape was `deep-nesting` (typeinference8),
 addressed by PR #1805 below.
 
+### Defaults for type parameters: find the declaration without scanning the compilation unit (October 2026)
+
+`QualifierDefaults.getTypeVarBoundType` decides whether a type parameter has an explicit bound,
+which needs its declaration. It found the declaration with `Trees#getPath(Element)`, which searches
+the whole compilation unit, once for each type parameter. A file with many generic methods
+therefore took time quadratic in its size. Found by the `gmeth` shape of `gen-shapes.py` (D generic
+methods per class) while profiling the JSpecify reference checker; the Nullness Checker has the same
+cost. In a file with five classes of 1600 generic methods each, `getTypeVarBoundType` was 70% of
+the samples, nearly all of it in the search.
+
+The fix looks up the generic class or method with `declarationFromElement`, which uses the
+factory's declaration cache and the visitor path (see the previous section), and finds the type
+parameter among its type parameters by name.
+
+*Measured* (Nullness Checker with `-Amode=jspecify`, `@NullMarked` input, deterministic
+allocation, min of 2 runs):
+
+| generic methods | master | after |
+| --- | --- | --- |
+| 1 class × 200  | 144 MB, 2.1 s | 126 MB, 1.9 s |
+| 1 class × 800  | 484 MB, 3.6 s | 204 MB, 2.5 s |
+| 1 class × 1600 | 1420 MB, 7.1 s | 307 MB, 3.3 s |
+| 5 classes × 1600 | 6.7 GB, 21 s | 1.1 GB, 7 s |
+
+After the fix, the marginal allocation is flat at ~132 KB per method. On Guava (610 files) the wall
+time does not change measurably: like the other entries in this section, it protects large files
+and does not speed up typical code.
+
 ### Java 8 type-argument inference: work budget and fixpoint skip (PR #1805, June 2026)
 
 The `deep-nesting` shape's super-linearity is Java-8 type-argument inference. Incorporating
