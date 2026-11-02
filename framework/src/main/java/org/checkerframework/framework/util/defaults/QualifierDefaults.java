@@ -2457,6 +2457,12 @@ public class QualifierDefaults {
      * @return the declaration of {@code typeParamElem}, or null if its source code is not available
      */
     private @Nullable TypeParameterTree typeParameterTree(TypeParameterElement typeParamElem) {
+        // declarationFromElement finds nothing without a current compilation unit, and the caller
+        // caches the result, so a source type parameter looked up then would keep the bound type
+        // of one from bytecode.
+        assert atypeFactory.getRoot() != null
+                        || !ElementUtils.isElementFromSourceCode(typeParamElem)
+                : "No compilation unit to look up source type parameter " + typeParamElem;
         Tree genericDecl = atypeFactory.declarationFromElement(typeParamElem.getGenericElement());
         List<? extends TypeParameterTree> typeParams;
         if (genericDecl instanceof MethodTree) {
