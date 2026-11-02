@@ -32,3 +32,23 @@ class SelfTypeDefaultInInitializerNonNull<E extends @Nullable Object> {
     int implicit = m();
     int explicit = this.m();
 }
+
+// A default of an inner class is not part of the type of its enclosing instance.
+class SelfTypeDefaultInInitializerOuter<O> {
+    O field;
+
+    SelfTypeDefaultInInitializerOuter(O field) {
+        this.field = field;
+    }
+
+    @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.TYPE_VARIABLE_USE)
+    class Inner {
+        // :: error: (dereference.of.nullable)
+        String s = field.toString();
+    }
+
+    static void use() {
+        // Throws a NullPointerException.
+        new SelfTypeDefaultInInitializerOuter<@Nullable String>(null).new Inner();
+    }
+}
