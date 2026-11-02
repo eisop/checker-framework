@@ -159,9 +159,9 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
 
     /**
      * Infers the type arguments of the method and constructor invocations that enclose {@code
-     * expressionTree}, up to but not including {@code outerTree}, from the outermost one in.
-     * Returns the result of the first one whose inference problem includes {@code expressionTree},
-     * or null if there is none.
+     * expressionTree}, up to but not including {@code outerTree}, from the outermost one in, until
+     * one of them has {@code expressionTree} in its inference problem. Returns the result of that
+     * one, or null if there is none.
      *
      * <p>{@link #outerInference} decides from the declared type of a method whether an argument
      * needs the enclosing invocation to be inferred. The type of the method as a member of the
@@ -175,7 +175,7 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
      * @param expressionTree a method or constructor invocation
      * @param outerTree the outermost invocation whose type arguments were inferred for {@code
      *     expressionTree}, which encloses {@code expressionTree}
-     * @return the result of inferring the innermost enclosing invocation whose problem includes
+     * @return the result of inferring the outermost enclosing invocation whose problem includes
      *     {@code expressionTree}, or null if none does
      */
     @SuppressWarnings("interning:not.interned") // comparing trees for identity
