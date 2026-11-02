@@ -3128,9 +3128,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * parameters, with the annotations that the class's defaults give it. This is the receiver that
      * a method of the class has when neither the method nor a default in its scope says otherwise,
      * and the type of {@code this} in a field initializer or an initializer block. A default that
-     * only a method is in the scope of is not part of it. Its enclosing type is the type of {@code
-     * this} in the enclosing class, without the defaults of {@code classElt}: a default of an inner
-     * class says nothing about its enclosing instance.
+     * only a method is in the scope of is not part of it. Its enclosing type is the type of this in
+     * the enclosing class, without the defaults of {@code classElt}: a default of an inner class
+     * says nothing about its enclosing instance.
      *
      * @param classElt a class
      * @return the type of {@code this} in {@code classElt}

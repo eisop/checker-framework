@@ -1,15 +1,13 @@
 // Only an instance of the overrider's class can run an override.  So an override whose receiver is
 // the type of "this" is not a narrowing, even when a default puts a qualifier on every use of a
-// type
-// variable, as the JSpecify reference checker does in unmarked code: the type of "this" is the
-// class
-// applied to its own type parameters with the class's defaults, and the same defaults apply to the
-// class's extends clause, constructors and fields, so it accepts every instance of the class.  Its
-// enclosing type is the type of "this" in the enclosing class, with that class's defaults.  These
-// overrides were reported as override.receiver.invalid.
+// type variable, as the JSpecify reference checker does in unmarked code: the type of "this" is the
+// class applied to its own type parameters with the class's defaults, and the same defaults apply
+// to the class's extends clause, constructors and fields, so it accepts every instance of the
+// class.  Its enclosing type is the type of "this" in the enclosing class, with that class's
+// defaults.  These overrides were reported as override.receiver.invalid.
 //
-// A default that only the overriding method, or only an inner class, is in the scope of is not
-// part of the type of "this" in the class that declares the type parameter, so a receiver that it
+// A default that only the overriding method, or only an inner class, is in the scope of is not part
+// of the type of "this" in the class that declares the type parameter, so a receiver that it
 // changes is still a narrowing: through a Parent<@Nullable String>, a caller could pass a receiver
 // whose field is null to a body that assumes it is non-null.
 

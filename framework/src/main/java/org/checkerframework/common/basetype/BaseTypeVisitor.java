@@ -5587,22 +5587,21 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * the overridden method's receiver accepts.
          *
          * <p>Each type argument of the overrider's receiver and of its enclosing types is valid if
-         * either
+         * one of these holds:
          *
          * <ol>
-         *   <li>it is the class's own type parameter and equal to the same type argument of the
-         *       type of {@code this} in the class, as in {@code Child<E> this} in {@code class
-         *       Child<E>}; see {@link AnnotatedTypeFactory#getSelfType(TypeElement)}. That type
-         *       accepts every instance of the class, so it cannot narrow the overridden receiver,
-         *       or
-         *   <li>it is equal to the overridden receiver's type argument at every position that pins
-         *       it, and at least one position does.
+         *   <li>It is a type variable that equals the same type argument of the type of this in the
+         *       class that declares it, such as {@code E} in a receiver {@code Child<E> this}. The
+         *       type of this, from {@link AnnotatedTypeFactory#getSelfType(TypeElement)}, accepts
+         *       every instance of the class, so it cannot narrow the overridden receiver.
+         *   <li>It equals the overridden receiver's type argument at every position that pins it,
+         *       and at least one position does.
          * </ol>
          *
-         * A type parameter that nothing pins, such as {@code F} in {@code class Child<E, F> extends
-         * Parent<E>}, is fixed by nothing, so any annotation on it that the type of {@code this}
-         * does not have is a narrowing. Primary annotations are not compared here; {@link
-         * #isReceiverPrimaryOverrideValid} checks them.
+         * A type parameter that nothing pins is fixed by nothing, so any annotation on it that the
+         * type of this does not have is a narrowing. An example is {@code F} in {@code Child<E, F>}
+         * if that class extends {@code Parent<E>}. Primary annotations are not compared here; they
+         * are checked by {@link #isReceiverPrimaryOverrideValid}.
          *
          * @param overriderReceiver the receiver of the overrider
          * @param overriddenReceiver the receiver of the overridden method
