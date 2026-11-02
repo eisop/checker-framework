@@ -129,3 +129,44 @@ class ReceiverDefaultedTypeVarUseBounded<E extends @NonNull Object>
     @Override
     void written(ReceiverDefaultedTypeVarUseBounded<@NonNull E> this) {}
 }
+
+// A default of an inner class is not part of the type of its enclosing instance: through a
+// ReceiverDefaultedTypeVarUseParent<String>, a caller could pass an Inner whose enclosing instance
+// has a null field.
+class ReceiverDefaultedTypeVarUseInnerDefault<O> {
+    O field;
+
+    ReceiverDefaultedTypeVarUseInnerDefault(O field) {
+        this.field = field;
+    }
+
+    @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.TYPE_VARIABLE_USE)
+    class Inner extends ReceiverDefaultedTypeVarUseParent<String> {
+        @Override
+        // :: error: (override.receiver.invalid)
+        void implicitReceiver() {
+            field.toString();
+        }
+    }
+
+    @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.TYPE_VARIABLE_USE)
+    class Mid<M> {
+        class Inner<I> {
+            @Override
+            // :: error: (override.receiver.invalid)
+            public String toString() {
+                return field.toString();
+            }
+        }
+    }
+
+    static void use() {
+        ReceiverDefaultedTypeVarUseInnerDefault<@Nullable String> o =
+                new ReceiverDefaultedTypeVarUseInnerDefault<>(null);
+        ReceiverDefaultedTypeVarUseParent<String> p = o.new Inner();
+        // Each of these calls throws a NullPointerException.
+        p.implicitReceiver();
+        Object x = o.new Mid<String>().new Inner<String>();
+        x.toString();
+    }
+}

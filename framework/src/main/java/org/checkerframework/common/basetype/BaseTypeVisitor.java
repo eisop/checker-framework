@@ -5612,8 +5612,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // The overrider's class viewed as the overridden class, such as Parent<E>.
             AnnotatedDeclaredType seen =
                     AnnotatedTypes.asSuper(atypeFactory, overriderType, overriddenType);
-            // The type of "this" in the overrider's class; computed when first needed.
-            AnnotatedDeclaredType selfType = null;
             boolean isReceiver = true;
             for (AnnotatedDeclaredType type = overriderReceiver;
                     type != null;
@@ -5628,16 +5626,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         isReceiver ? seen : enclosingTypeOf(overriddenReceiver, typeElt);
                 for (int i = 0; i < args.size(); i++) {
                     AnnotatedTypeMirror arg = args.get(i);
-                    if (isTypeVariableFor(arg, params.get(i))) {
-                        if (selfType == null) {
-                            selfType = selfType(overriderReceiver);
-                        }
-                        AnnotatedDeclaredType self =
-                                isReceiver ? selfType : enclosingTypeOf(selfType, typeElt);
-                        if (self != null && isEqualType(arg, self.getTypeArguments().get(i))) {
-                            // The type of "this" accepts every instance of the class.
-                            continue;
-                        }
+                    if (isTypeVariableFor(arg, params.get(i))
+                            && isEqualType(arg, selfType(typeElt).getTypeArguments().get(i))) {
+                        // The type of "this" accepts every instance of the class.
+                        continue;
                     }
                     if (pinning == null) {
                         // Fixed by nothing: the overridden receiver has no counterpart.
@@ -5701,19 +5693,20 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
-         * Returns the type of {@code this} in the class of {@code receiver}: the class applied to
-         * its own type parameters, with the annotations that the class's defaults give it. This is
-         * the receiver that a method of the class has when neither the method nor a default in its
-         * scope says otherwise. A default can annotate every use of a type variable, as the
-         * JSpecify reference checker does in unmarked code, so the type arguments need not be
-         * unannotated; but a default that only the overrider is in the scope of, such as a {@code
-         * DefaultQualifier} on the overrider itself, is not part of the type of {@code this}.
+         * Returns the type of {@code this} in {@code classElt}: the class applied to its own type
+         * parameters, with the annotations that the class's defaults give it. This is the receiver
+         * that a method of the class has when neither the method nor a default in its scope says
+         * otherwise. A default can annotate every use of a type variable, as the JSpecify reference
+         * checker does in unmarked code, so the type arguments need not be unannotated; but a
+         * default that only the overrider is in the scope of, such as a {@code DefaultQualifier} on
+         * the overrider itself, is not part of the type of {@code this}. Nor is a default of an
+         * inner class part of the type of its enclosing instance, which is the type of {@code this}
+         * in the enclosing class.
          *
-         * @param receiver the receiver of a method
-         * @return the type of {@code this} in the class of {@code receiver}
+         * @param classElt a class
+         * @return the type of {@code this} in {@code classElt}
          */
-        private AnnotatedDeclaredType selfType(AnnotatedDeclaredType receiver) {
-            TypeElement classElt = (TypeElement) receiver.getUnderlyingType().asElement();
+        private AnnotatedDeclaredType selfType(TypeElement classElt) {
             // The declared type has the bounds of the type parameters; as a use, its type
             // arguments then take the defaults that the class gives a use of a type variable.
             AnnotatedDeclaredType selfType =
