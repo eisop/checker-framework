@@ -1423,7 +1423,17 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             erased.addAnnotations(this.getAnnotationsField());
             AnnotatedDeclaredType erasedEnclosing = erased.getEnclosingType();
             AnnotatedDeclaredType thisEnclosing = this.getEnclosingType();
-            while (erasedEnclosing != null) {
+            // The enclosing types of this type need not be those of its underlying type: for an
+            // anonymous class `outer.new Inner() {}`, the enclosing type is the type of `outer`
+            // (see AnnotatedTypeFactory#getConstructorReceiverType), but javac's is the class
+            // that lexically encloses the anonymous class. Copy annotations only while both
+            // chains are at the same class.
+            while (erasedEnclosing != null
+                    && thisEnclosing != null
+                    && erasedEnclosing
+                            .getUnderlyingType()
+                            .asElement()
+                            .equals(thisEnclosing.getUnderlyingType().asElement())) {
                 erasedEnclosing.addAnnotations(thisEnclosing.getAnnotationsField());
                 erasedEnclosing = erasedEnclosing.getEnclosingType();
                 thisEnclosing = thisEnclosing.getEnclosingType();
