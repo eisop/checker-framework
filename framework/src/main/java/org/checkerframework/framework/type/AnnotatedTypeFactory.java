@@ -470,6 +470,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private final boolean assumePureGetters;
 
+    /**
+     * True unless {@code -AstoreInBytecode=false} was supplied: whether to store into the class
+     * file the qualifiers that do not appear in the source code. See {@link
+     * #shouldStoreInBytecode}.
+     */
+    private final boolean storeInBytecode;
+
     /** True if -AmergeStubsWithSource was provided on the command line. */
     private final boolean mergeStubsWithSource;
 
@@ -748,6 +755,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.assumeDeterministic =
                 checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
         this.assumePureGetters = checker.hasOption("assumePureGetters");
+        this.storeInBytecode = checker.getBooleanOption("storeInBytecode", true);
 
         this.trees = Trees.instance(processingEnv);
         this.elements = processingEnv.getElementUtils();
@@ -2025,14 +2033,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * do not appear in the source code (defaulted types and inherited declaration annotations).
      *
      * <p>The default implementation returns true unless {@code -AstoreInBytecode=false} was
-     * supplied. A checker whose computed qualifiers must never reach bytecode (for example, because
-     * they are an implementation detail that no reader of the class file should depend on) can
-     * override this to return false.
+     * supplied; the option is read once, when this factory is created. A checker whose computed
+     * qualifiers must never reach bytecode (for example, because they are an implementation detail
+     * that no reader of the class file should depend on) can override this to return false.
      *
      * @return whether to store computed qualifiers into the class file
      */
     protected boolean shouldStoreInBytecode() {
-        return checker.getBooleanOption("storeInBytecode", true);
+        return storeInBytecode;
     }
 
     /**
