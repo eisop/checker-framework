@@ -3558,8 +3558,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             methodType.setReturnType(methodType.getReturnType().getErased());
         }
 
-        if (tree instanceof MethodInvocationTree
-                && TreeUtils.isMethodInvocation(tree, objectGetClass, processingEnv)) {
+        if ((tree instanceof MethodInvocationTree
+                        && TreeUtils.isMethodInvocation(tree, objectGetClass, processingEnv))
+                || (tree instanceof MemberReferenceTree
+                        && ElementUtils.isMethod(methodElt, objectGetClass, processingEnv))) {
             adaptGetClassReturnTypeToReceiver(methodType, receiverType, tree);
         }
 
@@ -3934,18 +3936,31 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *   <li>{@code someInteger.getClass()} has the type {@code Class< ? extends Integer >}
      * </ul>
      *
+     * <p>A method reference such as {@code x::getClass} or {@code Foo::getClass} returns the same
+     * type as an invocation on the reference's receiver.
+     *
      * @param getClassType this must be a type representing a call to Object.getClass otherwise a
      *     runtime exception will be thrown. It is modified by side effect.
      * @param receiverType the receiver type of the method invocation (not the declared receiver
      *     type)
-     * @param tree getClass method invocation tree
+     * @param tree a getClass method invocation or member reference tree
      */
     protected void adaptGetClassReturnTypeToReceiver(
             AnnotatedExecutableType getClassType,
             AnnotatedTypeMirror receiverType,
             ExpressionTree tree) {
-        TypeMirror type = TreeUtils.typeOf(tree);
-        AnnotatedTypeMirror returnType = AnnotatedTypeMirror.createType(type, this, false);
+        AnnotatedDeclaredType declaredReturnType =
+                (AnnotatedDeclaredType) getClassType.getReturnType();
+        AnnotatedWildcardType classWildcardArg =
+                (AnnotatedWildcardType) declaredReturnType.getTypeArguments().get(0);
+        AnnotatedTypeMirror returnType;
+        if (tree instanceof MemberReferenceTree) {
+            returnType =
+                    getClassReturnTypeForMemberReference(
+                            declaredReturnType, classWildcardArg, receiverType);
+        } else {
+            returnType = AnnotatedTypeMirror.createType(TreeUtils.typeOf(tree), this, false);
+        }
 
         if (returnType == null
                 || !(returnType.getKind() == TypeKind.DECLARED)
@@ -3956,11 +3971,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     getClassType, receiverType);
         }
 
-        AnnotatedWildcardType classWildcardArg =
-                (AnnotatedWildcardType)
-                        ((AnnotatedDeclaredType) getClassType.getReturnType())
-                                .getTypeArguments()
-                                .get(0);
         getClassType.setReturnType(returnType);
 
         // Usually, the only locations that will add annotations to the return type are getClass in
@@ -3985,6 +3995,38 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedTypeMirror newTypeArg =
                 ((AnnotatedDeclaredType) getClassType.getReturnType()).getTypeArguments().get(0);
         ((AnnotatedTypeVariable) newTypeArg).getUpperBound().replaceAnnotations(newAnnos);
+    }
+
+    /**
+     * Returns the return type of a member reference to {@code getClass} with a receiver of type
+     * {@code receiverType}: as for an invocation, the capture of {@code Class<? extends
+     * erasure_of_receiver>}. An invocation's type comes from javac, and the tree annotators and
+     * defaults complete its annotations. A member reference's return type is used as computed here,
+     * so it is annotated like the declared {@code Class<?>}, with the erased receiver type as the
+     * upper bound of the wildcard.
+     *
+     * @param declaredReturnType the declared return type of {@code getClass}, {@code Class<?>}
+     * @param classWildcardArg the type argument of {@code declaredReturnType}
+     * @param receiverType the receiver type of the member reference
+     * @return the capture of {@code Class<? extends erasure_of_receiver>}
+     */
+    private AnnotatedTypeMirror getClassReturnTypeForMemberReference(
+            AnnotatedDeclaredType declaredReturnType,
+            AnnotatedWildcardType classWildcardArg,
+            AnnotatedTypeMirror receiverType) {
+        AnnotatedTypeMirror erasedReceiverType = receiverType.getErased();
+        DeclaredType classType =
+                types.getDeclaredType(
+                        (TypeElement) declaredReturnType.getUnderlyingType().asElement(),
+                        types.getWildcardType(erasedReceiverType.getUnderlyingType(), null));
+        AnnotatedDeclaredType result =
+                (AnnotatedDeclaredType) AnnotatedTypeMirror.createType(classType, this, false);
+        result.addAnnotations(declaredReturnType.getAnnotations());
+        AnnotatedWildcardType wildcard = (AnnotatedWildcardType) result.getTypeArguments().get(0);
+        wildcard.addAnnotations(classWildcardArg.getAnnotations());
+        wildcard.setExtendsBound(erasedReceiverType);
+        wildcard.setSuperBound(classWildcardArg.getSuperBound().deepCopy());
+        return applyCaptureConversion(result);
     }
 
     /**

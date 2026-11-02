@@ -576,6 +576,12 @@ Other improvements and bug fixes:
   well as deterministic, that is, `@Pure`. Before, a method that was only
   `@Deterministic` was accepted although it may change the heap, so that two
   evaluations of the lock expression could name different locks.
+- A method reference to `getClass`, such as `x::getClass` or `Foo::getClass`,
+  now returns `Class<? extends Foo>` for a receiver of type `Foo`, as an
+  invocation does, rather than the declared `Class<?>`. Before, assigning one
+  to a `Supplier<Class<? extends Foo>>` was rejected, and passing one to a
+  generic method such as `Stream.map` could fail or crash type-argument
+  inference.
 
 ### Closed issues
 
@@ -722,6 +728,7 @@ eisop#2391,
 eisop#2404,
 eisop#2411,
 eisop#2418,
+eisop#2485,
 typetools#399,
 typetools#602,
 typetools#2816,
