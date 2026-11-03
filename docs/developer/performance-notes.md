@@ -2644,6 +2644,36 @@ three deep. On Guava (610 files) the wall time does not change measurably.
 
 ---
 
+### Results of type argument inference (November 2026)
+
+The visitor inferred the type arguments of each generic call twice: `checkTypeArgumentInference`
+inferred them to report a failure, and `methodFromUse`/`constructorFromUse` then inferred them
+again to substitute them. Other callers, such as the function type of a lambda argument or a method
+reference checked as an override, inferred them once more. Instrumenting
+`DefaultTypeArgumentInference.inferTypeArgs` on KeY's `key.core` (Nullness Checker, about 1600
+files) counted 81,954 outermost inferences outside dataflow analysis for 32,453 distinct trees per
+factory, and the repeated ones took 61% of the time spent in those inferences. Within dataflow
+analysis, 28,888 inferences for 24,201 trees.
+
+`AnnotatedTypeFactory.inferTypeArguments` caches the result per tree and method or constructor
+element when no dataflow analysis is running (both `canCacheFlowDependentType` and
+`canUseCachedFlowDependentType` hold) and no inference problem is being solved. The cache is
+cleared with `fromExpressionTreeCache` when a class analysis starts and when the compilation unit
+changes. Caching during an analysis too, under the rule of `fromExpressionTreeCache` (see "Types of
+flow-dependent expressions after dataflow" above), was wrong: during the analysis a boxed argument
+has the type of its boxing conversion, so the Lock Checker inferred `@NewObject Integer` for `T` in
+`foo(i).toString()` (all-systems `Issue888`), and the visitor then reused it.
+
+A hit returns a deep copy whose type variables are those of the caller's method type
+(`InferenceResult.copyFor`). The element is part of the key because the visitor infers the type
+arguments of an anonymous class created with a diamond from the superclass constructor, while
+`constructorFromUse` uses the anonymous class's constructor.
+
+KeY `key.core`, Nullness Checker, JDK 21, alternating runs: allocation 56.4 GB to 52.2 GB (-7.4%,
+two runs within 0.1%), wall time 125 s to 118 s (two runs). The 3261 errors and 43 warnings are
+identical. The first version, which also cached during dataflow analysis, saved 9.7% of the
+allocation.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a

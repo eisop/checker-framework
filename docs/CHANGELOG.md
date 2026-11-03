@@ -22,6 +22,9 @@ with 4000 fields now type-checks in ~11 seconds instead of ~26. Merging
 dataflow stores after many method calls in such a class is also faster.
 Very long method bodies, and many calls to methods with contracts such as `Map.put`,
 are also faster.
+The result of type argument inference for a generic call is computed once and reused, instead of
+once for the check and again for the call's type: on a large project, 7% less allocation and 6%
+less time.
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale

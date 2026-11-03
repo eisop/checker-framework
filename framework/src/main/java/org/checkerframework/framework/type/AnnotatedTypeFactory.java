@@ -78,6 +78,7 @@ import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.FieldInvariants;
 import org.checkerframework.framework.util.TreePathCacher;
 import org.checkerframework.framework.util.typeinference8.DefaultTypeArgumentInference;
+import org.checkerframework.framework.util.typeinference8.InferenceResult;
 import org.checkerframework.framework.util.typeinference8.TypeArgumentInference;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
 import org.checkerframework.framework.util.visualize.LspTypeInformationPresenter;
@@ -623,6 +624,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     protected IdentityHashMap<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
 
     /**
+     * Mapping from a tree that needs type argument inference to the method or constructor whose
+     * type arguments were inferred and the result of {@link #inferTypeArguments}. It is cleared
+     * with {@link #fromExpressionTreeCache}. Null if {@link #shouldCache} is false.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    protected @Nullable IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>>
+            inferenceResultCache;
+
+    /**
      * Mapping from a member tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
      *
@@ -775,6 +787,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             int cacheSize = getCacheSize();
             this.classAndMethodTreeCache = new IdentityHashMap<>();
             this.fromExpressionTreeCache = new IdentityHashMap<>();
+            this.inferenceResultCache = new IdentityHashMap<>();
             this.fromMemberTreeCache = new IdentityHashMap<>();
             this.fromTypeTreeCache = new IdentityHashMap<>();
             this.elementCache = MapsP.createLruCache(cacheSize);
@@ -787,6 +800,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         } else {
             this.classAndMethodTreeCache = null;
             this.fromExpressionTreeCache = null;
+            this.inferenceResultCache = null;
             this.fromMemberTreeCache = null;
             this.fromTypeTreeCache = null;
             this.elementCache = null;
@@ -1336,6 +1350,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             elementToTreeCache = new IdentityHashMap<>();
             scannedEnclosingTrees = Collections.newSetFromMap(new IdentityHashMap<>());
             fromExpressionTreeCache = new IdentityHashMap<>();
+            inferenceResultCache = new IdentityHashMap<>();
             fromMemberTreeCache = new IdentityHashMap<>();
             fromTypeTreeCache = new IdentityHashMap<>();
             classAndMethodTreeCache = new IdentityHashMap<>();
@@ -1556,6 +1571,42 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     public TypeArgumentInference getTypeArgumentInference() {
         return typeArgumentInference;
+    }
+
+    /**
+     * Infers the type arguments of {@code tree}, a method invocation, constructor invocation, or
+     * member reference, with {@link #getTypeArgumentInference()}. The visitor and the computation
+     * of the type of {@code tree} infer the same type arguments, so a result is cached and reused
+     * when both {@link #canCacheFlowDependentType} and {@link #canUseCachedFlowDependentType} hold
+     * for {@code tree}, which is when no dataflow analysis is running, and no inference problem is
+     * being solved, whose partial results are not cached.
+     *
+     * @param tree a tree that needs type argument inference
+     * @param methodType the type of the method or constructor before type argument substitution
+     * @return the result of type argument inference
+     */
+    public InferenceResult inferTypeArguments(
+            ExpressionTree tree, AnnotatedExecutableType methodType) {
+        // Both conditions hold together only when no dataflow analysis is running. During an
+        // analysis, the types of the arguments can differ from those after it: for example, a
+        // boxed argument has the type of its boxing conversion.
+        boolean useCache =
+                inferenceResultCache != null
+                        && !isInferring()
+                        && canCacheFlowDependentType(tree)
+                        && canUseCachedFlowDependentType(tree);
+        ExecutableElement element = methodType.getElement();
+        if (useCache) {
+            Pair<ExecutableElement, InferenceResult> cached = inferenceResultCache.get(tree);
+            if (cached != null && cached.first.equals(element)) {
+                return cached.second.copyFor(methodType, tree);
+            }
+        }
+        InferenceResult result = typeArgumentInference.inferTypeArgs(this, tree, methodType);
+        if (useCache) {
+            inferenceResultCache.put(tree, Pair.of(element, result.copyFor(methodType, tree)));
+        }
+        return result;
     }
 
     /** The cached value of {@link #getInferenceWorkBudget}; -1 until first computed. */

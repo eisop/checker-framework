@@ -1430,8 +1430,11 @@ public abstract class GenericAnnotatedTypeFactory<
         try {
             if (fromExpressionTreeCache != null) {
                 // The analysis may refine the types of flow-dependent trees that were cached
-                // before it started.
+                // before it started, and the type arguments inferred from them.
                 fromExpressionTreeCache.clear();
+            }
+            if (inferenceResultCache != null) {
+                inferenceResultCache.clear();
             }
             performFlowAnalysisForClassImpl(classTree);
         } finally {
