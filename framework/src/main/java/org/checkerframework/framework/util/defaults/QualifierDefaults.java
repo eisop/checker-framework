@@ -2259,13 +2259,9 @@ public class QualifierDefaults {
             // Always descend into the bounds FIRST so the bound/OTHERWISE defaults apply there
             // before any primary defaults (e.g., LOCAL_VARIABLE) can be smeared onto them.
             //
-            // The bounds belong to the type variable's declaration, so default them with the
-            // defaults in scope at the element that declares the type variable, not with those at
-            // this use. Otherwise an UPPER_BOUND (or OTHERWISE) default on a method or inner class
-            // would change the bound of an enclosing class's type variable inside that scope only,
-            // and a call with a receiver type argument outside the bound would be accepted. A type
-            // variable declared in this scope, such as a method's own type parameter, still gets
-            // this scope's defaults.
+            // The bounds belong to the type variable's declaration, so they get the defaults in
+            // scope there, not at this use: an UPPER_BOUND default on a method must not change the
+            // bound of the class's type variable, which the method's callers do not see.
             List<Default> useSiteDefaults = outer.fusedDefaults;
             outer.fusedDefaults = boundDefaults(type, useSiteDefaults);
             try {

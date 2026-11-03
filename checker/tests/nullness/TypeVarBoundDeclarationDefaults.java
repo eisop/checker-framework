@@ -89,6 +89,24 @@ class TypeVarBoundDeclarationDefaults<E> {
         }
     }
 
+    // A default on a local class does not change the bound of the enclosing method's type
+    // parameter.
+    <T> void localClass(T t) {
+        @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.UPPER_BOUND)
+        class Local {
+            void m(T param) {
+                // :: error: (dereference.of.nullable)
+                param.toString();
+            }
+        }
+    }
+
+    // A TYPE_VARIABLE_USE default still applies to the use itself.
+    @DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.TYPE_VARIABLE_USE)
+    void typeVariableUse(E param) {
+        param.toString();
+    }
+
     // Without a default in scope, the bound is @Nullable Object as always.
     void noDefault(E param) {
         // :: error: (dereference.of.nullable)
