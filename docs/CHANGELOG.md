@@ -76,7 +76,10 @@ Type-checking and subtyping improvements:
   (e.g. `<T extends @NonNull Object & @Nullable Serializable>`), the first
   bound's qualifier now wins (homogenization); override
   `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
-  customize.
+  customize, and `BaseTypeVisitor#checkExplicitAnnotationsOnIntersectionBounds`
+  to adjust the `explicit.annotation.ignored` warning to match.
+  In a cast to an intersection type, a bound without a written qualifier has the
+  operand's qualifier, so `(Lib & @Tainted Lib2) untainted` is `@Untainted`.
 - Issues `annotation.on.supertype` for a main annotation on a superclass or
   interface in `extends`/`implements` (type-argument annotations remain
   permitted); override `BaseTypeVisitor#checkAnnotationOnSupertype` to allow it.
@@ -90,15 +93,6 @@ Type-checking and subtyping improvements:
   qualifiers of the superclass's type arguments from the target type and the
   arguments, as for `new C<>(args)`. They were defaulted, which caused false
   positives and checked the arguments against the defaulted type.
-- Type argument inference resolves a type variable that appears in a `throws`
-  clause to `RuntimeException` only if every upper bound is a supertype of
-  `RuntimeException`, as the JLS and javac do. It did so if any upper bound
-  was, which caused false `type.arguments.not.inferred` errors.
-- Type argument inference keeps the primary annotation of a type parameter bound
-  that is an annotated use of another inference variable, such as
-  `class C<E, T extends @Nullable E>`, when that variable is instantiated.
-  `new C<>(arg)` with a nullable `T` reported a false
-  `type.arguments.not.inferred`, because the bound became `T <: E`.
 - CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
   try-with-resources) are now type-checked, with diagnostics pointing at the
   source construct.
@@ -241,7 +235,13 @@ An override whose receiver narrows the type arguments of the overridden method's
 receiver, such as `Child<@NonNull E> this` overriding `Parent<E> this`, is now
 reported as `override.receiver.invalid`, including a narrowed type argument of an
 enclosing type or of a type parameter that the overridden class does not see.
-Previously only the receiver's primary annotations were compared.
+Previously only the receiver's primary annotations were compared. A receiver that
+is the type of `this`, with the defaults of its class, is never reported, even if
+those defaults annotate every use of a type variable; a receiver that a default
+on the overriding method itself changes is checked like a written annotation. In
+a field initializer or an initializer block, the type of `this` now also has the
+defaults of its class, as in a method, so a call with an implicit receiver there
+is no longer reported as `method.invocation.invalid`.
 
 A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
 keeps the qualifier of the expression instead of taking the type variable's
@@ -297,6 +297,9 @@ the type of a flow-dependent expression is cached; `AnnotatedTypeFactory#isAnony
 now defaults to true, like them. New `AbstractAnalysis#getCurrentNode()` returns the node whose
 transfer function is running. New `PurityUtils#isPure(AnnotationProvider, ExecutableElement)` is
 true for a method that is both deterministic and side-effect-free.
+New `AnnotatedTypeFactory#shouldStoreInBytecode` decides whether `postProcessClassTree` stores the
+computed qualifiers into the class file; a checker that must never store them overrides it instead
+of `postProcessClassTree`, which keeps running the type information presenter.
 
 `AnalysisResult#runAnalysisFor`, which re-runs the transfer functions of a block to answer a query
 on a finished analysis, now keeps the analysis's `currentInput` at the input of the node being
@@ -341,6 +344,9 @@ Performance optimizations:
   final locals indexed by declaring element; `ValueQualifierHierarchy` caches
   `value()` elements (~18% faster on constant-heavy classes).
 - `TreeUtils.sameTree()` uses a visitor instead of `toString()`.
+- Defaulting finds the declaration of a type parameter without searching the whole compilation
+  unit, which made checking a file quadratic in its number of type parameters (1600 generic
+  methods in one class: 7.1 s, now 3.3 s).
 - New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
   replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
@@ -355,6 +361,8 @@ Performance optimizations:
 - The Index Checker no longer takes quadratic time in the number of statements of a method that
   contains compound assignments, local variable declarations, `if`, or `try` statements: a method
   with 4000 pairs of compound assignments takes about 6 s instead of about a minute.
+- Finding the supertypes of a type with generic enclosing types is no longer exponential in
+  the nesting depth: 32 nested generic inner classes took more than 10 minutes, now 3 s.
 - `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
   by their class instead of missing for each new instance of the same type.
 - The types of method invocations, new class, conditional, and other flow-dependent expressions are
@@ -422,51 +430,60 @@ Other improvements and bug fixes:
 - Extracted overridable hooks: `checkCapturedWildcardBounds`,
   `shouldCheckTypeArgument`, `reportTypeArgumentInferenceFailure`,
   `areCollapsedWildcardBoundsEqual`, `shouldStripInvalidLocationQualifiers`.
-- Type argument inference: no longer adds upper bound as extra lower bound
-  (JLS 18.2.3); instantiates to requalified copies; displays captured type
-  variables directly.
-- Type argument inference crash fixes: `? super`/`? extends` interactions,
-  lambda-returned generic calls, implicitly typed lambdas, inexact method
-  references, F-bounded wildcards, diamonds in anonymous subclasses of inner
-  classes with an explicit enclosing instance (`outer.new Inner<>() {}`).
+- Type argument inference:
+  - No longer adds an upper bound as an extra lower bound (JLS 18.2.3),
+    instantiates to requalified copies, and displays captured type variables
+    directly. Resolves polymorphic qualifiers in nested generic invocations and
+    method references, and an inference variable after the capture variables in
+    its bounds (JLS 18.4).
+  - No longer reports a false `type.arguments.not.inferred` when a type variable
+    in a `throws` clause has an upper bound that `RuntimeException` does not
+    satisfy (it was resolved to `RuntimeException` if any bound allowed it), or
+    when a type parameter's bound is an annotated use of another one, such as
+    `T extends @Nullable E` (the annotation was dropped).
+  - No longer crashes on:
+    - `? super`/`? extends` interactions, F-bounded wildcards, and a nested
+      `? extends` wildcard that mentions the inferred type variable, as for a
+      lambda passed as `Supplier<? extends List<? extends T>>`;
+    - implicitly typed lambdas, an explicitly typed lambda passed as a
+      wildcard-parameterized functional interface (`m("x", (Object o) -> "y")`
+      for `Function<? super T, String>`), nested lambdas whose functional
+      interface throws a type variable, a lambda or method reference whose
+      functional interface's `throws E` is instantiated with a class, an
+      `Error` thrown in a lambda body, and a `return` in a method of a class
+      declared in a lambda body;
+    - a generic call, lambda, or generic method reference (`C::glist`,
+      `ArrayList::new`) returned by a lambda whose target is a raw functional
+      interface type, as in `Supplier s = () -> never();`;
+    - inexact method references, and chained calls such as
+      `s.map(P::type).map(Class::getName)` where `type()` returns
+      `Class<? extends T>`;
+    - a generic call that takes a lambda or method reference in the body of a
+      lambda passed to a generic method, as in `each(in, l -> each(l, Box::get))`;
+    - a generic call nested in an argument of a method without type variables,
+      such as a method of a raw receiver: `q.reduce(id(s))`,
+      `b.put(k, unmod(newTreeSet()))`;
+    - nested calls to methods with an F-bounded intersection type parameter,
+      such as `<T extends Temporal & Comparable<? super T>>`;
+    - a method returning an inner class type of a generic class, as in
+      `consume(make(x))` where `make` returns `Outer<T>.Inner`;
+    - a type variable whose bound mentions another one, such as `B` in
+      `<T, B extends Box<T>> B box()`, inferred from the assignment target;
+    - a diamond in an anonymous subclass of an inner class with an explicit
+      enclosing instance (`outer.new Inner<>() {}`).
 - No longer crashes on a qualified anonymous subclass of an inner class with a
   varargs constructor (`outer.new Inner("a", "b") {}`).
+- No longer crashes with a `NullPointerException` in
+  `AnnotatedDeclaredType#getErased` on an anonymous subclass of an inner class
+  created with an explicit enclosing instance, such as `outer.new Inner<>(x) {}`
+  in a method of another inner class. `getErased` now copies the annotations of
+  an enclosing type only to the matching enclosing type of the erasure.
 - When a checker fails to initialize, for example with an `OutOfMemoryError`, it reports
   that failure instead of crashing with a `NullPointerException` in
   `SourceChecker.visitDeclaration`, which happened when the JVM also spent much of its
   time in garbage collection.
 - Error messages about the constructor of an anonymous class name its supertype,
   instead of printing an empty class name.
-- Type argument inference treats an `Error` thrown in a lambda body as an
-  unchecked exception, instead of crashing.
-- Type argument inference no longer treats a `return` in a method of a local or
-  anonymous class declared in a lambda body as a result of the lambda, which
-  crashed inference.
-- Type argument inference no longer crashes on nested lambdas whose functional
-  interface throws a type variable.
-- Type argument inference resolves polymorphic qualifiers in nested generic
-  invocations and method references.
-- Type argument inference resolves an inference variable after the capture
-  variables mentioned in its bounds (JLS 18.4); this fixes a crash on chained
-  calls such as `s.map(P::type).map(Class::getName)` where `type()` returns
-  `Class<? extends T>`.
-- Type argument inference no longer crashes on an explicitly typed lambda
-  passed to a parameter of a wildcard-parameterized functional interface type,
-  such as `m("x", (Object o) -> "y")` for a parameter
-  `Function<? super T, String>`.
-- Type argument inference no longer crashes on a generic method call returned
-  by a lambda whose target is a raw functional interface type, such as
-  `Supplier s = () -> never();` or `(Supplier) () -> never()`.
-- Type argument inference no longer crashes on a lambda returned by a lambda
-  whose target is a raw type, such as `() -> () -> never()`.
-- Type argument inference accounts for the type arguments of the enclosing
-  type of an inner class type, such as `T` in `Outer<T>.Inner`; it used to
-  crash on `consume(make(x))` where `make` returns `Outer<T>.Inner`.
-- Type argument inference no longer crashes on a nested `? extends` wildcard
-  that mentions the inferred type variable, such as a lambda passed as
-  `Supplier<? extends List<? extends T>>`.
-- Type argument inference no longer crashes on nested calls to methods with an
-  F-bounded intersection type parameter, such as `<T extends Temporal & Comparable<? super T>>`.
 - Viewpoint adaptation no longer crashes on a field initializer whose type
   mentions a class type variable, such as `T[] b = make(a);`.
 - Viewpoint adaptation no longer crashes on raw F-bounded classes; new
@@ -520,9 +537,6 @@ Other improvements and bug fixes:
 - No longer crashes on a type annotation on an array creation whose element
   type has a wildcard type argument, such as `new @NonNull List<?>[0]`, inside a
   method that has a parameter.
-- Type argument inference no longer crashes on a lambda or method reference whose
-  functional interface declares `throws E` and whose target type instantiates `E`
-  with a class, such as a `ThrowingSupplier<Exception>` parameter.
 - No longer crashes at start-up on a JDK 9 to 12 build whose `javac` lacks
   `TypeVar.setUpperBound`: the upper bound of a type variable is set through
   the method when it exists and through the `bound` field otherwise, instead
@@ -541,20 +555,6 @@ Other improvements and bug fixes:
   annotation processor path than `checker.jar`, as Error Prone's configuration
   can arrange, is now reported once, with the jar it was loaded from, instead
   of every compilation unit failing with a `NoSuchFieldError`.
-- Type argument inference no longer crashes with "the return value of
-  `AbstractType.asSuper(...)` is null" when a wildcard whose bound is an
-  inference variable is captured, as for a lambda passed as
-  `Supplier<? extends List<? extends T>>`, or when a generic call that takes a
-  method reference or a lambda is the body of a lambda passed to a generic
-  method, as in `each(in, l -> each(l, Box::get))`, or an argument whose formal
-  parameter type is proper. A generic call passed to a generic method of a raw
-  type, as in `q.reduce(id(s))` for a raw `q`, no longer crashes either.
-- No longer crashes on a generic method reference, such as `C::glist` or
-  `ArrayList::new`, returned by a lambda whose target is a raw functional
-  interface type.
-- No longer crashes inferring a type variable whose bound mentions another
-  type variable, such as `B` in `<T, B extends Box<T>> B box()`, from the
-  assignment target.
 - A refined method call, or a fact about a call from a contract such as
   `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
   method with side effects, whatever the receiver and arguments of the call are.
@@ -712,6 +712,7 @@ eisop#2391,
 eisop#2404,
 eisop#2411,
 eisop#2418,
+eisop#2461,
 typetools#399,
 typetools#602,
 typetools#2816,

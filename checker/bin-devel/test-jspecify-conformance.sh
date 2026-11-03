@@ -41,21 +41,10 @@ cd ../jspecify
 ./gradlew --console=plain --warning-mode=all --init-script /tmp/publish-helper.gradle :conformance-tests:publishToMavenLocal
 
 cd ../jspecify-reference-checker
-cat > conformance-test-framework/settings.gradle << 'SETTINGS'
-rootProject.name = 'conformance-test-framework'
-dependencyResolutionManagement {
-  versionCatalogs {
-    libs {
-      library('guava', 'com.google.guava:guava:33.6.0-jre')
-      library('jspecify', 'org.jspecify:jspecify:1.0.0')
-      library('truth', 'com.google.truth:truth:1.4.5')
-      library('junit', 'junit:junit:4.13.2')
-    }
-  }
-}
-SETTINGS
-./gradlew --project-dir conformance-test-framework \
-  --console=plain --warning-mode=all --init-script /tmp/publish-helper.gradle publishToMavenLocal
+# Publish the subproject from the reference checker's root build, so that it uses the versions in
+# the reference checker's version catalog rather than a copy of them here.
+./gradlew --console=plain --warning-mode=all --init-script /tmp/publish-helper.gradle \
+  :conformance-test-framework:publishToMavenLocal
 
 cd ../jspecify-conformance
 # -PcfVersion makes the project resolve io.github.eisop artifacts at this checkout's version;
