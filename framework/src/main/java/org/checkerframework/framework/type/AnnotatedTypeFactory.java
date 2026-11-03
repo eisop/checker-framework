@@ -7063,25 +7063,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns {@code capturedTypeMirror} with a fresh captured type variable in place of every type
-     * argument for which javac's capture conversion did not create one although the type argument
-     * of {@code uncapturedType} is a super-bounded wildcard whose annotated bounds differ.
+     * Returns {@code capturedTypeMirror} with a fresh captured type variable for each super-bounded
+     * wildcard of {@code uncapturedType} that javac's capture conversion collapsed to a declared
+     * type, if the wildcard's annotated bounds differ.
      *
-     * <p>Per JLS 5.1.10, the capture of {@code ? super B} is a fresh type variable with lower bound
-     * {@code B} and the type parameter's upper bound. If the two bounds are the same Java type,
-     * javac uses that type as the type argument instead of creating the type variable (see
-     * https://bugs.openjdk.org/browse/JDK-8054309). For {@code Lib<T extends @Nullable Object>},
-     * the capture of {@code Lib<? super @NonNull Object>} is then {@code Lib<Object>}, whose single
-     * type argument cannot carry both the {@code @Nullable} upper bound and the {@code @NonNull}
-     * lower bound. Without this method, {@link #applyCaptureConversion} uses the super bound's
-     * annotations, so {@code Lib<? super @NonNull Object>} is a subtype of {@code Lib<?
-     * extends @NonNull Object>} and members read from it are {@code @NonNull}, both of which are
-     * unsound. This method reconstructs the type variable that javac did not create, with the
-     * wildcard's annotated bounds; {@link #annotateCapturedTypeVar} then annotates it like any
-     * other captured type variable.
-     *
-     * <p>If the primary annotations of the two bounds are the same, the collapsed type argument
-     * carries the same information as the type variable would, so it is kept.
+     * <p>javac captures {@code ? super B} to {@code B} itself when the type variable it would
+     * create has {@code B} as both bounds (JDK-8054309). That type argument cannot carry the
+     * annotations of both bounds: for {@code Lib<T extends @Nullable Object>}, {@code Lib<?
+     * super @NonNull Object>} would read as {@code @NonNull} and be a subtype of {@code Lib<?
+     * extends @NonNull Object>}. {@link #annotateCapturedTypeVar} annotates the type variable
+     * created here like any other. A wildcard that collapsed to a type variable is kept; see {@code
+     * BaseTypeValidator#checkExplicitSuperBoundWildcards}.
      *
      * @param uncapturedType a declared type with a wildcard type argument
      * @param capturedTypeMirror the result of javac's capture conversion of the underlying type of
