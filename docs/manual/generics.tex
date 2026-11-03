@@ -254,7 +254,9 @@ In \code{MyClass2<@Interned String>},
 
 
 Defaulting never affects a use of a type variable, even if the type
-variable use has no explicit annotation.  Defaulting helps to choose a
+variable use has no explicit annotation, unless a type system or a
+\<@DefaultQualifier> gives a default for the location
+\code{TypeUseLocation.TYPE\_VARIABLE\_USE}.  Defaulting helps to choose a
 single type qualifier for a concrete Java class or interface.  By contrast,
 a type variable use represents a set of possible types.
 
@@ -262,6 +264,66 @@ Similarly, an unannotated cast to a type variable does not change the
 qualifier of its operand, because Java checks the cast only against the
 erasure of the type variable.  For example, if \code{o} has type
 \code{@Nullable Object}, then \code{(T) o} has type \code{@Nullable T}.
+
+
+\subsectionAndLabel{Receivers of generic classes}{generics-receiver}
+
+In a generic class, the type of a method's receiver parameter \<this> is the
+class applied to its own type parameters:  in \code{class Box<T>}, it is
+\code{Box<T> this}, never \code{Box<String> this}.  Only the type qualifiers
+can differ.  A qualifier on a type argument of the receiver restricts the
+objects on which the method may be called.  For example, a method
+\code{void m(Box<@NonNull T> this)} may be called on a
+\code{Box<@NonNull String>} but not on a \code{Box<@Nullable String>}.
+
+An overriding method may be called on every object on which the overridden
+method may be called, so its receiver may not be narrower.  Type arguments
+are invariant, so a type argument of the overrider's receiver must equal the
+corresponding type argument of the overridden method's receiver, as seen
+from the overrider's class.  Otherwise, the checker reports an
+\code{override.receiver.invalid} error:
+
+\begin{Verbatim}
+  class Parent<T extends @Nullable Object> {
+    void m() {}
+  }
+  class Child<E extends @Nullable Object> extends Parent<E> {
+    @Override
+    void m(Child<@NonNull E> this) { ... }  // error: override.receiver.invalid
+  }
+\end{Verbatim}
+
+\noindent
+Without this check, a call through a \code{Parent<@Nullable String>} could
+run the body of \code{Child.m} on an object whose type argument is
+nullable, although the body assumes it is non-null.
+
+A receiver that is the type of \<this> is never a narrowing.  The type of
+\<this> is the class applied to its own type parameters, with the
+qualifiers that the class's defaults give them.  That is the receiver a
+method gets if neither the method nor a default on it says otherwise.  So
+an override with an implicit receiver is accepted even if a default puts a
+qualifier on every use of a type variable, as this class annotation does:
+
+\begin{Verbatim}
+  @DefaultQualifier(value = NonNull.class,
+                    locations = TypeUseLocation.TYPE_VARIABLE_USE)
+\end{Verbatim}
+
+\noindent
+The reason is that only an instance of the overrider's class can run the
+overrider, and the type of \<this> accepts every instance of the class:  the
+same defaults apply to the class's \<extends> clause, its constructors, and
+its fields.  For example, with that annotation on \<Child>, the expression
+\code{new Child<@Nullable String>()} cannot be used as a
+\code{Parent<@Nullable String>}.
+
+A default whose scope is only the overriding method is not part of the type
+of \<this>, so a receiver type argument that such a default changes is a
+narrowing, just like a written qualifier.  Similarly, the enclosing type of
+an inner class's receiver is the type of \<this> in the enclosing class,
+with that class's defaults; a default of the inner class does not apply to
+the enclosing instance.
 
 
 \subsectionAndLabel{Annotations on wildcards}{annotations-on-wildcards}
