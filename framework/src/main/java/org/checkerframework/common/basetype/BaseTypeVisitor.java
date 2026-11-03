@@ -5749,6 +5749,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             boolean result = true;
             for (int i = 0; i < overriderParams.size(); ++i) {
+                if (hasUnspecifiedParameter(i)) {
+                    continue;
+                }
                 AnnotatedTypeMirror capturedParam =
                         atypeFactory.applyCaptureConversion(overriddenParams.get(i));
                 boolean success =
@@ -5758,6 +5761,32 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 result &= success;
             }
             return result;
+        }
+
+        /**
+         * Returns true if the parameter at {@code index} of the overridden method has no qualifier
+         * of its own: the method is in unchecked code that gets the permissive defaults (see {@link
+         * org.checkerframework.framework.util.defaults.QualifierDefaults#applyPermissiveDefaults}),
+         * and no qualifier is written on the parameter. Its qualifier is only the permissive
+         * default, which lets callers pass any argument, so it does not constrain the overrider's
+         * parameter. A parameter of a method reference's functional interface is always checked.
+         *
+         * @param index the index of a parameter of the overridden method
+         * @return true if the parameter at {@code index} of the overridden method has no qualifier
+         *     of its own
+         */
+        private boolean hasUnspecifiedParameter(int index) {
+            if (isMethodReference) {
+                return false;
+            }
+            ExecutableElement overriddenElement = overridden.getElement();
+            if (!atypeFactory.getQualifierDefaults().applyPermissiveDefaults(overriddenElement)) {
+                return false;
+            }
+            // fromElement gives the qualifiers written on the parameter, in source, bytecode, or an
+            // annotation file, without defaults.
+            VariableElement param = overriddenElement.getParameters().get(index);
+            return atypeFactory.fromElement(param).getAnnotations().isEmpty();
         }
 
         /**

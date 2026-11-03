@@ -1,0 +1,8 @@
+PermissiveOverride.java:20:33: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for value.
+found   : @NonNull Object
+required: @Nullable Object
+Consequence: method in @NonNull PermissiveOverride
+  @NonNull void nullable(@NonNull PermissiveOverride this, @NonNull Object p0)
+cannot override method in @NonNull OverrideLib
+  @NonNull void nullable(@NonNull OverrideLib this, @Nullable Object p0)
+1 error

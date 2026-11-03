@@ -130,7 +130,9 @@ JSpecify support in the Nullness Checker:
 
 - New `-AusePermissiveDefaultsForUncheckedCode` (takes `source`/`bytecode`,
   like the conservative variant) applies permissive defaults and suppresses
-  warnings outside `@AnnotatedFor` scope.
+  warnings outside `@AnnotatedFor` scope. A parameter of such code without a
+  written qualifier does not constrain the parameters of an overriding method,
+  so a non-null parameter may override it (as for JSpecify's unspecified nullness).
 - New `@UnannotatedFor` excludes a package, class, method, or constructor from
   an enclosing `@AnnotatedFor`'s scope for the given checkers (a nested
   `@AnnotatedFor` takes effect again). Like `@AnnotatedFor`, it's repeatable
@@ -713,6 +715,7 @@ eisop#2404,
 eisop#2411,
 eisop#2418,
 eisop#2461,
+eisop#2499,
 typetools#399,
 typetools#602,
 typetools#2816,
