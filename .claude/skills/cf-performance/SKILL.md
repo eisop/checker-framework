@@ -111,6 +111,18 @@ JFR's method sampler has a documented floor of `MIN_SAMPLE_PERIOD = 10ms`
 in `jfrThreadSampler.cpp`. Values below 10ms are silently clamped, so
 asking for 5ms wastes the configuration; it stays at 10ms.
 
+**Record on JDK 25 or later; JDK 21 drops most samples.** On KeY's `key.core`
+(one busy compile thread), JDK 21's `jdk.ExecutionSample` recorded 15-26
+samples/s instead of the 100/s a 10 ms period asks for, and with the default
+stack depth of 64, 71% of the samples it did record were truncated. The two
+biases together moved whole subsystems: JDK 21 showed dataflow at 16% and the
+type factory at 18%, JDK 25's CPU-time sampler 10% and 37%. JDK 25 records 86/s
+of `jdk.ExecutionSample`, and its `jdk.CPUTimeSample` (JEP 509, Linux; enabled
+in `profile-cf.jfc`, ignored by older JDKs) samples by CPU time at 91/s. The
+checker's JDK is the one that runs javac: `JAVA_HOME` for `checker/bin/javac`,
+or the JDK that runs Gradle's compiler worker. `record-jfr.sh` sets
+`stackdepth=1024`; CF stacks are about 100 frames deep (p99 about 200).
+
 ## Analyzing the trace
 
 **Do not use `jfr view` or `jfr print`.** On JDK 25 both crash with a
@@ -163,7 +175,13 @@ java .claude/skills/cf-performance/jfr-analyze.java cooccur getDeclAnnotation An
 java .claude/skills/cf-performance/jfr-analyze.java heap cf-*.jfr
 ```
 
-Self-time is computed from `jdk.ExecutionSample` ONLY. Including
+`phase` prints a `Sample quality:` line (sampler, JDK, samples/s, truncated
+stacks, lost CPU-time samples) and warns when the sampler drops samples or
+stacks are truncated. Read it before trusting any percentage. On a JDK 25+
+recording, put `-Djfr.sample=jdk.CPUTimeSample` before the script name to
+analyze the CPU-time samples in any mode.
+
+Self-time is computed from `jdk.ExecutionSample` (or the `-Djfr.sample` event) ONLY. Including
 `jdk.NativeMethodSample` pollutes the leaderboard with idle native frames
 (`EPoll.wait` on the Gradle worker's messaging thread can be >50% of the
 combined samples). `getThread()` is `null` in these traces, so per-thread
