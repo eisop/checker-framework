@@ -237,9 +237,11 @@ public final class ElementAnnotationApplier {
 
     /**
      * Annotates a use of a type variable with the annotations written explicitly on the type
-     * parameter declaration and/or its upper bound, in the declaration's element or in an
-     * annotation file. A use with a primary annotation, or whose upper bound is already annotated,
-     * is left as is.
+     * parameter declaration and its bounds, in the declaration's element or in an annotation file.
+     * If an annotation file declares the type parameter, it takes precedence over the element, as
+     * in {@link AnnotatedTypeFactory#fromElement}, and its bounds' annotations are copied to the
+     * use's bounds. A use with a primary annotation, or whose upper bound is already annotated, is
+     * left as is.
      *
      * @param type a use of a type variable; side-effected by this method
      * @param factory the type factory that created {@code type}
@@ -249,25 +251,25 @@ public final class ElementAnnotationApplier {
         TypeParameterElement tpelt = (TypeParameterElement) type.getUnderlyingType().asElement();
 
         if (!type.getAnnotationsField().isEmpty()
-                || !type.getUpperBound().getAnnotationsField().isEmpty()
-                || tpelt.getEnclosingElement().getKind() == ElementKind.TYPE_PARAMETER) {
+                || tpelt.getEnclosingElement().getKind() == ElementKind.TYPE_PARAMETER
+                || !type.getUpperBound().getAnnotationsField().isEmpty()) {
             return;
         }
-        // An annotation file takes precedence over the element, as in fromElement: if the file
-        // declares the type parameter, its bounds are the declared ones, annotated or not. The
-        // types created while a file is parsed get their annotations from the parser, and asking
-        // for the file's type of the declaration would start parsing it again.
+        // The types created while a file is parsed get their annotations from the parser, and
+        // asking for the file's type of the declaration would start parsing it again.
         AnnotatedTypeMirror declaration =
                 factory.stubTypes == null || factory.stubTypes.isParsing()
                         ? null
                         : factory.stubTypes.getAnnotatedTypeMirror(tpelt);
         if (declaration instanceof AnnotatedTypeVariable) {
-            // Read the bound without initializing it: a bound the file did not annotate may be
+            // Read the bounds without initializing them: a bound the file did not annotate may be
             // uninitialized, and initializing it would come back here.
-            AnnotatedTypeMirror declaredUpper =
-                    ((AnnotatedTypeVariable) declaration).getUpperBoundField();
-            if (declaredUpper != null) {
-                factory.replaceAnnotations(declaredUpper, type.getUpperBound());
+            AnnotatedTypeVariable declared = (AnnotatedTypeVariable) declaration;
+            if (declared.getUpperBoundField() != null) {
+                factory.replaceAnnotations(declared.getUpperBoundField(), type.getUpperBound());
+            }
+            if (declared.getLowerBoundField() != null) {
+                factory.replaceAnnotations(declared.getLowerBoundField(), type.getLowerBound());
             }
             return;
         }
@@ -289,7 +291,12 @@ public final class ElementAnnotationApplier {
 
         @Override
         public Void visitTypeVariable(AnnotatedTypeVariable type, AnnotatedTypeFactory factory) {
-            annotateTypeVariableUse(type, factory);
+            if (type.getUpperBoundField() == null && type.annotatesBoundsFromDeclaration()) {
+                // Initializing the bounds annotates them.
+                type.getUpperBound();
+            } else {
+                annotateTypeVariableUse(type, factory);
+            }
             return super.visitTypeVariable(type, factory);
         }
     }

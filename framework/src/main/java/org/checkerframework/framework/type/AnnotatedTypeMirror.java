@@ -2292,24 +2292,39 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Initializes both bounds from the underlying type. A use of a type variable also gets the
-         * annotations written on the bounds of its declaration, in the declaration's element or in
-         * an annotation file, as a use created from a tree or for an element does (see {@code
+         * Initializes both bounds from the underlying type. A use also gets the annotations written
+         * on the bounds of its declaration, in the declaration's element or in an annotation file,
+         * as a use created from a tree or for an element has them (see {@code
          * TypeFromTypeTreeVisitor#getTypeVariableFromDeclaration} and {@code TypeVarUseApplier}).
-         * Without them, the bounds of a use created from a {@link TypeMirror}, such as in a
-         * supertype taken from a class's element, would only be defaulted, which differs from the
-         * declaration when its bound is annotated.
+         * Otherwise the bounds of a use created from a {@link TypeMirror}, such as in a supertype
+         * taken from a class's element, would only be defaulted. A use that {@link
+         * BoundsInitializer} creates inside a bound, such as {@code S} in {@code T extends
+         * Comparable<S>}, is not annotated: its bounds are set eagerly, and annotating them could
+         * create such a use again, without end for an F-bound.
          */
         private void initializeBounds() {
             BoundsInitializer.initializeBounds(this);
-            if (!declaration
-                    && !TypesUtils.isCapturedTypeVariable(getUnderlyingType())
-                    && !atypeFactory.isParsingAnnotationFile()) {
+            if (annotatesBoundsFromDeclaration()) {
                 ElementAnnotationApplier.annotateTypeVariableUse(this, atypeFactory);
             }
             fixupBoundAnnotations();
             freezeLazyComponent(lowerBound);
             freezeLazyComponent(upperBound);
+        }
+
+        /**
+         * Returns true if lazily initializing the bounds of this type variable annotates them from
+         * its declaration (see {@link #initializeBounds}): it is a use, not a declaration or a
+         * captured type variable, and no annotation file is being parsed (the parser annotates the
+         * types it creates).
+         *
+         * @return true if lazily initializing the bounds of this type variable annotates them from
+         *     its declaration
+         */
+        /*package-private*/ boolean annotatesBoundsFromDeclaration() {
+            return !declaration
+                    && !TypesUtils.isCapturedTypeVariable(getUnderlyingType())
+                    && !atypeFactory.isParsingAnnotationFile();
         }
 
         // If the lower bound was not present in underlyingType, then its annotation was defaulted
@@ -2370,8 +2385,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         /**
          * Returns the upper bound of the type variable, possibly lazily initializing it. Attention:
-         * If the upper bound is lazily initialized, it will not contain any annotations! Callers of
-         * the method have to make sure that an AnnotatedTypeFactory first processed the bound.
+         * If the upper bound is lazily initialized, it contains only the annotations written on the
+         * declaration's bound, not the defaults! Callers of the method have to make sure that an
+         * AnnotatedTypeFactory first processed the bound.
          *
          * @return the upper bound type of this type variable
          */
