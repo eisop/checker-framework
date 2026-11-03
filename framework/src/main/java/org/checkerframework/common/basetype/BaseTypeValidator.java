@@ -782,6 +782,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         List<AnnotatedTypeParameterBounds> bounds =
                 atypeFactory.typeVariablesFromUse(capturedType, element);
 
+        // A type argument outside its bounds is reported, but does not make the type invalid:
+        // the type is well-formed, so the checks that compare it still run. See
+        // BaseTypeVisitor#validateType.
         visitor.checkTypeArguments(
                 tree,
                 bounds,
