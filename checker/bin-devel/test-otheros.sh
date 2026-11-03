@@ -7,12 +7,13 @@
 # Run every step even if an earlier one fails, to see all failures of a run; fail at the end.
 status=0
 # set -o verbose
-# Unlike the other test scripts, do not export SHELLOPTS: /bin/sh is bash on Windows and macOS, so
-# checker/bin/javac would inherit xtrace and write its trace into the output that tests compare.
 set -o xtrace
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 source "$SCRIPT_DIR"/clone-related.sh
+# clone-related.sh exports SHELLOPTS. /bin/sh is bash on Windows and macOS, so checker/bin/javac
+# would inherit xtrace and write its trace into the output that the tests compare.
+export -n SHELLOPTS
 
 # checker/bin/javac and CheckerMain, and loading qualifiers from a directory and from a jar.
 ./gradlew --continue :checker:commandLineTests :framework:loaderTests --warning-mode=all || status=1
