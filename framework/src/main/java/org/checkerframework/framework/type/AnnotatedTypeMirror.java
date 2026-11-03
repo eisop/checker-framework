@@ -1424,7 +1424,17 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             erased.addAnnotations(this.getAnnotationsField());
             AnnotatedDeclaredType erasedEnclosing = erased.getEnclosingType();
             AnnotatedDeclaredType thisEnclosing = this.getEnclosingType();
-            while (erasedEnclosing != null) {
+            // The enclosing types of this type need not be those of its underlying type: for an
+            // anonymous class `outer.new Inner() {}`, the enclosing type is the type of `outer`
+            // (see AnnotatedTypeFactory#getConstructorReceiverType), but javac's is the class
+            // that lexically encloses the anonymous class. Copy annotations only while both
+            // chains are at the same class.
+            while (erasedEnclosing != null
+                    && thisEnclosing != null
+                    && erasedEnclosing
+                            .getUnderlyingType()
+                            .asElement()
+                            .equals(thisEnclosing.getUnderlyingType().asElement())) {
                 erasedEnclosing.addAnnotations(thisEnclosing.getAnnotationsField());
                 erasedEnclosing = erasedEnclosing.getEnclosingType();
                 thisEnclosing = thisEnclosing.getEnclosingType();
@@ -3053,17 +3063,15 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * variable's own intersection upper bound, only after each bound has already been
          * independently defaulted, so the combining hook sees every bound's real qualifier; calling
          * it any earlier for that position would see only bounds' explicit annotations, since
-         * defaulting has not run yet, exactly like the intersection cast target case below. A type
-         * variable's own intersection upper bound is summarized only when the enclosing {@code
-         * AnnotatedTypeFactory} runs {@code QualifierDefaults}; one that does not (there is one in
-         * this repository, used only for debugging output) leaves it unsummarized.
+         * defaulting has not run yet. A type variable's own intersection upper bound is summarized
+         * only when the enclosing {@code AnnotatedTypeFactory} runs {@code QualifierDefaults}; one
+         * that does not (there is one in this repository, used only for debugging output) leaves it
+         * unsummarized.
          *
-         * <p>An intersection cast target's construction also calls this method, but before
-         * defaulting, so only explicit annotations are seen there; a hierarchy no bound constrains
-         * explicitly is simply left out of the summary, because a cast target's remaining
-         * hierarchies are instead filled from the cast operand by {@code
-         * PropagationTreeAnnotator#visitTypeCast}, not by {@code QualifierDefaults}. See {@code
-         * framework/tests/lubglb/IntersectionBoundDefaulting.java}.
+         * <p>For an intersection cast target, {@code PropagationTreeAnnotator#visitTypeCast} calls
+         * this method, after it gave each bound the cast operand's qualifier in every hierarchy in
+         * which that bound has no written qualifier, as for the target of a cast to a
+         * non-intersection type. See {@code framework/tests/lubglb/IntersectionCastBounds.java}.
          */
         public void summarizeBounds() {
             QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
