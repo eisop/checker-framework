@@ -752,7 +752,7 @@ public class QualifierDefaults {
      *     TypeUseLocation, boolean)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
      *     TypeUseLocation, boolean)}.
      */
-    @Deprecated
+    @Deprecated // 2026-09-25
     public void addUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
@@ -770,7 +770,7 @@ public class QualifierDefaults {
      *     TypeUseLocation)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
      *     TypeUseLocation)}.
      */
-    @Deprecated
+    @Deprecated // 2026-09-25
     public void addUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
         addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
@@ -786,7 +786,7 @@ public class QualifierDefaults {
      *     TypeUseLocation[])} or {@link #addPermissiveUncheckedCodeDefaults(AnnotationMirror,
      *     TypeUseLocation[])}.
      */
-    @Deprecated
+    @Deprecated // 2026-09-25
     public void addUncheckedCodeDefaults(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
         addConservativeUncheckedCodeDefaults(absoluteDefaultAnno, locations);
@@ -2418,8 +2418,7 @@ public class QualifierDefaults {
             return prev;
         }
 
-        TreePath declaredTypeVarEle = atypeFactory.getTreeUtils().getPath(typeParamElem);
-        Tree typeParamDecl = declaredTypeVarEle == null ? null : declaredTypeVarEle.getLeaf();
+        TypeParameterTree typeParamDecl = typeParameterTree(typeParamElem);
 
         final BoundType boundType;
         if (typeParamDecl == null) {
@@ -2436,26 +2435,50 @@ public class QualifierDefaults {
                 boundType = BoundType.TYPEVAR_UPPER;
             }
         } else {
-            if (typeParamDecl instanceof TypeParameterTree) {
-                TypeParameterTree tptree = (TypeParameterTree) typeParamDecl;
-
-                List<? extends Tree> bnds = tptree.getBounds();
-                if (bnds != null && !bnds.isEmpty()) {
-                    boundType = BoundType.TYPEVAR_UPPER;
-                } else {
-                    boundType = BoundType.TYPEVAR_UNBOUNDED;
-                }
+            List<? extends Tree> bnds = typeParamDecl.getBounds();
+            if (bnds != null && !bnds.isEmpty()) {
+                boundType = BoundType.TYPEVAR_UPPER;
             } else {
-                throw new BugInCF(
-                        StringsPlume.joinLines(
-                                "Unexpected tree type for typeVar Element:",
-                                "typeParamElem=" + typeParamElem,
-                                typeParamDecl));
+                boundType = BoundType.TYPEVAR_UNBOUNDED;
             }
         }
 
         elementToBoundType.put(typeParamElem, boundType);
         return boundType;
+    }
+
+    /**
+     * Returns the declaration of a type parameter, or null if its source code is not available.
+     * Looks among the type parameters of its generic class or method rather than searching the
+     * whole compilation unit for it, which made checking a file quadratic in its number of type
+     * parameters.
+     *
+     * @param typeParamElem a type parameter
+     * @return the declaration of {@code typeParamElem}, or null if its source code is not available
+     */
+    private @Nullable TypeParameterTree typeParameterTree(TypeParameterElement typeParamElem) {
+        // declarationFromElement finds nothing without a current compilation unit, and the caller
+        // caches the result, so a source type parameter looked up then would keep the bound type
+        // of one from bytecode.
+        assert atypeFactory.getRoot() != null
+                        || !ElementUtils.isElementFromSourceCode(typeParamElem)
+                : "No compilation unit to look up source type parameter " + typeParamElem;
+        Tree genericDecl = atypeFactory.declarationFromElement(typeParamElem.getGenericElement());
+        List<? extends TypeParameterTree> typeParams;
+        if (genericDecl instanceof MethodTree) {
+            typeParams = ((MethodTree) genericDecl).getTypeParameters();
+        } else if (genericDecl instanceof ClassTree) {
+            typeParams = ((ClassTree) genericDecl).getTypeParameters();
+        } else {
+            return null;
+        }
+        Name name = typeParamElem.getSimpleName();
+        for (TypeParameterTree typeParam : typeParams) {
+            if (typeParam.getName() == name) {
+                return typeParam;
+            }
+        }
+        return null;
     }
 
     /**
