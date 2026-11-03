@@ -125,6 +125,12 @@ Type-checking and subtyping improvements:
   the argument check agree. A type system that distinguishes captures of the same
   wildcard, such as the JSpecify reference checker, rejected `m((Entry<?, ?>) o)`
   for `<K, V> m(Entry<? extends K, ? extends V>)`.
+- A super-bounded wildcard that javac captures to its bound (JDK-8054309), such
+  as `Lib<? super @NonNull Object>` for `Lib<T extends @Nullable Object>`, is now
+  captured to a type variable with both annotated bounds when they differ: reads
+  see `@Nullable`, and writes need `@NonNull`. Such types are no longer rejected
+  with `type.invalid.super.wildcard`, unless the wildcard collapses to a type
+  variable, as `Gen<F, ? super F>` for `Gen<T, S extends T>`.
 
 JSpecify support in the Nullness Checker:
 
@@ -442,7 +448,7 @@ Other improvements and bug fixes:
   wildcards, type-parameter mismatches, fake override scoping.
 - Extracted overridable hooks: `checkCapturedWildcardBounds`,
   `shouldCheckTypeArgument`, `reportTypeArgumentInferenceFailure`,
-  `areCollapsedWildcardBoundsEqual`, `shouldStripInvalidLocationQualifiers`.
+  `shouldStripInvalidLocationQualifiers`.
 - Type argument inference:
   - No longer adds an upper bound as an extra lower bound (JLS 18.2.3),
     instantiates to requalified copies, and displays captured type variables
