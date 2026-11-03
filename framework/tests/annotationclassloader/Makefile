@@ -15,10 +15,17 @@ FRAMEWORKJAR := $(PROJECTDIR)/../../dist/framework.jar
 
 CHECKERQUALJAR := $(PROJECTDIR)/../../../checker/dist/checker-qual.jar
 
+# The separator of class path entries; java on Windows takes ";".
+ifeq ($(OS),Windows_NT)
+  SEP := ;
+else
+  SEP := :
+endif
+
 # build directories
 DATAFLOWBUILD := $(PROJECTDIR)/../../../dataflow/build/classes/java/main
 JAVACUTILBUILD := $(PROJECTDIR)/../../../javacutil/build/classes/java/main
-FRAMEWORKBUILD := $(PROJECTDIR)/../../build/classes/java/main:$(PROJECTDIR)/../../build/resources/main/
+FRAMEWORKBUILD := $(PROJECTDIR)/../../build/classes/java/main$(SEP)$(PROJECTDIR)/../../build/resources/main/
 CHECKERQUALBUILD := $(PROJECTDIR)/../../../checker-qual/build/classes/java/main
 
 .PHONY: all clean demo1 demo2
@@ -31,8 +38,8 @@ all: load-from-dir-test load-from-jar-test
 demo1:
 	@echo "***** This command is expected to produce an error on line 7:"
 	$(JAVAC) \
-	  -processorpath $(DATAFLOWBUILD):$(JAVACUTILBUILD):$(FRAMEWORKBUILD) \
-	  -classpath $(PROJECTDIR):${CHECKERQUALBUILD} \
+	  -processorpath "$(DATAFLOWBUILD)$(SEP)$(JAVACUTILBUILD)$(SEP)$(FRAMEWORKBUILD)" \
+	  -classpath "$(PROJECTDIR)$(SEP)$(CHECKERQUALBUILD)" \
 	  -processor org.checkerframework.common.aliasing.AliasingChecker \
 	  -Anomsgtext \
 	  -ApermitMissingJdk \
@@ -44,7 +51,7 @@ demo2:
 	@echo "***** This command is expected to produce an error on line 7:"
 	$(JAVAC) \
 	  -processorpath $(FRAMEWORKJAR) \
-	  -classpath $(PROJECTDIR):${CHECKERQUALJAR} \
+	  -classpath "$(PROJECTDIR)$(SEP)$(CHECKERQUALJAR)" \
 	  -processor org.checkerframework.common.aliasing.AliasingChecker \
 	  -Anomsgtext \
 	  -ApermitMissingJdk \
@@ -56,8 +63,8 @@ demo2:
 # loads from build directories
 load-from-dir-test:
 	-$(JAVAC) \
-	  -processorpath $(DATAFLOWBUILD):$(JAVACUTILBUILD):$(FRAMEWORKBUILD) \
-	  -classpath $(PROJECTDIR):${CHECKERQUALBUILD} \
+	  -processorpath "$(DATAFLOWBUILD)$(SEP)$(JAVACUTILBUILD)$(SEP)$(FRAMEWORKBUILD)" \
+	  -classpath "$(PROJECTDIR)$(SEP)$(CHECKERQUALBUILD)" \
 	  -processor org.checkerframework.common.aliasing.AliasingChecker \
 	  -Anomsgtext \
 	  -ApermitMissingJdk \
@@ -69,7 +76,7 @@ load-from-dir-test:
 load-from-jar-test:
 	-$(JAVAC) \
 	  -processorpath $(FRAMEWORKJAR) \
-	  -classpath $(PROJECTDIR):${CHECKERQUALJAR} \
+	  -classpath "$(PROJECTDIR)$(SEP)$(CHECKERQUALJAR)" \
 	  -processor org.checkerframework.common.aliasing.AliasingChecker \
 	  -Anomsgtext \
 	  -ApermitMissingJdk \
