@@ -16,6 +16,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.DeepCopyable;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
+import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
 
 import java.lang.annotation.Annotation;
@@ -1423,7 +1424,17 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             erased.addAnnotations(this.getAnnotationsField());
             AnnotatedDeclaredType erasedEnclosing = erased.getEnclosingType();
             AnnotatedDeclaredType thisEnclosing = this.getEnclosingType();
-            while (erasedEnclosing != null) {
+            // The enclosing types of this type need not be those of its underlying type: for an
+            // anonymous class `outer.new Inner() {}`, the enclosing type is the type of `outer`
+            // (see AnnotatedTypeFactory#getConstructorReceiverType), but javac's is the class
+            // that lexically encloses the anonymous class. Copy annotations only while both
+            // chains are at the same class.
+            while (erasedEnclosing != null
+                    && thisEnclosing != null
+                    && erasedEnclosing
+                            .getUnderlyingType()
+                            .asElement()
+                            .equals(thisEnclosing.getUnderlyingType().asElement())) {
                 erasedEnclosing.addAnnotations(thisEnclosing.getAnnotationsField());
                 erasedEnclosing = erasedEnclosing.getEnclosingType();
                 thisEnclosing = thisEnclosing.getEnclosingType();
@@ -2275,12 +2286,45 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         public AnnotatedTypeMirror getLowerBound() {
             if (lowerBound == null) { // lazy init
-                BoundsInitializer.initializeBounds(this);
-                fixupBoundAnnotations();
-                freezeLazyComponent(lowerBound);
-                freezeLazyComponent(upperBound);
+                initializeBounds();
             }
             return lowerBound;
+        }
+
+        /**
+         * Initializes both bounds from the underlying type. A use also gets the annotations written
+         * on the bounds of its declaration, in the declaration's element or in an annotation file,
+         * as a use created from a tree or for an element has them (see {@code
+         * TypeFromTypeTreeVisitor#getTypeVariableFromDeclaration} and {@code TypeVarUseApplier}).
+         * Otherwise the bounds of a use created from a {@link TypeMirror}, such as in a supertype
+         * taken from a class's element, would only be defaulted. A use that {@link
+         * BoundsInitializer} creates inside a bound, such as {@code S} in {@code T extends
+         * Comparable<S>}, is not annotated: its bounds are set eagerly, and annotating them could
+         * create such a use again, without end for an F-bound.
+         */
+        private void initializeBounds() {
+            BoundsInitializer.initializeBounds(this);
+            if (annotatesBoundsFromDeclaration()) {
+                ElementAnnotationApplier.annotateTypeVariableUse(this, atypeFactory);
+            }
+            fixupBoundAnnotations();
+            freezeLazyComponent(lowerBound);
+            freezeLazyComponent(upperBound);
+        }
+
+        /**
+         * Returns true if lazily initializing the bounds of this type variable annotates them from
+         * its declaration (see {@link #initializeBounds}): it is a use, not a declaration or a
+         * captured type variable, and no annotation file is being parsed (the parser annotates the
+         * types it creates).
+         *
+         * @return true if lazily initializing the bounds of this type variable annotates them from
+         *     its declaration
+         */
+        /*package-private*/ boolean annotatesBoundsFromDeclaration() {
+            return !declaration
+                    && !TypesUtils.isCapturedTypeVariable(getUnderlyingType())
+                    && !atypeFactory.isParsingAnnotationFile();
         }
 
         // If the lower bound was not present in underlyingType, then its annotation was defaulted
@@ -2341,17 +2385,15 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         /**
          * Returns the upper bound of the type variable, possibly lazily initializing it. Attention:
-         * If the upper bound is lazily initialized, it will not contain any annotations! Callers of
-         * the method have to make sure that an AnnotatedTypeFactory first processed the bound.
+         * If the upper bound is lazily initialized, it contains only the annotations written on the
+         * declaration's bound, not the defaults! Callers of the method have to make sure that an
+         * AnnotatedTypeFactory first processed the bound.
          *
          * @return the upper bound type of this type variable
          */
         public AnnotatedTypeMirror getUpperBound() {
             if (upperBound == null) { // lazy init
-                BoundsInitializer.initializeBounds(this);
-                fixupBoundAnnotations();
-                freezeLazyComponent(upperBound);
-                freezeLazyComponent(lowerBound);
+                initializeBounds();
             }
             return upperBound;
         }
@@ -3037,17 +3079,15 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * variable's own intersection upper bound, only after each bound has already been
          * independently defaulted, so the combining hook sees every bound's real qualifier; calling
          * it any earlier for that position would see only bounds' explicit annotations, since
-         * defaulting has not run yet, exactly like the intersection cast target case below. A type
-         * variable's own intersection upper bound is summarized only when the enclosing {@code
-         * AnnotatedTypeFactory} runs {@code QualifierDefaults}; one that does not (there is one in
-         * this repository, used only for debugging output) leaves it unsummarized.
+         * defaulting has not run yet. A type variable's own intersection upper bound is summarized
+         * only when the enclosing {@code AnnotatedTypeFactory} runs {@code QualifierDefaults}; one
+         * that does not (there is one in this repository, used only for debugging output) leaves it
+         * unsummarized.
          *
-         * <p>An intersection cast target's construction also calls this method, but before
-         * defaulting, so only explicit annotations are seen there; a hierarchy no bound constrains
-         * explicitly is simply left out of the summary, because a cast target's remaining
-         * hierarchies are instead filled from the cast operand by {@code
-         * PropagationTreeAnnotator#visitTypeCast}, not by {@code QualifierDefaults}. See {@code
-         * framework/tests/lubglb/IntersectionBoundDefaulting.java}.
+         * <p>For an intersection cast target, {@code PropagationTreeAnnotator#visitTypeCast} calls
+         * this method, after it gave each bound the cast operand's qualifier in every hierarchy in
+         * which that bound has no written qualifier, as for the target of a cast to a
+         * non-intersection type. See {@code framework/tests/lubglb/IntersectionCastBounds.java}.
          */
         public void summarizeBounds() {
             QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
