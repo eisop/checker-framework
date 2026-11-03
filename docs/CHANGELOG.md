@@ -112,6 +112,14 @@ Type-checking and subtyping improvements:
   returning it as a `T` is an error. It was typed as `T` and accepted. Code with
   such unchecked casts, such as `(T) this` or `(T) map.get(k)`, may need
   additional warning suppressions.
+- A use of a type variable created from a javac type, such as in a supertype of
+  a class whose tree is no longer available, now has the annotations written on
+  the bounds of its declaration, in source, bytecode, or a stub file. Its bounds
+  were only defaulted, so `T extends @Nullable Object` in the annotated JDK read
+  as `T extends Object`. A type variable in its own bound now has the declared
+  bound too, so the method type parameter `<T extends @Nullable Comparable<T>>`
+  is rejected, as the same bound on a class already was: `Comparable` requires
+  a non-null type argument.
 
 JSpecify support in the Nullness Checker:
 
