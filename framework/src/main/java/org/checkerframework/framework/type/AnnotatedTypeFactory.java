@@ -2015,7 +2015,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         addComputedTypeAnnotations(tree, type);
         if (tree instanceof TypeCastTree) {
-            type = applyCaptureConversion(type);
+            // javac's type of a cast is already captured (Attr#visitTypeCast). Reuse its captured
+            // type variables, so that every query of the cast's type sees the same ones.
+            type = applyCaptureConversion(type, TreeUtils.typeOf(tree));
         }
 
         if (shouldCache && (isClassTree || tree instanceof MethodTree)) {
@@ -7013,7 +7015,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         AnnotatedDeclaredType uncapturedType = (AnnotatedDeclaredType) type;
-        DeclaredType capturedTypeMirror = (DeclaredType) typeMirror;
+        DeclaredType capturedTypeMirror =
+                uncollapseSuperBoundedWildcards(uncapturedType, (DeclaredType) typeMirror);
         // `capturedType` is the return value of this method.
         AnnotatedDeclaredType capturedType =
                 (AnnotatedDeclaredType)
@@ -7099,6 +7102,70 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         capturedType.setTypeArguments(newTypeArgs);
         capturedType.addAnnotations(uncapturedType.getAnnotationsField());
         return capturedType;
+    }
+
+    /**
+     * Returns {@code capturedTypeMirror} with a fresh captured type variable for each super-bounded
+     * wildcard of {@code uncapturedType} that javac's capture conversion collapsed to a declared
+     * type, if the wildcard's annotated bounds differ.
+     *
+     * <p>javac captures {@code ? super B} to {@code B} itself when the type variable it would
+     * create has {@code B} as both bounds (JDK-8054309). That type argument cannot carry the
+     * annotations of both bounds: for {@code Lib<T extends @Nullable Object>}, {@code Lib<?
+     * super @NonNull Object>} would read as {@code @NonNull} and be a subtype of {@code Lib<?
+     * extends @NonNull Object>}. {@link #annotateCapturedTypeVar} annotates the type variable
+     * created here like any other. A wildcard that collapsed to a type variable is kept; see {@code
+     * BaseTypeValidator#checkExplicitSuperBoundWildcards}.
+     *
+     * @param uncapturedType a declared type with a wildcard type argument
+     * @param capturedTypeMirror the result of javac's capture conversion of the underlying type of
+     *     {@code uncapturedType}
+     * @return {@code capturedTypeMirror}, or a copy of it in which every collapsed type argument
+     *     with differing annotated bounds is a fresh captured type variable
+     */
+    private DeclaredType uncollapseSuperBoundedWildcards(
+            AnnotatedDeclaredType uncapturedType, DeclaredType capturedTypeMirror) {
+        List<? extends TypeMirror> capturedArgs = capturedTypeMirror.getTypeArguments();
+        List<? extends AnnotatedTypeMirror> uncapturedArgs = uncapturedType.getTypeArguments();
+        TypeMirror[] newArgs = null;
+        for (int i = 0; i < capturedArgs.size(); i++) {
+            TypeMirror capturedArg = capturedArgs.get(i);
+            AnnotatedTypeMirror uncapturedArg = uncapturedArgs.get(i);
+            if (uncapturedArg.getKind() != TypeKind.WILDCARD
+                    || capturedArg.getKind() == TypeKind.WILDCARD
+                    || TypesUtils.isCapturedTypeVariable(capturedArg)) {
+                continue;
+            }
+            AnnotatedWildcardType wildcard = (AnnotatedWildcardType) uncapturedArg;
+            if (wildcard.getUnderlyingType().getSuperBound() == null
+                    || capturedArg.getKind() == TypeKind.TYPEVAR) {
+                // Only a super-bounded wildcard can have equal bounds. A collapsed type variable
+                // (`Gen<T, S extends T>` used as `Gen<F, ? super F>`) is kept: the bounds of the
+                // captured type variable would be the type variable itself, which
+                // StructuralEqualityComparer cannot compare with a captured type variable.
+                continue;
+            }
+            if (AnnotationUtils.areSame(
+                    wildcard.getExtendsBound().getAnnotations(),
+                    wildcard.getSuperBound().getAnnotations())) {
+                continue;
+            }
+            if (newArgs == null) {
+                newArgs = capturedArgs.toArray(new TypeMirror[0]);
+            }
+            // javac collapsed the wildcard because the upper and lower bounds of the type
+            // variable it would have created are the same Java type, namely `capturedArg`.
+            newArgs[i] = TypesUtils.freshTypeVariable(capturedArg, capturedArg, processingEnv);
+        }
+        if (newArgs == null) {
+            return capturedTypeMirror;
+        }
+        TypeElement element = (TypeElement) capturedTypeMirror.asElement();
+        TypeMirror enclosing = capturedTypeMirror.getEnclosingType();
+        if (enclosing.getKind() == TypeKind.DECLARED) {
+            return types.getDeclaredType((DeclaredType) enclosing, element, newArgs);
+        }
+        return types.getDeclaredType(element, newArgs);
     }
 
     /**

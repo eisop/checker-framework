@@ -2615,6 +2615,33 @@ argument gave identical output on master and on the branch, with and without `-A
 did the `nullness`, `nullness-initialization`, `initialization` and `all-systems` test directories.
 No input was found on which the toggle changes a diagnostic.
 
+### Supertypes of nested generic inner classes: use the cached supertypes of enclosing types (October 2026)
+
+To substitute the type variables of a type's enclosing types, `SupertypeFinder`'s
+`addTypeVarsFromEnclosingTypes` walks the enclosing types and, for each, recurs on its direct
+supertypes. It computed those supertypes with the static `SupertypeFinder.directSupertypes`, uncached;
+that computation calls `addTypeVarsFromEnclosingTypes` on the enclosing types again. Each level of
+nesting therefore multiplied the work, and finding the supertypes of a generic inner class was
+exponential in its nesting depth. Found by the `inner` shape of `gen-shapes.py` (generic inner
+classes nested D deep, used as a method parameter) while profiling the JSpecify reference checker;
+the Nullness Checker has the same cost.
+
+The fix calls `AnnotatedDeclaredType#directSupertypes` instead, which returns the same result,
+including `postDirectSuperTypes`, from the factory's `directSupertypes` cache.
+
+*Measured* (Nullness Checker with `-Amode=jspecify`, `@NullMarked` input, 20 methods that assign
+and pass the innermost type, deterministic allocation, min of 2 runs):
+
+| nesting depth | master | after |
+| --- | --- | --- |
+| 8  | 148 MB | 147 MB |
+| 16 | 685 MB | 266 MB |
+| 32 | did not finish in 10 minutes | 992 MB, 2.9 s |
+
+The marginal allocation still grows about threefold per doubling of the depth after the fix, so the
+cost is now polynomial rather than linear; real code rarely nests generic classes more than two or
+three deep. On Guava (610 files) the wall time does not change measurably.
+
 ---
 
 ## Tried and rejected
@@ -3301,6 +3328,33 @@ Capture format: hot method, hypothesis, blockers.
     `methodFromUse` element-keyed cache buys nothing (cross-refs #5). `tryfin` (nested try/finally)
     and `loops` (nested for) are flat — no finally-duplication or fixpoint-nesting blowup. `chain`
     (`.self()` chain) and `switchc` (D-case switch) are only mildly super-linear (minor).
+
+- **Size-sweep audit with the JSpecify reference checker (October 2026).** Profiling the reference
+  checker on upstream Guava (610 `@NullMarked` files) found no hotspot of its own: its profile has
+  the shape of the Nullness Checker's with `-Amode=jspecify` (dataflow ~38%, `methodFromUse` ~26%,
+  inference ~24%), and no reference-checker method is above ~6% inclusive. Wall time: plain javac
+  12 s, reference checker ~31 s. The audit added the shapes `gmeth`/`pmeth`, `inner`, `tvchain`,
+  `nestw`/`nests`, `nestcall` and `nullchk` to `gen-shapes.py` and ran every shape `@NullMarked`
+  (`--jspecify`) under both checkers. Every super-linear cost showed in both, so all are in the
+  framework. Results:
+  - **`inner` (generic inner classes nested D deep) — exponential; fixed** (see "Supertypes of
+    nested generic inner classes" in *Applied optimizations*).
+  - **`gmeth` (D generic methods per class) — quadratic; fixed** (see "Defaults for type
+    parameters" in *Applied optimizations*).
+  - **`tvchain` (D type variables, each bounded by the previous) — super-linear** (1.4 GB at
+    D=64, the marginal growing two- to threefold per doubling). Much of the allocation is in
+    `MethodTypeParamApplier.getElementIndex`, whose `getTypeParameters().indexOf(element)` builds
+    the list of type parameters again on every call. Not fixed: real methods have few type
+    parameters.
+  - **`nestw`/`nests` (D nested `? extends`/`? super` wildcards) — about quadratic** (`nestw`
+    745 MB at D=32). Real nesting is shallow; not investigated further.
+  - **`nullchk` (D null-checked parameters in one method) — quadratic:** each store copy is O(D).
+    Inherent to the store representation.
+  - **`nestcall` (generic calls nested D deep) — cubic, and the inference work budget gives up at
+    D ≈ 17-20.** Known; see the type-argument-inference sections.
+  - **`cond` is now linear** (~1.6 MB/unit at D = 5-40): PR #2307's post-dataflow cache of
+    conditional types removed the June-2026 blowup.
+  - `inherit` and `fbound` reproduce the known costs above; `chain` is mild.
 
 - **typeinference8 incorporation worklist + constraint gating — SHIPPED in PR #1829** (closed; was
   deferred from #1805 at ~3%). −8.6%/−11.4%/−19.0% at nesting depth 8/12/20, neutral on realistic

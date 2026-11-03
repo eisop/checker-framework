@@ -1484,6 +1484,16 @@ similar to Java subtype rules, but taking the type qualifiers into account.
 
 \end{itemize}
 
+Before it compares a type with another, \refclass{common/basetype}{BaseTypeVisitor}
+validates the type (\<validateType>).  An invalid type is ill-formed, for
+example because it has two qualifiers from one hierarchy, and the
+visitor skips the checks that would compare it, such as the assignment,
+\<return>, and cast checks.  If you override \<validateType> to reject
+more types, report an error for each type you reject.  A type argument
+that is outside the bounds of its type parameter
+(type.argument.type.incompatible) is reported, but the type stays valid,
+so the other checks still apply to it.
+
 
 \subsectionAndLabel{Operations that the source code does not spell out}{creating-implicit-operations}
 
