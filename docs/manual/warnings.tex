@@ -670,6 +670,9 @@ definitions should be type-checked.
 Section~\ref{askipfiles}.)
 The regular expressions are unanchored, unless you anchor them yourself
 with ``\codesize\verb|^|'' and/or ``\codesize\verb|$|''.
+An anonymous or local class, which has no fully-qualified name, is checked if
+and only if its innermost enclosing class with a fully-qualified name is, and
+so is a class nested in an anonymous or local class.
 
 For example, if you use
 ``{\codesize\verb|-AskipDefs=^mypackage\.|}'' on the command line

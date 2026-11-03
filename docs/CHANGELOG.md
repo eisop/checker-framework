@@ -196,6 +196,10 @@ Command-line option additions and changes:
   by subcheckers; more specific options take precedence.
 - Invalid option arguments (e.g. malformed regex) now produce compiler errors
   instead of stack traces.
+- `-AonlyDefs` now checks an anonymous or local class if its enclosing class
+  matches. It matched the pattern against such a class's unqualified name, so a
+  package pattern such as `^mypackage\.` silently skipped every anonymous and
+  local class.
 
 A stub file that declares a record where the running JDK has a class (for example
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
@@ -713,6 +717,7 @@ eisop#2404,
 eisop#2411,
 eisop#2418,
 eisop#2461,
+eisop#2490,
 typetools#399,
 typetools#602,
 typetools#2816,
