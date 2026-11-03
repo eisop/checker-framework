@@ -97,6 +97,10 @@ Type-checking and subtyping improvements:
   clause to `RuntimeException` only if every upper bound is a supertype of
   `RuntimeException`, as the JLS and javac do. It did so if any upper bound
   was, which caused false `type.arguments.not.inferred` errors.
+- Type argument inference no longer crashes on a generic method call nested in
+  another generic method call that is an argument of a method without type
+  variables, such as a method of a raw receiver: the nested calls were inferred
+  on their own against the enclosing call's type variables.
 - CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
   try-with-resources) are now type-checked, with diagnostics pointing at the
   source construct.
