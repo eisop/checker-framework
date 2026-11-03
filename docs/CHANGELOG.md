@@ -131,6 +131,10 @@ Type-checking and subtyping improvements:
   see `@Nullable`, and writes need `@NonNull`. Such types are no longer rejected
   with `type.invalid.super.wildcard`, unless the wildcard collapses to a type
   variable, as `Gen<F, ? super F>` for `Gen<T, S extends T>`.
+- A method reference to `getClass`, such as `foo::getClass` or `Foo::getClass`,
+  now returns `Class<? extends Foo>`, as `foo.getClass()` does, instead of
+  `Class<?>`. Assigning one to a `Supplier<Class<? extends Foo>>` was rejected,
+  and `Stream.map(Foo::getClass)` could fail or crash type argument inference.
 
 JSpecify support in the Nullness Checker:
 
@@ -585,12 +589,6 @@ Other improvements and bug fixes:
   well as deterministic, that is, `@Pure`. Before, a method that was only
   `@Deterministic` was accepted although it may change the heap, so that two
   evaluations of the lock expression could name different locks.
-- A method reference to `getClass`, such as `x::getClass` or `Foo::getClass`,
-  now returns `Class<? extends Foo>` for a receiver of type `Foo`, as an
-  invocation does, rather than the declared `Class<?>`. Before, assigning one
-  to a `Supplier<Class<? extends Foo>>` was rejected, and passing one to a
-  generic method such as `Stream.map` could fail or crash type-argument
-  inference.
 
 ### Closed issues
 
