@@ -1941,7 +1941,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /**
      * Issues "explicit.annotation.ignored" warning if any explicit annotation on an intersection
      * bound -- or, if written as an alias, its canonical form -- is not the same as the primary
-     * annotation of the given intersection type.
+     * annotation of the given intersection type. A checker that overrides {@link
+     * AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy} so that every bound
+     * counts can override this method to issue no warning.
      *
      * @param intersection type to use
      * @param boundTrees trees of {@code intersection} bounds
@@ -5587,19 +5589,21 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * the overridden method's receiver accepts.
          *
          * <p>Each type argument of the overrider's receiver and of its enclosing types is valid if
-         * either
+         * one of these holds:
          *
          * <ol>
-         *   <li>it is the class's own type parameter without an annotation, as in {@code Child<E>
-         *       this} in {@code class Child<E>}; this is the type of {@code this} and accepts every
-         *       instance of the class, or
-         *   <li>it is equal to the overridden receiver's type argument at every position that pins
-         *       it, and at least one position does.
+         *   <li>It is a type variable that equals the same type argument of the type of this in the
+         *       class that declares it, such as {@code E} in a receiver {@code Child<E> this}. The
+         *       type of this, from {@link AnnotatedTypeFactory#getSelfType(TypeElement)}, accepts
+         *       every instance of the class, so it cannot narrow the overridden receiver.
+         *   <li>It equals the overridden receiver's type argument at every position that pins it,
+         *       and at least one position does.
          * </ol>
          *
-         * A type parameter that nothing pins, such as {@code F} in {@code class Child<E, F> extends
-         * Parent<E>}, is fixed by nothing, so any annotation on it is a narrowing. Primary
-         * annotations are not compared here; {@link #isReceiverPrimaryOverrideValid} checks them.
+         * A type parameter that nothing pins is fixed by nothing, so any annotation on it that the
+         * type of this does not have is a narrowing. An example is {@code F} in {@code Child<E, F>}
+         * if that class extends {@code Parent<E>}. Primary annotations are not compared here; they
+         * are checked by {@link #isReceiverPrimaryOverrideValid}.
          *
          * @param overriderReceiver the receiver of the overrider
          * @param overriddenReceiver the receiver of the overridden method
@@ -5624,7 +5628,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         isReceiver ? seen : enclosingTypeOf(overriddenReceiver, typeElt);
                 for (int i = 0; i < args.size(); i++) {
                     AnnotatedTypeMirror arg = args.get(i);
-                    if (isOwnTypeParameter(arg, params.get(i))) {
+                    if (isTypeVariableFor(arg, params.get(i))
+                            && isEqualType(
+                                    arg,
+                                    atypeFactory.getSelfType(typeElt).getTypeArguments().get(i))) {
                         // The type of "this" accepts every instance of the class.
                         continue;
                     }
@@ -5687,19 +5694,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         private boolean isEqualType(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
             return typeHierarchy.isSubtype(type1, type2) && typeHierarchy.isSubtype(type2, type1);
-        }
-
-        /**
-         * Returns true if {@code typeArg} is the type variable for {@code param} without a primary
-         * annotation.
-         *
-         * @param typeArg a type argument
-         * @param param a type parameter of the class that {@code typeArg} is an argument for
-         * @return true if {@code typeArg} is the unannotated type variable for {@code param}
-         */
-        private boolean isOwnTypeParameter(
-                AnnotatedTypeMirror typeArg, TypeParameterElement param) {
-            return typeArg.getAnnotations().isEmpty() && isTypeVariableFor(typeArg, param);
         }
 
         /**
@@ -6556,6 +6550,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * Returns true if the type and corresponding type tree is a valid type, and emits an error if
      * that is not the case (e.g. '@Mutable String'). If the tree is a method or constructor, tests
      * the return type.
+     *
+     * <p>A type is invalid if it is ill-formed, for example if it has two qualifiers of one
+     * hierarchy or a qualifier that the type system forbids at that location. The checks that
+     * compare such a type with another, such as the assignment, {@code return}, enhanced {@code
+     * for}, {@code new}, and cast checks, are skipped: comparing an ill-formed type is not
+     * meaningful, and some comparisons assume one qualifier per hierarchy. An override that returns
+     * false must therefore have reported an error. A type argument that is outside the bounds of
+     * its type parameter is reported, but leaves the type valid: the type is well-formed, so the
+     * other checks still apply to it.
      *
      * @param tree the type tree supplied by the user
      * @param type the type corresponding to tree

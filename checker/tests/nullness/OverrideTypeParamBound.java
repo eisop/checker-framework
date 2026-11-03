@@ -340,30 +340,36 @@ public class OverrideTypeParamBound {
     // use the same type variables wherever a type parameter occurs, however nested, and the
     // qualifier difference between the two declarations' bounds is judged once, as
     // override.typaram.invalid. Without the adaptation, an F-bound such as
-    // <T extends Comparable<T>>, or one type parameter's bound naming another, would compare two
+    // <T extends Cmp<T>>, or one type parameter's bound naming another, would compare two
     // distinct type variables in an invariant type-argument position and fail no matter which
     // direction the qualifier moved.
     //
+    // The F-bounds use Cmp rather than Comparable: the annotated JDK declares
+    // Comparable<T extends @NonNull Object>, so <T extends @Nullable Comparable<T>> is itself
+    // invalid (see NullableFBound.java), and these cases are about overriding only.
+    //
     // Super17/SubFBoundWiden below is the sound direction: the F-bound's qualifier is widened.
 
+    interface Cmp<T extends @Nullable Object> {}
+
     static class Super17 {
-        <T extends @NonNull Comparable<T>> void use(T p) {}
+        <T extends @NonNull Cmp<T>> void use(T p) {}
     }
 
     static class SubFBoundWiden extends Super17 {
         @Override
-        <T extends @Nullable Comparable<T>> void use(T p) {}
+        <T extends @Nullable Cmp<T>> void use(T p) {}
     }
 
     // Narrowing an F-bound's qualifier is still rejected.
     static class Super17Narrow {
-        <T extends @Nullable Comparable<T>> void use(T p) {}
+        <T extends @Nullable Cmp<T>> void use(T p) {}
     }
 
     static class SubFBoundNarrow extends Super17Narrow {
         @Override
         // :: error: (override.typaram.invalid)
-        <T extends @NonNull Comparable<T>> void use(T p) {}
+        <T extends @NonNull Cmp<T>> void use(T p) {}
     }
 
     // A bound that names another type parameter of the method.
@@ -385,24 +391,24 @@ public class OverrideTypeParamBound {
     // The same holds wherever the type parameter occurs: as a return type, as a parameter, or
     // nested in another type.
     static class Super19 {
-        <T extends @NonNull Comparable<T>> T max(T a, T b) {
+        <T extends @NonNull Cmp<T>> T max(T a, T b) {
             return a;
         }
 
-        <T extends @Nullable Comparable<T>> T maxNarrow(T a, T b) {
+        <T extends @Nullable Cmp<T>> T maxNarrow(T a, T b) {
             return a;
         }
     }
 
     static class SubFBoundReturn extends Super19 {
         @Override
-        <T extends @Nullable Comparable<T>> T max(T a, T b) {
+        <T extends @Nullable Cmp<T>> T max(T a, T b) {
             return a;
         }
 
         @Override
         // :: error: (override.typaram.invalid)
-        <T extends @NonNull Comparable<T>> T maxNarrow(T a, T b) {
+        <T extends @NonNull Cmp<T>> T maxNarrow(T a, T b) {
             return a;
         }
     }
@@ -423,32 +429,32 @@ public class OverrideTypeParamBound {
 
     // The type parameter nested in a parameter type and in a return type.
     static class Super21 {
-        <T extends @NonNull Comparable<T>> void use(List<T> p) {}
+        <T extends @NonNull Cmp<T>> void use(List<T> p) {}
 
-        <T extends @NonNull Comparable<T>> List<T> produce() {
+        <T extends @NonNull Cmp<T>> List<T> produce() {
             return new ArrayList<>();
         }
     }
 
     static class SubNestedWiden extends Super21 {
         @Override
-        <T extends @Nullable Comparable<T>> void use(List<T> p) {}
+        <T extends @Nullable Cmp<T>> void use(List<T> p) {}
 
         @Override
-        <T extends @Nullable Comparable<T>> List<T> produce() {
+        <T extends @Nullable Cmp<T>> List<T> produce() {
             return new ArrayList<>();
         }
     }
 
     // Narrowing is reported once, for the type parameter.
     static class Super21Narrow {
-        <T extends @Nullable Comparable<T>> void use(List<T> p) {}
+        <T extends @Nullable Cmp<T>> void use(List<T> p) {}
     }
 
     static class SubNestedNarrow extends Super21Narrow {
         @Override
         // :: error: (override.typaram.invalid)
-        <T extends @NonNull Comparable<T>> void use(List<T> p) {}
+        <T extends @NonNull Cmp<T>> void use(List<T> p) {}
     }
 
     // A bound that names another type parameter, with the type parameters nested in a type.
@@ -463,12 +469,12 @@ public class OverrideTypeParamBound {
 
     // Identical F-bounds compare cleanly and terminate despite the self-reference.
     static class Super18 {
-        <T extends @NonNull Comparable<T>> void use(T p) {}
+        <T extends @NonNull Cmp<T>> void use(T p) {}
     }
 
     static class SubFBoundSame extends Super18 {
         @Override
-        <T extends @NonNull Comparable<T>> void use(T p) {}
+        <T extends @NonNull Cmp<T>> void use(T p) {}
     }
 
     // ---- Requalified occurrences: an explicit annotation on a parameter or return type, not on
