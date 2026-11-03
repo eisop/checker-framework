@@ -2,7 +2,7 @@
 
 all:
 	$(JAVAC) -processor tainting -Ashowchecks Issue1015.java > out.txt 2>&1
-	diff -u --strip-trailing-cr expected.txt out.txt
+	tr -d '\r' < out.txt | diff -u expected.txt -
 
 clean:
 	rm -f out.txt
