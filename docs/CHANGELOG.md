@@ -120,6 +120,11 @@ Type-checking and subtyping improvements:
   bound too, so the method type parameter `<T extends @Nullable Comparable<T>>`
   is rejected, as the same bound on a class already was: `Comparable` requires
   a non-null type argument.
+- The type of a cast such as `(Entry<?, ?>) o` now uses javac's captured type
+  variables instead of fresh ones for each query, so type argument inference and
+  the argument check agree. A type system that distinguishes captures of the same
+  wildcard, such as the JSpecify reference checker, rejected `m((Entry<?, ?>) o)`
+  for `<K, V> m(Entry<? extends K, ? extends V>)`.
 
 JSpecify support in the Nullness Checker:
 

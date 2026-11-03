@@ -2015,7 +2015,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         addComputedTypeAnnotations(tree, type);
         if (tree instanceof TypeCastTree) {
-            type = applyCaptureConversion(type);
+            // javac's type of a cast is already captured (Attr#visitTypeCast). Reuse its captured
+            // type variables, so that every query of the cast's type sees the same ones.
+            type = applyCaptureConversion(type, TreeUtils.typeOf(tree));
         }
 
         if (shouldCache && (isClassTree || tree instanceof MethodTree)) {
