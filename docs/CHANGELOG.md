@@ -260,16 +260,12 @@ those defaults annotate every use of a type variable; a receiver that a default
 on the overriding method itself changes is checked like a written annotation. In
 a field initializer or an initializer block, the type of `this` now also has the
 defaults of its class, as in a method, so a call with an implicit receiver there
-is no longer reported as `method.invocation.invalid`. The enclosing instance of
-an inner class's method or constructor, when its type is not written, now has the
-type of `this` in the enclosing class, with that class's defaults, instead of the
-defaults of the inner class or of the method. A constructor of an inner class with
-a `@DefaultQualifier(value = NonNull.class, locations = TYPE_VARIABLE_USE)` default
-therefore no longer treats a nullable field of the enclosing instance as non-null,
-and a method of such an inner class can be called on an instance whose enclosing
-instance has a nullable type argument. A written receiver of an inner class
-constructor, such as `Inner(Outer<@NonNull O> Outer.this)`, is now respected in
-the constructor body.
+is no longer reported as `method.invocation.invalid`. Likewise, the enclosing
+instance of an inner class's method or constructor, unless its type is written,
+has the type of `this` in the enclosing class: a default of the inner class or the
+method no longer applies to it, which let a constructor dereference a nullable
+field of `Outer.this`. A written constructor receiver, such as
+`Inner(Outer<@NonNull O> Outer.this)`, is now respected in the constructor body.
 
 A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
 keeps the qualifier of the expression instead of taking the type variable's
