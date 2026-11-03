@@ -6551,6 +6551,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * that is not the case (e.g. '@Mutable String'). If the tree is a method or constructor, tests
      * the return type.
      *
+     * <p>A type is invalid if it is ill-formed, for example if it has two qualifiers of one
+     * hierarchy or a qualifier that the type system forbids at that location. The checks that
+     * compare such a type with another, such as the assignment, {@code return}, enhanced {@code
+     * for}, {@code new}, and cast checks, are skipped: comparing an ill-formed type is not
+     * meaningful, and some comparisons assume one qualifier per hierarchy. An override that returns
+     * false must therefore have reported an error. A type argument that is outside the bounds of
+     * its type parameter is reported, but leaves the type valid: the type is well-formed, so the
+     * other checks still apply to it.
+     *
      * @param tree the type tree supplied by the user
      * @param type the type corresponding to tree
      * @return true if the type is valid
