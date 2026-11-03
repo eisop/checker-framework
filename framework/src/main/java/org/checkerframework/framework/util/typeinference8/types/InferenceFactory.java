@@ -139,9 +139,27 @@ public class InferenceFactory {
         TreePath path = context.pathToExpression;
         Tree context = TreePathUtil.getContextForPolyExpression(path);
         if (context == null) {
-            AnnotatedTypeMirror dummy = factory.getDummyAssignedTo((ExpressionTree) path.getLeaf());
+            ExpressionTree leaf = (ExpressionTree) path.getLeaf();
+            AnnotatedTypeMirror dummy = factory.getDummyAssignedTo(leaf);
             if (dummy == null || dummy.containsCapturedTypes()) {
                 return null;
+            }
+            if (leaf instanceof NewClassTree
+                    && TreeUtils.isAnonymousDiamondTree((NewClassTree) leaf)
+                    && dummy.getKind() == TypeKind.DECLARED
+                    && ElementUtils.isAnonymous(
+                            ((DeclaredType) dummy.getUnderlyingType()).asElement())) {
+                // A type factory that returns the type of the expression itself, as
+                // ValueAnnotatedTypeFactory does, returns the anonymous class for
+                // `new C<>(args) {...}`. The type arguments being inferred are those of C, so the
+                // target is the anonymous class's supertype C<...>, not the anonymous class, of
+                // which C<...> is not a subtype.
+                DeclaredType superJavaType =
+                        (DeclaredType) TreeUtils.typeOf(((NewClassTree) leaf).getIdentifier());
+                AnnotatedDeclaredType superType =
+                        (AnnotatedDeclaredType)
+                                AnnotatedTypeMirror.createType(superJavaType, factory, false);
+                dummy = AnnotatedTypes.asSuper(factory, dummy, superType);
             }
             return new ProperType(dummy, dummy.getUnderlyingType(), this.context);
         }
