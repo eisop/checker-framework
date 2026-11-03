@@ -1,0 +1,20 @@
+plugins {
+    id 'java'
+}
+
+group = 'io.github.eisop'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':harness-core')
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+
