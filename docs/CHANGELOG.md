@@ -215,6 +215,8 @@ Command-line option additions and changes:
   by subcheckers; more specific options take precedence.
 - Invalid option arguments (e.g. malformed regex) now produce compiler errors
   instead of stack traces.
+- The Subtyping Checker's `-AqualDirs` now separates directories with the
+  platform's path separator, so it accepts Windows paths such as `D:/quals`.
 
 A stub file that declares a record where the running JDK has a class (for example
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the

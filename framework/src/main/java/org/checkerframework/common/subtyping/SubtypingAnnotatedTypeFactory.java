@@ -56,16 +56,16 @@ public class SubtypingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         // load directories of qualifiers
-        for (String dirName : checker.getStringsOption("qualDirs", ':')) {
+        for (String dirName : checker.getStringsOption("qualDirs", File.pathSeparatorChar)) {
             if (!new File(dirName).exists()) {
                 throw new UserError(
-                        "Directory specified in -AqualsDir does not exist: %s", dirName);
+                        "Directory specified in -AqualDirs does not exist: %s", dirName);
             }
             Set<Class<? extends Annotation>> annos =
                     loader.loadExternalAnnotationClassesFromDirectory(dirName);
             if (annos.isEmpty()) {
                 throw new UserError(
-                        "Directory specified in -AqualsDir contains no qualifiers: " + dirName);
+                        "Directory specified in -AqualDirs contains no qualifiers: " + dirName);
             }
             qualSet.addAll(annos);
         }
