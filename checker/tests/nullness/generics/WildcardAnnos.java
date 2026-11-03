@@ -12,9 +12,8 @@ public class WildcardAnnos {
     // @Nullable List<? super @NonNull String extends @Nullable Object> l3 = null;
     @Nullable List<@Nullable ? super @NonNull String> l3 = null;
 
-    // The bounds need to have the same annotations because capture conversion
-    // converts the type argument to just Object.
-    // :: error: (type.invalid.super.wildcard)
+    // javac's capture conversion collapses this wildcard to Object (JDK-8054309); the Checker
+    // Framework reconstructs the captured type variable with both annotated bounds.
     @Nullable List<@Nullable ? super @NonNull Object> l3b = null;
 
     // :: error: (bound.type.incompatible)
