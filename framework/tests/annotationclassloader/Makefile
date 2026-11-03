@@ -70,7 +70,7 @@ load-from-dir-test:
 	  -ApermitMissingJdk \
 	  -AnoJreVersionCheck \
 	  LoaderTest.java > Out.txt 2>&1
-	diff -u Expected.txt Out.txt
+	diff -u --strip-trailing-cr Expected.txt Out.txt
 
 # loads from framework.jar
 load-from-jar-test:
@@ -82,7 +82,7 @@ load-from-jar-test:
 	  -ApermitMissingJdk \
 	  -AnoJreVersionCheck \
 	  LoaderTest.java > Out.txt 2>&1
-	diff -u Expected.txt Out.txt
+	diff -u --strip-trailing-cr Expected.txt Out.txt
 
 clean:
 	rm -f Out.txt
