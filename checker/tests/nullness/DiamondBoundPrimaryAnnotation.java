@@ -1,5 +1,6 @@
-// Test case for a diamond whose class has a type parameter bounded by an annotated use of another
-// type parameter, `T extends @Nullable E`. After E is inferred, the bound must keep the @Nullable.
+// Test case for a type parameter bounded by an annotated use of another type parameter,
+// `T extends @Nullable E`, of a class instantiated with a diamond and of a generic method. After E
+// is inferred, the bound must keep the @Nullable.
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 abstract class DiamondBoundPrimaryAnnotation<T> {
@@ -23,6 +24,25 @@ abstract class DiamondBoundPrimaryAnnotation<T> {
 
     final <S extends T> DiamondBoundPrimaryAnnotation<Iterable<S>> pairwiseNonNull() {
         return new PairwiseNonNull<>(this);
+    }
+
+    static <E, U extends @Nullable E> Iterable<U> pairwiseOf(
+            DiamondBoundPrimaryAnnotation<E> elementEquivalence) {
+        throw new Error();
+    }
+
+    static <E, U extends E> Iterable<U> pairwiseOfNonNull(
+            DiamondBoundPrimaryAnnotation<E> elementEquivalence) {
+        throw new Error();
+    }
+
+    final <S extends @Nullable T> Iterable<S> pairwiseMethod() {
+        return pairwiseOf(this);
+    }
+
+    final <S extends @Nullable T> Iterable<S> pairwiseMethodBad() {
+        // :: error: (type.arguments.not.inferred)
+        return pairwiseOfNonNull(this);
     }
 
     final <S extends @Nullable T> DiamondBoundPrimaryAnnotation<Iterable<S>> pairwiseBad() {
