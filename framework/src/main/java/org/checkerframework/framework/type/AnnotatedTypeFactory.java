@@ -471,8 +471,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private final boolean assumePureGetters;
 
     /**
-     * True unless {@code -AstoreInBytecode=false} was supplied: whether to store into the class
-     * file the qualifiers that do not appear in the source code. See {@link #postProcessClassTree}.
+     * Whether to store into the class file the qualifiers that do not appear in the source code;
+     * the result of {@link #shouldStoreInBytecode}.
      */
     private final boolean storeInBytecode;
 
@@ -754,7 +754,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.assumeDeterministic =
                 checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
         this.assumePureGetters = checker.hasOption("assumePureGetters");
-        this.storeInBytecode = checker.getBooleanOption("storeInBytecode", true);
 
         this.trees = Trees.instance(processingEnv);
         this.elements = processingEnv.getElementUtils();
@@ -802,6 +801,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.typeFormatter = createAnnotatedTypeFormatter();
         this.annotationFormatter = createAnnotationFormatter();
         this.typeInformationPresenter = createTypeInformationPresenter();
+        this.storeInBytecode = shouldStoreInBytecode();
 
         // Alias provided via -AaliasedTypeAnnos command-line option.
         // This can only be used for annotations whose attributes have the same names as in the
@@ -1723,6 +1723,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * AnnotatedTypeMirror#toString()} and will affect the error messages printed for checkers that
      * use this type factory.
      *
+     * <p>Called from the {@code AnnotatedTypeFactory} constructor, before any subclass constructor
+     * body or field initializer runs, so an override must not depend on subclass state.
+     *
      * @return the {@link AnnotatedTypeFormatter} to pass to all {@link AnnotatedTypeMirror}s
      */
     protected AnnotatedTypeFormatter createAnnotatedTypeFormatter() {
@@ -1745,6 +1748,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Creates the {@link AnnotationFormatter} used by this type factory.
      *
+     * <p>Called from the {@code AnnotatedTypeFactory} constructor, before any subclass constructor
+     * body or field initializer runs, so an override must not depend on subclass state.
+     *
      * @return the {@link AnnotationFormatter} used by this type factory
      */
     protected AnnotationFormatter createAnnotationFormatter() {
@@ -1763,6 +1769,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Creates the {@link TypeInformationPresenter} used in {@link #postProcessClassTree(ClassTree)}
      * to output type information about the current class.
+     *
+     * <p>Called from the {@code AnnotatedTypeFactory} constructor, before any subclass constructor
+     * body or field initializer runs, so an override must not depend on subclass state.
      *
      * @return the {@link TypeInformationPresenter} used by this type factory, or null
      */
@@ -1904,9 +1913,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * hierarchy, into the single annotation used to summarize that hierarchy. Called by {@link
      * AnnotatedTypeMirror.AnnotatedIntersectionType#summarizeBounds()}: for a type variable's own
      * intersection upper bound, after each bound has been independently defaulted, so a bound's
-     * annotation may be explicit or defaulted; for an intersection cast target, before defaulting,
-     * so only explicit annotations are seen. Either way, this method is called only when two bounds
-     * carry different annotations in one hierarchy.
+     * annotation may be explicit or defaulted; for an intersection cast target, after each bound
+     * without a written qualifier got the cast operand's qualifier. Either way, this method is
+     * called only when two bounds carry different annotations in one hierarchy.
      *
      * <p>By default the annotation of the bound encountered first, in source order, wins
      * (first-bound-wins): the returned summary equals {@code existingAnnotation} and {@code
@@ -2014,7 +2023,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             setEnclosingInstanceType((AnnotatedExecutableType) type, implicitEnclosingInstance);
         }
         if (tree instanceof TypeCastTree) {
-            type = applyCaptureConversion(type);
+            // javac's type of a cast is already captured (Attr#visitTypeCast). Reuse its captured
+            // type variables, so that every query of the cast's type sees the same ones.
+            type = applyCaptureConversion(type, TreeUtils.typeOf(tree));
         }
 
         if (shouldCache && (isClassTree || tree instanceof MethodTree)) {
@@ -2036,13 +2047,31 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public void preProcessClassTree(ClassTree classTree) {}
 
     /**
+     * Returns whether {@link #postProcessClassTree} stores into the class file the qualifiers that
+     * do not appear in the source code (defaulted types and inherited declaration annotations).
+     *
+     * <p>The default implementation returns true unless {@code -AstoreInBytecode=false} was
+     * supplied. A checker whose computed qualifiers must never reach bytecode (for example, because
+     * they are an implementation detail that no reader of the class file should depend on) can
+     * override this to return false.
+     *
+     * <p>Called from the {@code AnnotatedTypeFactory} constructor, before any subclass constructor
+     * body or field initializer runs, so an override must not depend on subclass state.
+     *
+     * @return whether to store computed qualifiers into the class file
+     */
+    protected boolean shouldStoreInBytecode() {
+        return checker.getBooleanOption("storeInBytecode", true);
+    }
+
+    /**
      * Called by {@link BaseTypeVisitor#visitClass(ClassTree, Void)} after the ClassTree has been
      * type checked.
      *
-     * <p>The default implementation uses this to store the defaulted AnnotatedTypeMirrors and
-     * inherited declaration annotations back into the corresponding Elements, unless {@code
-     * -AstoreInBytecode=false} was supplied. Subclasses might want to override this method if
-     * storing defaulted types is not desirable.
+     * <p>The default implementation stores the defaulted AnnotatedTypeMirrors and inherited
+     * declaration annotations back into the corresponding Elements, if {@link
+     * #shouldStoreInBytecode} returned true, and then runs the {@link TypeInformationPresenter}
+     * returned by {@link #createTypeInformationPresenter}, if any.
      *
      * @param tree the ClassTree that has been processed
      */
@@ -7037,7 +7066,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         AnnotatedDeclaredType uncapturedType = (AnnotatedDeclaredType) type;
-        DeclaredType capturedTypeMirror = (DeclaredType) typeMirror;
+        DeclaredType capturedTypeMirror =
+                uncollapseSuperBoundedWildcards(uncapturedType, (DeclaredType) typeMirror);
         // `capturedType` is the return value of this method.
         AnnotatedDeclaredType capturedType =
                 (AnnotatedDeclaredType)
@@ -7123,6 +7153,70 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         capturedType.setTypeArguments(newTypeArgs);
         capturedType.addAnnotations(uncapturedType.getAnnotationsField());
         return capturedType;
+    }
+
+    /**
+     * Returns {@code capturedTypeMirror} with a fresh captured type variable for each super-bounded
+     * wildcard of {@code uncapturedType} that javac's capture conversion collapsed to a declared
+     * type, if the wildcard's annotated bounds differ.
+     *
+     * <p>javac captures {@code ? super B} to {@code B} itself when the type variable it would
+     * create has {@code B} as both bounds (JDK-8054309). That type argument cannot carry the
+     * annotations of both bounds: for {@code Lib<T extends @Nullable Object>}, {@code Lib<?
+     * super @NonNull Object>} would read as {@code @NonNull} and be a subtype of {@code Lib<?
+     * extends @NonNull Object>}. {@link #annotateCapturedTypeVar} annotates the type variable
+     * created here like any other. A wildcard that collapsed to a type variable is kept; see {@code
+     * BaseTypeValidator#checkExplicitSuperBoundWildcards}.
+     *
+     * @param uncapturedType a declared type with a wildcard type argument
+     * @param capturedTypeMirror the result of javac's capture conversion of the underlying type of
+     *     {@code uncapturedType}
+     * @return {@code capturedTypeMirror}, or a copy of it in which every collapsed type argument
+     *     with differing annotated bounds is a fresh captured type variable
+     */
+    private DeclaredType uncollapseSuperBoundedWildcards(
+            AnnotatedDeclaredType uncapturedType, DeclaredType capturedTypeMirror) {
+        List<? extends TypeMirror> capturedArgs = capturedTypeMirror.getTypeArguments();
+        List<? extends AnnotatedTypeMirror> uncapturedArgs = uncapturedType.getTypeArguments();
+        TypeMirror[] newArgs = null;
+        for (int i = 0; i < capturedArgs.size(); i++) {
+            TypeMirror capturedArg = capturedArgs.get(i);
+            AnnotatedTypeMirror uncapturedArg = uncapturedArgs.get(i);
+            if (uncapturedArg.getKind() != TypeKind.WILDCARD
+                    || capturedArg.getKind() == TypeKind.WILDCARD
+                    || TypesUtils.isCapturedTypeVariable(capturedArg)) {
+                continue;
+            }
+            AnnotatedWildcardType wildcard = (AnnotatedWildcardType) uncapturedArg;
+            if (wildcard.getUnderlyingType().getSuperBound() == null
+                    || capturedArg.getKind() == TypeKind.TYPEVAR) {
+                // Only a super-bounded wildcard can have equal bounds. A collapsed type variable
+                // (`Gen<T, S extends T>` used as `Gen<F, ? super F>`) is kept: the bounds of the
+                // captured type variable would be the type variable itself, which
+                // StructuralEqualityComparer cannot compare with a captured type variable.
+                continue;
+            }
+            if (AnnotationUtils.areSame(
+                    wildcard.getExtendsBound().getAnnotations(),
+                    wildcard.getSuperBound().getAnnotations())) {
+                continue;
+            }
+            if (newArgs == null) {
+                newArgs = capturedArgs.toArray(new TypeMirror[0]);
+            }
+            // javac collapsed the wildcard because the upper and lower bounds of the type
+            // variable it would have created are the same Java type, namely `capturedArg`.
+            newArgs[i] = TypesUtils.freshTypeVariable(capturedArg, capturedArg, processingEnv);
+        }
+        if (newArgs == null) {
+            return capturedTypeMirror;
+        }
+        TypeElement element = (TypeElement) capturedTypeMirror.asElement();
+        TypeMirror enclosing = capturedTypeMirror.getEnclosingType();
+        if (enclosing.getKind() == TypeKind.DECLARED) {
+            return types.getDeclaredType((DeclaredType) enclosing, element, newArgs);
+        }
+        return types.getDeclaredType(element, newArgs);
     }
 
     /**

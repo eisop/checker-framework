@@ -18,6 +18,7 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.util.AnnotatedTypes;
@@ -316,6 +317,11 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
 
     @Override
     public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
+        if (type.getKind() == TypeKind.INTERSECTION) {
+            visitIntersectionCast(tree, (AnnotatedIntersectionType) type);
+            return null;
+        }
+
         if (!((GenericAnnotatedTypeFactory) atypeFactory).isRelevant(type)) {
             return null;
         }
@@ -327,7 +333,42 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             return null;
         }
 
-        AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(tree.getExpression());
+        addOperandAnnotations(tree, type, atypeFactory.getAnnotatedType(tree.getExpression()));
+        return null;
+    }
+
+    /**
+     * Annotates {@code type}, the type of a cast to an intersection type, and summarizes its
+     * bounds. Each bound is annotated on its own, like the target of a cast to a non-intersection
+     * type: in a hierarchy where it has no written qualifier, it gets the qualifier of the operand.
+     * Only then are the bounds summarized (see {@link
+     * AnnotatedIntersectionType#summarizeBounds()}), so that a bound without a written qualifier
+     * takes part in the summary just like one with a written qualifier. For example, in {@code (Lib
+     * & @Nullable Lib2) nonNullValue}, the first bound is {@code @NonNull}.
+     *
+     * @param tree a cast to an intersection type
+     * @param type the type of {@code tree}, whose bounds have not been summarized yet
+     */
+    private void visitIntersectionCast(TypeCastTree tree, AnnotatedIntersectionType type) {
+        if (((GenericAnnotatedTypeFactory) atypeFactory).isRelevant(type)) {
+            AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(tree.getExpression());
+            for (AnnotatedTypeMirror bound : type.getBounds()) {
+                addOperandAnnotations(tree, bound, exprType);
+            }
+        }
+        type.summarizeBounds();
+    }
+
+    /**
+     * Adds to {@code type}, the target of a cast that is not an intersection type (or one bound of
+     * such a target), the qualifiers of the cast's operand in each hierarchy where it has none.
+     *
+     * @param tree the cast
+     * @param type the type to annotate
+     * @param exprType the type of the cast's operand
+     */
+    private void addOperandAnnotations(
+            TypeCastTree tree, AnnotatedTypeMirror type, AnnotatedTypeMirror exprType) {
         if (type.getKind() == TypeKind.TYPEVAR) {
             if (exprType.getKind() == TypeKind.TYPEVAR) {
                 // If both types are type variables, take the direct annotations.
@@ -369,8 +410,6 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             // expression qualifier.
             addAnnoOrBound(type, expressionAnnos);
         }
-
-        return null;
     }
 
     /**

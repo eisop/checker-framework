@@ -270,10 +270,24 @@ you cannot trust a "rising" marginal.
 
 Shapes: `control` (linear), `cond` (nested ternary), `chain` (`.self()` chain), `inherit` (deep
 class chain), `switchc` (big switch), `repeat` (same-method calls), `tryfin` (nested try/finally),
-`loops` (nested for). June-2026 audit found `cond` severe super-linear (28 GB at depth 160 — Issue
-#602 conditional non-caching) and `inherit` quadratic (asSuper depth); the rest linear or mild. Then
-localize with `jfr-analyze.java inclusive` / `under` at the largest D, and confirm the root cause
-before proposing a fix (see the metric-mismatch trap below).
+`loops` (nested for), `fbound` (mutually F-bounded generics), `gmeth` (generic methods per class,
+with `pmeth` as its non-generic calibration), `inner` (nested generic inner classes), `tvchain`
+(type variables bounded by each other), `nestw`/`nests` (nested `? extends`/`? super` wildcards),
+`nestcall` (nested generic calls), `nullchk` (null-checked parameters per method). June-2026 audit
+found `cond` severe super-linear (28 GB at depth 160 — Issue #602 conditional non-caching) and
+`inherit` quadratic (asSuper depth); the rest linear or mild. The October-2026 audit found `inner`
+exponential and `gmeth` quadratic (both fixed) and `cond` linear since PR #2307; see the *Short
+list* in `performance-notes.md` for the rest. Then localize with `jfr-analyze.java inclusive` /
+`under` at the largest D, and confirm the root cause before proposing a fix (see the
+metric-mismatch trap below).
+
+`SWEEP_ARGS` replaces `-processor nullness` (another checker, or `-processor nullness
+-Amode=jspecify`), and `SWEEP_GEN_ARGS=--jspecify` makes every top-level type `@NullMarked`. To sweep
+the JSpecify reference checker, put its jar and `jspecify.jar` on both paths in `SWEEP_ARGS`; build
+the reference checker with this checkout as an included build (`--include-build`). Passing
+`-PskipAnnotatedJdk` to that build replaces `checker/dist/checker.jar` with one without the
+annotated JDK, so rerun `./gradlew assembleForJavac` afterwards. Sweep the Nullness Checker on the
+same shapes: a cost that both show is in the framework.
 
 **Metric-mismatch trap (cost you, June 2026): a CPU-inclusive hotspot is not necessarily the
 allocation driver — optimize the metric you're actually measuring.** On the `cond` shape,
