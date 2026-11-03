@@ -1117,7 +1117,9 @@ public class NullnessNoInitAnnotatedTypeFactory
         List<? extends Tree> nestedPatterns =
                 DeconstructionPatternUtils.getNestedPatterns(recordPattern);
         for (int i = 0; i < nestedPatterns.size(); i++) {
-            if (nestedPatterns.get(i) == bindingPattern) {
+            @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+            boolean found = nestedPatterns.get(i) == bindingPattern;
+            if (found) {
                 index = i;
                 break;
             }
@@ -1134,7 +1136,7 @@ public class NullnessNoInitAnnotatedTypeFactory
         Name componentName = components.get(index).getSimpleName();
         ExecutableElement accessor = null;
         for (ExecutableElement method : ElementFilter.methodsIn(recordElt.getEnclosedElements())) {
-            if (method.getParameters().isEmpty() && method.getSimpleName().equals(componentName)) {
+            if (method.getParameters().isEmpty() && method.getSimpleName() == componentName) {
                 accessor = method;
                 break;
             }
