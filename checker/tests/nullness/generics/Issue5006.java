@@ -12,7 +12,9 @@ public class Issue5006 {
 
     interface Y extends X {
         @Override
-        // :: error: (type.invalid.super.wildcard)
+        // C<? super @NonNull Object> can be a C<@Nullable Object>, whose get() returns null, so
+        // it is not a subtype of C<? extends @NonNull Object>.
+        // :: error: (override.return.invalid)
         C<? super Object> get();
     }
 }

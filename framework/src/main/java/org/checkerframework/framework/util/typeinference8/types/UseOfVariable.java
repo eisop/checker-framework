@@ -127,11 +127,30 @@ public class UseOfVariable extends AbstractType {
 
     @Override
     public AbstractType applyInstantiations() {
-        if (this.variable.getInstantiation() != null) {
-            return this.variable.getInstantiation();
+        ProperType instantiation = this.variable.getInstantiation();
+        if (instantiation == null) {
+            return this;
         }
-
-        return this;
+        if (!hasPrimaryAnno || ignoreAnnotations) {
+            return instantiation;
+        }
+        // The use's primary annotation applies to the instantiation, as in TypeVariableSubstitutor:
+        // otherwise the bound `T <: @Nullable E` of `class C<E, T extends @Nullable E>` would
+        // become `T <: X` after E := X. A polymorphic qualifier is a qualifier variable (see
+        // #getQualifiers), not a qualifier of the instantiation, so it is not copied.
+        QualifierHierarchy qh = context.typeFactory.getQualifierHierarchy();
+        AnnotationMirrorSet annos = new AnnotationMirrorSet();
+        for (AnnotationMirror anno : type.getAnnotations()) {
+            if (!qh.isPolymorphicQualifier(anno)) {
+                annos.add(anno);
+            }
+        }
+        if (annos.isEmpty()) {
+            return instantiation;
+        }
+        AnnotatedTypeMirror atm = instantiation.getAnnotatedType().deepCopy();
+        atm.replaceAnnotations(annos);
+        return new ProperType(atm, instantiation.getJavaType(), qualifierVars, context, false);
     }
 
     /**
