@@ -2674,6 +2674,19 @@ two runs within 0.1%), wall time 125 s to 118 s (two runs). The 3261 errors and 
 identical. The first version, which also cached during dataflow analysis, saved 9.7% of the
 allocation.
 
+**Results for every invocation in the problem (November 2026).** Inferring the type arguments of
+a poly expression argument, such as a diamond, infers those of the outermost invocation that needs
+it (`DefaultTypeArgumentInference.outerInference`), whose problem includes all its poly expression
+arguments, but the cache held the result only for the requested tree. Counting outermost
+`inferTypeArgs` calls for `Arrays.asList(new Pair<>("a", 1), ...)` with k diamonds under the
+Nullness Checker (with the Resolution fix above): 3k+3 per subchecker, of which k+1 outside dataflow
+analysis (the visitor's `checkTypeArgumentInference` for the call, then the first query of each
+argument's type) and 2k+2 during it. `cacheResultForOtherInvocations` now caches the result also
+for every other invocation in `InferenceResult.getResults()` whose own inference would solve the
+same problem, i.e. with the same outermost invocation, keyed by `TreeUtils.elementFromUse`
+(anonymous classes created with a diamond are skipped: the visitor infers them from the super
+constructor): 2k+3 per subchecker. Measured together with the next paragraph.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a

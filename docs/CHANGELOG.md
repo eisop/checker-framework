@@ -24,7 +24,9 @@ Very long method bodies, and many calls to methods with contracts such as `Map.p
 are also faster.
 The result of type argument inference for a generic call is computed once and reused, instead of
 once for the check and again for the call's type: on a large project, 7% less allocation and 6%
-less time.
+less time. The result is also reused for the poly expression arguments of the call, such as
+diamonds, whose type arguments are inferred together with it, so a call with many such arguments
+is no longer inferred once per argument.
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale

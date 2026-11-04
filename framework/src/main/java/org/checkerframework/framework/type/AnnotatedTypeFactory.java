@@ -1604,9 +1604,61 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         InferenceResult result = typeArgumentInference.inferTypeArgs(this, tree, methodType);
         if (useCache) {
-            inferenceResultCache.put(tree, Pair.of(element, result.copyFor(methodType, tree)));
+            InferenceResult cachedResult = result.copyFor(methodType, tree);
+            inferenceResultCache.put(tree, Pair.of(element, cachedResult));
+            cacheResultForOtherInvocations(tree, cachedResult);
         }
         return result;
+    }
+
+    /**
+     * Caches {@code result}, the result of inferring the type arguments of {@code tree}, also for
+     * the other invocations whose type arguments it inferred: the poly expression arguments of the
+     * outermost invocation whose type arguments must be inferred to infer those of {@code tree}.
+     * Inferring the type arguments of such an invocation on its own solves the same problem, so the
+     * result is the same; without this, a call with many poly expression arguments is inferred once
+     * per argument.
+     *
+     * @param tree a tree whose type arguments were inferred
+     * @param result the result of inferring the type arguments of {@code tree}, as cached for it
+     */
+    @SuppressWarnings("interning:not.interned") // comparing trees for identity
+    private void cacheResultForOtherInvocations(ExpressionTree tree, InferenceResult result) {
+        if (result.getResults().size() <= 1) {
+            return;
+        }
+        TreePath path = getPath(tree);
+        if (path == null) {
+            return;
+        }
+        ExpressionTree outer =
+                DefaultTypeArgumentInference.outerInference(tree, path.getParentPath());
+        for (Tree other : result.getResults().keySet()) {
+            if (other == tree || inferenceResultCache.containsKey(other)) {
+                continue;
+            }
+            ExecutableElement otherElement;
+            if (other instanceof MethodInvocationTree) {
+                otherElement = TreeUtils.elementFromUse((MethodInvocationTree) other);
+            } else if (other instanceof NewClassTree
+                    && ((NewClassTree) other).getClassBody() == null) {
+                // The type arguments of an anonymous class created with a diamond are inferred
+                // from the super constructor, but constructorFromUse uses the anonymous
+                // constructor.
+                otherElement = TreeUtils.elementFromUse((NewClassTree) other);
+            } else {
+                continue;
+            }
+            TreePath otherPath = getPath(other);
+            if (otherPath == null
+                    || DefaultTypeArgumentInference.outerInference(
+                                    (ExpressionTree) other, otherPath.getParentPath())
+                            != outer) {
+                // Inferring the type arguments of other on its own would solve another problem.
+                continue;
+            }
+            inferenceResultCache.put((ExpressionTree) other, Pair.of(otherElement, result));
+        }
     }
 
     /** The cached value of {@link #getInferenceWorkBudget}; -1 until first computed. */
