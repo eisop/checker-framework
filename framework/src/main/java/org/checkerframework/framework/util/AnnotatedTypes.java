@@ -783,10 +783,7 @@ public class AnnotatedTypes {
         } else if (expr instanceof MemberReferenceTree) {
             MemberReferenceTree memRef = ((MemberReferenceTree) expr);
             if (inferTypeArgs && TreeUtils.needsTypeArgInference(memRef)) {
-                InferenceResult inferenceResult =
-                        atypeFactory
-                                .getTypeArgumentInference()
-                                .inferTypeArgs(atypeFactory, expr, preType);
+                InferenceResult inferenceResult = atypeFactory.inferTypeArguments(expr, preType);
                 return new TypeArguments(
                         inferenceResult.getTypeArgumentsForExpression(expr),
                         inferenceResult.isUncheckedConversion(),
@@ -830,10 +827,7 @@ public class AnnotatedTypes {
             return new TypeArguments(typeArguments, false, false, false);
         } else {
             if (inferTypeArgs) {
-                InferenceResult inferenceResult =
-                        atypeFactory
-                                .getTypeArgumentInference()
-                                .inferTypeArgs(atypeFactory, expr, preType);
+                InferenceResult inferenceResult = atypeFactory.inferTypeArguments(expr, preType);
                 return new TypeArguments(
                         inferenceResult.getTypeArgumentsForExpression(expr),
                         inferenceResult.isUncheckedConversion(),

@@ -23,6 +23,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -39,6 +40,41 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
 
     /** Stack of all inference problems currently being solved. */
     private final ArrayDeque<InvocationTypeInference> java8InferenceStack = new ArrayDeque<>();
+
+    /**
+     * A poly expression whose type arguments are inferred as if it were not nested in another
+     * expression, or null; see {@link #inferStandalone}.
+     */
+    private @Nullable ExpressionTree standaloneTree = null;
+
+    /**
+     * Returns the result of {@code computation}, during which the type arguments of {@code tree}
+     * are inferred as if {@code tree} were not nested in another expression: without inferring the
+     * invocations whose inference includes it, and without a target type.
+     *
+     * @param <R> the type of the result
+     * @param tree a poly expression
+     * @param computation the computation
+     * @return the result of {@code computation}
+     */
+    public <R> R inferStandalone(ExpressionTree tree, Supplier<R> computation) {
+        ExpressionTree previous = standaloneTree;
+        standaloneTree = tree;
+        try {
+            return computation.get();
+        } finally {
+            standaloneTree = previous;
+        }
+    }
+
+    /**
+     * Returns true if {@link #inferStandalone} is running.
+     *
+     * @return true if {@link #inferStandalone} is running
+     */
+    public boolean isInferringStandalone() {
+        return standaloneTree != null;
+    }
 
     /** Creates a DefaultTypeArgumentInference. */
     public DefaultTypeArgumentInference() {}
@@ -66,6 +102,17 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         // So, first find the outermost tree that is required to infer the type arguments for
         // expressionTree
         ExpressionTree outerTree = outerInference(expressionTree, pathToExpression.getParentPath());
+        if (standaloneTree != null && outerTree != expressionTree) {
+            // Do not infer the invocations that enclose standaloneTree.
+            for (TreePath p = pathToExpression;
+                    p != null && p.getLeaf() != outerTree;
+                    p = p.getParentPath()) {
+                if (p.getLeaf() == standaloneTree) {
+                    outerTree = standaloneTree;
+                    break;
+                }
+            }
+        }
 
         if (java8Inference != null && java8Inference.context.maps.containsKey(expressionTree)) {
             // Inference of expressionTree has started as part of the current inference problem,
@@ -99,6 +146,7 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         }
         try {
             java8Inference = new InvocationTypeInference(typeFactory, pathToExpression);
+            java8Inference.withoutTargetType = outerTree == standaloneTree;
             if (outerTree instanceof MemberReferenceTree) {
                 return java8Inference.infer((MemberReferenceTree) outerTree);
             } else {

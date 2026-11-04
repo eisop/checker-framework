@@ -235,7 +235,10 @@ public abstract class CFAbstractTransfer<
                 analysis.atypeFactory;
         Tree preTree = analysis.getCurrentTree();
         analysis.setCurrentTree(tree);
+        // The results of type argument inference are reused only within this computation.
+        factory.clearNodeValueInferenceResults();
         AnnotatedTypeMirror at;
+        AnnotatedTypeMirror standalone = null;
         try {
             if (node instanceof MethodInvocationNode
                     && ((MethodInvocationNode) node).getIterableExpression() != null) {
@@ -246,12 +249,20 @@ public abstract class CFAbstractTransfer<
                 ExpressionTree array = ((ArrayAccessNode) node).getArrayExpression();
                 at = factory.getIterableElementType(array);
             } else {
-                at = factory.getAnnotatedType(tree);
+                standalone = factory.getStandaloneTypeForNodeValue(tree);
+                at = standalone != null ? standalone : factory.getAnnotatedType(tree);
             }
         } catch (Exception e) {
             throw BugInCF.addLocation(tree, e);
         } finally {
             analysis.setCurrentTree(preTree);
+            factory.clearNodeValueInferenceResults();
+        }
+        if (standalone != null) {
+            // The primary annotations are those of the standalone type, the underlying type is
+            // the one javac inferred with the enclosing invocation.
+            return analysis.createAbstractValue(
+                    standalone.getAnnotations(), TreeUtils.typeOf((ExpressionTree) tree));
         }
         return analysis.createAbstractValue(at);
     }

@@ -2644,6 +2644,96 @@ three deep. On Guava (610 files) the wall time does not change measurably.
 
 ---
 
+### Results of type argument inference (November 2026)
+
+The visitor inferred the type arguments of each generic call twice: `checkTypeArgumentInference`
+inferred them to report a failure, and `methodFromUse`/`constructorFromUse` then inferred them
+again to substitute them. Other callers, such as the function type of a lambda argument or a method
+reference checked as an override, inferred them once more. Instrumenting
+`DefaultTypeArgumentInference.inferTypeArgs` on KeY's `key.core` (Nullness Checker, about 1600
+files) counted 81,954 outermost inferences outside dataflow analysis for 32,453 distinct trees per
+factory, and the repeated ones took 61% of the time spent in those inferences. Within dataflow
+analysis, 28,888 inferences for 24,201 trees.
+
+`AnnotatedTypeFactory.inferTypeArguments` caches the result per tree and method or constructor
+element when no dataflow analysis is running (both `canCacheFlowDependentType` and
+`canUseCachedFlowDependentType` hold) and no inference problem is being solved. The cache is
+cleared with `fromExpressionTreeCache` when a class analysis starts and when the compilation unit
+changes. Caching during an analysis too, under the rule of `fromExpressionTreeCache` (see "Types of
+flow-dependent expressions after dataflow" above), was wrong: during the analysis a boxed argument
+has the type of its boxing conversion, so the Lock Checker inferred `@NewObject Integer` for `T` in
+`foo(i).toString()` (all-systems `Issue888`), and the visitor then reused it.
+
+A hit returns a deep copy whose type variables are those of the caller's method type
+(`InferenceResult.copyFor`). The element is part of the key because the visitor infers the type
+arguments of an anonymous class created with a diamond from the superclass constructor, while
+`constructorFromUse` uses the anonymous class's constructor.
+
+KeY `key.core`, Nullness Checker, JDK 21, alternating runs: allocation 56.4 GB to 52.2 GB (-7.4%,
+two runs within 0.1%), wall time 125 s to 118 s (two runs). The 3261 errors and 43 warnings are
+identical. The first version, which also cached during dataflow analysis, saved 9.7% of the
+allocation.
+
+**Results for every invocation in the problem (November 2026).** Inferring the type arguments of
+a poly expression argument, such as a diamond, infers those of the outermost invocation that needs
+it (`DefaultTypeArgumentInference.outerInference`), whose problem includes all its poly expression
+arguments, but the cache held the result only for the requested tree. Counting outermost
+`inferTypeArgs` calls for `Arrays.asList(new Pair<>("a", 1), ...)` with k diamonds under the
+Nullness Checker (with the Resolution fix above): 3k+3 per subchecker, of which k+1 outside dataflow
+analysis (the visitor's `checkTypeArgumentInference` for the call, then the first query of each
+argument's type) and 2k+2 during it. `cacheResultForOtherInvocations` now caches the result also
+for every other invocation in `InferenceResult.getResults()` whose own inference would solve the
+same problem, i.e. with the same outermost invocation, keyed by `TreeUtils.elementFromUse`
+(anonymous classes created with a diamond are skipped: the visitor infers them from the super
+constructor): 2k+3 per subchecker. Measured together with the next paragraph.
+
+**Results reused while a node's value is computed (November 2026).** Of the 2k+2 inferences
+during dataflow analysis, k are the transfer for the synthetic array that the CFG creates for the
+variable arguments: `PropagationTreeAnnotator.visitNewArray` takes the lub of the initializers'
+types, and each initializer's type infers the call. Caching during the analysis in general is
+unsound (the Issue888 case above: the result at one node is not the result at another, because
+the node values of the arguments evaluated in between change), but one node's value is computed
+in one `CFAbstractTransfer.getValueFromFactory` call during which the analysis state that
+expression types depend on (node values, store, current tree) does not change, so two inferences
+of the same problem within it have the same inputs and the same result. A second cache,
+`nodeValueInferenceResultCache`, is used when `isComputingNodeValue()` (the analysis is running
+and has a current tree) and is cleared by `getValueFromFactory` before and after the computation,
+and when an analysis starts, so a result never reaches another node or the visitor: k+3 per
+subchecker. The remaining k are the values of the arguments' own nodes, computed at different
+points of the analysis with different inputs. Wall clock (`rev-fixes/time.sh`, JDK 21, ~1.5 s
+startup, on this branch with the Resolution fix and the array initializer target type fix), before
+→ after both paragraphs: `asList` with k = 12/24/48/96 diamonds 2.3/4.1/7.1/16.2 → 2.0/2.7/4.9/9.1
+s; 14 rows of a 14-argument `asList` in one array initializer 8.5 → 5.7 s; 80 rows of 4
+arguments 7.1 → 5.7 s; a flat array of 24 diamonds 1.8 → 1.9 s. The remaining growth is k
+inferences each linear in k; removing it needs the node value of a non-root poly expression
+without inferring the enclosing call, which is not known to be sound for every checker.
+
+**A nested diamond's node value without the enclosing inference (November 2026).** To check
+whether that is sound, temporary instrumentation in `getValueFromFactory` compared, for every poly
+expression nested in an enclosing inference, the primary annotations of its type with and without
+the enclosing inference (the enclosing invocations not inferred and no target type). A diamond
+or generic `new` never differed: 0 of 72 (`:framework:test`), 209 (`:checker:test`, every
+checker), and 90 (KeY `key.core`, Nullness) comparisons, including `@PolyNull` constructors. A
+generic method invocation did differ, in 163 of about 7000 comparisons in the test suites: a type
+variable that only the enclosing invocation determines, such as a return-only `T`, gets its bound
+instead; and an implicitly typed lambda argument has no type without the enclosing target. The
+underlying type often differs for both, so a dataflow value must take it from javac. So
+`GenericAnnotatedTypeFactory.getStandaloneTypeForNodeValue` types a non-anonymous diamond whose
+arguments are not poly expressions without inferring the enclosing invocation
+(`DefaultTypeArgumentInference.inferStandalone`), and `getValueFromFactory` combines its primary
+annotations with javac's underlying type. As no argument is a poly expression, no other tree's
+type is computed in this mode. The outer call is then inferred a constant number of times per
+subchecker. On this branch (without the Resolution fix): `asList` with 24 diamonds 2.7 → 2.2 s;
+14 rows of a 14-argument `asList` in one array initializer 5.7 → 5.0 s. KeY `key.core`, Nullness:
+3308 errors and 43 warnings, the same diagnostics as master line for line; wall 128.6 → 123.6 s
+(one run each). `framework/tests/standalone-diamond` (`StandaloneDiamondChecker`, whose visitor reports a
+diamond whose dataflow value has other primary qualifiers than its type, or another underlying type
+than javac's) keeps the cases: polymorphic constructors, a poly expression inside a standalone
+argument, and the excluded poly expression argument and anonymous class. Making the value from the
+standalone underlying type fails it; removing the poly expression or anonymous class exclusion does
+not, since their primary qualifiers agree there too: those exclusions keep other trees from being
+inferred without their enclosing inference, which the comparison did not cover.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a

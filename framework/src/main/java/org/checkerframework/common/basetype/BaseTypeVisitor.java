@@ -2429,10 +2429,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     private boolean checkTypeArgumentInference(
             ExpressionTree tree, AnnotatedExecutableType methodType) {
-        InferenceResult args =
-                atypeFactory
-                        .getTypeArgumentInference()
-                        .inferTypeArgs(atypeFactory, tree, methodType);
+        InferenceResult args = atypeFactory.inferTypeArguments(tree, methodType);
         if (args != null && !args.inferenceFailed()) {
             return true;
         }
