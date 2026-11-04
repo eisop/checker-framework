@@ -95,8 +95,7 @@ public class ConstructorTypeVariableBounds {
         // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerBoundC(b);
 
-        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.parameter)
-        // :: error: (viewpointtest.lost.in.bounds)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerBoundC(bottom);
 
         // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
@@ -130,8 +129,7 @@ public class ConstructorTypeVariableBounds {
         // :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerAndUpperBoundC(b);
 
-        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.parameter)
-        // :: error: (viewpointtest.lost.in.bounds)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerAndUpperBoundC(bottom);
     }
 

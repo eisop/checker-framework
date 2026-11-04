@@ -78,7 +78,7 @@ public class MethodTypeVariableBounds {
         // :: error: (viewpointtest.lost.in.bounds)
         methods.lowerWithArg(b);
 
-        // :: error: (viewpointtest.lost.parameter) :: error: (viewpointtest.lost.in.bounds)
+        // :: error: (viewpointtest.lost.in.bounds)
         methods.lowerWithArg(bottom);
 
         // :: error: (viewpointtest.lost.in.bounds)
@@ -105,7 +105,7 @@ public class MethodTypeVariableBounds {
         // :: error: (type.arguments.not.inferred) :: error: (viewpointtest.lost.in.bounds)
         methods.lowerAndUpperWithArg(b);
 
-        // :: error: (viewpointtest.lost.parameter) :: error: (viewpointtest.lost.in.bounds)
+        // :: error: (viewpointtest.lost.in.bounds)
         methods.lowerAndUpperWithArg(bottom);
     }
 

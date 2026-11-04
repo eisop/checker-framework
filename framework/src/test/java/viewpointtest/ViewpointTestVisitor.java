@@ -14,6 +14,10 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.util.AnnotatedTypes;
 
+import java.util.List;
+
+import javax.lang.model.type.TypeKind;
+
 /** The visitor for the Viewpoint Test Checker. */
 public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotatedTypeFactory> {
 
@@ -43,6 +47,10 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
         }
         Void result = super.visitNewClass(tree, p);
         checkLostTypeParameterBounds(atypeFactory.constructorFromUse(tree).executableType, tree);
+        checkLostParameters(
+                atypeFactory.constructorFromUseWithoutTypeArgInference(tree).executableType,
+                tree.getArguments(),
+                tree);
         return result;
     }
 
@@ -50,6 +58,10 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
     public Void visitMethodInvocation(MethodInvocationTree tree, Void p) {
         Void result = super.visitMethodInvocation(tree, p);
         checkLostTypeParameterBounds(atypeFactory.methodFromUse(tree).executableType, tree);
+        checkLostParameters(
+                atypeFactory.methodFromUseWithoutTypeArgInference(tree).executableType,
+                tree.getArguments(),
+                tree);
         return result;
     }
 
@@ -77,17 +89,46 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
             Object... extraArgs) {
         boolean result =
                 super.commonAssignmentCheck(varType, valueType, valueExpTree, errorKey, extraArgs);
-        if (AnnotatedTypes.containsModifier(varType, atypeFactory.LOST)) {
-            if (errorKey.equals("argument.type.incompatible")
-                    || errorKey.equals("varargs.type.incompatible")) {
-                checker.reportError(valueExpTree, LOST_PARAMETER);
-            } else if (errorKey.equals("unary.increment.type.incompatible")
-                    || errorKey.equals("unary.decrement.type.incompatible")) {
-                checker.reportError(valueExpTree, LOST_LHS);
-            }
+        if ((errorKey.equals("unary.increment.type.incompatible")
+                        || errorKey.equals("unary.decrement.type.incompatible"))
+                && AnnotatedTypes.containsModifier(varType, atypeFactory.LOST)) {
+            checker.reportError(valueExpTree, LOST_LHS);
             result = false;
         }
         return result;
+    }
+
+    /**
+     * Report an error for each argument whose parameter type contains {@code @Lost} after viewpoint
+     * adaptation.
+     *
+     * <p>{@code invokedExecutable} must not have its polymorphic qualifiers resolved or its type
+     * arguments inferred. Either can produce {@code @Lost}, for example for a {@code @Lost}
+     * receiver and a {@code @Bottom} argument, but every argument is a subtype of the result, and
+     * the callee cannot rely on the relationship to the receiver.
+     *
+     * @param invokedExecutable the viewpoint-adapted type of the invoked method or constructor,
+     *     without type argument inference or polymorphic qualifier resolution
+     * @param arguments the arguments of the invocation
+     * @param tree the invocation
+     */
+    private void checkLostParameters(
+            AnnotatedExecutableType invokedExecutable,
+            List<? extends ExpressionTree> arguments,
+            ExpressionTree tree) {
+        List<AnnotatedTypeMirror> parameters =
+                AnnotatedTypes.adaptParameters(atypeFactory, invokedExecutable, arguments, tree);
+        for (int i = 0; i < parameters.size(); i++) {
+            AnnotatedTypeMirror parameter = parameters.get(i);
+            // The bounds of a method type variable are checked by checkLostTypeParameterBounds.
+            boolean isLost =
+                    parameter.getKind() == TypeKind.TYPEVAR
+                            ? parameter.hasAnnotation(atypeFactory.LOST)
+                            : AnnotatedTypes.containsModifier(parameter, atypeFactory.LOST);
+            if (isLost) {
+                checker.reportError(arguments.get(i), LOST_PARAMETER);
+            }
+        }
     }
 
     /**

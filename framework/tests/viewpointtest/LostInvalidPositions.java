@@ -21,6 +21,12 @@ public class LostInvalidPositions {
 
     void set(@ReceiverDependentQual Object o) {}
 
+    @PolyVP Object polyGet(@PolyVP LostInvalidPositions this) {
+        return null;
+    }
+
+    void polySet(@PolyVP LostInvalidPositions this, @PolyVP Object o) {}
+
     void test(@Top LostInvalidPositions obj, @Bottom Object bottomObj) {
         // :: error: (viewpointtest.lost.lhs)
         this.f = obj.f;
@@ -45,6 +51,13 @@ public class LostInvalidPositions {
         this.set(bottomObj);
 
         obj.f2.identity();
+
+        // A polymorphic qualifier that resolves to Lost is not an invalid parameter.
+        @Top Object polyResult = obj.f2.polyGet();
+        obj.f2.polySet(aObj);
+        obj.f2.polySet(bottomObj);
+        // :: error: (viewpointtest.lost.parameter)
+        obj.f2.set(bottomObj);
 
         // :: error: (compound.assignment.type.incompatible) :: error: (viewpointtest.lost.lhs)
         obj.i += 1;
