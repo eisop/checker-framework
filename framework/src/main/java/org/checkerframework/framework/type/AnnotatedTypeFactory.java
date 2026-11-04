@@ -1876,7 +1876,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Annotations explicitly written in the source code,
         // or obtained from bytecode.
         AnnotatedTypeMirror type = fromElement(elt);
+        boolean implicitEnclosingInstance = hasImplicitEnclosingInstance(type);
         addComputedTypeAnnotations(elt, type);
+        if (type.getKind() == TypeKind.EXECUTABLE) {
+            setEnclosingInstanceType((AnnotatedExecutableType) type, implicitEnclosingInstance);
+        }
         // Do not cache a result computed while an annotation file is being parsed: a fake
         // override (AnnotationFileParser#processFakeOverride, BinaryStubReader#applyFakeOverride)
         // reentrantly calls this method on the overridden method while that method's own
@@ -2013,7 +2017,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (type.isFrozen()) {
             type = type.deepCopy();
         }
+        boolean implicitEnclosingInstance = hasImplicitEnclosingInstance(type);
         addComputedTypeAnnotations(tree, type);
+        if (type.getKind() == TypeKind.EXECUTABLE) {
+            setEnclosingInstanceType((AnnotatedExecutableType) type, implicitEnclosingInstance);
+        }
         if (tree instanceof TypeCastTree) {
             // javac's type of a cast is already captured (Attr#visitTypeCast). Reuse its captured
             // type variables, so that every query of the cast's type sees the same ones.
@@ -3178,6 +3186,91 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     getSelfType((TypeElement) enclosing.getUnderlyingType().asElement()));
         }
         return selfType;
+    }
+
+    /**
+     * Returns true if {@code type} is the type of a method or constructor of an inner class whose
+     * enclosing instance has no written annotation. For a method, the enclosing instance is the
+     * enclosing type of the receiver, as in {@code Outer<O>.Inner this}; for a constructor, it is
+     * the receiver itself, as in {@code Inner(Outer<O> Outer.this)}. Call this on the type from
+     * {@link #fromElement(Element)}, before defaults are added.
+     *
+     * @param type the type of an element or a declaration
+     * @return true if {@code type} is the type of a method or constructor of an inner class whose
+     *     enclosing instance has no written annotation
+     */
+    private static boolean hasImplicitEnclosingInstance(AnnotatedTypeMirror type) {
+        if (type.getKind() != TypeKind.EXECUTABLE) {
+            return false;
+        }
+        AnnotatedExecutableType exeType = (AnnotatedExecutableType) type;
+        AnnotatedDeclaredType receiver = exeType.getReceiverType();
+        if (receiver == null) {
+            return false;
+        }
+        AnnotatedDeclaredType enclosingInstance =
+                exeType.getElement().getKind() == ElementKind.CONSTRUCTOR
+                        ? receiver
+                        : receiver.getEnclosingType();
+        if (enclosingInstance == null) {
+            return false;
+        }
+        // A receiver is the class applied to its own type parameters, so each type argument is a
+        // type variable, and an annotation on it is a primary annotation.
+        for (AnnotatedDeclaredType t = enclosingInstance; t != null; t = t.getEnclosingType()) {
+            if (!t.getAnnotations().isEmpty()) {
+                return false;
+            }
+            for (AnnotatedTypeMirror typeArg : t.getTypeArguments()) {
+                if (!typeArg.getAnnotations().isEmpty()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Sets the type of the enclosing instance of a method or constructor of an inner class. If
+     * nothing is written on it ({@code implicit}), it becomes the type of {@code this} in the
+     * enclosing class, from {@link #getSelfType(TypeElement)}. The type of the enclosing instance
+     * is not written in the inner class, so a default of the inner class or of the method says
+     * nothing about it; without this, such a default would annotate it, as in {@code Outer<@NonNull
+     * O>.Inner this} under a {@code TYPE_VARIABLE_USE} default on {@code Inner}. Then the method
+     * could not be called through an {@code Outer<@Nullable String>.Inner}, and a constructor,
+     * whose receiver is checked only with {@code -AcheckEnclosingExpr}, could dereference a null
+     * field of the enclosing instance.
+     *
+     * <p>For a method, the enclosing type of the receiver becomes the enclosing class's self type.
+     * For a constructor, the receiver becomes it. The enclosing type of a constructor's result,
+     * which is the type of {@code Outer.this} in its body, always becomes a copy of the receiver,
+     * so a written constructor receiver such as {@code Inner(Outer<@NonNull O> Outer.this)} is
+     * respected in the body. Does nothing for a method or constructor without an enclosing
+     * instance.
+     *
+     * @param exeType the type of a method or constructor, after defaults were added
+     * @param implicit whether {@link #hasImplicitEnclosingInstance} held for {@code exeType} before
+     *     defaults were added
+     */
+    private void setEnclosingInstanceType(AnnotatedExecutableType exeType, boolean implicit) {
+        AnnotatedDeclaredType receiver = exeType.getReceiverType();
+        if (receiver == null) {
+            return;
+        }
+        if (exeType.getElement().getKind() == ElementKind.CONSTRUCTOR) {
+            if (implicit) {
+                receiver = getSelfType((TypeElement) receiver.getUnderlyingType().asElement());
+                exeType.setReceiverType(receiver);
+            }
+            AnnotatedDeclaredType result = (AnnotatedDeclaredType) exeType.getReturnType();
+            if (result.getEnclosingType() != null) {
+                result.setEnclosingType(receiver.deepCopy());
+            }
+        } else if (implicit) {
+            AnnotatedDeclaredType enclosing = receiver.getEnclosingType();
+            receiver.setEnclosingType(
+                    getSelfType((TypeElement) enclosing.getUnderlyingType().asElement()));
+        }
     }
 
     /** A set containing class, method, and annotation tree kinds. */

@@ -265,7 +265,12 @@ those defaults annotate every use of a type variable; a receiver that a default
 on the overriding method itself changes is checked like a written annotation. In
 a field initializer or an initializer block, the type of `this` now also has the
 defaults of its class, as in a method, so a call with an implicit receiver there
-is no longer reported as `method.invocation.invalid`.
+is no longer reported as `method.invocation.invalid`. Likewise, the enclosing
+instance of an inner class's method or constructor, unless its type is written,
+has the type of `this` in the enclosing class: a default of the inner class or the
+method no longer applies to it, which let a constructor dereference a nullable
+field of `Outer.this`. A written constructor receiver, such as
+`Inner(Outer<@NonNull O> Outer.this)`, is now respected in the constructor body.
 
 A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
 keeps the qualifier of the expression instead of taking the type variable's
@@ -738,6 +743,7 @@ eisop#2411,
 eisop#2418,
 eisop#2461,
 eisop#2478,
+eisop#2479,
 typetools#399,
 typetools#602,
 typetools#2816,
