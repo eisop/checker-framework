@@ -27,6 +27,15 @@ public class LostInvalidPositions {
 
     void polySet(@PolyVP LostInvalidPositions this, @PolyVP Object o) {}
 
+    <T> void noParam() {}
+
+    <T> T id(T t) {
+        return t;
+    }
+
+    @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
+    @ReceiverDependentQual <T> LostInvalidPositions() {}
+
     void test(@Top LostInvalidPositions obj, @Bottom Object bottomObj) {
         // :: error: (viewpointtest.lost.lhs)
         this.f = obj.f;
@@ -58,6 +67,17 @@ public class LostInvalidPositions {
         obj.f2.polySet(bottomObj);
         // :: error: (viewpointtest.lost.parameter)
         obj.f2.set(bottomObj);
+
+        // :: error: (viewpointtest.lost.type.argument)
+        this.<@Lost Object>noParam();
+        // :: error: (viewpointtest.lost.type.argument) :: error: (viewpointtest.lost.parameter)
+        this.<@Lost Object>id(bottomObj);
+        // :: error: (viewpointtest.lost.type.argument)
+        this.<@A List<@Lost Object>>noParam();
+        // An inferred Lost type argument is allowed, because Top is also a valid type argument.
+        @Top Object inferred = this.id(obj.f);
+        // :: error: (viewpointtest.lost.type.argument)
+        new <@Lost Object>@A LostInvalidPositions();
 
         // :: error: (compound.assignment.type.incompatible) :: error: (viewpointtest.lost.lhs)
         obj.i += 1;

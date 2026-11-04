@@ -30,6 +30,10 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
     /** Error key for {@code @Lost} in adapted type parameter bounds. */
     private static final @CompilerMessageKey String LOST_IN_BOUNDS = "viewpointtest.lost.in.bounds";
 
+    /** Error key for {@code @Lost} in explicit method or constructor type arguments. */
+    private static final @CompilerMessageKey String LOST_TYPE_ARGUMENT =
+            "viewpointtest.lost.type.argument";
+
     /**
      * Create a new ViewpointTestVisitor.
      *
@@ -51,6 +55,7 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
                 atypeFactory.constructorFromUseWithoutTypeArgInference(tree).executableType,
                 tree.getArguments(),
                 tree);
+        checkLostTypeArguments(tree.getTypeArguments());
         return result;
     }
 
@@ -62,6 +67,7 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
                 atypeFactory.methodFromUseWithoutTypeArgInference(tree).executableType,
                 tree.getArguments(),
                 tree);
+        checkLostTypeArguments(tree.getTypeArguments());
         return result;
     }
 
@@ -127,6 +133,25 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
                             : AnnotatedTypes.containsModifier(parameter, atypeFactory.LOST);
             if (isLost) {
                 checker.reportError(arguments.get(i), LOST_PARAMETER);
+            }
+        }
+    }
+
+    /**
+     * Report an error for each explicit type argument that contains {@code @Lost}.
+     *
+     * <p>Inferred type arguments are not checked. An upper bound above {@code @Lost} is
+     * {@code @Lost} or {@code @Top}; the former is reported by {@link
+     * #checkLostTypeParameterBounds}, and with the latter {@code @Top} is a valid type argument
+     * wherever an inferred {@code @Lost} is.
+     *
+     * @param typeArguments the explicit type arguments of a method or constructor invocation
+     */
+    private void checkLostTypeArguments(List<? extends Tree> typeArguments) {
+        for (Tree typeArgument : typeArguments) {
+            AnnotatedTypeMirror type = atypeFactory.getAnnotatedTypeFromTypeTree(typeArgument);
+            if (AnnotatedTypes.containsModifier(type, atypeFactory.LOST)) {
+                checker.reportError(typeArgument, LOST_TYPE_ARGUMENT);
             }
         }
     }
