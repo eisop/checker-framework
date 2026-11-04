@@ -139,6 +139,10 @@ Type-checking and subtyping improvements:
   see `@Nullable`, and writes need `@NonNull`. Such types are no longer rejected
   with `type.invalid.super.wildcard`, unless the wildcard collapses to a type
   variable, as `Gen<F, ? super F>` for `Gen<T, S extends T>`.
+- A method reference to `getClass`, such as `foo::getClass` or `Foo::getClass`,
+  now returns `Class<? extends Foo>`, as `foo.getClass()` does, instead of
+  `Class<?>`. Assigning one to a `Supplier<Class<? extends Foo>>` was rejected,
+  and `Stream.map(Foo::getClass)` could fail or crash type argument inference.
 
 JSpecify support in the Nullness Checker:
 
@@ -754,6 +758,7 @@ eisop#2418,
 eisop#2461,
 eisop#2478,
 eisop#2479,
+eisop#2485,
 typetools#399,
 typetools#602,
 typetools#2816,
