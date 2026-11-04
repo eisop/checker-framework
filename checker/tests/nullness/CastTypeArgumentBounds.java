@@ -1,5 +1,5 @@
 // The type arguments of a cast's target type are checked against their bounds, as those of a
-// variable's type are.  They were not checked at all.
+// variable's type are.
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;

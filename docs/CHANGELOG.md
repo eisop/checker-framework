@@ -132,8 +132,7 @@ Type-checking and subtyping improvements:
   for `<K, V> m(Entry<? extends K, ? extends V>)`.
 - The type arguments of a cast's target type, such as `@Nullable String` in
   `(Box<@Nullable String>) o` for a `Box<T extends @NonNull Object>`, are now
-  checked against their bounds, as those of a variable's type are. They were
-  not checked, so such a cast was accepted.
+  checked against their bounds, as those of a variable's type are.
 - A super-bounded wildcard that javac captures to its bound (JDK-8054309), such
   as `Lib<? super @NonNull Object>` for `Lib<T extends @Nullable Object>`, is now
   captured to a type variable with both annotated bounds when they differ: reads
