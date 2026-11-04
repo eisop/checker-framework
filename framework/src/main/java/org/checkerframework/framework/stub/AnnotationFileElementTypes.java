@@ -1684,7 +1684,7 @@ public class AnnotationFileElementTypes {
         try {
             // TODO: Error if this is called more than once?
             SourceChecker checker = atypeFactory.getChecker();
-            List<String> ajavaFiles = checker.getStringsOption("ajava", File.pathSeparator);
+            List<String> ajavaFiles = SystemUtil.splitPaths(checker.getOption("ajava"));
 
             parseAnnotationFiles(ajavaFiles, AnnotationFileType.AJAVA);
         } finally {
