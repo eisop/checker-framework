@@ -5744,9 +5744,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
             overriddenParams = adaptedParams;
 
+            // In unchecked code that gets the permissive defaults, a parameter without a written
+            // qualifier does not constrain the overrider's parameter (see isUnspecifiedParameter).
+            // A parameter of a method reference's functional interface is always checked.
+            boolean permissiveOverridden =
+                    !isMethodReference
+                            && atypeFactory
+                                    .getQualifierDefaults()
+                                    .applyPermissiveDefaults(overridden.getElement());
             boolean result = true;
             for (int i = 0; i < overriderParams.size(); ++i) {
-                if (hasUnspecifiedParameter(i)) {
+                if (permissiveOverridden && isUnspecifiedParameter(i)) {
                     continue;
                 }
                 AnnotatedTypeMirror capturedParam =
@@ -5761,30 +5769,45 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
-         * Returns true if the parameter at {@code index} of the overridden method has no qualifier
-         * of its own: the method is in unchecked code that gets the permissive defaults (see {@link
-         * org.checkerframework.framework.util.defaults.QualifierDefaults#applyPermissiveDefaults}),
-         * and no primary qualifier is written on the parameter's type. Its qualifier is only the
-         * permissive default, which lets callers pass any argument, so the parameter does not
-         * constrain the overrider's parameter; a qualifier written only within its type, such as on
-         * a type argument, is then not checked either. A parameter of a method reference's
-         * functional interface is always checked.
+         * Returns true if no primary qualifier is written on the parameter at {@code index} of the
+         * overridden method, which is in unchecked code that gets the permissive defaults (see
+         * {@link
+         * org.checkerframework.framework.util.defaults.QualifierDefaults#applyPermissiveDefaults}).
+         * Its qualifier is then only the permissive default, which lets callers pass any argument,
+         * so the parameter does not constrain the overrider's parameter; a qualifier written only
+         * within its type, such as on a type argument, is then not checked either. In source code,
+         * a qualifier of this checker written before the type, or on the outermost type, counts as
+         * written, even if it applies to the component of an array type.
          *
          * @param index the index of a parameter of the overridden method
-         * @return true if the parameter at {@code index} of the overridden method has no qualifier
-         *     of its own
+         * @return true if no primary qualifier is written on the parameter at {@code index} of the
+         *     overridden method
          */
-        private boolean hasUnspecifiedParameter(int index) {
-            if (isMethodReference) {
-                return false;
+        private boolean isUnspecifiedParameter(int index) {
+            VariableElement param = overridden.getElement().getParameters().get(index);
+            Tree decl = atypeFactory.declarationFromElement(param);
+            if (decl instanceof VariableTree) {
+                // Read the qualifiers written in source from the tree: once its class has been
+                // checked, the element can also hold the qualifiers that the type factory stored
+                // into it (see -AstoreInBytecode), such as the permissive default.
+                VariableTree paramTree = (VariableTree) decl;
+                List<AnnotationMirror> written =
+                        new ArrayList<>(
+                                TreeUtils.annotationsFromTypeAnnotationTrees(
+                                        paramTree.getModifiers().getAnnotations()));
+                if (paramTree.getType() instanceof AnnotatedTypeTree) {
+                    written.addAll(
+                            TreeUtils.annotationsFromTree((AnnotatedTypeTree) paramTree.getType()));
+                }
+                for (AnnotationMirror a : written) {
+                    if (atypeFactory.isSupportedQualifierOrAlias(a)) {
+                        return false;
+                    }
+                }
+                return true;
             }
-            ExecutableElement overriddenElement = overridden.getElement();
-            if (!atypeFactory.getQualifierDefaults().applyPermissiveDefaults(overriddenElement)) {
-                return false;
-            }
-            // fromElement gives the qualifiers written on the parameter, in source, bytecode, or an
+            // fromElement gives the qualifiers written on the parameter in bytecode or an
             // annotation file, without defaults.
-            VariableElement param = overriddenElement.getParameters().get(index);
             return atypeFactory.fromElement(param).getAnnotations().isEmpty();
         }
 
