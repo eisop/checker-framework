@@ -438,12 +438,16 @@ tasks.named("checkCompilerMessages") {
     }
 }
 
+// checker/bin/javac for the tests that run make. The path uses "/" on Windows too, because the
+// shell that make starts would treat a backslash as an escape.
+def checkerJavac = "${projectDir.path.replace('\\', '/')}/bin/javac -AnoJreVersionCheck"
+
 tasks.register("nullnessExtraTests", Exec) {
     dependsOn("assembleForJavac")
     group = "Verification"
     description = "Run extra tests for the Nullness Checker."
     executable = "make"
-    environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck", JAVAP: "javap"
+    environment JAVAC: checkerJavac, JAVAP: "javap"
     args = ["-C", "tests/nullness-extra/"]
 }
 
@@ -452,7 +456,7 @@ tasks.register("commandLineTests", Exec) {
     group = "Verification"
     description = "Run tests that need a special command line."
     executable = "make"
-    environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck"
+    environment JAVAC: checkerJavac
     args = ["-C", "tests/command-line/"]
 }
 
@@ -483,7 +487,7 @@ tasks.register("exampleTests", Exec) {
     group = "Verification"
     description = "Run tests for the example programs."
     executable = "make"
-    environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck"
+    environment JAVAC: checkerJavac
     args = ["-C", "../docs/examples"]
 }
 

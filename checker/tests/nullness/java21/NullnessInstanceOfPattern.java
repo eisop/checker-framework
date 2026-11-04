@@ -1,9 +1,10 @@
 // @below-java21-jdk-skip-test
 
 // Nullness annotations in a deconstruction pattern, without -AjspecifyUnrecognizedLocations.  A
-// nested pattern binds a variable, and per JLS 14.30.2 null matches no type pattern, nested or
-// not, so an annotation on the root of such a variable's type is checked like one on the root of
-// the type after a plain instanceof.
+// nested pattern binds a variable.  A nested type pattern that is not unconditional for the type
+// of its record component does not match null, so an annotation on the root of such a variable's
+// type is checked like one on the root of the type after a plain instanceof.  See
+// RecordPatternNullMatching.java for nested patterns that match null.
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
