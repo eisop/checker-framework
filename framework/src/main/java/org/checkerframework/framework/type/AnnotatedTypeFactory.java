@@ -78,6 +78,7 @@ import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.FieldInvariants;
 import org.checkerframework.framework.util.TreePathCacher;
 import org.checkerframework.framework.util.typeinference8.DefaultTypeArgumentInference;
+import org.checkerframework.framework.util.typeinference8.InferenceResult;
 import org.checkerframework.framework.util.typeinference8.TypeArgumentInference;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
 import org.checkerframework.framework.util.visualize.LspTypeInformationPresenter;
@@ -623,6 +624,33 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     protected IdentityHashMap<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
 
     /**
+     * Mapping from a tree that needs type argument inference to the method or constructor whose
+     * type arguments were inferred and the result of {@link #inferTypeArguments}. It is cleared
+     * with {@link #fromExpressionTreeCache}. Null if {@link #shouldCache} is false.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    protected @Nullable IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>>
+            inferenceResultCache;
+
+    /**
+     * Like {@link #inferenceResultCache}, but for the results inferred while a dataflow analysis
+     * computes the value of one node (see {@link #isComputingNodeValue}). The analysis state that
+     * the types of expressions depend on does not change during that computation, so a result
+     * inferred during it is reused within it: for example, the value of the array created for the
+     * variable arguments of a call is computed from the types of all those arguments, whose
+     * inference solves the same problem. The results are not reused after the computation, in which
+     * the analysis state can change; {@link #clearNodeValueInferenceResults} is called when a
+     * computation starts and ends. Null if {@link #shouldCache} is false.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    protected @Nullable IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>>
+            nodeValueInferenceResultCache;
+
+    /**
      * Mapping from a member tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
      *
@@ -775,6 +803,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             int cacheSize = getCacheSize();
             this.classAndMethodTreeCache = new IdentityHashMap<>();
             this.fromExpressionTreeCache = new IdentityHashMap<>();
+            this.inferenceResultCache = new IdentityHashMap<>();
+            this.nodeValueInferenceResultCache = new IdentityHashMap<>();
             this.fromMemberTreeCache = new IdentityHashMap<>();
             this.fromTypeTreeCache = new IdentityHashMap<>();
             this.elementCache = MapsP.createLruCache(cacheSize);
@@ -787,6 +817,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         } else {
             this.classAndMethodTreeCache = null;
             this.fromExpressionTreeCache = null;
+            this.inferenceResultCache = null;
+            this.nodeValueInferenceResultCache = null;
             this.fromMemberTreeCache = null;
             this.fromTypeTreeCache = null;
             this.elementCache = null;
@@ -1336,6 +1368,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             elementToTreeCache = new IdentityHashMap<>();
             scannedEnclosingTrees = Collections.newSetFromMap(new IdentityHashMap<>());
             fromExpressionTreeCache = new IdentityHashMap<>();
+            inferenceResultCache = new IdentityHashMap<>();
+            nodeValueInferenceResultCache = new IdentityHashMap<>();
             fromMemberTreeCache = new IdentityHashMap<>();
             fromTypeTreeCache = new IdentityHashMap<>();
             classAndMethodTreeCache = new IdentityHashMap<>();
@@ -1387,7 +1421,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                             + "-"
                             + checker.getClass().getCanonicalName()
                             + ".ajava";
-            for (String ajavaLocation : checker.getStringsOption("ajava", File.pathSeparator)) {
+            for (String ajavaLocation : SystemUtil.splitPaths(checker.getOption("ajava"))) {
                 // ajavaLocation might either be (1) a directory, or (2) the name of a specific
                 // ajava file. This code must handle both possible cases.
                 // Case (1): ajavaPath is a directory
@@ -1556,6 +1590,145 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     public TypeArgumentInference getTypeArgumentInference() {
         return typeArgumentInference;
+    }
+
+    /**
+     * Infers the type arguments of {@code tree}, a method invocation, constructor invocation, or
+     * member reference, with {@link #getTypeArgumentInference()}. The visitor and the computation
+     * of the type of {@code tree} infer the same type arguments, so a result is cached and reused
+     * when both {@link #canCacheFlowDependentType} and {@link #canUseCachedFlowDependentType} hold
+     * for {@code tree}, which is when no dataflow analysis is running, and no inference problem is
+     * being solved, whose partial results are not cached.
+     *
+     * @param tree a tree that needs type argument inference
+     * @param methodType the type of the method or constructor before type argument substitution
+     * @return the result of type argument inference
+     */
+    public InferenceResult inferTypeArguments(
+            ExpressionTree tree, AnnotatedExecutableType methodType) {
+        // Both conditions hold together only when no dataflow analysis is running. During an
+        // analysis, the types of the arguments can differ from those after it: for example, a
+        // boxed argument has the type of its boxing conversion.
+        IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>> cache;
+        if (inferenceResultCache == null || isInferring() || isInferringStandalone()) {
+            cache = null;
+        } else if (canCacheFlowDependentType(tree) && canUseCachedFlowDependentType(tree)) {
+            cache = inferenceResultCache;
+        } else if (isComputingNodeValue()) {
+            cache = nodeValueInferenceResultCache;
+        } else {
+            cache = null;
+        }
+        ExecutableElement element = methodType.getElement();
+        if (cache != null) {
+            Pair<ExecutableElement, InferenceResult> cached = cache.get(tree);
+            if (cached != null && cached.first.equals(element)) {
+                return cached.second.copyFor(methodType, tree);
+            }
+        }
+        InferenceResult result = typeArgumentInference.inferTypeArgs(this, tree, methodType);
+        if (cache != null) {
+            InferenceResult cachedResult = result.copyFor(methodType, tree);
+            cache.put(tree, Pair.of(element, cachedResult));
+            cacheResultForOtherInvocations(tree, cachedResult, cache);
+        }
+        return result;
+    }
+
+    /**
+     * Returns true if the type arguments of a poly expression are being inferred as if it were not
+     * nested in another expression ({@link DefaultTypeArgumentInference#inferStandalone}). Such
+     * results are not cached.
+     *
+     * @return true if {@link DefaultTypeArgumentInference#inferStandalone} is running
+     */
+    protected boolean isInferringStandalone() {
+        return typeArgumentInference instanceof DefaultTypeArgumentInference
+                && ((DefaultTypeArgumentInference) typeArgumentInference).isInferringStandalone();
+    }
+
+    /**
+     * Returns true if a dataflow analysis is computing the value of a node, which it does from the
+     * type of the node's tree. The analysis state that the types of expressions depend on does not
+     * change during that computation, so the results of type argument inference during it are
+     * reused within it (see {@link #nodeValueInferenceResultCache}). This implementation, which
+     * performs no dataflow analysis, returns false.
+     *
+     * @return true if a dataflow analysis is computing the value of a node
+     */
+    protected boolean isComputingNodeValue() {
+        return false;
+    }
+
+    /**
+     * Discards the results of type argument inference reused while a dataflow analysis computes the
+     * value of a node (see {@link #nodeValueInferenceResultCache}). Called when such a computation
+     * starts and ends.
+     */
+    public void clearNodeValueInferenceResults() {
+        if (nodeValueInferenceResultCache != null) {
+            nodeValueInferenceResultCache.clear();
+        }
+    }
+
+    /**
+     * Caches {@code result}, the result of inferring the type arguments of {@code tree}, also for
+     * the other invocations whose type arguments it inferred: the poly expression arguments of the
+     * outermost invocation whose type arguments must be inferred to infer those of {@code tree}, if
+     * {@code tree} is one of them. Inferring the type arguments of such an invocation on its own
+     * solves the same problem, so the result is the same; without this, a call with many poly
+     * expression arguments is inferred once per argument.
+     *
+     * @param tree a tree whose type arguments were inferred
+     * @param result the result of inferring the type arguments of {@code tree}, as cached for it
+     * @param cache the cache in which {@code result} is cached for {@code tree}
+     */
+    @SuppressWarnings("interning:not.interned") // comparing trees for identity
+    private void cacheResultForOtherInvocations(
+            ExpressionTree tree,
+            InferenceResult result,
+            IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>> cache) {
+        if (result.getResults().size() <= 1) {
+            return;
+        }
+        TreePath path = getPath(tree);
+        if (path == null) {
+            return;
+        }
+        ExpressionTree outer =
+                DefaultTypeArgumentInference.outerInference(tree, path.getParentPath());
+        if (outer == tree) {
+            // Inference for the outermost invocation itself starts from the caller's method type,
+            // but inference for a nested invocation starts from the outermost invocation's type
+            // without type argument inference, so their results can differ.
+            return;
+        }
+        for (Tree other : result.getResults().keySet()) {
+            if (other == tree || other == outer || cache.containsKey(other)) {
+                continue;
+            }
+            ExecutableElement otherElement;
+            if (other instanceof MethodInvocationTree) {
+                otherElement = TreeUtils.elementFromUse((MethodInvocationTree) other);
+            } else if (other instanceof NewClassTree
+                    && ((NewClassTree) other).getClassBody() == null) {
+                // The type arguments of an anonymous class created with a diamond are inferred
+                // from the super constructor, but constructorFromUse uses the anonymous
+                // constructor.
+                otherElement = TreeUtils.elementFromUse((NewClassTree) other);
+            } else {
+                continue;
+            }
+            TreePath otherPath = getPath(other);
+            if (otherPath == null
+                    || DefaultTypeArgumentInference.outerInference(
+                                    (ExpressionTree) other, otherPath.getParentPath())
+                            != outer) {
+                // Inferring the type arguments of other on its own would solve another problem.
+                continue;
+            }
+            cache.put((ExpressionTree) other, Pair.of(otherElement, result));
+        }
     }
 
     /** The cached value of {@link #getInferenceWorkBudget}; -1 until first computed. */
@@ -1876,7 +2049,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Annotations explicitly written in the source code,
         // or obtained from bytecode.
         AnnotatedTypeMirror type = fromElement(elt);
+        boolean implicitEnclosingInstance = hasImplicitEnclosingInstance(type);
         addComputedTypeAnnotations(elt, type);
+        if (type.getKind() == TypeKind.EXECUTABLE) {
+            setEnclosingInstanceType((AnnotatedExecutableType) type, implicitEnclosingInstance);
+        }
         // Do not cache a result computed while an annotation file is being parsed: a fake
         // override (AnnotationFileParser#processFakeOverride, BinaryStubReader#applyFakeOverride)
         // reentrantly calls this method on the overridden method while that method's own
@@ -2013,7 +2190,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (type.isFrozen()) {
             type = type.deepCopy();
         }
+        boolean implicitEnclosingInstance = hasImplicitEnclosingInstance(type);
         addComputedTypeAnnotations(tree, type);
+        if (type.getKind() == TypeKind.EXECUTABLE) {
+            setEnclosingInstanceType((AnnotatedExecutableType) type, implicitEnclosingInstance);
+        }
         if (tree instanceof TypeCastTree) {
             // javac's type of a cast is already captured (Attr#visitTypeCast). Reuse its captured
             // type variables, so that every query of the cast's type sees the same ones.
@@ -3180,6 +3361,133 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         return selfType;
     }
 
+    /**
+     * Returns true if {@code type} is the type of a method or constructor of an inner class whose
+     * enclosing instance has no written annotation. For a method, the enclosing instance is the
+     * enclosing type of the receiver, as in {@code Outer<O>.Inner this}; for a constructor, it is
+     * the receiver itself, as in {@code Inner(Outer<O> Outer.this)}. Call this on the type from
+     * {@link #fromElement(Element)}, before defaults are added.
+     *
+     * @param type the type of an element or a declaration
+     * @return true if {@code type} is the type of a method or constructor of an inner class whose
+     *     enclosing instance has no written annotation
+     */
+    private static boolean hasImplicitEnclosingInstance(AnnotatedTypeMirror type) {
+        if (type.getKind() != TypeKind.EXECUTABLE) {
+            return false;
+        }
+        AnnotatedExecutableType exeType = (AnnotatedExecutableType) type;
+        AnnotatedDeclaredType receiver = exeType.getReceiverType();
+        if (receiver == null) {
+            return false;
+        }
+        AnnotatedDeclaredType enclosingInstance =
+                exeType.getElement().getKind() == ElementKind.CONSTRUCTOR
+                        ? receiver
+                        : receiver.getEnclosingType();
+        if (enclosingInstance == null) {
+            return false;
+        }
+        // A receiver is the class applied to its own type parameters, so each type argument is a
+        // type variable, and an annotation on it is a primary annotation.
+        for (AnnotatedDeclaredType t = enclosingInstance; t != null; t = t.getEnclosingType()) {
+            if (!t.getAnnotations().isEmpty()) {
+                return false;
+            }
+            for (AnnotatedTypeMirror typeArg : t.getTypeArguments()) {
+                if (!typeArg.getAnnotations().isEmpty()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Sets the type of the enclosing instance of a method or constructor of an inner class. If
+     * nothing is written on it ({@code implicit}), it becomes the type of {@code this} in the
+     * enclosing class, from {@link #getSelfType(TypeElement)}. The type of the enclosing instance
+     * is not written in the inner class, so a default of the inner class or of the method says
+     * nothing about it; without this, such a default would annotate it, as in {@code Outer<@NonNull
+     * O>.Inner this} under a {@code TYPE_VARIABLE_USE} default on {@code Inner}. Then the method
+     * could not be called through an {@code Outer<@Nullable String>.Inner}, and a constructor,
+     * whose receiver is checked only with {@code -AcheckEnclosingExpr}, could dereference a null
+     * field of the enclosing instance.
+     *
+     * <p>For a method, the enclosing type of the receiver becomes the enclosing class's self type.
+     * For a constructor, the receiver becomes it. The enclosing type of a constructor's result,
+     * which is the type of {@code Outer.this} in its body, always becomes a copy of the receiver,
+     * so a written constructor receiver such as {@code Inner(Outer<@NonNull O> Outer.this)} is
+     * respected in the body. Does nothing for a method or constructor without an enclosing
+     * instance.
+     *
+     * @param exeType the type of a method or constructor, after defaults were added
+     * @param implicit whether {@link #hasImplicitEnclosingInstance} held for {@code exeType} before
+     *     defaults were added
+     */
+    private void setEnclosingInstanceType(AnnotatedExecutableType exeType, boolean implicit) {
+        AnnotatedDeclaredType receiver = exeType.getReceiverType();
+        if (receiver == null) {
+            return;
+        }
+        if (exeType.getElement().getKind() == ElementKind.CONSTRUCTOR) {
+            if (implicit) {
+                receiver = getSelfType((TypeElement) receiver.getUnderlyingType().asElement());
+                exeType.setReceiverType(receiver);
+            }
+            AnnotatedDeclaredType result = (AnnotatedDeclaredType) exeType.getReturnType();
+            if (result.getEnclosingType() != null) {
+                result.setEnclosingType(receiver.deepCopy());
+            }
+        } else if (implicit) {
+            AnnotatedDeclaredType enclosing = receiver.getEnclosingType();
+            receiver.setEnclosingType(
+                    getSelfType((TypeElement) enclosing.getUnderlyingType().asElement()));
+        }
+    }
+
+    /**
+     * The new array expressions whose type is being computed for the target type of one of their
+     * initializers, by {@link #getInitializerTargetType}.
+     */
+    private final Set<NewArrayTree> initializerTargetArrays =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /**
+     * Returns the target type of an initializer of {@code newArray}: the component type of the
+     * array (JLS 10.6), without the lub of the initializers' types that {@link
+     * #getAnnotatedType(Tree)} gives the array. Type argument inference of a generic initializer,
+     * such as {@code new Pair<>(a, b)}, and the functional interface type of a lambda initializer
+     * use it. The lub would infer every initializer again for each initializer, which is quadratic
+     * in the number of initializers, and exponential where the initializers' inference asks for the
+     * target type again.
+     *
+     * @param newArray a new array expression with initializers
+     * @return the target type of an initializer of {@code newArray}
+     */
+    public AnnotatedTypeMirror getInitializerTargetType(NewArrayTree newArray) {
+        boolean added = initializerTargetArrays.add(newArray);
+        try {
+            return getAnnotatedType(newArray).getComponentType();
+        } finally {
+            if (added) {
+                initializerTargetArrays.remove(newArray);
+            }
+        }
+    }
+
+    /**
+     * Returns true if the type of {@code newArray} is being computed by {@link
+     * #getInitializerTargetType}, so it must not depend on the types of the initializers.
+     *
+     * @param newArray a new array expression
+     * @return true if the type of {@code newArray} is being computed for the target type of one of
+     *     its initializers
+     */
+    public boolean isComputingInitializerTargetType(NewArrayTree newArray) {
+        return initializerTargetArrays.contains(newArray);
+    }
+
     /** A set containing class, method, and annotation tree kinds. */
     private static final Set<Tree.Kind> classMethodAnnotationKinds =
             EnumSet.copyOf(TreeUtils.classTreeKinds());
@@ -3560,8 +3868,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             methodType.setReturnType(methodType.getReturnType().getErased());
         }
 
-        if (tree instanceof MethodInvocationTree
-                && TreeUtils.isMethodInvocation(tree, objectGetClass, processingEnv)) {
+        if ((tree instanceof MethodInvocationTree
+                        && TreeUtils.isMethodInvocation(tree, objectGetClass, processingEnv))
+                || (tree instanceof MemberReferenceTree
+                        && ElementUtils.isMethod(methodElt, objectGetClass, processingEnv))) {
             adaptGetClassReturnTypeToReceiver(methodType, receiverType, tree);
         }
 
@@ -3936,18 +4246,31 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *   <li>{@code someInteger.getClass()} has the type {@code Class< ? extends Integer >}
      * </ul>
      *
+     * <p>A method reference such as {@code x::getClass} or {@code Foo::getClass} returns the same
+     * type as an invocation on the reference's receiver.
+     *
      * @param getClassType this must be a type representing a call to Object.getClass otherwise a
      *     runtime exception will be thrown. It is modified by side effect.
      * @param receiverType the receiver type of the method invocation (not the declared receiver
      *     type)
-     * @param tree getClass method invocation tree
+     * @param tree a getClass method invocation or member reference tree
      */
     protected void adaptGetClassReturnTypeToReceiver(
             AnnotatedExecutableType getClassType,
             AnnotatedTypeMirror receiverType,
             ExpressionTree tree) {
-        TypeMirror type = TreeUtils.typeOf(tree);
-        AnnotatedTypeMirror returnType = AnnotatedTypeMirror.createType(type, this, false);
+        AnnotatedDeclaredType declaredReturnType =
+                (AnnotatedDeclaredType) getClassType.getReturnType();
+        AnnotatedWildcardType classWildcardArg =
+                (AnnotatedWildcardType) declaredReturnType.getTypeArguments().get(0);
+        AnnotatedTypeMirror returnType;
+        if (tree instanceof MemberReferenceTree) {
+            returnType =
+                    getClassReturnTypeForMemberReference(
+                            declaredReturnType, classWildcardArg, receiverType);
+        } else {
+            returnType = AnnotatedTypeMirror.createType(TreeUtils.typeOf(tree), this, false);
+        }
 
         if (returnType == null
                 || !(returnType.getKind() == TypeKind.DECLARED)
@@ -3958,11 +4281,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     getClassType, receiverType);
         }
 
-        AnnotatedWildcardType classWildcardArg =
-                (AnnotatedWildcardType)
-                        ((AnnotatedDeclaredType) getClassType.getReturnType())
-                                .getTypeArguments()
-                                .get(0);
         getClassType.setReturnType(returnType);
 
         // Usually, the only locations that will add annotations to the return type are getClass in
@@ -3987,6 +4305,38 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedTypeMirror newTypeArg =
                 ((AnnotatedDeclaredType) getClassType.getReturnType()).getTypeArguments().get(0);
         ((AnnotatedTypeVariable) newTypeArg).getUpperBound().replaceAnnotations(newAnnos);
+    }
+
+    /**
+     * Returns the return type of a member reference to {@code getClass} with a receiver of type
+     * {@code receiverType}: as for an invocation, the capture of {@code Class<? extends
+     * erasure_of_receiver>}. An invocation's type comes from javac, and the tree annotators and
+     * defaults complete its annotations. A member reference's return type is used as computed here,
+     * so it is annotated like the declared {@code Class<?>}, with the erased receiver type as the
+     * upper bound of the wildcard.
+     *
+     * @param declaredReturnType the declared return type of {@code getClass}, {@code Class<?>}
+     * @param classWildcardArg the type argument of {@code declaredReturnType}
+     * @param receiverType the receiver type of the member reference
+     * @return the capture of {@code Class<? extends erasure_of_receiver>}
+     */
+    private AnnotatedTypeMirror getClassReturnTypeForMemberReference(
+            AnnotatedDeclaredType declaredReturnType,
+            AnnotatedWildcardType classWildcardArg,
+            AnnotatedTypeMirror receiverType) {
+        AnnotatedTypeMirror erasedReceiverType = receiverType.getErased();
+        DeclaredType classType =
+                types.getDeclaredType(
+                        (TypeElement) declaredReturnType.getUnderlyingType().asElement(),
+                        types.getWildcardType(erasedReceiverType.getUnderlyingType(), null));
+        AnnotatedDeclaredType result =
+                (AnnotatedDeclaredType) AnnotatedTypeMirror.createType(classType, this, false);
+        result.addAnnotations(declaredReturnType.getAnnotations());
+        AnnotatedWildcardType wildcard = (AnnotatedWildcardType) result.getTypeArguments().get(0);
+        wildcard.addAnnotations(classWildcardArg.getAnnotations());
+        wildcard.setExtendsBound(erasedReceiverType);
+        wildcard.setSuperBound(classWildcardArg.getSuperBound().deepCopy());
+        return applyCaptureConversion(result);
     }
 
     /**
@@ -6616,8 +6966,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
             case NEW_ARRAY:
                 NewArrayTree newArray = (NewArrayTree) parentTree;
-                AnnotatedArrayType newArrayATM = getAnnotatedType(newArray);
-                AnnotatedTypeMirror elementATM = newArrayATM.getComponentType();
+                AnnotatedTypeMirror elementATM = getInitializerTargetType(newArray);
                 assertIsFunctionalInterface(elementATM.getUnderlyingType(), parentTree, tree);
                 return elementATM;
 
