@@ -132,7 +132,8 @@ jobs:
           ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
           JAVA_VERSION: ${{ matrix.java.version }}
 
-  # Sanity tests on Windows and macOS.
+  # Tests of the platform-dependent code on Windows and macOS; see test-otheros.sh.  One job per
+  # operating system, as macOS runners are often not available.
   otheros:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -141,9 +142,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ['windows-latest', 'macos-latest']
-        # Two parts, as on Linux: a single job took 20 to 27 minutes on Windows and was the
-        # longest job of every run.
-        script: ['cftests-junit-part1', 'cftests-junit-part2']
+        script: ['otheros']
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
@@ -169,7 +168,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6.4.1
         with:
           # As for linux-tests, one job per operating system writes the cache.
-          cache-read-only: ${{ github.ref != 'refs/heads/master' || matrix.script != 'cftests-junit-part1' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
 
       - name: Install coreutils on macOS
         if: ${{ matrix.os == 'macos-latest' }}

@@ -9,3 +9,7 @@
 *.pdf     binary
 
 *.bat text eol=crlf
+
+# Expected checker output, compared after deleting carriage returns from the actual output.
+expected.txt text eol=lf
+Expected.txt text eol=lf
