@@ -9,6 +9,7 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
 
@@ -597,6 +598,10 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                     typeargtree = (ParameterizedTypeTree) methodTree.getReturnType();
                 }
                 break;
+            case TYPE_CAST:
+                // BaseTypeVisitor#visitTypeCast validates the cast, whose type has the type
+                // arguments written in the cast's type.
+                return extractParameterizedTypeTree(((TypeCastTree) tree).getType(), type);
             default:
                 // The parameterized type is the result of some expression tree.
                 // No need to do anything further.
@@ -685,9 +690,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                         && ((NewClassTree) tree).getEnclosingExpression() == null;
 
         // Unwrap the type tree down to the tree that actually names the type: strip a surrounding
-        // VariableTree or AnnotatedTypeTree, unwrap a MethodTree to its return type or a
-        // NewClassTree to its instantiated type, then drop a top-level ParameterizedTypeTree's own
-        // type arguments to reach the (possibly qualified) name.
+        // VariableTree or AnnotatedTypeTree, unwrap a MethodTree to its return type, a NewClassTree
+        // to its instantiated type, or a TypeCastTree to its target type, then drop a top-level
+        // ParameterizedTypeTree's own type arguments to reach the (possibly qualified) name.
         Tree nameTree = tree;
         while (true) {
             if (nameTree instanceof VariableTree) {
@@ -702,6 +707,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 }
             } else if (nameTree instanceof NewClassTree) {
                 nameTree = ((NewClassTree) nameTree).getIdentifier();
+            } else if (nameTree instanceof TypeCastTree) {
+                nameTree = ((TypeCastTree) nameTree).getType();
             } else {
                 break;
             }
