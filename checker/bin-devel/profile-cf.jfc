@@ -6,12 +6,19 @@
 
   - Method sampling kept at 10 ms (the documented MIN_SAMPLE_PERIOD floor;
     asking for less is silently clamped).
+  - Record on JDK 25 or later. On JDK 21 the ExecutionSample sampler drops most
+    samples of deep CF stacks (KeY's key.core: 15-26 samples/s instead of
+    100/s), which biases the percentages; JDK 25 records 86/s on the same
+    workload. JDK 25 also has jdk.CPUTimeSample, a sampler driven by the
+    thread's CPU time (91/s there); analyze it with
+    `java -Djfr.sample=jdk.CPUTimeSample jfr-analyze.java ...`. Older JDKs
+    ignore that event. jdk.JVMInformation lets jfr-analyze.java report the JDK.
   - Stack depth: CF stacks routinely exceed 64 frames through visitor +
     dataflow + qualifier-hierarchy layers, and the default depth (64)
     truncates the most interesting top frames. Stack depth is NOT a .jfc
     setting and CANNOT be set here or on -XX:StartFlightRecording (the JVM
     warns "The .jfc option/setting 'stackdepth' doesn't exist." and falls
-    back to 64). It must be set via -XX:FlightRecorderOptions=stackdepth=256,
+    back to 64). It must be set via -XX:FlightRecorderOptions=stackdepth=1024,
     which record-jfr.sh does.
   - Allocation sampling disabled. It is the most expensive event in
     `profile.jfc` and produces multi-megabyte output without giving
@@ -25,7 +32,7 @@
     disabled — CF is CPU-bound on the workloads we care about.
 
   Usage (prefer record-jfr.sh, which assembles these flags correctly):
-      -XX:FlightRecorderOptions=stackdepth=256 \
+      -XX:FlightRecorderOptions=stackdepth=1024 \
       -XX:StartFlightRecording=settings=checker/bin-devel/profile-cf.jfc,\
        filename=/abs/path/cf-%p.jfr,dumponexit=true
 
@@ -38,6 +45,21 @@
   <event name="jdk.ExecutionSample">
     <setting name="enabled">true</setting>
     <setting name="period">10 ms</setting>
+  </event>
+
+  <event name="jdk.CPUTimeSample">
+    <setting name="enabled">true</setting>
+    <setting name="throttle">10 ms</setting>
+    <setting name="stackTrace">true</setting>
+  </event>
+
+  <event name="jdk.CPUTimeSamplesLost">
+    <setting name="enabled">true</setting>
+  </event>
+
+  <event name="jdk.JVMInformation">
+    <setting name="enabled">true</setting>
+    <setting name="period">beginChunk</setting>
   </event>
 
   <event name="jdk.NativeMethodSample">
