@@ -1674,10 +1674,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Caches {@code result}, the result of inferring the type arguments of {@code tree}, also for
      * the other invocations whose type arguments it inferred: the poly expression arguments of the
-     * outermost invocation whose type arguments must be inferred to infer those of {@code tree}.
-     * Inferring the type arguments of such an invocation on its own solves the same problem, so the
-     * result is the same; without this, a call with many poly expression arguments is inferred once
-     * per argument.
+     * outermost invocation whose type arguments must be inferred to infer those of {@code tree}, if
+     * {@code tree} is one of them. Inferring the type arguments of such an invocation on its own
+     * solves the same problem, so the result is the same; without this, a call with many poly
+     * expression arguments is inferred once per argument.
      *
      * @param tree a tree whose type arguments were inferred
      * @param result the result of inferring the type arguments of {@code tree}, as cached for it
@@ -1697,8 +1697,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         ExpressionTree outer =
                 DefaultTypeArgumentInference.outerInference(tree, path.getParentPath());
+        if (outer == tree) {
+            // Inference for the outermost invocation itself starts from the caller's method type,
+            // but inference for a nested invocation starts from the outermost invocation's type
+            // without type argument inference, so their results can differ.
+            return;
+        }
         for (Tree other : result.getResults().keySet()) {
-            if (other == tree || cache.containsKey(other)) {
+            if (other == tree || other == outer || cache.containsKey(other)) {
                 continue;
             }
             ExecutableElement otherElement;
