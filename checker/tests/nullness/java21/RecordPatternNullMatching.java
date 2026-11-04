@@ -16,6 +16,8 @@ public class RecordPatternNullMatching {
 
     record R(@Nullable P p) {}
 
+    record G<T extends @Nullable Object>(T t) {}
+
     int explicitType(Object o) {
         if (o instanceof P(String a, String b)) {
             a.length();
@@ -53,6 +55,22 @@ public class RecordPatternNullMatching {
         if (o instanceof R(P p)) {
             // :: error: (dereference.of.nullable)
             return p.hashCode();
+        }
+        return 0;
+    }
+
+    int genericRecord(Object o) {
+        // The component's type is a type variable whose bound is @Nullable.
+        if (o instanceof G<?>(Object t)) {
+            // :: error: (dereference.of.nullable)
+            return t.hashCode();
+        }
+        return 0;
+    }
+
+    int refinedAfterMatch(Object o) {
+        if (o instanceof P(String a, String b) && b != null) {
+            return b.length();
         }
         return 0;
     }
