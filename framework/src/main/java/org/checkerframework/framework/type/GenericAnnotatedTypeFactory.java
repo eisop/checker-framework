@@ -1525,9 +1525,15 @@ public abstract class GenericAnnotatedTypeFactory<
      * b)} in {@code Arrays.asList(new Pair<>(a, b), ...)}. Its type arguments come from that
      * invocation, but its primary annotations, which are all that a dataflow value keeps of its
      * type, do not; inferring the enclosing invocation for each such argument would take time
-     * quadratic in the number of arguments. Because no argument is a poly expression, the type of
-     * no other tree is computed differently. The underlying type of the result is not the one javac
+     * quadratic in the number of arguments. The underlying type of the result is not the one javac
      * infers, so the caller uses only its primary annotations.
+     *
+     * <p>The primary annotations of such a diamond are the same with and without the enclosing
+     * inference: a test that compared them for every nested diamond in the Checker Framework's
+     * tests and in a large project found no difference (see performance-notes.md and
+     * framework/tests/standalone-diamond). That is not so for a generic method invocation, whose
+     * return type can be a type variable that only the enclosing inference determines, nor for a
+     * lambda, which has no type without its target, so neither may be a direct argument.
      *
      * @param tree a tree whose node's value is being computed
      * @return the type of {@code tree} inferred without its enclosing invocation, or null
@@ -1543,6 +1549,13 @@ public abstract class GenericAnnotatedTypeFactory<
         if (!TreeUtils.isDiamondTree(newClassTree) || newClassTree.getClassBody() != null) {
             return null;
         }
+        // Inferring newClassTree on its own must not change the type of any other tree, so its
+        // inference problem must contain only newClassTree.  A poly expression joins the problem
+        // of an enclosing expression only through a chain of poly expressions: outerInference
+        // returns a standalone expression as its own root.  So a poly expression nested in a
+        // standalone argument, such as make() in new Box<>(encrypt(make())), has its root within
+        // that argument and is inferred the same either way, and it suffices to reject a poly
+        // expression as a direct argument.
         for (ExpressionTree arg : newClassTree.getArguments()) {
             if (InferenceFactory.isPolyExpression(arg)) {
                 return null;

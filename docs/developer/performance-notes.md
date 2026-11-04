@@ -2726,7 +2726,13 @@ type is computed in this mode. The outer call is then inferred a constant number
 subchecker. On this branch (without the Resolution fix): `asList` with 24 diamonds 2.7 → 2.2 s;
 14 rows of a 14-argument `asList` in one array initializer 5.7 → 5.0 s. KeY `key.core`, Nullness:
 3308 errors and 43 warnings, the same diagnostics as master line for line; wall 128.6 → 123.6 s
-(one run each).
+(one run each). `framework/tests/standalone-diamond` (`StandaloneDiamondChecker`, whose visitor reports a
+diamond whose dataflow value has other primary qualifiers than its type, or another underlying type
+than javac's) keeps the cases: polymorphic constructors, a poly expression inside a standalone
+argument, and the excluded poly expression argument and anonymous class. Making the value from the
+standalone underlying type fails it; removing the poly expression or anonymous class exclusion does
+not, since their primary qualifiers agree there too: those exclusions keep other trees from being
+inferred without their enclosing inference, which the comparison did not cover.
 
 ## Tried and rejected
 
