@@ -17,10 +17,11 @@ public class ViewpointAdaptationSuperclassInstantiation {
     }
 
     void topReceiver(@Top Sub top) {
-        // @Top viewpoint-adapts @ReceiverDependentQual to @Lost, but @Lost is non-reflexive in
-        // this test checker.
-        // :: error: (assignment.type.incompatible)
+        // @Top viewpoint-adapts @ReceiverDependentQual to @Lost in the type argument.
+        // :: error: (viewpointtest.lost.lhs)
         @Top Super<@Lost Object> lostSuper = top;
+        // :: error: (viewpointtest.lost.lhs)
+        lostSuper = top;
         // :: error: (assignment.type.incompatible)
         @Top Super<@A Object> badASuper = top;
         // :: error: (assignment.type.incompatible)
