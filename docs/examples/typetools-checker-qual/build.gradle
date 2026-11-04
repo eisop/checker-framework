@@ -48,6 +48,6 @@ compileJava {
     // CHECKERFRAMEWORK/checker/dist when -PcfVersion=local is used.
     // To genuinely test that typetools:checker-qual is used, remove EISOP's checker-qual.jar:
     classpath = classpath.filter { File f ->
-        !f.absolutePath.contains("checker/dist/checker-qual.jar")
+        !f.toPath().endsWith(java.nio.file.Paths.get("checker", "dist", "checker-qual.jar"))
     }
 }

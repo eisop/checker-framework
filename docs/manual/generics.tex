@@ -320,10 +320,16 @@ its fields.  For example, with that annotation on \<Child>, the expression
 
 A default whose scope is only the overriding method is not part of the type
 of \<this>, so a receiver type argument that such a default changes is a
-narrowing, just like a written qualifier.  Similarly, the enclosing type of
-an inner class's receiver is the type of \<this> in the enclosing class,
-with that class's defaults; a default of the inner class does not apply to
-the enclosing instance.
+narrowing, just like a written qualifier.
+
+The type of the enclosing instance of an inner class is not written in the
+inner class, so no default of the inner class, or of one of its methods or
+constructors, applies to it.  Unless a receiver spells out the enclosing
+type with a qualifier, as in \code{Outer<@NonNull O>.Inner this}, the
+enclosing instance has the type of \<this> in the enclosing class, with
+that class's defaults, in every method and constructor of the inner class.
+Such a receiver is never a narrowing, and a method with it may be called on
+an \code{Inner} whose enclosing instance has any type argument.
 
 
 \subsectionAndLabel{Annotations on wildcards}{annotations-on-wildcards}
