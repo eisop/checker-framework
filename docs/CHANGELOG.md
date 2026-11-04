@@ -235,6 +235,10 @@ Command-line option additions and changes:
   directories with the platform's path separator, so they accept Windows paths
   such as `D:/quals`. The Fenum Checker had split `-AqualDirs` on commas,
   contrary to its manual.
+- `-AonlyDefs` now checks an anonymous or local class if its enclosing class
+  matches. It matched such a class by a name without its package, such as
+  `<anonymous Outer$1>`, so a package pattern such as `^mypackage\.` silently
+  skipped every anonymous and local class.
 
 A stub file that declares a record where the running JDK has a class (for example
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
@@ -763,6 +767,7 @@ eisop#2461,
 eisop#2478,
 eisop#2479,
 eisop#2485,
+eisop#2490,
 typetools#399,
 typetools#602,
 typetools#2816,
