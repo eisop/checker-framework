@@ -123,17 +123,29 @@ Type-checking and subtyping improvements:
   bound too, so the method type parameter `<T extends @Nullable Comparable<T>>`
   is rejected, as the same bound on a class already was: `Comparable` requires
   a non-null type argument.
+- A `@DefaultQualifier` for `UPPER_BOUND` or `OTHERWISE` on a method, an inner
+  class, or a local class no longer changes the bound of a type variable
+  declared outside it: a type variable's bounds take the defaults at its
+  declaration. Such a method could dereference an `E` field of a
+  `C<@Nullable String>`.
 - The type of a cast such as `(Entry<?, ?>) o` now uses javac's captured type
   variables instead of fresh ones for each query, so type argument inference and
   the argument check agree. A type system that distinguishes captures of the same
   wildcard, such as the JSpecify reference checker, rejected `m((Entry<?, ?>) o)`
   for `<K, V> m(Entry<? extends K, ? extends V>)`.
+- The type arguments of a cast's target type, such as `@Nullable String` in
+  `(Box<@Nullable String>) o` for a `Box<T extends @NonNull Object>`, are now
+  checked against their bounds, as those of a variable's type are.
 - A super-bounded wildcard that javac captures to its bound (JDK-8054309), such
   as `Lib<? super @NonNull Object>` for `Lib<T extends @Nullable Object>`, is now
   captured to a type variable with both annotated bounds when they differ: reads
   see `@Nullable`, and writes need `@NonNull`. Such types are no longer rejected
   with `type.invalid.super.wildcard`, unless the wildcard collapses to a type
   variable, as `Gen<F, ? super F>` for `Gen<T, S extends T>`.
+- A method reference to `getClass`, such as `foo::getClass` or `Foo::getClass`,
+  now returns `Class<? extends Foo>`, as `foo.getClass()` does, instead of
+  `Class<?>`. Assigning one to a `Supplier<Class<? extends Foo>>` was rejected,
+  and `Stream.map(Foo::getClass)` could fail or crash type argument inference.
 
 JSpecify support in the Nullness Checker:
 
@@ -218,6 +230,10 @@ Command-line option additions and changes:
   by subcheckers; more specific options take precedence.
 - Invalid option arguments (e.g. malformed regex) now produce compiler errors
   instead of stack traces.
+- `-AqualDirs` (Subtyping and Fenum Checkers) and `-AunitsDirs` now separate
+  directories with the platform's path separator, so they accept Windows paths
+  such as `D:/quals`. The Fenum Checker had split `-AqualDirs` on commas,
+  contrary to its manual.
 
 A stub file that declares a record where the running JDK has a class (for example
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
@@ -263,7 +279,12 @@ those defaults annotate every use of a type variable; a receiver that a default
 on the overriding method itself changes is checked like a written annotation. In
 a field initializer or an initializer block, the type of `this` now also has the
 defaults of its class, as in a method, so a call with an implicit receiver there
-is no longer reported as `method.invocation.invalid`.
+is no longer reported as `method.invocation.invalid`. Likewise, the enclosing
+instance of an inner class's method or constructor, unless its type is written,
+has the type of `this` in the enclosing class: a default of the inner class or the
+method no longer applies to it, which let a constructor dereference a nullable
+field of `Outer.this`. A written constructor receiver, such as
+`Inner(Outer<@NonNull O> Outer.this)`, is now respected in the constructor body.
 
 A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
 keeps the qualifier of the expression instead of taking the type variable's
@@ -288,6 +309,9 @@ source: for a variable declared in an earlier `case` of an old-style `switch`, a
 or a local variable of an enclosing method used in a local or anonymous class (eisop#2375).
 
 ### Implementation details
+
+New `SystemUtil.splitPaths(String)` splits a list of paths on the platform's path separator.
+Deprecated `SystemUtil.COLON_SPLITTER`.
 
 Removed methods that have been deprecated for more than two years:
 `TreeUtils.constructor(NewClassTree)` (use `elementFromUse`), `TreeUtils.yieldTreeGetValue`,
@@ -735,6 +759,9 @@ eisop#2404,
 eisop#2411,
 eisop#2418,
 eisop#2461,
+eisop#2478,
+eisop#2479,
+eisop#2485,
 typetools#399,
 typetools#602,
 typetools#2816,
