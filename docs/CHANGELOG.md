@@ -26,6 +26,11 @@ Type-checking an array initializer whose elements need type argument inference, 
 `new Pair[] {new Pair<>(a, b), ...}`, is no longer exponential or quadratic in the number of
 elements: a file with 28 such elements did not finish in 6 hours and now type-checks in about
 2 seconds.
+Type argument inference resolves the inference variables that depend on no other unresolved
+variable together instead of one at a time, so the work for an invocation with many poly
+expression arguments, such as `Arrays.asList(new Pair<>(a, b), ...)`, grows linearly instead
+of quadratically in the number of arguments. Such a call with 36 or more arguments no longer
+exceeds the inference work budget (a false `type.argument.inference.budget` error).
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale

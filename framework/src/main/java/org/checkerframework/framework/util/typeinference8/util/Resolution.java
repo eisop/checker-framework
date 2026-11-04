@@ -135,12 +135,34 @@ public class Resolution {
      */
     private BoundSet resolve(BoundSet boundSet, Set<Variable> unresolvedVars) {
         Set<Variable> resolvedSet = boundSet.getInstantiatedVariables();
+        boolean resolveIndependentTogether = true;
 
         while (!unresolvedVars.isEmpty()) {
             assert !boundSet.containsFalse();
 
             Set<Variable> smallestDependencySet =
                     getSmallestDependencySet(resolvedSet, unresolvedVars);
+
+            if (resolveIndependentTogether && smallestDependencySet.size() == 1) {
+                Set<Variable> independent = getIndependentVariables(resolvedSet, unresolvedVars);
+                if (independent.size() > 1 && !boundSet.containsCapture(independent)) {
+                    BoundSet copy = new BoundSet(boundSet);
+                    // Save the current bounds in case the attempt at resolution fails.
+                    copy.saveBounds();
+                    BoundSet resolved = resolveIndependentVariables(independent, boundSet);
+                    if (resolved != null) {
+                        boundSet = resolved;
+                        resolvedSet = boundSet.getInstantiatedVariables();
+                        unresolvedVars.removeAll(resolvedSet);
+                        continue;
+                    }
+                    // Undo the attempt and resolve the variables one smallest set at a time, so
+                    // that only the variable that fails is resolved with capture.
+                    boundSet = copy;
+                    boundSet.restore();
+                    resolveIndependentTogether = false;
+                }
+            }
 
             // Resolve the smallest unresolved dependency set.
             boundSet = resolveSmallestSet(smallestDependencySet, boundSet);
@@ -149,6 +171,68 @@ public class Resolution {
             unresolvedVars.removeAll(resolvedSet);
         }
         return boundSet;
+    }
+
+    /**
+     * Returns the unresolved variables that depend on no other unresolved variable, in the order of
+     * {@code unresolvedVars}. Each of them is on its own a smallest set of unresolved dependencies,
+     * so they can be resolved in any order, or all at once.
+     *
+     * @param resolvedSet variables that have been resolved
+     * @param unresolvedVars variables that have not been resolved
+     * @return the unresolved variables that depend on no other unresolved variable
+     */
+    @SuppressWarnings("interning:not.interned") // comparing variables for identity
+    private Set<Variable> getIndependentVariables(
+            Set<Variable> resolvedSet, Set<Variable> unresolvedVars) {
+        Set<Variable> independent = new LinkedHashSet<>();
+        for (Variable alpha : unresolvedVars) {
+            if (alpha.isCaptureVariable()) {
+                continue;
+            }
+            boolean isIndependent = true;
+            for (Variable beta : dependencies.dependsOn(alpha)) {
+                if (beta != alpha && !resolvedSet.contains(beta)) {
+                    isIndependent = false;
+                    break;
+                }
+            }
+            if (isIndependent) {
+                independent.add(alpha);
+            }
+        }
+        return independent;
+    }
+
+    /**
+     * Resolves the variables in {@code as}, each of which depends on no other unresolved variable,
+     * together in one attempt without capture. Resolving them one at a time gives the same
+     * instantiations when every attempt succeeds, but saves and restores the bounds of every
+     * variable, and incorporates the new instantiations into every bound, once per variable rather
+     * than once in all; for an invocation with many poly expression arguments, such as a varargs
+     * call with many diamonds, that is quadratic in the number of arguments.
+     *
+     * <p>If the attempt fails, null is returned and the caller restores the bounds it saved and
+     * resolves the variables one at a time, so that only the variable that fails is resolved with
+     * capture.
+     *
+     * @param as unresolved variables that depend on no other unresolved variable
+     * @param boundSet current bound set
+     * @return the bound set with the variables in {@code as} resolved, or null if resolving them
+     *     together failed
+     */
+    private @Nullable BoundSet resolveIndependentVariables(Set<Variable> as, BoundSet boundSet) {
+        assert !boundSet.containsFalse();
+        context.recordIncorporationWork(as.size());
+        try {
+            BoundSet resolvedBounds = resolveWithoutCapture(as, boundSet);
+            if (!resolvedBounds.containsFalse()) {
+                return resolvedBounds;
+            }
+        } catch (FalseBoundException ex) {
+            // Resolve one variable at a time instead.
+        }
+        return null;
     }
 
     /**
