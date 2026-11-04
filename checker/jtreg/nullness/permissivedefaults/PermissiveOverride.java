@@ -1,14 +1,19 @@
 /*
  * @test
  *
- * @summary Test that a permissive default for a parameter of unchecked bytecode does not constrain an override, unlike a written qualifier.
+ * @summary Test that a permissive default in the signature of a method of unchecked bytecode (a parameter, the return type, or a type parameter bound) does not constrain an override, unlike a written qualifier.
  * @compile -proc:none ../permissivedefaultslib/OverrideLib.java
  * @compile/fail/ref=PermissiveOverride.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=bytecode PermissiveOverride.java
  * @compile/fail/ref=PermissiveOverrideNoOption.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker PermissiveOverride.java
+ *
+ * @compile -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=source ../permissivedefaultslib/OverrideLib.java
+ * @compile/fail/ref=PermissiveOverride.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=bytecode PermissiveOverride.java
  */
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 
 import permissivedefaultslib.OverrideLib;
@@ -48,4 +53,38 @@ public class PermissiveOverride extends OverrideLib {
     // The bound of the overridden wildcard is written @Nullable.
     @Override
     public void nullableBoundNarrowed(List<? extends Object> values) {}
+
+    // Only the permissive default makes the overridden return type @NonNull.
+    @Override
+    public @Nullable Object unannotatedReturn() {
+        return null;
+    }
+
+    // The overridden return type is @NonNull as written.
+    @Override
+    public @Nullable Object nonNullReturn() {
+        return null;
+    }
+
+    // The overridden List has no written qualifier, but its element type is written @NonNull.
+    @Override
+    public @Nullable List<@NonNull Object> nonNullElementReturn() {
+        return null;
+    }
+
+    @Override
+    public List<@Nullable Object> nonNullElementReturnChanged() {
+        return Collections.emptyList();
+    }
+
+    // No qualifier is written on the bounds of the overridden type parameter.
+    @Override
+    public <T> void implicitBound(T value) {}
+
+    // The upper bound of the overridden type parameter is written @Nullable.
+    @Override
+    public <T extends @Nullable Object> void nullableTypeParameterBound(T value) {}
+
+    @Override
+    public <T extends @NonNull Object> void nullableTypeParameterBoundNarrowed(T value) {}
 }

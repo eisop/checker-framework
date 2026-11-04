@@ -1,7 +1,9 @@
 package permissivedefaultslib;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 
 public class OverrideLib {
@@ -22,4 +24,26 @@ public class OverrideLib {
     public void unannotatedBound(List<? extends Object> values) {}
 
     public void nullableBoundNarrowed(List<? extends @Nullable Object> values) {}
+
+    public Object unannotatedReturn() {
+        return "";
+    }
+
+    public @NonNull Object nonNullReturn() {
+        return "";
+    }
+
+    public List<@NonNull Object> nonNullElementReturn() {
+        return Collections.emptyList();
+    }
+
+    public List<@NonNull Object> nonNullElementReturnChanged() {
+        return Collections.emptyList();
+    }
+
+    public <T> void implicitBound(T value) {}
+
+    public <T extends @Nullable Object> void nullableTypeParameterBound(T value) {}
+
+    public <T extends @Nullable Object> void nullableTypeParameterBoundNarrowed(T value) {}
 }

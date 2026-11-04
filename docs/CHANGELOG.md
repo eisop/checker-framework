@@ -175,10 +175,14 @@ JSpecify support in the Nullness Checker:
 - New `-AusePermissiveDefaultsForUncheckedCode` (takes `source`/`bytecode`,
   like the conservative variant) applies permissive defaults and suppresses
   warnings outside `@AnnotatedFor` scope. A qualifier that only the permissive
-  default supplies to a parameter of such code does not constrain the overriding
-  method's parameter at that location, so a non-null parameter may override it
-  (as for JSpecify's unspecified nullness); a qualifier written elsewhere in the
-  parameter's type, as in `List<@Nullable Object>`, still does.
+  default supplies to the signature of a method of such code (a parameter type,
+  the return type, or a type parameter bound) does not constrain an overriding
+  method at that location, so, for example, a non-null parameter may override
+  it (as for JSpecify's unspecified nullness); a qualifier written elsewhere in
+  the same type, as in `List<@Nullable Object>`, still does. The defaulted
+  types of unchecked code (with this option or
+  `-AuseConservativeDefaultsForUncheckedCode`) are no longer stored into its
+  class files, where they looked like written qualifiers.
 - New `@UnannotatedFor` excludes a package, class, method, or constructor from
   an enclosing `@AnnotatedFor`'s scope for the given checkers (a nested
   `@AnnotatedFor` takes effect again). Like `@AnnotatedFor`, it's repeatable

@@ -329,22 +329,6 @@ public class ElementAnnotationUtil {
     }
 
     /**
-     * Adds each of the given TypeCompounds to the location of {@code type} that its
-     * TypeAnnotationPosition identifies, as {@link #annotateViaTypeAnnoPosition} does for the
-     * annotations of an element.
-     *
-     * @param type the type in which annos should be placed
-     * @param annos TypeCompounds whose positions are relative to the root of {@code type}
-     * @throws UnexpectedAnnotationLocationException if a position does not correspond to a location
-     *     in {@code type}
-     */
-    public static void annotateAtTypeAnnoPositions(
-            AnnotatedTypeMirror type, Collection<TypeCompound> annos)
-            throws UnexpectedAnnotationLocationException {
-        annotateViaTypeAnnoPosition(type, annos);
-    }
-
-    /**
      * Creates an entry in wildcardToAnnos for wildcard if one does not already exists. Adds anno to
      * the WildcardBoundAnnos object for wildcard.
      */
