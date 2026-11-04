@@ -10,6 +10,7 @@ import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotationClassLoader;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
 
@@ -56,7 +57,7 @@ public class SubtypingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         // load directories of qualifiers
-        for (String dirName : checker.getStringsOption("qualDirs", File.pathSeparatorChar)) {
+        for (String dirName : SystemUtil.splitPaths(checker.getOption("qualDirs"))) {
             if (!new File(dirName).exists()) {
                 throw new UserError(
                         "Directory specified in -AqualDirs does not exist: %s", dirName);

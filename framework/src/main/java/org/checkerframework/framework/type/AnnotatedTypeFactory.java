@@ -1387,7 +1387,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                             + "-"
                             + checker.getClass().getCanonicalName()
                             + ".ajava";
-            for (String ajavaLocation : checker.getStringsOption("ajava", File.pathSeparator)) {
+            for (String ajavaLocation : SystemUtil.splitPaths(checker.getOption("ajava"))) {
                 // ajavaLocation might either be (1) a directory, or (2) the name of a specific
                 // ajava file. This code must handle both possible cases.
                 // Case (1): ajavaPath is a directory
