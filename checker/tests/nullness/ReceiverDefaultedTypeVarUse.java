@@ -4,7 +4,7 @@
 // class applied to its own type parameters with the class's defaults, and the same defaults apply
 // to the class's extends clause, constructors and fields, so it accepts every instance of the
 // class.  Its enclosing type is the type of "this" in the enclosing class, with that class's
-// defaults.  These overrides were reported as override.receiver.invalid.
+// defaults.
 //
 // A default that only the overriding method is in the scope of is not part of the type of "this",
 // so a receiver that it changes is still a narrowing: through a Parent<@Nullable String>, a caller
