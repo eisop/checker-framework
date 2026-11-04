@@ -120,6 +120,11 @@ Type-checking and subtyping improvements:
   bound too, so the method type parameter `<T extends @Nullable Comparable<T>>`
   is rejected, as the same bound on a class already was: `Comparable` requires
   a non-null type argument.
+- A `@DefaultQualifier` for `UPPER_BOUND` or `OTHERWISE` on a method, an inner
+  class, or a local class no longer changes the bound of a type variable
+  declared outside it: a type variable's bounds take the defaults at its
+  declaration. Such a method could dereference an `E` field of a
+  `C<@Nullable String>`.
 - The type of a cast such as `(Entry<?, ?>) o` now uses javac's captured type
   variables instead of fresh ones for each query, so type argument inference and
   the argument check agree. A type system that distinguishes captures of the same
@@ -732,6 +737,7 @@ eisop#2404,
 eisop#2411,
 eisop#2418,
 eisop#2461,
+eisop#2478,
 typetools#399,
 typetools#602,
 typetools#2816,
