@@ -14,6 +14,7 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.TypeAnnotationPosition;
 import com.sun.tools.javac.code.TypeAnnotationPosition.TypePathEntry;
 import com.sun.tools.javac.code.TypeAnnotationPosition.TypePathEntryKind;
+import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
@@ -30,6 +31,8 @@ import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
+
+import java.util.IdentityHashMap;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -152,7 +155,7 @@ public final class TypesIntoElements {
             }
         }
 
-        addUniqueTypeCompounds(types, sym, tcs);
+        addUniqueTypeCompounds(processingEnv, types, sym, tcs);
     }
 
     private static void storeVariable(
@@ -177,7 +180,7 @@ public final class TypesIntoElements {
 
         List<Attribute.TypeCompound> tcs;
         tcs = generateTypeCompounds(processingEnv, type, tapos);
-        addUniqueTypeCompounds(types, sym, tcs);
+        addUniqueTypeCompounds(processingEnv, types, sym, tcs);
     }
 
     @SuppressWarnings("unused") // TODO: see usage in comments above
@@ -205,7 +208,7 @@ public final class TypesIntoElements {
 
         List<Attribute.TypeCompound> tcs;
         tcs = generateTypeCompounds(processingEnv, type, tapos);
-        addUniqueTypeCompounds(types, csym, tcs);
+        addUniqueTypeCompounds(processingEnv, types, csym, tcs);
     }
 
     private static void storeTypeParameters(
@@ -276,11 +279,66 @@ public final class TypesIntoElements {
         }
 
         // System.out.println("Adding " + tcs + " to " + sym);
-        addUniqueTypeCompounds(types, sym, tcs);
+        addUniqueTypeCompounds(processingEnv, types, sym, tcs);
     }
 
-    private static void addUniqueTypeCompounds(Types types, Symbol sym, List<TypeCompound> tcs) {
+    /**
+     * The key of the type annotations of each symbol that {@link #store} changed, as they were
+     * before it changed them, in the compilation context. It is shared by all type factories of the
+     * compilation, since each of them stores into the same symbols.
+     */
+    private static final com.sun.tools.javac.util.Context.Key<
+                    IdentityHashMap<Symbol, List<TypeCompound>>>
+            ORIGINAL_TYPE_ATTRIBUTES_KEY = new com.sun.tools.javac.util.Context.Key<>();
+
+    /**
+     * Returns the map from each symbol that {@link #store} changed to its type annotations before
+     * the first change, creating it if it does not exist.
+     *
+     * @param processingEnv the processing environment
+     * @return the map from each symbol that {@link #store} changed to its original type annotations
+     */
+    private static IdentityHashMap<Symbol, List<TypeCompound>> originalTypeAttributes(
+            ProcessingEnvironment processingEnv) {
+        com.sun.tools.javac.util.Context context =
+                ((JavacProcessingEnvironment) processingEnv).getContext();
+        IdentityHashMap<Symbol, List<TypeCompound>> result =
+                context.get(ORIGINAL_TYPE_ATTRIBUTES_KEY);
+        if (result == null) {
+            result = new IdentityHashMap<>();
+            context.put(ORIGINAL_TYPE_ATTRIBUTES_KEY, result);
+        }
+        return result;
+    }
+
+    /**
+     * Returns the type annotations of {@code sym} as they are written in source code or in
+     * bytecode, without those that {@link #store} added to it after its class was type-checked.
+     *
+     * @param processingEnv the processing environment
+     * @param sym a symbol
+     * @return the type annotations of {@code sym}, without those added by {@link #store}
+     */
+    public static List<TypeCompound> getWrittenTypeAttributes(
+            ProcessingEnvironment processingEnv, Symbol sym) {
+        List<TypeCompound> original = originalTypeAttributes(processingEnv).get(sym);
+        return original != null ? original : sym.getRawTypeAttributes();
+    }
+
+    /**
+     * Adds to the type annotations of {@code sym} those of {@code tcs} that it does not contain
+     * yet. Before the first change to {@code sym}, records its type annotations for {@link
+     * #getWrittenTypeAttributes}.
+     *
+     * @param processingEnv the processing environment
+     * @param types the type utilities
+     * @param sym the symbol to add type annotations to
+     * @param tcs the type annotations to add
+     */
+    private static void addUniqueTypeCompounds(
+            ProcessingEnvironment processingEnv, Types types, Symbol sym, List<TypeCompound> tcs) {
         List<TypeCompound> raw = sym.getRawTypeAttributes();
+        originalTypeAttributes(processingEnv).putIfAbsent(sym, raw);
         List<Attribute.TypeCompound> res = List.nil();
 
         for (Attribute.TypeCompound tc : tcs) {

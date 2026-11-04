@@ -1,0 +1,29 @@
+PermissiveOverrideSource.java:27:33: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for value.
+found   : @NonNull Object
+required: @Nullable Object
+Consequence: method in @NonNull PermissiveOverrideSource
+  @NonNull void nullable(@NonNull PermissiveOverrideSource this, @NonNull Object p0)
+cannot override method in @NonNull OverrideLib
+  @NonNull void nullable(@NonNull OverrideLib this, @Nullable Object p0)
+PermissiveOverrideSource.java:34:54: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
+found   : @NonNull List<@NonNull Object>
+required: @NonNull List<@Nullable Object>
+Consequence: method in @NonNull PermissiveOverrideSource
+  @NonNull void nullableElementNarrowed(@NonNull PermissiveOverrideSource this, @NonNull List<@NonNull Object> p0)
+cannot override method in @NonNull OverrideLib
+  @NonNull void nullableElementNarrowed(@NonNull OverrideLib this, @NonNull List<@Nullable Object> p0)
+PermissiveOverrideSource.java:41:52: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
+found   : @NonNull Object @NonNull []
+required: @Nullable Object @NonNull []
+Consequence: method in @NonNull PermissiveOverrideSource
+  @NonNull void nullableComponentNarrowed(@NonNull PermissiveOverrideSource this, @NonNull Object @NonNull [] p0)
+cannot override method in @NonNull OverrideLib
+  @NonNull void nullableComponentNarrowed(@NonNull OverrideLib this, @Nullable Object @NonNull [] p0)
+PermissiveOverrideSource.java:53:62: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
+found   : @NonNull List<? extends @NonNull Object>
+required: @NonNull List<? extends @Nullable Object>
+Consequence: method in @NonNull PermissiveOverrideSource
+  @NonNull void nullableBoundNarrowed(@NonNull PermissiveOverrideSource this, @NonNull List<? extends @NonNull Object> p0)
+cannot override method in @NonNull OverrideLib
+  @NonNull void nullableBoundNarrowed(@NonNull OverrideLib this, @NonNull List<? extends @Nullable Object> p0)
+4 errors

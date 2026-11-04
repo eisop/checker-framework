@@ -1,0 +1,29 @@
+PermissiveOverride.java:24:33: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for value.
+found   : @NonNull Object
+required: @Nullable Object
+Consequence: method in @NonNull PermissiveOverride
+  @NonNull void nullable(@NonNull PermissiveOverride this, @NonNull Object p0)
+cannot override method in @NonNull OverrideLib
+  @NonNull void nullable(@NonNull OverrideLib this, @Nullable Object p0)
+PermissiveOverride.java:31:54: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
+found   : @NonNull List<@NonNull Object>
+required: @NonNull List<@Nullable Object>
+Consequence: method in @NonNull PermissiveOverride
+  @NonNull void nullableElementNarrowed(@NonNull PermissiveOverride this, @NonNull List<@NonNull Object> p0)
+cannot override method in @NonNull OverrideLib
+  @NonNull void nullableElementNarrowed(@NonNull OverrideLib this, @NonNull List<@Nullable Object> p0)
+PermissiveOverride.java:38:52: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
+found   : @NonNull Object @NonNull []
+required: @Nullable Object @NonNull []
+Consequence: method in @NonNull PermissiveOverride
+  @NonNull void nullableComponentNarrowed(@NonNull PermissiveOverride this, @NonNull Object @NonNull [] p0)
+cannot override method in @NonNull OverrideLib
+  @NonNull void nullableComponentNarrowed(@NonNull OverrideLib this, @Nullable Object @NonNull [] p0)
+PermissiveOverride.java:50:62: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
+found   : @NonNull List<? extends @NonNull Object>
+required: @NonNull List<? extends @Nullable Object>
+Consequence: method in @NonNull PermissiveOverride
+  @NonNull void nullableBoundNarrowed(@NonNull PermissiveOverride this, @NonNull List<? extends @NonNull Object> p0)
+cannot override method in @NonNull OverrideLib
+  @NonNull void nullableBoundNarrowed(@NonNull OverrideLib this, @NonNull List<? extends @Nullable Object> p0)
+4 errors

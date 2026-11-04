@@ -40,7 +40,10 @@ import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreeScanner;
+import com.sun.tools.javac.code.Attribute.TypeCompound;
+import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
+import com.sun.tools.javac.code.TargetType;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
@@ -89,11 +92,13 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersec
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.TypeHierarchy;
 import org.checkerframework.framework.type.TypeVariableSubstitutor;
+import org.checkerframework.framework.type.TypesIntoElements;
 import org.checkerframework.framework.type.poly.QualifierPolymorphism;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
@@ -105,6 +110,7 @@ import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.FieldInvariants;
 import org.checkerframework.framework.util.JavaParserUtil;
 import org.checkerframework.framework.util.StringToJavaExpression;
+import org.checkerframework.framework.util.element.ElementAnnotationUtil;
 import org.checkerframework.framework.util.typeinference8.InferenceResult;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -5744,9 +5750,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
             overriddenParams = adaptedParams;
 
-            // In unchecked code that gets the permissive defaults, a parameter without a written
-            // qualifier does not constrain the overrider's parameter (see isUnspecifiedParameter).
-            // A parameter of a method reference's functional interface is always checked.
+            // In unchecked code that gets the permissive defaults, a qualifier that only the
+            // permissive default supplies does not constrain the overrider's parameter at that
+            // location (see unconstrainUnwrittenLocations). A parameter of a method reference's
+            // functional interface is always checked.
             boolean permissiveOverridden =
                     !isMethodReference
                             && atypeFactory
@@ -5754,8 +5761,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                                     .applyPermissiveDefaults(overridden.getElement());
             boolean result = true;
             for (int i = 0; i < overriderParams.size(); ++i) {
-                if (permissiveOverridden && isUnspecifiedParameter(i)) {
-                    continue;
+                if (permissiveOverridden) {
+                    AnnotatedTypeMirror written = writtenParameterType(i);
+                    if (written != null) {
+                        AnnotatedTypeMirror unconstrained = overriddenParams.get(i).deepCopy();
+                        unconstrainUnwrittenLocations(
+                                unconstrained, written, overriderParams.get(i));
+                        overriddenParams.set(i, unconstrained);
+                    }
                 }
                 AnnotatedTypeMirror capturedParam =
                         atypeFactory.applyCaptureConversion(overriddenParams.get(i));
@@ -5769,46 +5782,175 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
-         * Returns true if no primary qualifier is written on the parameter at {@code index} of the
-         * overridden method, which is in unchecked code that gets the permissive defaults (see
-         * {@link
-         * org.checkerframework.framework.util.defaults.QualifierDefaults#applyPermissiveDefaults}).
-         * Its qualifier is then only the permissive default, which lets callers pass any argument,
-         * so the parameter does not constrain the overrider's parameter; a qualifier written only
-         * within its type, such as on a type argument, is then not checked either. In source code,
-         * a qualifier of this checker written before the type, or on the outermost type, counts as
-         * written, even if it applies to the component of an array type.
+         * Returns the type of the parameter at {@code index} of the overridden method with only the
+         * qualifiers written on it, in source code or in bytecode, without defaults; or null if
+         * they cannot be determined.
+         *
+         * <p>The type annotations of the method's symbol do not suffice: after the class of a
+         * source method has been type-checked, they also contain the qualifiers that the type
+         * factories stored into it, such as the permissive defaults (see {@code
+         * -AstoreInBytecode}). So the written ones come from {@link
+         * TypesIntoElements#getWrittenTypeAttributes}.
          *
          * @param index the index of a parameter of the overridden method
-         * @return true if no primary qualifier is written on the parameter at {@code index} of the
-         *     overridden method
+         * @return the type of the parameter at {@code index} with only its written qualifiers, or
+         *     null
          */
-        private boolean isUnspecifiedParameter(int index) {
-            VariableElement param = overridden.getElement().getParameters().get(index);
-            Tree decl = atypeFactory.declarationFromElement(param);
-            if (decl instanceof VariableTree) {
-                // Read the qualifiers written in source from the tree: once its class has been
-                // checked, the element can also hold the qualifiers that the type factory stored
-                // into it (see -AstoreInBytecode), such as the permissive default.
-                VariableTree paramTree = (VariableTree) decl;
-                List<AnnotationMirror> written =
-                        new ArrayList<>(
-                                TreeUtils.annotationsFromTypeAnnotationTrees(
-                                        paramTree.getModifiers().getAnnotations()));
-                if (paramTree.getType() instanceof AnnotatedTypeTree) {
-                    written.addAll(
-                            TreeUtils.annotationsFromTree((AnnotatedTypeTree) paramTree.getType()));
+        private @Nullable AnnotatedTypeMirror writtenParameterType(int index) {
+            ExecutableElement method = overridden.getElement();
+            VariableElement param = method.getParameters().get(index);
+            AnnotatedTypeMirror written =
+                    AnnotatedTypeMirror.createType(param.asType(), atypeFactory, false);
+            List<TypeCompound> paramAnnos = new ArrayList<>();
+            for (TypeCompound anno :
+                    TypesIntoElements.getWrittenTypeAttributes(
+                            checker.getProcessingEnvironment(), (Symbol) method)) {
+                if (anno.position.type == TargetType.METHOD_FORMAL_PARAMETER
+                        && anno.position.parameter_index == index) {
+                    paramAnnos.add(anno);
                 }
-                for (AnnotationMirror a : written) {
-                    if (atypeFactory.isSupportedQualifierOrAlias(a)) {
-                        return false;
+            }
+            try {
+                ElementAnnotationUtil.annotateAtTypeAnnoPositions(written, paramAnnos);
+            } catch (ElementAnnotationUtil.UnexpectedAnnotationLocationException e) {
+                return null;
+            }
+            // A declaration annotation, such as an alias of a qualifier, applies to the parameter.
+            for (AnnotationMirror anno : param.getAnnotationMirrors()) {
+                if (!AnnotationUtils.isTypeUseAnnotation(anno)) {
+                    written.addAnnotation(anno);
+                }
+            }
+            return written;
+        }
+
+        /**
+         * Makes each location of {@code overriddenParam} whose qualifier is not written impose no
+         * constraint on the corresponding location of {@code overriderParam}: in each hierarchy in
+         * which {@code written} has no qualifier at a location, gives {@code overriddenParam} the
+         * qualifier of {@code overriderParam} at that location. A qualifier written at any
+         * location, such as {@code @Nullable} in {@code List<@Nullable Object>}, still constrains
+         * the overrider.
+         *
+         * <p>This is for an overridden method in unchecked code that gets the permissive defaults
+         * (see {@link
+         * org.checkerframework.framework.util.defaults.QualifierDefaults#applyPermissiveDefaults}):
+         * a qualifier that only the permissive default supplies lets callers pass any argument, so
+         * it says nothing about the overrider's parameter. Where the three types do not have the
+         * same structure, for example where a type variable of the overridden class is replaced by
+         * the type argument that the overrider's class gives it, the qualifiers of {@code
+         * overriddenParam} are kept, so they constrain the overrider.
+         *
+         * @param overriddenParam the overridden parameter type, adapted to the overrider; side
+         *     effected by this method
+         * @param written the overridden parameter type with only its written qualifiers, from
+         *     {@link #writtenParameterType}
+         * @param overriderParam the overriding parameter type
+         */
+        private void unconstrainUnwrittenLocations(
+                AnnotatedTypeMirror overriddenParam,
+                AnnotatedTypeMirror written,
+                AnnotatedTypeMirror overriderParam) {
+            TypeKind kind = overriddenParam.getKind();
+            if (written.getKind() != kind || overriderParam.getKind() != kind) {
+                return;
+            }
+            if (kind != TypeKind.WILDCARD) {
+                // The qualifiers of a wildcard are those of its bounds, visited below.
+                for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+                    if (written.getAnnotationInHierarchy(top) != null) {
+                        continue;
+                    }
+                    AnnotationMirror overriderAnno = overriderParam.getAnnotationInHierarchy(top);
+                    if (overriderAnno != null) {
+                        overriddenParam.replaceAnnotation(overriderAnno);
+                    } else {
+                        overriddenParam.removeAnnotationInHierarchy(top);
                     }
                 }
-                return true;
             }
-            // fromElement gives the qualifiers written on the parameter in bytecode or an
-            // annotation file, without defaults.
-            return atypeFactory.fromElement(param).getAnnotations().isEmpty();
+            switch (kind) {
+                case DECLARED:
+                    AnnotatedDeclaredType overriddenDeclared =
+                            (AnnotatedDeclaredType) overriddenParam;
+                    AnnotatedDeclaredType writtenDeclared = (AnnotatedDeclaredType) written;
+                    AnnotatedDeclaredType overriderDeclared =
+                            (AnnotatedDeclaredType) overriderParam;
+                    unconstrainUnwrittenLocations(
+                            overriddenDeclared.getTypeArguments(),
+                            writtenDeclared.getTypeArguments(),
+                            overriderDeclared.getTypeArguments());
+                    if (overriddenDeclared.getEnclosingType() != null
+                            && writtenDeclared.getEnclosingType() != null
+                            && overriderDeclared.getEnclosingType() != null) {
+                        unconstrainUnwrittenLocations(
+                                overriddenDeclared.getEnclosingType(),
+                                writtenDeclared.getEnclosingType(),
+                                overriderDeclared.getEnclosingType());
+                    }
+                    break;
+                case ARRAY:
+                    unconstrainUnwrittenLocations(
+                            ((AnnotatedArrayType) overriddenParam).getComponentType(),
+                            ((AnnotatedArrayType) written).getComponentType(),
+                            ((AnnotatedArrayType) overriderParam).getComponentType());
+                    break;
+                case WILDCARD:
+                    AnnotatedWildcardType overriddenWildcard =
+                            (AnnotatedWildcardType) overriddenParam;
+                    AnnotatedWildcardType writtenWildcard = (AnnotatedWildcardType) written;
+                    AnnotatedWildcardType overriderWildcard =
+                            (AnnotatedWildcardType) overriderParam;
+                    unconstrainUnwrittenLocations(
+                            overriddenWildcard.getExtendsBound(),
+                            writtenWildcard.getExtendsBound(),
+                            overriderWildcard.getExtendsBound());
+                    unconstrainUnwrittenLocations(
+                            overriddenWildcard.getSuperBound(),
+                            writtenWildcard.getSuperBound(),
+                            overriderWildcard.getSuperBound());
+                    break;
+                case INTERSECTION:
+                    unconstrainUnwrittenLocations(
+                            ((AnnotatedIntersectionType) overriddenParam).getBounds(),
+                            ((AnnotatedIntersectionType) written).getBounds(),
+                            ((AnnotatedIntersectionType) overriderParam).getBounds());
+                    break;
+                case UNION:
+                    unconstrainUnwrittenLocations(
+                            ((AnnotatedUnionType) overriddenParam).getAlternatives(),
+                            ((AnnotatedUnionType) written).getAlternatives(),
+                            ((AnnotatedUnionType) overriderParam).getAlternatives());
+                    break;
+                default:
+                    // A type variable's own qualifier is its primary qualifier, handled above; its
+                    // bounds are those of its declaration.
+                    break;
+            }
+        }
+
+        /**
+         * Calls {@link #unconstrainUnwrittenLocations(AnnotatedTypeMirror, AnnotatedTypeMirror,
+         * AnnotatedTypeMirror)} on the corresponding elements of the three lists, if they have the
+         * same size.
+         *
+         * @param overriddenParams types in the overridden parameter type; side effected by this
+         *     method
+         * @param written the same types with only their written qualifiers
+         * @param overriderParams the corresponding types in the overriding parameter type
+         */
+        private void unconstrainUnwrittenLocations(
+                List<? extends AnnotatedTypeMirror> overriddenParams,
+                List<? extends AnnotatedTypeMirror> written,
+                List<? extends AnnotatedTypeMirror> overriderParams) {
+            if (overriddenParams.size() != written.size()
+                    || overriddenParams.size() != overriderParams.size()) {
+                return;
+            }
+            for (int i = 0; i < overriddenParams.size(); i++) {
+                unconstrainUnwrittenLocations(
+                        overriddenParams.get(i), written.get(i), overriderParams.get(i));
+            }
         }
 
         /**
