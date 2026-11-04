@@ -106,10 +106,8 @@ Type-checking and subtyping improvements:
   `nondet().f`.
 - The Value Checker no longer refines the receiver of `startsWith` or `endsWith` if it is a call to
   a method that is not pure.
-- The Value Checker, and the checkers that use it, now check a `return`, an assignment, and
-  the other comparisons of a type variable that has no Value qualifier, such as returning an
-  `@IntVal(2) T` from a method that returns `T`. Such a type was treated as invalid without an
-  error, so those checks were skipped.
+- The Value Checker, and the checkers that use it, no longer skip the checks of an
+  unannotated use of a type variable: returning an `@IntVal(2) T` as a `T` is an error.
 - A cast to a type variable from an operand that is not a type variable now has
   the qualifier of the operand, unless that qualifier is below the lower bound of
   the type variable: `(T) o` for a `@Nullable Object o` is `@Nullable T`, so

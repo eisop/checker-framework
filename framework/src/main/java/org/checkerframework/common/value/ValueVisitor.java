@@ -504,8 +504,8 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
 
         AnnotationMirror anno = type.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
         if (anno == null) {
-            // A type variable or wildcard without a primary qualifier: its bounds have been
-            // validated.
+            // A type variable or wildcard without a primary qualifier: its bounds are validated
+            // where they are written.
             return true;
         }
 
