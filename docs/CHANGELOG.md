@@ -191,6 +191,10 @@ Nullness Checker improvements:
   rather than the root type.
 - New `-AjspecifyUnrecognizedLocations` (also enabled by `-Amode=jspecify`)
   errors on nullness annotations where JSpecify gives them no meaning.
+- A type pattern nested in a record pattern that is unconditional for the
+  record component, such as `String b` or `var b` in `o instanceof P(String a,
+  String b)`, matches null. Its variable now has the nullness of the record
+  component, and `@Nullable` on it is no longer reported as `instanceof.nullable`.
 
 Initialization Checker improvements:
 
@@ -768,6 +772,7 @@ eisop#2478,
 eisop#2479,
 eisop#2485,
 eisop#2490,
+eisop#2491,
 typetools#399,
 typetools#602,
 typetools#2816,
