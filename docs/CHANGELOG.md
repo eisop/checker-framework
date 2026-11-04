@@ -26,7 +26,10 @@ The result of type argument inference for a generic call is computed once and re
 once for the check and again for the call's type: on a large project, 7% less allocation and 6%
 less time. The result is also reused for the poly expression arguments of the call, such as
 diamonds, whose type arguments are inferred together with it, so a call with many such arguments
-is no longer inferred once per argument.
+is no longer inferred once per argument. During dataflow analysis, the results are reused while
+the value of one node is computed, so the array created for the variable arguments of such a
+call no longer infers it once per argument either. `Arrays.asList` with 24 diamond arguments
+under the Nullness Checker: 4.1 to 2.7 seconds; with 96: 16 to 9 seconds.
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale

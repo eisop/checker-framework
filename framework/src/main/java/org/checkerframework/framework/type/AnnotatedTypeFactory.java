@@ -635,6 +635,22 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             inferenceResultCache;
 
     /**
+     * Like {@link #inferenceResultCache}, but for the results inferred while a dataflow analysis
+     * computes the value of one node (see {@link #isComputingNodeValue}). The analysis state that
+     * the types of expressions depend on does not change during that computation, so a result
+     * inferred during it is reused within it: for example, the value of the array created for the
+     * variable arguments of a call is computed from the types of all those arguments, whose
+     * inference solves the same problem. The results are not reused after the computation, in which
+     * the analysis state can change; {@link #clearNodeValueInferenceResults} is called when a
+     * computation starts and ends. Null if {@link #shouldCache} is false.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    protected @Nullable IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>>
+            nodeValueInferenceResultCache;
+
+    /**
      * Mapping from a member tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
      *
@@ -788,6 +804,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.classAndMethodTreeCache = new IdentityHashMap<>();
             this.fromExpressionTreeCache = new IdentityHashMap<>();
             this.inferenceResultCache = new IdentityHashMap<>();
+            this.nodeValueInferenceResultCache = new IdentityHashMap<>();
             this.fromMemberTreeCache = new IdentityHashMap<>();
             this.fromTypeTreeCache = new IdentityHashMap<>();
             this.elementCache = MapsP.createLruCache(cacheSize);
@@ -801,6 +818,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.classAndMethodTreeCache = null;
             this.fromExpressionTreeCache = null;
             this.inferenceResultCache = null;
+            this.nodeValueInferenceResultCache = null;
             this.fromMemberTreeCache = null;
             this.fromTypeTreeCache = null;
             this.elementCache = null;
@@ -1351,6 +1369,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             scannedEnclosingTrees = Collections.newSetFromMap(new IdentityHashMap<>());
             fromExpressionTreeCache = new IdentityHashMap<>();
             inferenceResultCache = new IdentityHashMap<>();
+            nodeValueInferenceResultCache = new IdentityHashMap<>();
             fromMemberTreeCache = new IdentityHashMap<>();
             fromTypeTreeCache = new IdentityHashMap<>();
             classAndMethodTreeCache = new IdentityHashMap<>();
@@ -1590,25 +1609,54 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Both conditions hold together only when no dataflow analysis is running. During an
         // analysis, the types of the arguments can differ from those after it: for example, a
         // boxed argument has the type of its boxing conversion.
-        boolean useCache =
-                inferenceResultCache != null
-                        && !isInferring()
-                        && canCacheFlowDependentType(tree)
-                        && canUseCachedFlowDependentType(tree);
+        IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>> cache;
+        if (inferenceResultCache == null || isInferring()) {
+            cache = null;
+        } else if (canCacheFlowDependentType(tree) && canUseCachedFlowDependentType(tree)) {
+            cache = inferenceResultCache;
+        } else if (isComputingNodeValue()) {
+            cache = nodeValueInferenceResultCache;
+        } else {
+            cache = null;
+        }
         ExecutableElement element = methodType.getElement();
-        if (useCache) {
-            Pair<ExecutableElement, InferenceResult> cached = inferenceResultCache.get(tree);
+        if (cache != null) {
+            Pair<ExecutableElement, InferenceResult> cached = cache.get(tree);
             if (cached != null && cached.first.equals(element)) {
                 return cached.second.copyFor(methodType, tree);
             }
         }
         InferenceResult result = typeArgumentInference.inferTypeArgs(this, tree, methodType);
-        if (useCache) {
+        if (cache != null) {
             InferenceResult cachedResult = result.copyFor(methodType, tree);
-            inferenceResultCache.put(tree, Pair.of(element, cachedResult));
-            cacheResultForOtherInvocations(tree, cachedResult);
+            cache.put(tree, Pair.of(element, cachedResult));
+            cacheResultForOtherInvocations(tree, cachedResult, cache);
         }
         return result;
+    }
+
+    /**
+     * Returns true if a dataflow analysis is computing the value of a node, which it does from the
+     * type of the node's tree. The analysis state that the types of expressions depend on does not
+     * change during that computation, so the results of type argument inference during it are
+     * reused within it (see {@link #nodeValueInferenceResultCache}). This implementation, which
+     * performs no dataflow analysis, returns false.
+     *
+     * @return true if a dataflow analysis is computing the value of a node
+     */
+    protected boolean isComputingNodeValue() {
+        return false;
+    }
+
+    /**
+     * Discards the results of type argument inference reused while a dataflow analysis computes the
+     * value of a node (see {@link #nodeValueInferenceResultCache}). Called when such a computation
+     * starts and ends.
+     */
+    public void clearNodeValueInferenceResults() {
+        if (nodeValueInferenceResultCache != null) {
+            nodeValueInferenceResultCache.clear();
+        }
     }
 
     /**
@@ -1621,9 +1669,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * @param tree a tree whose type arguments were inferred
      * @param result the result of inferring the type arguments of {@code tree}, as cached for it
+     * @param cache the cache in which {@code result} is cached for {@code tree}
      */
     @SuppressWarnings("interning:not.interned") // comparing trees for identity
-    private void cacheResultForOtherInvocations(ExpressionTree tree, InferenceResult result) {
+    private void cacheResultForOtherInvocations(
+            ExpressionTree tree,
+            InferenceResult result,
+            IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>> cache) {
         if (result.getResults().size() <= 1) {
             return;
         }
@@ -1634,7 +1686,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         ExpressionTree outer =
                 DefaultTypeArgumentInference.outerInference(tree, path.getParentPath());
         for (Tree other : result.getResults().keySet()) {
-            if (other == tree || inferenceResultCache.containsKey(other)) {
+            if (other == tree || cache.containsKey(other)) {
                 continue;
             }
             ExecutableElement otherElement;
@@ -1657,7 +1709,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 // Inferring the type arguments of other on its own would solve another problem.
                 continue;
             }
-            inferenceResultCache.put((ExpressionTree) other, Pair.of(otherElement, result));
+            cache.put((ExpressionTree) other, Pair.of(otherElement, result));
         }
     }
 

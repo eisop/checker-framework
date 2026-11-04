@@ -2687,6 +2687,27 @@ same problem, i.e. with the same outermost invocation, keyed by `TreeUtils.eleme
 (anonymous classes created with a diamond are skipped: the visitor infers them from the super
 constructor): 2k+3 per subchecker. Measured together with the next paragraph.
 
+**Results reused while a node's value is computed (November 2026).** Of the 2k+2 inferences
+during dataflow analysis, k are the transfer for the synthetic array that the CFG creates for the
+variable arguments: `PropagationTreeAnnotator.visitNewArray` takes the lub of the initializers'
+types, and each initializer's type infers the call. Caching during the analysis in general is
+unsound (the Issue888 case above: the result at one node is not the result at another, because
+the node values of the arguments evaluated in between change), but one node's value is computed
+in one `CFAbstractTransfer.getValueFromFactory` call during which the analysis state that
+expression types depend on (node values, store, current tree) does not change, so two inferences
+of the same problem within it have the same inputs and the same result. A second cache,
+`nodeValueInferenceResultCache`, is used when `isComputingNodeValue()` (the analysis is running
+and has a current tree) and is cleared by `getValueFromFactory` before and after the computation,
+and when an analysis starts, so a result never reaches another node or the visitor: k+3 per
+subchecker. The remaining k are the values of the arguments' own nodes, computed at different
+points of the analysis with different inputs. Wall clock (`rev-fixes/time.sh`, JDK 21, ~1.5 s
+startup, on this branch with the Resolution fix and the array initializer target type fix), before
+→ after both paragraphs: `asList` with k = 12/24/48/96 diamonds 2.3/4.1/7.1/16.2 → 2.0/2.7/4.9/9.1
+s; 14 rows of a 14-argument `asList` in one array initializer 8.5 → 5.7 s; 80 rows of 4
+arguments 7.1 → 5.7 s; a flat array of 24 diamonds 1.8 → 1.9 s. The remaining growth is k
+inferences each linear in k; removing it needs the node value of a non-root poly expression
+without inferring the enclosing call, which is not known to be sound for every checker.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a

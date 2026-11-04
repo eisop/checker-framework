@@ -235,6 +235,8 @@ public abstract class CFAbstractTransfer<
                 analysis.atypeFactory;
         Tree preTree = analysis.getCurrentTree();
         analysis.setCurrentTree(tree);
+        // The results of type argument inference are reused only within this computation.
+        factory.clearNodeValueInferenceResults();
         AnnotatedTypeMirror at;
         try {
             if (node instanceof MethodInvocationNode
@@ -252,6 +254,7 @@ public abstract class CFAbstractTransfer<
             throw BugInCF.addLocation(tree, e);
         } finally {
             analysis.setCurrentTree(preTree);
+            factory.clearNodeValueInferenceResults();
         }
         return analysis.createAbstractValue(at);
     }

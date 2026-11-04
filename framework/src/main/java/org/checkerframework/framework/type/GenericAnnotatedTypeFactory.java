@@ -1436,6 +1436,7 @@ public abstract class GenericAnnotatedTypeFactory<
             if (inferenceResultCache != null) {
                 inferenceResultCache.clear();
             }
+            clearNodeValueInferenceResults();
             performFlowAnalysisForClassImpl(classTree);
         } finally {
             flowAnalysisDepth--;
@@ -1498,6 +1499,19 @@ public abstract class GenericAnnotatedTypeFactory<
         boolean isInferenceRoot =
                 DefaultTypeArgumentInference.outerInference(tree, path.getParentPath()) == tree;
         return isInferenceRoot;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The analysis computes the value of a node in {@link
+     * org.checkerframework.framework.flow.CFAbstractTransfer#getValueFromFactory}, which sets the
+     * analysis's current tree for the duration of the computation and clears the reused results
+     * before and after it.
+     */
+    @Override
+    protected boolean isComputingNodeValue() {
+        return analysis != null && analysis.isRunning() && analysis.getCurrentTree() != null;
     }
 
     /**
