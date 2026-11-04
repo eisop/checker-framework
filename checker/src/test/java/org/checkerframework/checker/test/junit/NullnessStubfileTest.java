@@ -23,7 +23,8 @@ public class NullnessStubfileTest extends CheckerFrameworkPerDirectoryTest {
                         "-Astubs=tests/nullness-stubfile/stubfile1.astub:"
                                 + "tests/nullness-stubfile/stubfile2.astub:"
                                 + "tests/nullness-stubfile/requireNonNull.astub:"
-                                + "tests/nullness-stubfile/fakeOverloadOverride.astub"));
+                                + "tests/nullness-stubfile/fakeOverloadOverride.astub"),
+                "-AmergeStubsWithSource");
     }
 
     @Parameters

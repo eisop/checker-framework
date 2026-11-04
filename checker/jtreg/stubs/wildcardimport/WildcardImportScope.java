@@ -3,7 +3,7 @@
  * @summary Regression test for AnnotationFileParser.findVariableElement(FieldAccessExpr): a
  * declaration annotation whose value is a field access must resolve when the receiver type is
  * reachable only through a wildcard type import.
- * @compile -processor org.checkerframework.checker.nullness.NullnessChecker -Astubs=WildcardImportScope.astub -AstubWarnIfNotFound -Werror WildcardImportScope.java
+ * @compile -processor org.checkerframework.checker.nullness.NullnessChecker -Astubs=WildcardImportScope.astub -AmergeStubsWithSource -AstubWarnIfNotFound -Werror WildcardImportScope.java
  */
 
 // Class that WildcardImportScope.astub adds a declaration annotation to, using a value that

@@ -1,0 +1,19 @@
+EnclosingTypeArgsChain.java:23:18: compiler.err.proc.messager: [type.argument.type.incompatible] incompatible type argument for type parameter XXX of A.
+found   : @Nullable String
+required: @NonNull Object
+EnclosingTypeArgsChain.java:25:38: compiler.err.proc.messager: [type.argument.type.incompatible] incompatible type argument for type parameter YYY of B.
+found   : @Nullable String
+required: @NonNull Object
+EnclosingTypeArgsChain.java:27:17: compiler.err.proc.messager: [type.argument.type.incompatible] incompatible type argument for type parameter XXX of A.
+found   : @Nullable String
+required: @NonNull Object
+EnclosingTypeArgsChain.java:27:37: compiler.err.proc.messager: [type.argument.type.incompatible] incompatible type argument for type parameter YYY of B.
+found   : @Nullable String
+required: @NonNull Object
+EnclosingTypeArgsChain.java:31:23: compiler.err.proc.messager: [type.argument.type.incompatible] incompatible type argument for type parameter XXX of A.
+found   : @Nullable String
+required: @NonNull Object
+EnclosingTypeArgsChain.java:33:16: compiler.err.proc.messager: [type.argument.type.incompatible] incompatible type argument for type parameter XXX of A.
+found   : @Nullable String
+required: @NonNull Object
+6 errors

@@ -20,8 +20,8 @@ import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.Pair;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -124,7 +124,7 @@ public class ForwardAnalysisImpl<
         try {
             init(cfg);
             while (!worklist.isEmpty()) {
-                Block b = worklist.poll();
+                Block b = worklist.remove();
                 performAnalysisBlock(b);
             }
         } finally {
@@ -253,11 +253,10 @@ public class ForwardAnalysisImpl<
     @Override
     @SuppressWarnings("nullness:contracts.precondition.override.invalid") // implementation field
     @RequiresNonNull("cfg")
-    public List<IPair<ReturnNode, @Nullable TransferResult<V, S>>> getReturnStatementStores() {
+    public List<Pair<ReturnNode, @Nullable TransferResult<V, S>>> getReturnStatementStores() {
         return CollectionsPlume
-                .<ReturnNode, IPair<ReturnNode, @Nullable TransferResult<V, S>>>mapList(
-                        returnNode ->
-                                IPair.of(returnNode, storesAtReturnStatements.get(returnNode)),
+                .<ReturnNode, Pair<ReturnNode, @Nullable TransferResult<V, S>>>mapList(
+                        returnNode -> Pair.of(returnNode, storesAtReturnStatements.get(returnNode)),
                         cfg.getReturnNodes());
     }
 
@@ -272,6 +271,7 @@ public class ForwardAnalysisImpl<
         Block block = node.getBlock();
         assert block != null : "@AssumeAssertion(nullness): invariant";
         Node oldCurrentNode = currentNode;
+        TransferInput<V, S> oldCurrentInput = currentInput;
 
         if (isRunning) {
             assert currentInput != null : "@AssumeAssertion(nullness): invariant";
@@ -314,6 +314,11 @@ public class ForwardAnalysisImpl<
                                     store = store.copy();
                                     copied = true;
                                 }
+                                // As in performAnalysisBlock, so that a query for the store
+                                // before the node being processed, made from within its transfer
+                                // function, sees this input rather than the input left behind by
+                                // the last analysis.
+                                currentInput = store;
                                 transferResult = callTransferFunction(n, store);
                                 if (cache != null) {
                                     cache.put(n, transferResult);
@@ -348,7 +353,8 @@ public class ForwardAnalysisImpl<
                         } else {
                             // Copy the store to avoid changing other blocks' transfer inputs in
                             // {@link #inputs}.
-                            transferResult = callTransferFunction(node, blockTransferInput.copy());
+                            currentInput = blockTransferInput.copy();
+                            transferResult = callTransferFunction(node, currentInput);
                             if (cache != null) {
                                 cache.put(node, transferResult);
                             }
@@ -361,6 +367,7 @@ public class ForwardAnalysisImpl<
             }
         } finally {
             setCurrentNode(oldCurrentNode);
+            currentInput = oldCurrentInput;
             isRunning = false;
         }
     }
@@ -509,7 +516,7 @@ public class ForwardAnalysisImpl<
      * @param node the node of the basic block {@code b}
      * @param s the store being added
      * @param kind the kind of store {@code s}
-     * @param addBlockToWorklist whether the basic block {@code b} should be added back to {@code
+     * @param addBlockToWorklist true if the basic block {@code b} should be added back to {@code
      *     Worklist}
      */
     protected void addStoreBefore(
@@ -611,7 +618,7 @@ public class ForwardAnalysisImpl<
     }
 
     /**
-     * Return the store corresponding to the location right before the basic block {@code b}.
+     * Returns the store corresponding to the location right before the basic block {@code b}.
      *
      * @param b a block
      * @param kind the kind of store which will be returned

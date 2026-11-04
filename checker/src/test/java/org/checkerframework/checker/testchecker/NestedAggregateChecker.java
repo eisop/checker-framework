@@ -16,8 +16,7 @@ import java.util.Collection;
 public class NestedAggregateChecker extends AggregateChecker {
     @Override
     protected Collection<Class<? extends SourceChecker>> getSupportedCheckers() {
-        ArrayList<Class<? extends SourceChecker>> list =
-                new ArrayList<Class<? extends SourceChecker>>();
+        ArrayList<Class<? extends SourceChecker>> list = new ArrayList<>();
 
         list.add(FenumChecker.class);
         list.add(I18nChecker.class); // The I18nChecker is an aggregate checker

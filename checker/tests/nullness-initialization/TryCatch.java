@@ -18,6 +18,8 @@ public class TryCatch {
         }
     }
 
+    // See checker/tests/nullness-ignoredeadcode/UnreachableCatch.java for the same code checked
+    // with -AignoreDeadCode, where these errors do not occur.
     void unreachableCatch(String[] xs) {
         String t = "";
         t.toString();

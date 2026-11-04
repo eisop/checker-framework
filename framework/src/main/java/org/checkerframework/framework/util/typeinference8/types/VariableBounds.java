@@ -1,5 +1,7 @@
 package org.checkerframework.framework.util.typeinference8.types;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.util.typeinference8.constraint.Constraint;
 import org.checkerframework.framework.util.typeinference8.constraint.Constraint.Kind;
 import org.checkerframework.framework.util.typeinference8.constraint.ConstraintSet;
@@ -7,8 +9,8 @@ import org.checkerframework.framework.util.typeinference8.constraint.QualifierTy
 import org.checkerframework.framework.util.typeinference8.constraint.TypeConstraint;
 import org.checkerframework.framework.util.typeinference8.constraint.Typing;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,7 +20,10 @@ import java.util.List;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 
 /** Data structure to stores the bounds of a variable. */
 public class VariableBounds {
@@ -95,7 +100,7 @@ public class VariableBounds {
     /** Constraints implied by complementary pairs of bounds found during incorporation. */
     public final ConstraintSet constraints = new ConstraintSet();
 
-    /** Whether this variable has a throws bounds. */
+    /** True if this variable has a throws bounds. */
     public boolean hasThrowsBound = false;
 
     /** Saved bounds used in the event the first attempt at resolution fails. */
@@ -103,6 +108,12 @@ public class VariableBounds {
 
     /** Saved qualifier bounds used in the event the first attempt at resolution fails. */
     public EnumMap<BoundKind, LinkedHashSet<AbstractQualifier>> savedQualifierBounds = null;
+
+    /**
+     * The constraints in {@link #constraints} when the bounds were saved, used in the event the
+     * first attempt at resolution fails.
+     */
+    private @Nullable Set<Constraint> savedConstraints = null;
 
     /**
      * Creates bounds for {@code variable}.
@@ -124,6 +135,7 @@ public class VariableBounds {
 
     /** Save the current bounds in case the first attempt at resolution fails. */
     public void save() {
+        savedConstraints = constraints.identitySnapshot();
         savedBounds = new EnumMap<>(BoundKind.class);
         savedBounds.put(BoundKind.EQUAL, new LinkedHashSet<>(bounds.get(BoundKind.EQUAL)));
         savedBounds.put(BoundKind.UPPER, new LinkedHashSet<>(bounds.get(BoundKind.UPPER)));
@@ -144,6 +156,13 @@ public class VariableBounds {
      */
     public void restore() {
         assert savedBounds != null;
+        assert savedConstraints != null;
+        // Drop the constraints that incorporating the failed attempt added and left unreduced:
+        // they apply its instantiations, which no longer hold. This is not a full restore: a saved
+        // constraint that the failed attempt removed is not added back, and a saved constraint that
+        // is still here is the same instance, which the attempt may have changed by applying its
+        // instantiations.
+        constraints.retainOnly(savedConstraints);
         instantiation = null;
         bounds.clear();
         bounds.put(BoundKind.EQUAL, new LinkedHashSet<>(savedBounds.get(BoundKind.EQUAL)));
@@ -169,7 +188,7 @@ public class VariableBounds {
     }
 
     /**
-     * Return true if this has a throws bound.
+     * Returns true if this has a throws bound.
      *
      * @return true if this has a throws bound
      */
@@ -178,7 +197,7 @@ public class VariableBounds {
     }
 
     /**
-     * Set has throws bound
+     * Set has throws bound.
      *
      * @param b has thrown bound
      */
@@ -363,8 +382,8 @@ public class VariableBounds {
             // then for all i (1 <= i <= n), if Si and Ti are types (not wildcards),
             // the constraint formula <Si = Ti> is implied.
             if (boundType.isInferenceType() || boundType.isProper()) {
-                for (AbstractType t : bounds.get(BoundKind.LOWER)) {
-                    if (t.isProper() || t.isInferenceType()) {
+                for (AbstractType t : bounds.get(BoundKind.UPPER)) {
+                    if (boundType != t && (t.isProper() || t.isInferenceType())) {
                         constraints.addAll(getConstraintsFromParameterized(boundType, t));
                     }
                 }
@@ -440,14 +459,20 @@ public class VariableBounds {
      * ({@code 1 <= i <= n}), if Si and Ti are types (not wildcards), the constraint formula {@code
      * <Si = Ti>} is implied.
      *
-     * @param s a type argument
-     * @param t a type argument
+     * <p>If G is {@code Enum} and {@code s} (or {@code t}) is an enum type E, {@code
+     * SupertypeFinder.createEnumSuperType} gives the type argument of {@code Enum<E>} the primary
+     * qualifiers of E, which do not hold for the subtypes of E. So only the Java type is implied,
+     * by a subtype constraint against a copy of E whose qualifiers are ignored; an enum type has no
+     * other subtype. See eisop#2414.
+     *
+     * @param s an upper bound
+     * @param t another upper bound
      * @return the constraints between the type arguments to {@code s} and {@code t}
      */
     private List<Typing> getConstraintsFromParameterized(AbstractType s, AbstractType t) {
         String source = "Constraint from parameterized bound.";
 
-        IPair<AbstractType, AbstractType> pair =
+        Pair<AbstractType, AbstractType> pair =
                 context.inferenceTypeFactory.getParameterizedSupers(s, t);
 
         if (pair == null) {
@@ -458,11 +483,22 @@ public class VariableBounds {
         List<AbstractType> ts = pair.second.getTypeArguments();
         assert ss.size() == ts.size();
 
+        boolean enumSuper = TypesUtils.isDeclaredOfName(pair.first.getJavaType(), "java.lang.Enum");
+        boolean sIsEnum = enumSuper && isEnumType(s);
+        boolean tIsEnum = enumSuper && isEnumType(t);
+
         List<Typing> constraints = new ArrayList<>();
         for (int i = 0; i < ss.size(); i++) {
             AbstractType si = ss.get(i);
             AbstractType ti = ts.get(i);
-            if (si.getTypeKind() != TypeKind.WILDCARD && ti.getTypeKind() != TypeKind.WILDCARD) {
+            if (si.getTypeKind() == TypeKind.WILDCARD || ti.getTypeKind() == TypeKind.WILDCARD) {
+                continue;
+            }
+            if (sIsEnum) {
+                constraints.add(new Typing(source, ti, ignoreQualifiers(si), Kind.SUBTYPE));
+            } else if (tIsEnum) {
+                constraints.add(new Typing(source, si, ignoreQualifiers(ti), Kind.SUBTYPE));
+            } else {
                 constraints.add(new Typing(source, si, ti, Kind.TYPE_EQUALITY));
             }
         }
@@ -470,9 +506,35 @@ public class VariableBounds {
     }
 
     /**
-     * Returns whether this variable only has bounds against proper types.
+     * Returns true if {@code type} is an enum type.
      *
-     * @return whether this variable only has bounds against proper types
+     * @param type a type
+     * @return true if {@code type} is an enum type
+     */
+    private static boolean isEnumType(AbstractType type) {
+        TypeMirror javaType = type.getJavaType();
+        return javaType.getKind() == TypeKind.DECLARED
+                && ((DeclaredType) javaType).asElement().getKind() == ElementKind.ENUM;
+    }
+
+    /**
+     * Returns a copy of {@code type} whose qualifiers are ignored: its primary qualifiers are the
+     * top qualifiers and it is marked so that constraints against it compare only Java types, as
+     * {@link UseOfVariable#addBound} marks the upper bounds of a use with a primary qualifier.
+     *
+     * @param type a type
+     * @return a copy of {@code type} whose qualifiers are ignored
+     */
+    private AbstractType ignoreQualifiers(AbstractType type) {
+        AnnotatedTypeMirror copy = type.getAnnotatedType().deepCopy();
+        copy.replaceAnnotations(context.typeFactory.getQualifierHierarchy().getTopAnnotations());
+        return type.create(copy, type.getJavaType(), true);
+    }
+
+    /**
+     * Returns true if this variable only has bounds against proper types.
+     *
+     * @return true if this variable only has bounds against proper types
      */
     public boolean onlyProperBounds() {
         for (BoundKind k : BoundKind.values()) {
@@ -486,7 +548,7 @@ public class VariableBounds {
     }
 
     /**
-     * Return all lower bounds that are proper types.
+     * Returns all lower bounds that are proper types.
      *
      * @return all lower bounds that are proper types
      */
@@ -516,24 +578,18 @@ public class VariableBounds {
     }
 
     /**
-     * Returns all upper bounds.
+     * Returns all upper bounds, including those that are another inference variable.
      *
      * @return all upper bounds
      */
     public Set<AbstractType> upperBounds() {
-        LinkedHashSet<AbstractType> set = new LinkedHashSet<>();
-        for (AbstractType bound : bounds.get(BoundKind.UPPER)) {
-            if (!bound.isUseOfVariable()) {
-                set.add(bound);
-            }
-        }
-        return set;
+        return new LinkedHashSet<>(bounds.get(BoundKind.UPPER));
     }
 
     /**
      * Apply instantiations to all bounds and constraints of this variable.
      *
-     * @return whether any of the bounds changed
+     * @return true if any of the bounds changed
      */
     public boolean applyInstantiationsToBounds() {
         // Incorporation worklist: a clean variable's bounds and constraints cannot have changed
@@ -543,9 +599,10 @@ public class VariableBounds {
         if (!dirty) {
             return false;
         }
-        boolean changed = doApplyInstantiationsToBounds();
+        // Clear the flag before the scan: the scan may mark this variable dirty again, as for
+        // E <: Enum<E>, and that mark must survive.
         dirty = false;
-        return changed;
+        return doApplyInstantiationsToBounds();
     }
 
     /**
@@ -689,7 +746,7 @@ public class VariableBounds {
     }
 
     /**
-     * Return true if this has an instantiation.
+     * Returns true if this has an instantiation.
      *
      * @return true if this has an instantiation
      */
@@ -739,7 +796,7 @@ public class VariableBounds {
      * where S1 and S2 have supertypes that are two different parameterizations of the same generic
      * class or interface?
      *
-     * @return whether this bound set contain two bounds of the forms {@code S1 <: var} and {@code
+     * @return true if this bound set contain two bounds of the forms {@code S1 <: var} and {@code
      *     S2 <: var}, where S1 and S2 have supertypes that are two different parameterizations of
      *     the same generic class or interface
      */
@@ -754,7 +811,7 @@ public class VariableBounds {
             AbstractType s1 = parameteredTypes.get(i);
             for (int j = i + 1; j < parameteredTypes.size(); j++) {
                 AbstractType s2 = parameteredTypes.get(j);
-                IPair<AbstractType, AbstractType> supers =
+                Pair<AbstractType, AbstractType> supers =
                         context.inferenceTypeFactory.getParameterizedSupers(s1, s2);
                 if (supers == null) {
                     continue;
@@ -780,7 +837,7 @@ public class VariableBounds {
      * @return true if there exists an equal or lower bound against a type, S, such that S is not a
      *     subtype of {@code G<...>}, but S is a subtype of the raw type {@code |G<...>|}, where
      *     {@code G} a generic class or interface for which the parameter of this method, {@code t},
-     *     is a parameterization.
+     *     is a parameterization
      */
     public boolean hasRawTypeLowerOrEqualBound(AbstractType t) {
         for (AbstractType type : bounds.get(BoundKind.LOWER)) {

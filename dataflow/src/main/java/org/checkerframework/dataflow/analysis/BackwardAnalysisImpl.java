@@ -91,7 +91,7 @@ public class BackwardAnalysisImpl<
         try {
             init(cfg);
             while (!worklist.isEmpty()) {
-                Block b = worklist.poll();
+                Block b = worklist.remove();
                 performAnalysisBlock(b);
             }
         } finally {
@@ -274,12 +274,12 @@ public class BackwardAnalysisImpl<
      * @param pred the basic block
      * @param node the node of the basic block {@code b}
      * @param s the store being added
-     * @param addBlockToWorklist whether the basic block {@code b} should be added back to {@code
+     * @param addBlockToWorklist true if the basic block {@code b} should be added back to {@code
      *     Worklist}
      */
     protected void addStoreAfter(Block pred, @Nullable Node node, S s, boolean addBlockToWorklist) {
-        // If the block pred is an exception block, decide whether the block of passing node is an
-        // exceptional successor of the block pred
+        // If the block `pred` is an exception block, decide whether the block of passing node is an
+        // exceptional successor of the block `pred`.
         TypeMirror excSuccType = getSuccExceptionType(pred, node);
         if (excSuccType != null) {
             if (isIgnoredExceptionType(excSuccType)) {
@@ -363,6 +363,7 @@ public class BackwardAnalysisImpl<
         Block block = node.getBlock();
         assert block != null : "@AssumeAssertion(nullness): invariant";
         Node oldCurrentNode = currentNode;
+        TransferInput<V, S> oldCurrentInput = currentInput;
         if (isRunning) {
             assert currentInput != null : "@AssumeAssertion(nullness): invariant";
             return currentInput.getRegularStore();
@@ -402,7 +403,12 @@ public class BackwardAnalysisImpl<
                             } else {
                                 // Copy the store to avoid changing other blocks' transfer
                                 // inputs in {@link #inputs}.
-                                transferResult = callTransferFunction(n, store.copy());
+                                // As in performAnalysisBlock, so that a query for the store
+                                // before the node being processed, made from within its transfer
+                                // function, sees this input rather than the input left behind by
+                                // the last analysis.
+                                currentInput = store.copy();
+                                transferResult = callTransferFunction(n, currentInput);
                                 if (cache != null) {
                                     cache.put(n, transferResult);
                                 }
@@ -435,7 +441,8 @@ public class BackwardAnalysisImpl<
                         } else {
                             // Copy the store to avoid changing other blocks' transfer inputs
                             // in {@link #inputs}.
-                            transferResult = callTransferFunction(node, blockTransferInput.copy());
+                            currentInput = blockTransferInput.copy();
+                            transferResult = callTransferFunction(node, currentInput);
                             if (cache != null) {
                                 cache.put(node, transferResult);
                             }
@@ -453,6 +460,7 @@ public class BackwardAnalysisImpl<
 
         } finally {
             setCurrentNode(oldCurrentNode);
+            currentInput = oldCurrentInput;
             isRunning = false;
         }
     }

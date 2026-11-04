@@ -44,15 +44,15 @@ public class Typing extends TypeConstraint {
      */
     private final Kind kind;
 
-    /** Whether this constraint is for a covariant type argument. */
+    /** True if this constraint is for a covariant type argument. */
     private boolean isCovarTypeArg;
 
     /**
      * Creates a typing constraint.
      *
      * @param parent the constraint whose reduction created this constraint
-     * @param S left hand side type
-     * @param t right hand side type
+     * @param S left-hand side type
+     * @param t right-hand side type
      * @param kind the kind of constraint
      */
     public Typing(Constraint parent, AbstractType S, AbstractType t, Kind kind) {
@@ -63,8 +63,8 @@ public class Typing extends TypeConstraint {
      * Creates a typing constraint.
      *
      * @param source a string describing where this constraint came from
-     * @param S left hand side type
-     * @param t right hand side type
+     * @param S left-hand side type
+     * @param t right-hand side type
      * @param kind the kind of constraint
      */
     public Typing(String source, AbstractType S, AbstractType t, Kind kind) {
@@ -76,10 +76,10 @@ public class Typing extends TypeConstraint {
      * Creates a typing constraint.
      *
      * @param parent the constraint whose reduction created this constraint
-     * @param S left hand side type
-     * @param t right hand side type
+     * @param S left-hand side type
+     * @param t right-hand side type
      * @param kind the kind of constraint
-     * @param covarTypeArg whether the constraint is for a covariant type argument
+     * @param covarTypeArg true if the constraint is for a covariant type argument
      */
     public Typing(
             Constraint parent, AbstractType S, AbstractType t, Kind kind, boolean covarTypeArg) {
@@ -100,7 +100,7 @@ public class Typing extends TypeConstraint {
     }
 
     /**
-     * Return one of the abstract types in this constraint.
+     * Returns one of the abstract types in this constraint.
      *
      * @return one of the abstract types in this constraint
      */
@@ -192,11 +192,9 @@ public class Typing extends TypeConstraint {
                 }
             }
             if (T.isUseOfVariable()) {
-                if (TypesUtils.isCapturedTypeVariable(S.getJavaType())) {
-                    ((UseOfVariable) T)
-                            .addBound(
-                                    this, VariableBounds.BoundKind.LOWER, S.getTypeVarUpperBound());
-                }
+                // Per JLS 18.2.3, S <: alpha reduces to exactly that bound, even if S is a capture
+                // variable.  Do not add S's upper bound as a lower bound of alpha as well: that
+                // over-constrains alpha.
                 ((UseOfVariable) T).addBound(this, VariableBounds.BoundKind.LOWER, S);
             }
             return ConstraintSet.TRUE;
@@ -232,12 +230,21 @@ public class Typing extends TypeConstraint {
             // constraint reduces to the following new constraints:
             // for all i (1 <= i <= n), <Bi <= Ai>.
 
+            AbstractType sAsSuper = S.asSuper(T.getJavaType());
+            if (sAsSuper == null) {
+                if (S.getTypeKind() == TypeKind.TYPEVAR) {
+                    // javac's asSuper follows a type variable's chain of upper bounds; it ends in
+                    // an inference variable here, as for a capture of "? extends alpha". Reduce
+                    // upperBound(S) <: T, as javac's Types.isSubtype does (JLS 4.10.2); a proper
+                    // bound still reduces to false.
+                    return new Typing(this, S.getTypeVarUpperBound(), T, Kind.SUBTYPE);
+                }
+                return ConstraintSet.FALSE;
+            }
             // Capturing is not in the JLS, but otherwise wildcards appear in the constraints
             // against the type arguments, which causes crashes.
-            AbstractType sAsSuper = S.asSuper(T.getJavaType()).capture(context);
-            if (sAsSuper == null) {
-                return ConstraintSet.FALSE;
-            } else if (sAsSuper.isRaw() || T.isRaw()) {
+            sAsSuper = sAsSuper.capture(context);
+            if (sAsSuper.isRaw() || T.isRaw()) {
                 return ReductionResult.UNCHECKED_CONVERSION;
             }
 
@@ -255,8 +262,26 @@ public class Typing extends TypeConstraint {
                 set.add(new Typing(this, b, a, Kind.CONTAINED, convarArg));
                 index++;
             }
+            // The type arguments of an inner class type include those of its enclosing types.
+            // The enclosing types of sAsSuper and T are the same class, so the containment
+            // constraints on their type arguments are the same as a subtyping constraint.
+            AbstractType tEnclosing = T.getParameterizedEnclosingType();
+            if (tEnclosing != null) {
+                AbstractType sEnclosing = sAsSuper.getParameterizedEnclosingType();
+                if (sEnclosing == null) {
+                    // sAsSuper is a raw type such as Outer.Inner, whose enclosing type is raw.
+                    return ReductionResult.UNCHECKED_CONVERSION;
+                }
+                set.add(new Typing(this, sEnclosing, tEnclosing, Kind.SUBTYPE));
+            }
 
             return set;
+        } else if (S.getTypeKind() == TypeKind.TYPEVAR
+                && TypesUtils.isCapturedTypeVariable(S.getJavaType())) {
+            // The supertypes of a captured type variable are those of its upper bound, which here
+            // mentions an inference variable, so whether T is among them is not yet known.  See
+            // the comment in reduceSubtypeTypeVariable.
+            return new Typing(this, S.getTypeVarUpperBound(), T, Kind.SUBTYPE);
         } else {
             // The constraint reduces to true if T is among the supertypes of S, and false
             // otherwise.
@@ -296,6 +321,15 @@ public class Typing extends TypeConstraint {
             return new Typing(this, S, T.getTypeVarLowerBound(), Kind.SUBTYPE);
         } else if (T.getTypeKind() == TypeKind.WILDCARD && T.isLowerBoundedWildcard()) {
             return new Typing(this, S, T.getWildcardLowerBound(), Kind.SUBTYPE);
+        } else if (S.getTypeKind() == TypeKind.TYPEVAR
+                && TypesUtils.isCapturedTypeVariable(S.getJavaType())) {
+            // JLS 18.2.3 lists only the three cases above and otherwise reduces to false, which is
+            // wrong for a capture variable: by the definition of capture conversion, a captured
+            // type variable is always a subtype of its own upper bound, whichever kind of wildcard
+            // -- "? extends X", "? super X", or unbounded -- it was captured from.  It therefore
+            // suffices for that upper bound to be a subtype of T.  This is a sound step, not an
+            // equivalence: it can turn a true constraint into a false one, never the reverse.
+            return new Typing(this, S.getTypeVarUpperBound(), T, Kind.SUBTYPE);
         } else {
             return ConstraintSet.FALSE;
         }
@@ -443,6 +477,12 @@ public class Typing extends TypeConstraint {
                             new Typing(
                                     this, tTypeArgs.get(i), sTypeArgs.get(i), Kind.TYPE_EQUALITY));
                 }
+            }
+            // The type arguments of an inner class type include those of its enclosing types.
+            AbstractType sEnclosing = S.getParameterizedEnclosingType();
+            AbstractType tEnclosing = T.getParameterizedEnclosingType();
+            if (sEnclosing != null && tEnclosing != null) {
+                constraintSet.add(new Typing(this, sEnclosing, tEnclosing, Kind.TYPE_EQUALITY));
             }
             return constraintSet;
         }

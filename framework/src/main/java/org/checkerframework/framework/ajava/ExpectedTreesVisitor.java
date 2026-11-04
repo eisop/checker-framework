@@ -189,6 +189,12 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
                     trees.remove(tree);
                     trees.remove(identifier);
                 }
+            } else if (invocation.getMethodSelect() instanceof MemberSelectTree) {
+                // A qualified superclass constructor invocation such as "o.super()".
+                MemberSelectTree select = (MemberSelectTree) invocation.getMethodSelect();
+                if (InternalUtils.isSuperName(select.getIdentifier())) {
+                    trees.remove(tree);
+                }
             }
         }
 

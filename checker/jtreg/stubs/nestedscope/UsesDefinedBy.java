@@ -4,7 +4,7 @@
  * declaration annotation's field-access value must resolve even when its scope is itself a field
  * access, not just when the scope is a plain name.
  * @compile DefinedByExample.java
- * @compile -processor org.checkerframework.checker.nullness.NullnessChecker -Astubs=UsesDefinedBy.astub -AstubWarnIfNotFound -Werror UsesDefinedBy.java
+ * @compile -processor org.checkerframework.checker.nullness.NullnessChecker -Astubs=UsesDefinedBy.astub -AmergeStubsWithSource -AstubWarnIfNotFound -Werror UsesDefinedBy.java
  */
 
 package nestedscope;

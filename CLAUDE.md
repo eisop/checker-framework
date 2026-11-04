@@ -44,10 +44,14 @@ The Gradle subprojects matter; in rough dependency order:
   `units`, `interning`, `lock`, `i18n`, `i18nformatter`, `fenum`,
   `signedness`, `purity`, ...).
 - `checker-util/` — shared checker utilities.
+- `framework-errorprone/` — runs the Checker Framework as an Error Prone
+  plugin (the `eisopcf` check), as an alternative to standalone
+  annotation-processor mode. The only module that depends on Error Prone;
+  JDK 21+ only (gated in `settings.gradle`).
 
 ## Building and testing
 
-```
+```bash
 ./gradlew assemble                       # build only
 ./gradlew assembleForJavac               # build to use checker/bin/javac
 ./gradlew alltests                       # full test suite (long)
@@ -79,6 +83,9 @@ whole directory of related inputs checked together (many source files as
 one compilation unit) or the inline `// :: error:`-style diagnostic-comment
 convention that pattern supports; needing a stub file alongside the test is
 not by itself a reason to prefer it over jtreg.
+For the mechanics of jtreg itself — version gating, `@ignore`, and why a
+green run may not have run your test — see
+[`.claude/skills/cf-jtreg/SKILL.md`](.claude/skills/cf-jtreg/SKILL.md).
 
 ## Commit and PR conventions
 
@@ -101,8 +108,22 @@ don't run are only covered there. The short version:
 - **Changelog:** every user-visible or perf-relevant change gets one
   bullet in [`docs/CHANGELOG.md`](docs/CHANGELOG.md) under the next
   release. If the PR closes a GitHub issue, add its number (as `eisop#NNNN`,
-  in ascending numeric order) to that release's **Closed issues:** list in
-  the same PR — don't leave it for a later backfill.
+  in ascending numeric order) to that release's `### Closed issues` list in
+  the same PR — don't leave it for a later backfill. That list is written
+  one issue per line while the release is unreleased, so two PRs adding a
+  number do not conflict; see
+  [`docs/developer/README-eisop.md`](docs/developer/README-eisop.md).
+- **Worktrees and PRs.** Name a worktree `wt-<PR number>` (or `wt-<topic>`
+  until the PR exists). `git worktree list` together with
+  `gh pr list --author @me --json number,headRefName` maps PRs to worktrees.
+  Use one worktree per branch and run builds from inside it: the shell's
+  working directory resets between commands, so `cd` in the same command.
+- **Before every commit:** `./gradlew spotlessApply`, then stage all files
+  it changed. `make style-check` does not cover the Java files under
+  `checker/tests/`. Re-run a test whose `// :: error:` comments may have
+  moved when spotless reformatted it.
+- **Pushing and CI:** push once per finished task, not after every commit,
+  and look at CI 10 minutes after the push; see the cf-patch-style skill.
 - **Branch naming for perf/correctness audits:**
   `review-<package>` or `perf-<package>` matches recent practice
   (e.g., `Review of common/basetype package (#1721)`).
@@ -181,4 +202,4 @@ Read that skill before proposing any perf change. The short version:
 - [`docs/developer/performance-notes.md`](docs/developer/performance-notes.md)
   — what's been profiled, optimized, tried-and-rejected.
 - [`.claude/skills/`](.claude/skills/) — task-specific skills for
-  performance work, patch authoring, and code review.
+  performance work, patch authoring, code review, and jtreg tests.

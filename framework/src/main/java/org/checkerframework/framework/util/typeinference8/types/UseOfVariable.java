@@ -27,7 +27,7 @@ public class UseOfVariable extends AbstractType {
     /** The variable that this is a use of. */
     private final Variable variable;
 
-    /** Whether this use has a primary annotation. */
+    /** True if this use has a primary annotation. */
     private final boolean hasPrimaryAnno;
 
     /** The bottom annotations for each hierarchy that has a primary annotation on this use. */
@@ -49,7 +49,7 @@ public class UseOfVariable extends AbstractType {
      * @param variable variable that this is a use of
      * @param qualifierVars a mapping from polymorphic annotation to {@link QualifierVar}
      * @param context the context
-     * @param ignoreAnnotations whether the annotations on this type should be ignored
+     * @param ignoreAnnotations true if the annotations on this type should be ignored
      */
     public UseOfVariable(
             AnnotatedTypeVariable type,
@@ -127,11 +127,30 @@ public class UseOfVariable extends AbstractType {
 
     @Override
     public AbstractType applyInstantiations() {
-        if (this.variable.getInstantiation() != null) {
-            return this.variable.getInstantiation();
+        ProperType instantiation = this.variable.getInstantiation();
+        if (instantiation == null) {
+            return this;
         }
-
-        return this;
+        if (!hasPrimaryAnno || ignoreAnnotations) {
+            return instantiation;
+        }
+        // The use's primary annotation applies to the instantiation, as in TypeVariableSubstitutor:
+        // otherwise the bound `T <: @Nullable E` of `class C<E, T extends @Nullable E>` would
+        // become `T <: X` after E := X. A polymorphic qualifier is a qualifier variable (see
+        // #getQualifiers), not a qualifier of the instantiation, so it is not copied.
+        QualifierHierarchy qh = context.typeFactory.getQualifierHierarchy();
+        AnnotationMirrorSet annos = new AnnotationMirrorSet();
+        for (AnnotationMirror anno : type.getAnnotations()) {
+            if (!qh.isPolymorphicQualifier(anno)) {
+                annos.add(anno);
+            }
+        }
+        if (annos.isEmpty()) {
+            return instantiation;
+        }
+        AnnotatedTypeMirror atm = instantiation.getAnnotatedType().deepCopy();
+        atm.replaceAnnotations(annos);
+        return new ProperType(atm, instantiation.getJavaType(), qualifierVars, context, false);
     }
 
     /**
@@ -146,7 +165,7 @@ public class UseOfVariable extends AbstractType {
     /**
      * Set whether this use has a throws bound.
      *
-     * @param hasThrowsBound whether this use has a throws bound
+     * @param hasThrowsBound true if this use has a throws bound
      */
     public void setHasThrowsBound(boolean hasThrowsBound) {
         variable.getBounds().setHasThrowsBound(hasThrowsBound);

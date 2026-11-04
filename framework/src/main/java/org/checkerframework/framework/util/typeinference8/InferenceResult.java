@@ -50,10 +50,10 @@ public class InferenceResult {
      */
     private final boolean annoInferenceFailed;
 
-    /** Whether unchecked conversion was necessary to infer the type arguments. */
+    /** True if unchecked conversion was necessary to infer the type arguments. */
     private final boolean uncheckedConversion;
 
-    /** Whether inference crashed. */
+    /** True if inference crashed. */
     private final boolean inferenceCrashed;
 
     /**
@@ -73,7 +73,7 @@ public class InferenceResult {
      * @param variables instantiated variables
      * @param uncheckedConversion where unchecked conversion was required to infer the type
      *     arguments
-     * @param annoInferenceFailed whether inference failed because of annotations
+     * @param annoInferenceFailed true if inference failed because of annotations
      * @param errorMsg message to report to users if inference failed
      */
     public InferenceResult(
@@ -90,7 +90,7 @@ public class InferenceResult {
      * @param variables instantiated variables
      * @param uncheckedConversion where unchecked conversion was required to infer the type
      *     arguments
-     * @param annoInferenceFailed whether inference failed because of annotations
+     * @param annoInferenceFailed true if inference failed because of annotations
      * @param inferenceCrashed the type argument inference code crashed
      * @param errorMsg message to report to users if inference failed
      */
@@ -151,18 +151,18 @@ public class InferenceResult {
     }
 
     /**
-     * Whether unchecked conversion was necessary to infer the type arguments.
+     * True if unchecked conversion was necessary to infer the type arguments.
      *
-     * @return whether unchecked conversion was necessary to infer the type arguments
+     * @return true if unchecked conversion was necessary to infer the type arguments
      */
     public boolean isUncheckedConversion() {
         return uncheckedConversion;
     }
 
     /**
-     * Whether type argument inference failed because an annotated type could not be inferred.
+     * True if type argument inference failed because an annotated type could not be inferred.
      *
-     * @return Whether type argument inference failed because an annotated type could not be
+     * @return true if type argument inference failed because an annotated type could not be
      *     inferred
      */
     public boolean inferenceFailed() {
@@ -170,9 +170,9 @@ public class InferenceResult {
     }
 
     /**
-     * Whether inference crashed.
+     * True if inference crashed.
      *
-     * @return whether inference crashed
+     * @return true if inference crashed
      */
     public boolean inferenceCrashed() {
         return inferenceCrashed;
@@ -238,6 +238,50 @@ public class InferenceResult {
      */
     public String getErrorMsg() {
         return errorMsg;
+    }
+
+    /**
+     * Creates a copy of {@code original} whose type arguments are deep copies.
+     *
+     * @param original the inference result to copy
+     */
+    private InferenceResult(InferenceResult original) {
+        this.results = new HashMap<>(original.results.size());
+        for (Map.Entry<Tree, Map<TypeVariable, AnnotatedTypeMirror>> entry :
+                original.results.entrySet()) {
+            Map<TypeVariable, AnnotatedTypeMirror> typeArgs =
+                    new HashMap<>(entry.getValue().size());
+            for (Map.Entry<TypeVariable, AnnotatedTypeMirror> typeArg :
+                    entry.getValue().entrySet()) {
+                typeArgs.put(typeArg.getKey(), typeArg.getValue().deepCopy());
+            }
+            this.results.put(entry.getKey(), typeArgs);
+        }
+        this.uncheckedConversion = original.uncheckedConversion;
+        this.annoInferenceFailed = original.annoInferenceFailed;
+        this.errorMsg = original.errorMsg;
+        this.inferenceCrashed = original.inferenceCrashed;
+        this.inferenceBudgetExceeded = original.inferenceBudgetExceeded;
+    }
+
+    /**
+     * Returns a copy of this result for another computation of the same method type, {@code
+     * methodType}, of {@code tree}: its type arguments are deep copies, so that a caller can modify
+     * them, and they are keyed by the type variables of {@code methodType}.
+     *
+     * @param methodType the type of the method or constructor before type argument substitution
+     * @param tree the tree whose type arguments this result contains
+     * @return a copy of this result for {@code methodType}
+     */
+    public InferenceResult copyFor(AnnotatedExecutableType methodType, ExpressionTree tree) {
+        if (this == emptyResult) {
+            return this;
+        }
+        InferenceResult copy = new InferenceResult(this);
+        if (copy.results.get(tree) != null) {
+            copy.swapTypeVariables(methodType, tree);
+        }
+        return copy;
     }
 
     /**

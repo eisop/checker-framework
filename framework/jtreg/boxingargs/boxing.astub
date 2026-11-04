@@ -1,0 +1,14 @@
+import org.checkerframework.framework.testchecker.h1h2checker.quals.H1S1;
+
+package java.lang;
+
+class Integer {
+    static @H1S1 Integer valueOf(@H1S1 int i);
+    int intValue(@H1S1 Integer this);
+}
+
+package java.util;
+
+interface List<E> {
+    Iterator<E> iterator(@H1S1 List<E> this);
+}

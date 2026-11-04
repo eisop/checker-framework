@@ -19,6 +19,7 @@ import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.expression.FormalParameter;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.JavaExpressionConverter;
+import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.SuperReference;
 import org.checkerframework.dataflow.expression.ThisReference;
@@ -26,6 +27,7 @@ import org.checkerframework.dataflow.expression.Unknown;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
@@ -34,7 +36,7 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.DoubleAnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
-import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -373,7 +375,90 @@ public class DependentTypesHelper {
             throw new BugInCF("Unexpected tree: %s kind: %s", tree, tree.getKind());
         }
         convertAnnotatedTypeMirror(stringToJavaExpr, declaredMethodType);
-        this.viewpointAdaptedCopier.visit(declaredMethodType, methodType);
+        copyViewpointAdaptedAnnotations(declaredMethodType, methodType, tree);
+    }
+
+    /**
+     * Copies the viewpoint-adapted dependent type annotations of {@code declaredMethodType} to
+     * {@code methodType}, using {@link #viewpointAdaptedCopier}.
+     *
+     * <p>At a varargs invocation, {@link AnnotatedTypes#adaptParameters} may have replaced the
+     * varargs array parameter of {@code methodType} by one copy of its component type per varargs
+     * argument. Those parameters no longer line up with the parameters of {@code
+     * declaredMethodType}, so this method copies the annotations of the declared varargs component
+     * type to each of them, and the annotations of the declared varargs parameter to the vararg
+     * type of {@code methodType}, but not to the first expanded parameter.
+     *
+     * @param declaredMethodType the declared method type, whose dependent type annotations have
+     *     been viewpoint-adapted to the invocation
+     * @param methodType type of the method or constructor invocation; is side-effected by this
+     *     method
+     * @param tree invocation of the method or constructor
+     */
+    protected final void copyViewpointAdaptedAnnotations(
+            AnnotatedExecutableType declaredMethodType,
+            AnnotatedExecutableType methodType,
+            ExpressionTree tree) {
+        AnnotatedArrayType varargType = methodType.getVarargType();
+        List<AnnotatedTypeMirror> declaredParams = declaredMethodType.getParameterTypes();
+        int varargsIndex = declaredParams.size() - 1;
+        List<AnnotatedTypeMirror> params = methodType.getParameterTypes();
+        if (!hasExpandedVarargs(declaredParams, params, varargType, tree)) {
+            viewpointAdaptedCopier.visit(declaredMethodType, methodType);
+            return;
+        }
+        // Visiting the method types pairs the declared varargs array with the first expanded
+        // parameter, and copies the annotations of the array to it. Undo that.
+        AnnotatedTypeMirror firstExpanded =
+                varargsIndex < params.size() ? params.get(varargsIndex).deepCopy() : null;
+        viewpointAdaptedCopier.visit(declaredMethodType, methodType);
+        if (firstExpanded != null) {
+            new org.checkerframework.framework.type.AnnotatedTypeReplacer()
+                    .visit(firstExpanded, params.get(varargsIndex));
+        }
+        AnnotatedArrayType declaredVarargType =
+                (AnnotatedArrayType) declaredParams.get(varargsIndex);
+        viewpointAdaptedCopier.visit(declaredVarargType, varargType);
+        AnnotatedTypeMirror declaredComponentType = declaredVarargType.getComponentType();
+        for (int i = varargsIndex; i < params.size(); i++) {
+            viewpointAdaptedCopier.visit(declaredComponentType, params.get(i));
+        }
+    }
+
+    /**
+     * Returns true if {@code tree} is a varargs invocation at which {@link
+     * AnnotatedTypes#adaptParameters} replaced the varargs array parameter by one copy of its
+     * component type per varargs argument.
+     *
+     * @param declaredParams the parameter types of the declared method type
+     * @param params the parameter types of the type of the invocation
+     * @param varargType the vararg type of the type of the invocation, or null
+     * @param tree invocation of the method or constructor
+     * @return true if the varargs parameter has been expanded
+     */
+    private static boolean hasExpandedVarargs(
+            List<AnnotatedTypeMirror> declaredParams,
+            List<AnnotatedTypeMirror> params,
+            @Nullable AnnotatedArrayType varargType,
+            ExpressionTree tree) {
+        int numDeclaredParams = declaredParams.size();
+        if (varargType == null
+                || !TreeUtils.isVarargsCall(tree)
+                || numDeclaredParams == 0
+                || declaredParams.get(numDeclaredParams - 1).getKind() != TypeKind.ARRAY) {
+            // Not a varargs call, or a signature polymorphic method, whose declared parameter
+            // types are those of the arguments.
+            return false;
+        }
+        if (params.size() != numDeclaredParams) {
+            return true;
+        }
+        // An expanded parameter is the component type, which has a smaller array depth than the
+        // varargs array.
+        AnnotatedTypeMirror lastParam = params.get(numDeclaredParams - 1);
+        return lastParam.getKind() != TypeKind.ARRAY
+                || AnnotatedTypes.getArrayDepth((AnnotatedArrayType) lastParam)
+                        != AnnotatedTypes.getArrayDepth(varargType);
     }
 
     /**
@@ -916,7 +1001,7 @@ public class DependentTypesHelper {
     }
 
     /**
-     * Whether or not {@code expression} should be passed to the new annotation unchanged. If this
+     * Returns true if {@code expression} should be passed to the new annotation unchanged. If this
      * method returns true, the {@code expression} is not parsed.
      *
      * <p>The default implementation returns true if the {@code expression} is an expression error
@@ -924,8 +1009,7 @@ public class DependentTypesHelper {
      * this method to add additional logic.
      *
      * @param expression an expression string in a dependent types annotation
-     * @return whether or not {@code expression} should be passed through unchanged to the new
-     *     annotation
+     * @return true if {@code expression} should be passed through unchanged to the new annotation
      */
     protected boolean shouldPassThroughExpression(String expression) {
         return DependentTypesError.isExpressionError(expression);

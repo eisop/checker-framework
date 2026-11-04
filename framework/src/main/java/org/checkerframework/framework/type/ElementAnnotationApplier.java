@@ -20,7 +20,7 @@ import org.checkerframework.framework.util.element.TypeVarUseApplier;
 import org.checkerframework.framework.util.element.VariableApplier;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
-import org.plumelib.util.IPair;
+import org.checkerframework.javacutil.Pair;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -210,14 +210,14 @@ public final class ElementAnnotationApplier {
      * @return a LambdaExpressionTree if the varEle represents a parameter in a lambda expression,
      *     otherwise null
      */
-    public static @Nullable IPair<VariableTree, LambdaExpressionTree> getParamAndLambdaTree(
+    public static @Nullable Pair<VariableTree, LambdaExpressionTree> getParamAndLambdaTree(
             VariableElement varEle, AnnotatedTypeFactory typeFactory) {
         VariableTree paramDecl = (VariableTree) typeFactory.declarationFromElement(varEle);
 
         if (paramDecl != null) {
             Tree parentTree = typeFactory.getPath(paramDecl).getParentPath().getLeaf();
             if (parentTree instanceof LambdaExpressionTree) {
-                return IPair.of(paramDecl, (LambdaExpressionTree) parentTree);
+                return Pair.of(paramDecl, (LambdaExpressionTree) parentTree);
             }
         }
 
@@ -236,25 +236,66 @@ public final class ElementAnnotationApplier {
     }
 
     /**
+     * Annotates a use of a type variable with the annotations written explicitly on the type
+     * parameter declaration and its bounds, in the declaration's element or in an annotation file.
+     * If an annotation file declares the type parameter, it takes precedence over the element, as
+     * in {@link AnnotatedTypeFactory#fromElement}, and its bounds' annotations are copied to the
+     * use's bounds. A use with a primary annotation, or whose upper bound is already annotated, is
+     * left as is.
+     *
+     * @param type a use of a type variable; side-effected by this method
+     * @param factory the type factory that created {@code type}
+     */
+    /*package-private*/ static void annotateTypeVariableUse(
+            AnnotatedTypeVariable type, AnnotatedTypeFactory factory) {
+        TypeParameterElement tpelt = (TypeParameterElement) type.getUnderlyingType().asElement();
+
+        if (!type.getAnnotationsField().isEmpty()
+                || tpelt.getEnclosingElement().getKind() == ElementKind.TYPE_PARAMETER
+                || !type.getUpperBound().getAnnotationsField().isEmpty()) {
+            return;
+        }
+        // The types created while a file is parsed get their annotations from the parser, and
+        // asking for the file's type of the declaration would start parsing it again.
+        AnnotatedTypeMirror declaration =
+                factory.stubTypes == null || factory.stubTypes.isParsing()
+                        ? null
+                        : factory.stubTypes.getAnnotatedTypeMirror(tpelt);
+        if (declaration instanceof AnnotatedTypeVariable) {
+            // Read the bounds without initializing them: a bound the file did not annotate may be
+            // uninitialized, and initializing it would come back here.
+            AnnotatedTypeVariable declared = (AnnotatedTypeVariable) declaration;
+            if (declared.getUpperBoundField() != null) {
+                factory.replaceAnnotations(declared.getUpperBoundField(), type.getUpperBound());
+            }
+            if (declared.getLowerBoundField() != null) {
+                factory.replaceAnnotations(declared.getLowerBoundField(), type.getLowerBound());
+            }
+            return;
+        }
+        try {
+            applyInternal(type, tpelt, factory);
+        } catch (UnexpectedAnnotationLocationException e) {
+            // This may be the second call to applyInternal on this type and element, so any
+            // errors were already reported by the first call. (See the uses of this method.)
+        }
+    }
+
+    /**
      * Annotates uses of type variables with annotation written explicitly on the type parameter
-     * declaration and/or its upper bound.
+     * declaration and/or its upper bound. See {@link #annotateTypeVariableUse}.
      */
     private static class TypeVarAnnotator extends AnnotatedTypeScanner<Void, AnnotatedTypeFactory> {
+        /** Creates a new TypeVarAnnotator. */
+        private TypeVarAnnotator() {}
+
         @Override
         public Void visitTypeVariable(AnnotatedTypeVariable type, AnnotatedTypeFactory factory) {
-            TypeParameterElement tpelt =
-                    (TypeParameterElement) type.getUnderlyingType().asElement();
-
-            if (type.getAnnotationsField().isEmpty()
-                    && type.getUpperBound().getAnnotationsField().isEmpty()
-                    && tpelt.getEnclosingElement().getKind() != ElementKind.TYPE_PARAMETER) {
-                try {
-                    ElementAnnotationApplier.applyInternal(type, tpelt, factory);
-                } catch (UnexpectedAnnotationLocationException e) {
-                    // The above is the second call to applyInternal on this type and element, so
-                    // any errors were already reported by the first call. (See the only use of this
-                    // class.)
-                }
+            if (type.getUpperBoundField() == null && type.annotatesBoundsFromDeclaration()) {
+                // Initializing the bounds annotates them.
+                type.getUpperBound();
+            } else {
+                annotateTypeVariableUse(type, factory);
             }
             return super.visitTypeVariable(type, factory);
         }

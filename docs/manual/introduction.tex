@@ -187,19 +187,20 @@ plugin'' as synonyms.
 This section describes how to install the Checker Framework.
 \begin{itemize}
 \item
-If you use a build system that automatically downloads dependencies,
+If you use a \textbf{build system} that automatically downloads dependencies,
 such as Gradle or Maven, \textbf{no installation is necessary}; just see
 \chapterpageref{external-tools}.
 \item
 If you wish to try the Checker Framework without installing it, use the
-\href{http://eisop.uwaterloo.ca/live/}{Checker Framework Live Demo} webpage.
+\href{https://eisop.uwaterloo.ca/live/}{Checker Framework Live Demo} webpage.
 \item
 This section describes how to install the Checker Framework from its
 distribution.  The Checker Framework release contains everything that you
 need, both to run checkers and to write your own checkers.
 \item
 Alternately, you can build the latest development version from source
-(Section~\refwithpage{build-source}).
+(Section~\refwithpage{build-source}), or download jars that continuous
+integration built from it (Section~\refwithpage{development-jars}).
 \end{itemize}
 
 
@@ -214,10 +215,14 @@ optional step.
   %BEGIN LATEX
   \\
   %END LATEX
-  \url{https://eisop.github.io/cf/checker-framework-3.49.5-eisop1.zip}
+  \url{https://eisop.github.io/cf/checker-framework-\ReleaseVersion{}.zip}
+
+  For example, on Unix you can run: \<wget https://eisop.github.io/cf/checker-framework-\ReleaseVersion{}.zip>
 
 \item
   Unzip it to create a \code{checker-framework-\ReleaseVersion{}} directory.
+
+  For example, on Unix you can run: \<unzip checker-framework-\ReleaseVersion{}.zip>
 
 \item
   \label{installation-configure-step}%
@@ -406,11 +411,17 @@ Two concrete examples of using \code{-processor} to run the Nullness Checker are
 \noindent
 where \<javac> is as specified in Section~\ref{javac-wrapper}.
 
+If your project already uses \href{https://errorprone.info/}{Error Prone}, you can instead
+run the Checker Framework as an Error Prone plugin, so that its type systems run as part of
+your existing Error Prone compilation rather than as a separate annotation processor.  See
+Section~\ref{error-prone}.
+
 You can also run a checker from within your favorite IDE or build system.  See
-Chapter~\ref{external-tools} for details about build tools such as
+Chapter~\ref{external-tools} for details about tools such as
 Ant (Section~\ref{ant-task}),
 Bazel (Section~\ref{bazel}),
 Buck (Section~\ref{buck}),
+Error Prone (Section~\ref{error-prone}),
 Gradle (Section~\ref{gradle}),
 Maven (Section~\ref{maven}), and
 sbt (Section~\ref{sbt});
@@ -420,6 +431,8 @@ IntelliJ IDEA (Section~\ref{intellij}),
 NetBeans (Section~\ref{netbeans}),
 and
 tIDE (Section~\ref{tide});
+the javac Diagnostics Wrapper for post-processing a checker's output
+(Section~\ref{javac-diagnostics-wrapper});
 and about customizing other IDEs and build tools.
 
 The checker is run on only the Java files that javac compiles.
@@ -480,7 +493,7 @@ This special syntax only works for ``\<checker.jar>''.
 % .)
 
 The annotated libraries that are provided as class files appear in
-\href{https://search.maven.org/search?q=org.checkerframework.annotatedlib}{the
+\href{https://central.sonatype.com/search?q=org.checkerframework.annotatedlib}{the
   \<org.checkerframework.annotatedlib> group in the Maven Central Repository}.
 The annotated library has \emph{identical} behavior to the upstream,
 unannotated version; the source code is identical other than added
@@ -500,7 +513,7 @@ To use an annotated library:
 \begin{itemize}
 \item
 If your project stores \<.jar> files locally, then
-\href{https://search.maven.org/search?q=org.checkerframework.annotatedlib}{download
+\href{https://central.sonatype.com/search?q=org.checkerframework.annotatedlib}{download
   the \<.jar> file from the Maven Central Repository}.
 
 \item
@@ -509,16 +522,16 @@ then update your buildfile to use the \<org.checkerframework.annotatedlib>
 group.  For example, in \<build.gradle>, change
 
 \begin{Verbatim}
-  api group: 'org.apache.bcel', name: 'bcel', version: '6.3.1'
-  api group: 'commons-io', name: 'commons-io', version: '2.8'
+  api("org.apache.bcel:bcel:6.3.1")
+  api("commons-io:commons-io:2.8")
 \end{Verbatim}
 
 \noindent
 to
 
 \begin{Verbatim}
-  api group: 'org.checkerframework.annotatedlib', name: 'bcel', version: '6.3.1'
-  api group: 'org.checkerframework.annotatedlib', name: 'commons-io', version: '2.8.0.1'
+  api("org.checkerframework.annotatedlib:bcel:6.3.1")
+  api("org.checkerframework.annotatedlib:commons-io:2.8.0.1")
 \end{Verbatim}
 
 \noindent
@@ -557,8 +570,9 @@ To pass an option to only a particular checker,
 prefix the option with the canonical or simple name
 of a checker, followed by an underscore ``\<\_>''.
 % For the implementation, see SourceChecker.OPTION_SEPARATOR.
-Such an option will apply only to a checker with that name or any subclass of that checker.
-For example, you can use
+Such an option will apply to a checker with that name, any subclass of that
+checker, or any of its subcheckers (unless overridden by a more specific option).
+For example, you can use:
 \begin{Verbatim}
     -ANullnessChecker_lint=redundantNullComparison
     -Aorg.checkerframework.checker.guieffect.GuiEffectChecker_lint=debugSpew
@@ -566,11 +580,25 @@ For example, you can use
 
 \noindent
 to pass different lint options to the Nullness and GUI Effect Checkers.  A
-downside is that, in this example, the Nullness Checker will issue a
+downside when running independent checkers together is that, in this example, the Nullness Checker will issue a
 ``The following options were not recognized by any processor'' warning
 about the second option and the GUI Effect Checker will issue a
 ``The following options were not recognized by any processor'' warning
 about the first option.
+
+However, when a checker has subcheckers (such as the Nullness Checker running \code{NullnessNoInitSubchecker}
+and \code{KeyForSubchecker}), no such warning occurs: options prefixed with the parent checker's name automatically apply
+to all subcheckers. A subchecker can also override the parent option with a more specific prefix:
+\begin{Verbatim}
+    -ANullnessChecker_lint=redundantNullComparison
+    -ANullnessNoInitSubchecker_lint=-redundantNullComparison
+\end{Verbatim}
+
+\noindent
+Checker-prefixed options always take precedence over contradictory unprefixed options:
+\begin{Verbatim}
+    -Alint=redundantNullComparison -ANullnessChecker_lint=-redundantNullComparison
+\end{Verbatim}
 
 % This list should be kept in sync with file
 % framework/src/main/java/org/checkerframework/framework/source/SourceChecker.java
@@ -600,9 +628,10 @@ Unsound checking: ignore some errors
   both; or that every getter method is pure.
   See Section~\ref{purity-suppress-warnings} and
   Section~\ref{type-refinement-purity}.
-\item \<-AassumeAssertionsAreEnabled>, \<-AassumeAssertionsAreDisabled>
+\item \<-AassumeAssertions=enabled|disabled|neither>
   Whether to assume that assertions (Java \<assert> statements) are enabled
-  or disabled; see Section~\ref{type-refinement-assertions}.
+  or disabled.  The default, \<neither>, accounts for both cases; see
+  Section~\ref{type-refinement-assertions}.
 \item \<-AignoreRangeOverflow>
   Ignore the possibility of overflow for range annotations such as
   \<@IntRange>; see Section~\ref{value-checker-overflow}.
@@ -616,6 +645,12 @@ Unsound checking: ignore some errors
 \item \<-AignoreTargetLocations>
   Disables validating the target locations of qualifiers based on
   `@TargetLocations` meta-annotations. This option is not enabled by default.
+\item \<-AignoreDeadCode>
+  Do not check dead (unreachable) code: literal-condition branches such as
+  \code{if (false)}, and code that dataflow determines can never be reached
+  (such as a catch block for an exception type the try block can never
+  throw). By default, the Checker Framework checks dead code too, since it
+  might become reachable after a future edit.
 \end{itemize}
 
 \label{unsound-by-default}
@@ -634,6 +669,13 @@ More sound (strict) checking: enable errors that are disabled by default
   another only if they have exactly the same element type.  By default,
   the Checker Framework unsoundly permits covariant array subtyping, just
   as Java does.  See Section~\ref{invariant-arrays}.
+\item \<-AwarnBytecodeConflicts>
+  Warn about contradictory declaration annotations, such as two
+  \refqualclass{framework/qual}{DefaultQualifier} annotations that set the same
+  location in one hierarchy to different qualifiers, on a declaration read from
+  bytecode.  Such a declaration is in already-compiled code, and only those
+  elements that the compilation happens to examine are checked, so this is off
+  by default.
 \item \<-AcheckCastElementType>
   In a cast, require that parameterized type arguments and array elements
   are the same.  By default, the Checker Framework unsoundly permits them
@@ -647,7 +689,8 @@ More sound (strict) checking: enable errors that are disabled by default
   ``-source,-bytecode'' is the (unsound) default setting.
   \begin{itemize}
   \item
-  ``bytecode'' specifies
+  Outside the scope of any relevant
+  \refqualclass{framework/qual}{AnnotatedFor} annotation, ``bytecode'' specifies
   whether the checker should apply conservative defaults to
   bytecode (that is, to already-compiled libraries); see
   Section~\ref{defaults-classfile}.
@@ -657,6 +700,13 @@ More sound (strict) checking: enable errors that are disabled by default
   default annotations are applied to source code and suppress all type-checking warnings; see
   Section~\ref{compiling-libraries}.
   \end{itemize}
+\item \<-AusePermissiveDefaultsForUncheckedCode>
+  Enables permissive defaults, and suppresses all type-checking warnings in unchecked source code.
+  Takes arguments ``source,bytecode''; prefix an argument with ``-'' to disable it.
+  Outside a relevant \refqualclass{framework/qual}{AnnotatedFor} scope, parameters default to
+  top and returns and fields default to bottom.  Upper bounds default to top and lower bounds
+  default to bottom.  See Sections~\ref{defaults-classfile} and~\ref{compiling-libraries}.
+  A kind of code cannot use both permissive and conservative defaults.
 \item \<-AconcurrentSemantics>
   Whether to assume concurrent semantics (field values may change at any
   time) or sequential semantics; see Section~\ref{faq-concurrency}.
@@ -670,6 +720,11 @@ More sound (strict) checking: enable errors that are disabled by default
 
 Type-checking modes:  enable/disable functionality
 \begin{itemize}
+\item \<-Amode=\emph{mode}>
+  Enable a checker-defined group of options.  Each checker documents the modes it supports and
+  the options each one enables.  A mode only sets an option that you did not set yourself, so an
+  option you write keeps the value you gave it; but most options are on/off flags with no
+  negative form, so writing one cannot turn off what a mode enables.
 \item \<-Alint>
   Enable or disable optional checks; see Section~\ref{lint-options}.
 \item \<-AwarnRedundantAnnotations>
@@ -698,6 +753,12 @@ Type-checking modes:  enable/disable functionality
   Using \<-Ainfer=stubs> produces \<.astub> files.
   Using \<-Ainfer=ajava> produces \<.ajava> files.
   You must also supply \<-Awarns>, or the inference output may be incomplete.
+\item \<-AinferOutputDirectory>
+  The directory into which to write inference output (e.g., \<.ajava>
+  files).  It defaults to \<build/whole-program-inference>.  When using
+  a build system (e.g., Gradle), the default may be interpreted relative to
+  a build system directory (e.g., \<\$HOME/.gradle/workers>) rather than the
+  project root directory, so you may need to provide an absolute path.
 \item \<-AinferOutputOriginal>
   When outputting \<.ajava> files when running with \<-Ainfer=ajava>,
   also output a copy of the original file with no inferred annotations,
@@ -775,6 +836,11 @@ Partially-annotated libraries
   % note to maintainers: GLB of the two types was chosen to support
   % using this flag in combination with \<-Ainfer=stubs>.
 
+\item \<-AstoreInBytecode=false>
+  Write only source-code annotations into the \<.class> file, not the
+  qualifiers that come from defaulting, ajava files, or merged stub files;
+  see Section~\ref{AstoreInBytecode}.
+
 % This item is repeated above:
 \item \<-AuseConservativeDefaultsForUncheckedCode=source>
   Outside the scope of any relevant
@@ -790,7 +856,8 @@ Debugging
  \<-AprintAllQualifiers>,
  \<-AprintVerboseGenerics>,
  \<-Anomsgtext>,
- \<-AdumpOnErrors>
+ \<-Aonelinemsg>,
+ \<-AdumpOnErrors>,
  \<-AexceptionLineSeparator>
 Amount of detail in messages; see Section~\ref{creating-debugging-options-detail}.
 
@@ -914,7 +981,7 @@ checker is an ``annotation processor''.
 \item \<-implicit:class> Suppresses warnings about implicitly compiled files
   (not named on the command line); see Section~\ref{ant-task}
 \item \<-J> Supply an argument to the JVM that is running javac;
-  for example, \<-J-Xmx2500m> to increase its maximum heap size
+  for example, \<-J-Xmx4g> to increase its maximum heap size.
 \item \<-doe> To ``dump on error'', that is, output a stack trace
   whenever a compiler warning/error is produced. Useful when debugging
   the compiler or a checker.
@@ -1498,6 +1565,23 @@ or, more generally, as
 Then, the specification is more informative, and the Checker Framework is
 able to do more precise checking, than if line 141 has an annotation.
 
+\noindent
+The annotations in \code{MyNullPermittingMultiset} and
+\code{MyNullProhibitingMultiset} are on type arguments of \code{Multiset},
+which is permitted.  By contrast, an annotation immediately before the class
+or interface name in an \code{extends} or \code{implements} clause is a main annotation
+on the supertype.  By default, the Checker Framework reports an
+\code{annotation.on.supertype} error for such an annotation.
+
+The Tainting Checker permits main annotations on supertypes because it
+tracks taintedness when a value of a subclass type is used as a value of a
+supertype.  For example, in
+\code{@Untainted class UntaintedBuffer extends @Untainted Buffer},
+the first \code{@Untainted} is a type-declaration bound of
+\code{UntaintedBuffer}, and the second is the main annotation on
+\code{Buffer}.  The Tainting Checker verifies that the former is a subtype of
+the latter.
+
 It is a pleasant feature of the Checker Framework that in many cases, no
 annotations at all are needed on type parameters such as \code{E} in \<MultiSet>.
 
@@ -1714,7 +1798,7 @@ or suppress warnings.
 % LocalWords:  Djsr qual Alint javac's dotequals nullable supertype JLS Papi
 % LocalWords:  deserialization Mahmood Telmo Correa changelog txt nullness ESC
 % LocalWords:  Nullness unselect checkbox unsetting PolyNull typedefs arg
-% LocalWords:  bashrc IDE xml buildfile enum API elts INF sql WPI
+% LocalWords:  bashrc IDE xml buildfile enum API elts INF sql WPI wget
 % LocalWords:  type-checker proc discoverable Xlint util QualifierDefaults Foo
 % LocalWords:  DefaultQualifier SoyLatte GetStarted Formatter bcel csv sbt
 % LocalWords:  Dcheckers Warski MyClass ProcessorName compareTo toString myDate
@@ -1727,14 +1811,14 @@ or suppress warnings.
 % LocalWords:  bootclasspath AonlyUses AskipDefs AonlyDefs AcheckPurityAnnotations
 % LocalWords:  AsuppressWarnings AassumeSideEffectFree Adetailedmsgtext m2
 % LocalWords:  AignoreRawTypeArguments AsuggestPureMethods ApermitMissingJdk
-% LocalWords:  AassumeAssertionsAreEnabled AassumeAssertionsAreDisabled
+% LocalWords:  AassumeAssertions
 % LocalWords:  AconcurrentSemantics AstubWarnIfNotFound AnoPrintErrorStack
 % LocalWords:  AprintAllQualifiers Aignorejdkastub AstubDebug Aflowdotdir
 % LocalWords:  AresourceStats jls r78 JDKs i18n AignoreRangeOverflow L129
 % LocalWords:  AinvariantArrays AcheckCastElementType formatter pathname
 % LocalWords:  typedef guieffect Gradle jdk8 javadoc MyFile argfiles tz1
 % LocalWords:  AshowSuppressWarningsStrings AoutputArgsToFile RegexChecker
-% LocalWords:  NullnessChecker commandlineargfile AnnotatedFor Xmx2500m
+% LocalWords:  NullnessChecker commandlineargfile AnnotatedFor Xmx4g
 % LocalWords:  AsafeDefaultsForUnannotatedBytecode Signedness Werror jaif
 % LocalWords:  AuseSafeDefaultsForUnannotatedSourceCode beingConstructed
 % LocalWords:  AuseConservativeDefaultsForUncheckedCode AresolveReflection Ainfer
@@ -1755,4 +1839,5 @@ or suppress warnings.
 % LocalWords:  AwarnRedundantAnnotations AinferOutputOriginal
 % LocalWords:  AshowPrefixInWarningMessages AstubNoWarnIfNotFound
 % LocalWords:  AshowWpiFailedInferences AassumePureGetters AonlyFiles AskipFiles
-% LocalWords:  AexceptionLineSeparator
+% LocalWords:  AexceptionLineSeparator AslowTypecheckingSeconds
+% LocalWords:  AinferOutputDirectory

@@ -1,0 +1,4 @@
+EisopIssue2344.java:21:17: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter m of EisopIssue2344.useSelf.
+found   : @UnderInitialization(EisopIssue2344Super.class) EisopIssue2344
+required: @UnderInitialization(EisopIssue2344.class) EisopIssue2344
+1 error

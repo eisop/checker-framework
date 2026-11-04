@@ -145,6 +145,7 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
@@ -161,7 +162,6 @@ import org.checkerframework.javacutil.trees.TreeBuilder;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 import org.plumelib.util.IdentityArraySet;
 
 import java.util.ArrayList;
@@ -390,6 +390,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     protected final Set<TypeMirror> newArrayExceptionTypes;
 
     /**
+     * Exceptions that can be thrown by array access "a[i]". The size is 2 and the contents are
+     * {@code ArrayIndexOutOfBoundsException} and {@code NullPointerException}.
+     */
+    protected final Set<TypeMirror> arrayAccessExceptionTypes;
+
+    /**
      * Creates {@link CFGTranslationPhaseOne}.
      *
      * @param treeBuilder builder for new AST nodes
@@ -448,6 +454,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         noClassDefFoundErrorType = maybeGetTypeMirror(NoClassDefFoundError.class);
         stringType = getTypeMirror(String.class);
         throwableType = getTypeMirror(Throwable.class);
+
         uncheckedExceptionTypes = new ArraySet<>(2);
         uncheckedExceptionTypes.add(getTypeMirror(RuntimeException.class));
         uncheckedExceptionTypes.add(getTypeMirror(Error.class));
@@ -456,6 +463,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         if (outOfMemoryErrorType != null) {
             newArrayExceptionTypes.add(outOfMemoryErrorType);
         }
+        arrayAccessExceptionTypes = new ArraySet<>(2);
+        arrayAccessExceptionTypes.add(arrayIndexOutOfBoundsExceptionType);
+        arrayAccessExceptionTypes.add(nullPointerExceptionType);
     }
 
     /**
@@ -628,7 +638,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * Visit a SwitchExpressionTree
+     * Visit a SwitchExpressionTree.
      *
      * @param switchExpressionTree a SwitchExpressionTree, typed as Tree to be backward-compatible
      * @param p parameter
@@ -643,7 +653,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * Visit a BindingPatternTree
+     * Visit a BindingPatternTree.
      *
      * @param bindingPatternTree a BindingPatternTree, typed as Tree to be backward-compatible
      * @param p parameter
@@ -736,11 +746,20 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * pre-conversion lookup map. This method is used to update the Tree-Node mapping with
      * conversion nodes.
      *
+     * <p>This is where a tree comes to have two nodes, and so two dataflow values: the one it had
+     * before the conversion and the one the conversion produces. Every conversion does it --
+     * boxing, unboxing, widening, narrowing, string conversion. Which of the two a later query for
+     * the tree receives depends on how much of the CFG has been analyzed, which is harmless for a
+     * type system that preserves the qualifier across the conversion and is not otherwise. See
+     * {@link org.checkerframework.dataflow.analysis.AbstractAnalysis#getValue(Tree)} and
+     * https://github.com/eisop/checker-framework/issues/2127.
+     *
      * @param tree the tree used as a key in the map
      * @param node the node to add to the lookup map
      */
     protected void addToConvertedLookupMap(Tree tree, Node node) {
         assert tree != null;
+        assert node != null;
         assert treeToCfgNodes.containsKey(tree);
         Set<Node> existing = treeToConvertedCfgNodes.get(tree);
         if (existing == null) {
@@ -978,8 +997,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                             Collections.singletonList(node),
                             getCurrentPath());
             boxed.setInSource(false);
-            // Add Throwable to account for unchecked exceptions
+            // The argument tree now has both its own value and the boxed one; see
+            // addToConvertedLookupMap.
             addToConvertedLookupMap(node.getTree(), boxed);
+            // Add Throwable to account for unchecked exceptions.
             insertNodeWithExceptionsAfter(boxed, uncheckedExceptionTypes, valueOfAccess);
             return boxed;
         } else {
@@ -988,14 +1009,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * If the input node is a boxed type, unbox it, otherwise leave it alone.
+     * If the input node is a boxed type, or a type variable, wildcard, or intersection type with a
+     * boxed type bound, unbox it, otherwise leave it alone.
      *
      * @param node in input node
      * @return a Node representing the unboxed version of the input, which may simply be the input
      *     node
      */
     protected Node unbox(Node node) {
-        if (TypesUtils.isBoxedPrimitive(node.getType())) {
+        if (TypesUtils.isBoxedPrimitive(TypesUtils.boxedPrimitiveBound(node.getType()))) {
 
             MemberSelectTree primValueSelect =
                     treeBuilder.buildPrimValueMethodAccess(node.getTree());
@@ -1016,8 +1038,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                             getCurrentPath());
             unboxed.setInSource(false);
 
-            // Add Throwable to account for unchecked exceptions
+            // The receiver tree now has both its own value and the unboxed one; see
+            // addToConvertedLookupMap.  The Interning Checker is a type system for which the two
+            // differ: the unboxed primitive is @Interned and the boxed value is not.
             addToConvertedLookupMap(node.getTree(), unboxed);
+            // Add Throwable to account for unchecked exceptions.
             insertNodeWithExceptionsAfter(unboxed, uncheckedExceptionTypes, primValueAccess);
             return unboxed;
         } else {
@@ -1025,10 +1050,18 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         }
     }
 
+    /**
+     * Returns information about the type of a tree: whether it is a boxed primitive, or a type
+     * variable, wildcard, or intersection type with a boxed primitive bound, and its unboxed type.
+     *
+     * @param tree a tree
+     * @return information about the type of {@code tree}
+     */
     private TreeInfo getTreeInfo(Tree tree) {
         TypeMirror type = TreeUtils.typeOf(tree);
-        boolean boxed = TypesUtils.isBoxedPrimitive(type);
-        TypeMirror unboxedType = boxed ? types.unboxedType(type) : type;
+        TypeMirror boxedType = TypesUtils.boxedPrimitiveBound(type);
+        boolean boxed = TypesUtils.isBoxedPrimitive(boxedType);
+        TypeMirror unboxedType = boxed ? types.unboxedType(boxedType) : type;
 
         boolean bool = TypesUtils.isBooleanType(type);
         boolean numeric = TypesUtils.isNumeric(unboxedType);
@@ -1114,10 +1147,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * Returns true if the argument type is a numeric primitive or a boxed numeric primitive and
-     * false otherwise.
+     * Returns true if the argument type is a numeric primitive or a boxed numeric primitive, or a
+     * type variable, wildcard, or intersection type with a boxed numeric primitive bound, and false
+     * otherwise.
+     *
+     * @param type a type
+     * @return true if {@code type} is numeric, possibly boxed or through a bound
      */
     protected boolean isNumericOrBoxed(TypeMirror type) {
+        type = TypesUtils.boxedPrimitiveBound(type);
         if (TypesUtils.isBoxedPrimitive(type)) {
             type = types.unboxedType(type);
         }
@@ -1135,21 +1173,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      */
     protected TypeMirror binaryPromotedType(TypeMirror left, TypeMirror right) {
         if (!left.getKind().isPrimitive()) {
-            if (TypesUtils.isCapturedTypeVariable(left)) {
-                // This doesn't seem legal according to the JLS, but javac accepts it.
-                left = types.unboxedType(TypesUtils.upperBound(left));
-            } else {
-                left = types.unboxedType(left);
-            }
+            left = types.unboxedType(TypesUtils.boxedPrimitiveBound(left));
         }
 
         if (!right.getKind().isPrimitive()) {
-            if (TypesUtils.isCapturedTypeVariable(right)) {
-                // This doesn't seem legal according to the JLS, but javac accepts it.
-                right = types.unboxedType(TypesUtils.upperBound(right));
-            } else {
-                right = types.unboxedType(right);
-            }
+            right = types.unboxedType(TypesUtils.boxedPrimitiveBound(right));
         }
 
         TypeKind promotedTypeKind = TypeKindUtils.widenedNumericType(left, right);
@@ -1239,15 +1267,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * Return whether a conversion from the type of the node to varType requires narrowing.
+     * Returns true if a conversion from the type of the node to varType requires narrowing.
      *
      * @param varType the type of a variable (or general LHS) to be converted to
      * @param node a node whose value is being converted
-     * @return whether this conversion requires narrowing to succeed
+     * @return true if this conversion requires narrowing to succeed
      */
     protected boolean conversionRequiresNarrowing(TypeMirror varType, Node node) {
-        // Narrowing is restricted to cases where the left hand side is byte, char, short or Byte,
-        // Char, Short and the right hand side is a constant.
+        // Narrowing is restricted to cases where the left-hand side is byte, char, short or Byte,
+        // Char, Short and the right-hand side is a constant.
         TypeMirror unboxedVarType =
                 TypesUtils.isBoxedPrimitive(varType) ? types.unboxedType(varType) : varType;
         TypeKind unboxedVarKind = unboxedVarType.getKind();
@@ -1265,8 +1293,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      *
      * @param node a Node producing a value
      * @param varType the type of a variable
-     * @param contextAllowsNarrowing whether to allow narrowing (for assignment conversion) or not
-     *     (for method invocation conversion)
+     * @param contextAllowsNarrowing if true, allow narrowing (for assignment conversion) (for
+     *     method invocation conversion)
      * @return a Node with the value converted to the type of the variable, which may be the input
      *     node itself
      */
@@ -1408,19 +1436,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 assert lastParamType instanceof ArrayType
                         : "variable argument formal must be an array";
                 // Handle anonymous constructors with an explicit enclosing expression.
-                // There is a mismatch between the number of parameters and arguments
-                // when the following conditions are met:
-                // 1. Java version >= 11,
-                // 2. the method is an anonymous constructor,
-                // 3. the executable element has varargs,
-                // 4. the constructor is invoked with an explicit enclosing expression.
-                // In this case, the parameters have an enclosing expression as its first parameter,
-                // while the arguments do not have such element. Hence, decrease the lastArgIndex
-                // to organize the arguments from the correct index later.
-                if (SystemUtil.jreVersion >= 11
-                        && newClassTree != null
-                        && TreeUtils.isAnonymousConstructorWithExplicitEnclosingExpression(
-                                executable, newClassTree)) {
+                // The parameters of an anonymous constructor with an explicit enclosing
+                // expression have the enclosing instance as their first parameter, while the
+                // arguments do not. Hence, decrease the lastArgIndex to organize the arguments
+                // from the correct index later.
+                if (newClassTree != null
+                        && TreeUtils.hasEnclosingInstanceParameter(executable, newClassTree)) {
                     lastArgIndex--;
                 }
 
@@ -2029,7 +2050,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     } else if (kind == Tree.Kind.DIVIDE_ASSIGNMENT) {
                         if (TypesUtils.isIntegralPrimitive(exprType)) {
                             operNode = new IntegerDivisionNode(operTree, targetRHS, value);
-
                             extendWithNodeWithException(operNode, arithmeticExceptionType);
                         } else {
                             operNode = new FloatingDivisionNode(operTree, targetRHS, value);
@@ -2038,7 +2058,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         assert kind == Tree.Kind.REMAINDER_ASSIGNMENT;
                         if (TypesUtils.isIntegralPrimitive(exprType)) {
                             operNode = new IntegerRemainderNode(operTree, targetRHS, value);
-
                             extendWithNodeWithException(operNode, arithmeticExceptionType);
                         } else {
                             operNode = new FloatingRemainderNode(operTree, targetRHS, value);
@@ -2227,7 +2246,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // Note that for binary operations it is important to perform any required promotion on the
         // left operand before generating any Nodes for the right operand, because labels must be
         // inserted AFTER ALL preceding Nodes and BEFORE ALL following Nodes.
-        Node r = null;
+        Node r;
         Tree leftTree = tree.getLeftOperand();
         Tree rightTree = tree.getRightOperand();
 
@@ -2252,7 +2271,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     } else if (kind == Tree.Kind.DIVIDE) {
                         if (TypesUtils.isIntegralPrimitive(exprType)) {
                             r = new IntegerDivisionNode(tree, left, right);
-
                             extendWithNodeWithException(r, arithmeticExceptionType);
                         } else {
                             r = new FloatingDivisionNode(tree, left, right);
@@ -2261,7 +2279,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         assert kind == Tree.Kind.REMAINDER;
                         if (TypesUtils.isIntegralPrimitive(exprType)) {
                             r = new IntegerRemainderNode(tree, left, right);
-
                             extendWithNodeWithException(r, arithmeticExceptionType);
                         } else {
                             r = new FloatingRemainderNode(tree, left, right);
@@ -2341,21 +2358,17 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     Node left = binaryNumericPromotion(scan(leftTree, p), promotedType);
                     Node right = binaryNumericPromotion(scan(rightTree, p), promotedType);
 
-                    Node node;
                     if (kind == Tree.Kind.GREATER_THAN) {
-                        node = new GreaterThanNode(tree, left, right);
+                        r = new GreaterThanNode(tree, left, right);
                     } else if (kind == Tree.Kind.GREATER_THAN_EQUAL) {
-                        node = new GreaterThanOrEqualNode(tree, left, right);
+                        r = new GreaterThanOrEqualNode(tree, left, right);
                     } else if (kind == Tree.Kind.LESS_THAN) {
-                        node = new LessThanNode(tree, left, right);
+                        r = new LessThanNode(tree, left, right);
                     } else {
                         assert kind == Tree.Kind.LESS_THAN_EQUAL;
-                        node = new LessThanOrEqualNode(tree, left, right);
+                        r = new LessThanOrEqualNode(tree, left, right);
                     }
-
-                    extendWithNode(node);
-
-                    return node;
+                    break;
                 }
 
             case EQUAL_TO:
@@ -2383,16 +2396,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         right = unboxAsNeeded(right, rightInfo.isBoxed());
                     }
 
-                    Node node;
                     if (kind == Tree.Kind.EQUAL_TO) {
-                        node = new EqualToNode(tree, left, right);
+                        r = new EqualToNode(tree, left, right);
                     } else {
                         assert kind == Tree.Kind.NOT_EQUAL_TO;
-                        node = new NotEqualNode(tree, left, right);
+                        r = new NotEqualNode(tree, left, right);
                     }
-                    extendWithNode(node);
-
-                    return node;
+                    break;
                 }
 
             case AND:
@@ -2421,19 +2431,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         right = unbox(scan(rightTree, p));
                     }
 
-                    Node node;
                     if (kind == Tree.Kind.AND) {
-                        node = new BitwiseAndNode(tree, left, right);
+                        r = new BitwiseAndNode(tree, left, right);
                     } else if (kind == Tree.Kind.OR) {
-                        node = new BitwiseOrNode(tree, left, right);
+                        r = new BitwiseOrNode(tree, left, right);
                     } else {
                         assert kind == Tree.Kind.XOR;
-                        node = new BitwiseXorNode(tree, left, right);
+                        r = new BitwiseXorNode(tree, left, right);
                     }
-
-                    extendWithNode(node);
-
-                    return node;
+                    break;
                 }
 
             case CONDITIONAL_AND:
@@ -2464,14 +2470,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
                     // conditional expression itself
                     addLabelForNextNode(shortCircuitLabel);
-                    Node node;
                     if (kind == Tree.Kind.CONDITIONAL_AND) {
-                        node = new ConditionalAndNode(tree, left, right);
+                        r = new ConditionalAndNode(tree, left, right);
                     } else {
-                        node = new ConditionalOrNode(tree, left, right);
+                        r = new ConditionalOrNode(tree, left, right);
                     }
-                    extendWithNode(node);
-                    return node;
+                    break;
                 }
             default:
                 throw new BugInCF("unexpected binary tree: " + kind);
@@ -2918,7 +2922,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         extendWithExtendedNode(new UnconditionalJump(merge));
 
         addLabelForNextNode(merge);
-        IPair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
+        Pair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
                 buildVarUseNode(condExprVarTree);
         Node node =
                 new TernaryExpressionNode(
@@ -2939,7 +2943,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      */
     private void extendWithAssignmentForConditionalExpr(
             VariableTree condExprVarTree, ExpressionTree caseExprTree, Node caseExprNode) {
-        IPair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
+        Pair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
                 buildVarUseNode(condExprVarTree);
 
         AssignmentTree assign =
@@ -2961,28 +2965,28 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * @return a pair whose first element is the synthetic {@link IdentifierTree} for the use, and
      *     whose second element is the {@link LocalVariableNode} representing the use
      */
-    private IPair<IdentifierTree, LocalVariableNode> buildVarUseNode(VariableTree varTree) {
+    private Pair<IdentifierTree, LocalVariableNode> buildVarUseNode(VariableTree varTree) {
         IdentifierTree condExprVarUseTree = treeBuilder.buildVariableUse(varTree);
         handleArtificialTree(condExprVarUseTree);
         LocalVariableNode condExprVarUseNode = new LocalVariableNode(condExprVarUseTree);
         condExprVarUseNode.setInSource(false);
         // Do not actually add the node to the CFG.
-        return IPair.of(condExprVarUseTree, condExprVarUseNode);
+        return Pair.of(condExprVarUseTree, condExprVarUseNode);
     }
 
     @Override
     public Node visitContinue(ContinueTree tree, Void p) {
         Name label = tree.getLabel();
+        UnconditionalJump uj;
         if (label == null) {
             assert continueTargetLC != null : "no target for continue statement";
-
-            extendWithExtendedNode(new UnconditionalJump(continueTargetLC.accessLabel()));
+            uj = new UnconditionalJump(continueTargetLC.accessLabel());
         } else {
             assert continueLabels.containsKey(label);
-
-            extendWithExtendedNode(new UnconditionalJump(continueLabels.get(label)));
+            uj = new UnconditionalJump(continueLabels.get(label));
         }
 
+        extendWithExtendedNode(uj);
         return null;
     }
 
@@ -3016,7 +3020,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // Condition
         addLabelForNextNode(conditionStart);
         assert tree.getCondition() != null;
-        unbox(scan(tree.getCondition(), p));
+        Node condition = unbox(scan(tree.getCondition(), p));
+        condition.setIsLoopCondition(true);
         ConditionalJump cjump = new ConditionalJump(loopEntry, loopExit);
         extendWithExtendedNode(cjump);
 
@@ -3248,7 +3253,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             handleArtificialTree(lengthSelect);
             FieldAccessNode lengthAccessNode = new FieldAccessNode(lengthSelect, arrayNode1);
             lengthAccessNode.setInSource(false);
-            extendWithNode(lengthAccessNode);
+            extendWithNodeWithException(lengthAccessNode, nullPointerExceptionType);
 
             BinaryTree lessThan = treeBuilder.buildLessThan(indexUse1, lengthSelect);
             handleArtificialTree(lessThan);
@@ -3284,7 +3289,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             extendWithNode(arrayAccessNode);
             AssignmentNode arrayAccessAssignNode =
                     translateAssignment(variable, new LocalVariableNode(variable), arrayAccessNode);
-            extendWithNodeWithException(arrayAccessNode, nullPointerExceptionType);
             // translateAssignment() scans variable and creates new nodes, so set the expression
             // there, too.
             Node arrayAccessAssignNodeExpr = arrayAccessAssignNode.getExpression();
@@ -3401,7 +3405,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // Condition
         addLabelForNextNode(conditionStart);
         if (tree.getCondition() != null) {
-            unbox(scan(tree.getCondition(), p));
+            Node condition = unbox(scan(tree.getCondition(), p));
+            condition.setIsLoopCondition(true);
             ConditionalJump cjump = new ConditionalJump(loopEntry, loopExit);
             extendWithExtendedNode(cjump);
         }
@@ -3517,9 +3522,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         Node array = scan(tree.getExpression(), p);
         Node index = unaryNumericPromotion(scan(tree.getIndex(), p));
         Node arrayAccess = new ArrayAccessNode(tree, array, index);
-        extendWithNode(arrayAccess);
-        extendWithNodeWithException(arrayAccess, arrayIndexOutOfBoundsExceptionType);
-        extendWithNodeWithException(arrayAccess, nullPointerExceptionType);
+        extendWithNodeWithExceptions(arrayAccess, arrayAccessExceptionTypes);
         return arrayAccess;
     }
 
@@ -3548,7 +3551,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     @Override
     public Node visitLiteral(LiteralTree tree, Void p) {
-        Node r = null;
+        Node r;
         switch (tree.getKind()) {
             case BOOLEAN_LITERAL:
                 r = new BooleanLiteralNode(tree);
@@ -3577,7 +3580,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             default:
                 throw new BugInCF("unexpected literal tree: " + tree);
         }
-        assert r != null : "unexpected literal tree";
         extendWithNode(r);
         return r;
     }
@@ -3779,7 +3781,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * Return the first argument if it is non-null, otherwise return the second argument. Throws an
+     * Returns the first argument if it is non-null, otherwise return the second argument. Throws an
      * exception if both arguments are null.
      *
      * @param <A> the type of the arguments
@@ -3808,10 +3810,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         "start of try statement #" + TreeUtils.treeUids.get(tree),
                         env.getTypeUtils()));
 
-        List<IPair<TypeMirror, Label>> catchLabels =
+        List<Pair<TypeMirror, Label>> catchLabels =
                 CollectionsPlume.mapList(
                         (CatchTree c) ->
-                                IPair.of(TreeUtils.typeOf(c.getParameter().getType()), new Label()),
+                                Pair.of(TreeUtils.typeOf(c.getParameter().getType()), new Label()),
                         catches);
 
         // Store return/break/continue labels, just in case we need them for a finally block.
@@ -4239,7 +4241,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * Returns whether an exceptional node for {@code target} exists in {@link #nodeList} or not.
+     * Returns true if an exceptional node for {@code target} exists in {@link #nodeList}.
      *
      * @param target label for exception
      * @return true when an exceptional node for {@code target} exists in {@link #nodeList}
@@ -4317,7 +4319,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     @Override
     public Node visitUnary(UnaryTree tree, Void p) {
-        Node result = null;
+        Node result;
         Tree.Kind kind = tree.getKind();
         switch (kind) {
             case BITWISE_COMPLEMENT:
@@ -4344,7 +4346,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                             throw new BugInCF("Unexpected unary tree kind: " + kind);
                     }
                     extendWithNode(result);
-                    break;
+                    return result;
                 }
 
             case LOGICAL_COMPLEMENT:
@@ -4353,7 +4355,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     Node expr = scan(tree.getExpression(), p);
                     result = new ConditionalNotNode(tree, unbox(expr));
                     extendWithNode(result);
-                    break;
+                    return result;
                 }
 
             case POSTFIX_DECREMENT:
@@ -4371,6 +4373,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                             kind == Tree.Kind.POSTFIX_INCREMENT
                                     || kind == Tree.Kind.POSTFIX_DECREMENT;
 
+                    result = null; // for definite assignment; it is assigned in isPostfix and in
+                    // !isPostfix
                     if (isPostfix) {
                         TypeMirror exprType = TreeUtils.typeOf(exprTree);
                         VariableTree tempVarDecl =
@@ -4378,7 +4382,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                                         exprType,
                                         uniqueName("tempPostfix"),
                                         TreePathUtil.findNearestEnclosingElement(getCurrentPath()),
-                                        tree.getExpression());
+                                        exprTree);
                         handleArtificialTree(tempVarDecl);
                         VariableDeclarationNode tempVarDeclNode =
                                 new VariableDeclarationNode(tempVarDecl);
@@ -4400,13 +4404,18 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         result = new LocalVariableNode(resultExpr);
                         result.setInSource(false);
                         extendWithNode(result);
+                        // The value of the postfix expression is the value of this node, which
+                        // consumers of the expression use as their operand.  The assignment node
+                        // that has the postfix tree as its tree only holds the old value, and is
+                        // not an operand of any consumer.
+                        addToConvertedLookupMap(tree, result);
                     }
                     AssignmentNode unaryAssign =
                             createIncrementOrDecrementAssign(tree, expr, isIncrement, isPostfix);
                     if (!isPostfix) {
                         result = unaryAssign;
                     }
-                    break;
+                    return result;
                 }
 
             case OTHER:
@@ -4416,13 +4425,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     Node expr = scan(tree.getExpression(), p);
                     result = new NullChkNode(tree, expr);
                     extendWithNode(result);
-                    break;
+                    return result;
                 }
 
                 throw new BugInCF("Unknown kind (" + kind + ") of unary expression: " + tree);
         }
-
-        return result;
     }
 
     /**
@@ -4470,7 +4477,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         operNode.setInSource(false);
         extendWithNode(operNode);
 
-        Node narrowed = narrowAndBox(operNode, exprType);
+        // For a type variable bounded by a boxed type, the result is boxed to the bound, as javac
+        // does, and then assigned to the type-variable-typed expression.
+        Node narrowed = narrowAndBox(operNode, TypesUtils.boxedPrimitiveBound(exprType));
 
         Tree target;
         if (isPostfix) {
@@ -4562,7 +4571,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // compiler logic.
         boolean isCondConstTrue = TreeUtils.isExprConstTrue(tree.getCondition());
 
-        unbox(scan(tree.getCondition(), p));
+        Node condition = unbox(scan(tree.getCondition(), p));
+        condition.setIsLoopCondition(true);
 
         if (!isCondConstTrue) {
             // If the loop condition does not have the constant value true, the control flow is

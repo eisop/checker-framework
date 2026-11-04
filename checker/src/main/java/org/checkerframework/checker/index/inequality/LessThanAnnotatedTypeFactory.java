@@ -21,10 +21,10 @@ import org.checkerframework.common.value.qual.IntRange;
 import org.checkerframework.common.value.qual.IntVal;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
+import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.ElementQualifierHierarchy;
 import org.checkerframework.framework.type.QualifierHierarchy;
-import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -162,7 +162,7 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
      */
     public boolean isLessThan(Tree left, String right) {
         AnnotatedTypeMirror leftATM = getAnnotatedType(left);
-        return isLessThan(leftATM.getAnnotationInHierarchy(LESS_THAN_UNKNOWN), right);
+        return isLessThan(leftATM.getEffectiveAnnotationInHierarchy(LESS_THAN_UNKNOWN), right);
     }
 
     /**
@@ -275,7 +275,8 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
      */
     public boolean isLessThanOrEqual(Tree left, String right) {
         AnnotatedTypeMirror leftATM = getAnnotatedType(left);
-        return isLessThanOrEqual(leftATM.getAnnotationInHierarchy(LESS_THAN_UNKNOWN), right);
+        return isLessThanOrEqual(
+                leftATM.getEffectiveAnnotationInHierarchy(LESS_THAN_UNKNOWN), right);
     }
 
     /**
@@ -313,7 +314,7 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
     public @Nullable List<String> getLessThanExpressions(ExpressionTree expression) {
         AnnotatedTypeMirror annotatedTypeMirror = getAnnotatedType(expression);
         return getLessThanExpressions(
-                annotatedTypeMirror.getAnnotationInHierarchy(LESS_THAN_UNKNOWN));
+                annotatedTypeMirror.getEffectiveAnnotationInHierarchy(LESS_THAN_UNKNOWN));
     }
 
     /**

@@ -5,7 +5,7 @@
  *
  * ParseError.out and UnknownField.out contain expected warnings.
  *
- * @compile/ref=UnknownField.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Astubs=UnknownField.astub -Anomsgtext Main.java
+ * @compile/ref=UnknownField.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Astubs=UnknownField.astub -AmergeStubsWithSource -Anomsgtext Main.java
  * @compile/ref=ParseError.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Astubs=ParseError.astub -Anomsgtext Main.java
  */
 

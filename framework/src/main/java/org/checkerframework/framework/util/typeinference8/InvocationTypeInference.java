@@ -22,6 +22,7 @@ import org.checkerframework.framework.util.typeinference8.constraint.Expression;
 import org.checkerframework.framework.util.typeinference8.constraint.TypeConstraint;
 import org.checkerframework.framework.util.typeinference8.constraint.Typing;
 import org.checkerframework.framework.util.typeinference8.types.AbstractType;
+import org.checkerframework.framework.util.typeinference8.types.InferenceFactory;
 import org.checkerframework.framework.util.typeinference8.types.InferenceType;
 import org.checkerframework.framework.util.typeinference8.types.InvocationType;
 import org.checkerframework.framework.util.typeinference8.types.ProperType;
@@ -32,6 +33,7 @@ import org.checkerframework.framework.util.typeinference8.util.Java8InferenceCon
 import org.checkerframework.framework.util.typeinference8.util.Resolution;
 import org.checkerframework.framework.util.typeinference8.util.Theta;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreeUtils;
@@ -42,7 +44,6 @@ import java.util.List;
 import java.util.Set;
 
 import javax.lang.model.type.ExecutableType;
-import javax.lang.model.type.TypeKind;
 
 /**
  * Performs invocation type inference as described in <a
@@ -116,6 +117,12 @@ public class InvocationTypeInference {
     protected final Tree inferenceExpression;
 
     /**
+     * Whether to infer {@link #inferenceExpression} without a target type, as if it were not nested
+     * in another expression; see {@link DefaultTypeArgumentInference#inferStandalone}.
+     */
+    boolean withoutTargetType = false;
+
+    /**
      * Creates an inference problem.
      *
      * @param factory the annotated type factory to use
@@ -149,9 +156,17 @@ public class InvocationTypeInference {
      */
     public InferenceResult infer(ExpressionTree invocation, AnnotatedExecutableType methodType)
             throws FalseBoundException {
+        if (invocation instanceof NewClassTree
+                && TreeUtils.isAnonymousDiamondTree((NewClassTree) invocation)
+                && ElementUtils.isAnonymousConstructor(methodType.getElement())) {
+            // Infer the type arguments of the superclass from the super constructor.
+            methodType =
+                    context.typeFactory.getAnonymousDiamondSuperConstructor(
+                            (NewClassTree) invocation);
+        }
         ExecutableType e = methodType.getUnderlyingType();
         InvocationType invocationType = new InvocationType(methodType, e, invocation, context);
-        ProperType target = context.inferenceTypeFactory.getTargetType();
+        ProperType target = withoutTargetType ? null : context.inferenceTypeFactory.getTargetType();
         List<? extends ExpressionTree> args;
         if (invocation instanceof MethodInvocationTree) {
             args = ((MethodInvocationTree) invocation).getArguments();
@@ -164,7 +179,7 @@ public class InvocationTypeInference {
                         invocation, invocationType, context);
         BoundSet b2 = createB2(invocationType, args, map);
         BoundSet b3;
-        if (target != null && TreeUtils.isPolyExpression(invocation)) {
+        if (target != null && InferenceFactory.isPolyExpression(invocation)) {
             b3 = createB3(b2, invocation, invocationType, target, map);
         } else {
             b3 = b2;
@@ -211,7 +226,7 @@ public class InvocationTypeInference {
                 createB2MethodRef(compileTimeDecl, target.getFunctionTypeParameterTypes(), map);
         AbstractType r = target.getFunctionTypeReturnType();
         BoundSet b3;
-        if (r == null || r.getTypeKind() == TypeKind.VOID) {
+        if (r == null) {
             b3 = b2;
         } else {
             b3 = createB3(b2, invocation, compileTimeDecl, r, map);
@@ -232,14 +247,14 @@ public class InvocationTypeInference {
      *
      * <ol>
      *   <li value="1">Creating the inference variables and initializing their bounds based on the
-     *       type parameter declaration.
+     *                 type parameter declaration.
      *   <li value="2">Adding any bounds implied by the throws clause of {@code methodType}.
      *   <li value="3">Constructing constraints between formal parameters and arguments that are
-     *       "pertinent to applicability" (See <a
-     *       href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-15.html#jls-15.12.2.2">JLS
-     *       Section 15.12.2.2</a>). Generally, all arguments are applicable except: inexact method
-     *       reference, implicitly typed lambdas, or explicitly typed lambda whose return
-     *       expression(s) are not pertinent.
+     *                 "pertinent to applicability" (See <a
+     *                 href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-15.html#jls-15.12.2.2">JLS
+     *                 Section 15.12.2.2</a>). Generally, all arguments are applicable except:
+     *                 inexact method reference, implicitly typed lambdas, or explicitly typed
+     *                 lambda whose return expression(s) are not pertinent.
      *   <li value="4">Reducing and incorporating those constraints which finally produces B2.
      * </ol>
      *
@@ -362,7 +377,7 @@ public class InvocationTypeInference {
             String source =
                     "Constraint between method call type and target type for method call (unchecked"
                             + " conversion): "
-                            + invocation;
+                            + InferenceFactory.describe(invocation);
             BoundSet b =
                     new ConstraintSet(
                                     new Typing(
@@ -411,7 +426,7 @@ public class InvocationTypeInference {
                 String source =
                         "Constraint between method call type and target type for method call (compatibility"
                                 + " constraint): "
-                                + invocation;
+                                + InferenceFactory.describe(invocation);
 
                 ConstraintSet constraintSet =
                         new ConstraintSet(new Typing(source, u, target, Kind.TYPE_COMPATIBILITY));
@@ -425,7 +440,7 @@ public class InvocationTypeInference {
                 // 5.1.7 is an instantiation, upper bound, or lower bound for [the variable] in B2."
                 String source =
                         "Constraint between method call type and target type for method call: "
-                                + invocation;
+                                + InferenceFactory.describe(invocation);
 
                 ConstraintSet constraintSet =
                         new ConstraintSet(new Typing(source, r, target, Kind.SUBTYPE));
@@ -435,7 +450,8 @@ public class InvocationTypeInference {
             }
         }
         String source =
-                "Constraint between method call type and target type for method call:" + invocation;
+                "Constraint between method call type and target type for method call:"
+                        + InferenceFactory.describe(invocation);
         ConstraintSet constraintSet =
                 new ConstraintSet(new Typing(source, r, target, Kind.TYPE_COMPATIBILITY));
         BoundSet newBounds = constraintSet.reduce(context);
@@ -467,7 +483,7 @@ public class InvocationTypeInference {
                 c.add(new Expression("Argument constraint", ei, fi));
             }
             if (ei instanceof MethodInvocationTree || ei instanceof NewClassTree) {
-                if (TreeUtils.isPolyExpression(ei)) {
+                if (InferenceFactory.isPolyExpression(ei)) {
                     AdditionalArgument aa = new AdditionalArgument(ei);
                     c.addAll(aa.reduce(context));
                 }
@@ -513,14 +529,21 @@ public class InvocationTypeInference {
             case LAMBDA_EXPRESSION:
                 c.add(new CheckedExceptionConstraint(ei, fi, map));
                 LambdaExpressionTree lambda = (LambdaExpressionTree) ei;
+                // The input variables of <lambda -> fi>, including those of nested lambdas (see
+                // AdditionalArgument).
+                Set<Variable> lambdaInputs =
+                        new Expression("Argument constraint", lambda, fi).getInputVariables();
                 for (ExpressionTree expression : TreeUtils.getReturnedExpressions(lambda)) {
-                    c.addAll(createAdditionalArgConstraintsNoLambda(expression));
+                    c.addAll(createAdditionalArgConstraintsNoLambda(expression, lambdaInputs));
                 }
                 break;
             case METHOD_INVOCATION:
             case NEW_CLASS:
-                if (TreeUtils.isPolyExpression(ei)) {
-                    c.addAll(new AdditionalArgument(ei).reduce(context));
+                // ei is a branch of a conditional or switch argument.  Unless fi is proper, ei is
+                // part of this problem, but it is only reduced when the constraint of the whole
+                // argument is, which may be later.
+                if (InferenceFactory.isPolyExpression(ei) && !fi.isProper()) {
+                    c.addAll(new AdditionalArgument(ei).reduceInvocation(context));
                 }
                 break;
             case PARENTHESIZED:
@@ -555,49 +578,60 @@ public class InvocationTypeInference {
      * encounters a lambda. This method is different because it does not add checked exception
      * constraints for lambdas or method references.
      *
+     * <p>{@code expression} is a result expression of a lambda (possibly nested in other lambdas),
+     * so it may use the parameters of those lambdas, whose types are only known after the lambda's
+     * constraint has been reduced. So for a method invocation or new class tree, an {@link
+     * AdditionalArgument} with the input variables {@code lambdaInputs} is returned, which creates
+     * the constraints when it is reduced.
+     *
      * @param expression expression to search
+     * @param lambdaInputs the input variables of the constraint of the outermost enclosing lambda
      * @return additional constraints
      */
-    private ConstraintSet createAdditionalArgConstraintsNoLambda(ExpressionTree expression) {
+    private ConstraintSet createAdditionalArgConstraintsNoLambda(
+            ExpressionTree expression, Set<Variable> lambdaInputs) {
         ConstraintSet c = new ConstraintSet();
 
         switch (expression.getKind()) {
             case LAMBDA_EXPRESSION:
+                // lambdaInputs already includes the input variables of this nested lambda.
                 LambdaExpressionTree lambda = (LambdaExpressionTree) expression;
                 for (ExpressionTree returnedExpression : TreeUtils.getReturnedExpressions(lambda)) {
-                    c.addAll(createAdditionalArgConstraintsNoLambda(returnedExpression));
+                    c.addAll(
+                            createAdditionalArgConstraintsNoLambda(
+                                    returnedExpression, lambdaInputs));
                 }
                 break;
             case METHOD_INVOCATION:
             case NEW_CLASS:
-                if (TreeUtils.isPolyExpression(expression)) {
-                    try {
-                        c.addAll(new AdditionalArgument(expression).reduce(context));
-                    } catch (Exception e) {
-                        // Sometimes in order to create the additional argument constraint, other
-                        // inference variables must be resolved first. This happens when a lambda
-                        // parameter is used in the additional argument constraint.
-                        // See framework/tests/all-systems/SimpleLambdaParameter.java
-                        c.add(new AdditionalArgument(expression));
-                    }
+                if (InferenceFactory.isPolyExpression(expression)) {
+                    // Deferred even without input variables; see AdditionalArgument and
+                    // framework/tests/all-systems/SimpleLambdaParameter.java.
+                    c.add(new AdditionalArgument(expression, lambdaInputs));
                 }
                 break;
             case PARENTHESIZED:
                 c.addAll(
                         createAdditionalArgConstraintsNoLambda(
-                                TreeUtils.withoutParens(expression)));
+                                TreeUtils.withoutParens(expression), lambdaInputs));
                 break;
             case CONDITIONAL_EXPRESSION:
                 ConditionalExpressionTree conditional = (ConditionalExpressionTree) expression;
-                c.addAll(createAdditionalArgConstraintsNoLambda(conditional.getTrueExpression()));
-                c.addAll(createAdditionalArgConstraintsNoLambda(conditional.getFalseExpression()));
+                c.addAll(
+                        createAdditionalArgConstraintsNoLambda(
+                                conditional.getTrueExpression(), lambdaInputs));
+                c.addAll(
+                        createAdditionalArgConstraintsNoLambda(
+                                conditional.getFalseExpression(), lambdaInputs));
                 break;
             default:
                 if (TreeUtils.isSwitchExpression(expression)) {
                     SwitchExpressionScanner<Void, Void> scanner =
                             new FunctionalSwitchExpressionScanner<>(
                                     (ExpressionTree tree, Void unused) -> {
-                                        c.addAll(createAdditionalArgConstraintsNoLambda(tree));
+                                        c.addAll(
+                                                createAdditionalArgConstraintsNoLambda(
+                                                        tree, lambdaInputs));
                                         return null;
                                     },
                                     (c1, c2) -> null);
@@ -616,7 +650,7 @@ public class InvocationTypeInference {
      *
      * @param expressionTree expression tree
      * @param formalParameterType the formal parameter type of the method invocation
-     * @return whether {@code expressionTree} is pertinent to applicability
+     * @return true if {@code expressionTree} is not pertinent to applicability
      */
     private boolean notPertinentToApplicability(
             ExpressionTree expressionTree, AbstractType formalParameterType) {
@@ -684,6 +718,9 @@ public class InvocationTypeInference {
         // C might contain new variables that have not yet been added to the b3 bound set.
         Set<Variable> newVariables = c.getAllInferenceVariables();
         while (!c.isEmpty()) {
+            // Create the constraints of each invocation that has just been reduced (see
+            // AdditionalArgument), so that the selection below knows their variables.
+            c.reduceAdditionalArgsOfReducedInvocations(context);
 
             ConstraintSet subset =
                     ConstraintSet.getClosedSubset(c, b3.getDependencies(newVariables));

@@ -326,6 +326,9 @@ the following additional rules.
 
 \end{description}
 
+An enhanced \<for> loop dereferences the array or \<Iterable> that it
+iterates over.
+
 \subsectionAndLabel{Primitive types, boxed primitive types, and Strings}{lock-type-checking-rules-primitives}
 
 Primitive types, boxed primitive types (such as \<java.lang.Integer>), and type \<java.lang.String>
@@ -990,7 +993,7 @@ Not-holding:  Specify that a method must not be called if any of the listed
 locks are held.
 
 These features are supported by
-\href{http://clang.llvm.org/docs/ThreadSafetyAnalysis.html}{Clang's
+\href{https://clang.llvm.org/docs/ThreadSafetyAnalysis.html}{Clang's
   thread-safety analysis}.
 
 

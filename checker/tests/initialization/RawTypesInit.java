@@ -11,9 +11,9 @@ public class RawTypesInit {
         @NonNull String field;
 
         public Bad() {
-            // :: error: (method.invocation.invalid)
+            // :: error: (initialization.method.invocation.invalid)
             this.init(); // error
-            // :: error: (method.invocation.invalid)
+            // :: error: (initialization.method.invocation.invalid)
             init(); // error
 
             this.field = "field"; // valid
@@ -163,7 +163,7 @@ public class RawTypesInit {
 
         public AllFieldsSetInInitializer() {
             elapsedMillis = 0;
-            // :: error: (method.invocation.invalid)
+            // :: error: (initialization.method.invocation.invalid)
             nonRawMethod(); // error
             startTime = 0;
             // :: error: (method.invocation.invalid)
@@ -174,7 +174,7 @@ public class RawTypesInit {
 
         // :: error: (initialization.fields.uninitialized)
         public AllFieldsSetInInitializer(boolean b) {
-            // :: error: (method.invocation.invalid)
+            // :: error: (initialization.method.invocation.invalid)
             nonRawMethod(); // error
         }
 

@@ -10,7 +10,8 @@ import java.lang.annotation.Target;
 
 /**
  * The {@code Lost} qualifier indicates that a relationship cannot be expressed. It results from
- * viewpoint adaptation that combines {@link Top} and {@link ReceiverDependentQual}.
+ * viewpoint adaptation that combines {@link Top} or {@link PolyVP} and {@link
+ * ReceiverDependentQual}.
  *
  * <p>It is a valid viewpoint-adaptation result but is invalid as an assignment target, including in
  * compound assignments, increments, and decrements.

@@ -63,10 +63,10 @@ import javax.tools.Diagnostic;
  *
  * <ol>
  *   <li value="1">either argument to a "==" or "!=" comparison is not Interned (error
- *       "not.interned"). As a special case, the comparison is permitted if either argument is
- *       InternedDistinct.
+ *                 "not.interned"). As a special case, the comparison is permitted if either
+ *                 argument is InternedDistinct.
  *   <li value="2">the receiver and argument for a call to an equals method are both Interned
- *       (optional warning "unnecessary.equals")
+ *                 (optional warning "unnecessary.equals")
  * </ol>
  *
  * @see BaseTypeVisitor
@@ -349,12 +349,13 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
 
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
-        if (constructorElement.getEnclosingElement().getKind() == ElementKind.ENUM) {
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
+        if (TreeUtils.elementFromDeclaration(constructorTree).getEnclosingElement().getKind()
+                == ElementKind.ENUM) {
             // Enums constructor are only called once per enum constant.
             return;
         }
-        super.checkConstructorResult(constructorType, constructorElement);
+        super.checkConstructorResult(constructorType, constructorTree);
     }
 
     @Override
@@ -440,7 +441,7 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
     }
 
     /**
-     * Tests whether a method invocation is an invocation of {@link #equals} with one argument.
+     * Returns true if a method invocation is an invocation of {@link #equals} with one argument.
      *
      * <p>Returns true even if a method overloads {@link Object#equals(Object)}, because of the
      * common idiom of writing an equals method with a non-Object parameter, in addition to the

@@ -111,6 +111,26 @@ JFR's method sampler has a documented floor of `MIN_SAMPLE_PERIOD = 10ms`
 in `jfrThreadSampler.cpp`. Values below 10ms are silently clamped, so
 asking for 5ms wastes the configuration; it stays at 10ms.
 
+**Record on JDK 25 or later; JDK 21 drops most samples.** On KeY's `key.core`
+(one busy compile thread), JDK 21's `jdk.ExecutionSample` recorded 15-26
+samples/s instead of the 100/s a 10 ms period asks for, and with the default
+stack depth of 64, 71% of the samples it did record were truncated. The two
+biases together moved whole subsystems: JDK 21 showed dataflow at 16% and the
+type factory at 18%, JDK 25's CPU-time sampler 10% and 37%. JDK 25 records 86/s
+of `jdk.ExecutionSample`, and its `jdk.CPUTimeSample` (JEP 509, Linux; enabled
+in `profile-cf.jfc`, ignored by older JDKs) samples by CPU time at 91/s. The
+checker's JDK is the one that runs javac: `JAVA_HOME` for `checker/bin/javac`,
+or the JDK that runs Gradle's compiler worker. `record-jfr.sh` sets
+`stackdepth=1024`; CF stacks are about 100 frames deep (p99 about 200).
+
+JDK 21's losses also vary from run to run, and a larger stack depth does not
+recover them: the same compile (an array of 14 `Arrays.asList` calls with 14
+diamond arguments each, `profile-cf.jfc`) recorded 547 to 3094
+`jdk.ExecutionSample`s in separate runs, with no consistent difference between
+depths 64, 256, 1024 and 2048. JDK 25 recorded 1549 and 1633. So do not compare
+sample counts between JDK 21 runs, and do not attribute a low count to the
+stack depth.
+
 ## Analyzing the trace
 
 **Do not use `jfr view` or `jfr print`.** On JDK 25 both crash with a
@@ -152,7 +172,7 @@ java .claude/skills/cf-performance/jfr-analyze.java phase cf-*.jfr
 java .claude/skills/cf-performance/jfr-analyze.java inclusive org.checkerframework cf-*.jfr
 
 # Where one subsystem spends its self-time:
-java .claude/skills/cf-performance/jfr-analyze.java under performFlowAnalysis cf-*.jfr
+java .claude/skills/cf-performance/jfr-analyze.java under performFlowAnalysisForClass cf-*.jfr
 
 # Attribute a cost to a calling context (e.g. is this mostly under stub parsing?):
 java .claude/skills/cf-performance/jfr-analyze.java cooccur getDeclAnnotation AnnotationFileParser cf-*.jfr
@@ -163,7 +183,13 @@ java .claude/skills/cf-performance/jfr-analyze.java cooccur getDeclAnnotation An
 java .claude/skills/cf-performance/jfr-analyze.java heap cf-*.jfr
 ```
 
-Self-time is computed from `jdk.ExecutionSample` ONLY. Including
+`phase` prints a `Sample quality:` line (sampler, JDK, samples/s, truncated
+stacks, lost CPU-time samples) and warns when the sampler drops samples or
+stacks are truncated. Read it before trusting any percentage. On a JDK 25+
+recording, put `-Djfr.sample=jdk.CPUTimeSample` before the script name to
+analyze the CPU-time samples in any mode.
+
+Self-time is computed from `jdk.ExecutionSample` (or the `-Djfr.sample` event) ONLY. Including
 `jdk.NativeMethodSample` pollutes the leaderboard with idle native frames
 (`EPoll.wait` on the Gradle worker's messaging thread can be >50% of the
 combined samples). `getThread()` is `null` in these traces, so per-thread
@@ -270,10 +296,24 @@ you cannot trust a "rising" marginal.
 
 Shapes: `control` (linear), `cond` (nested ternary), `chain` (`.self()` chain), `inherit` (deep
 class chain), `switchc` (big switch), `repeat` (same-method calls), `tryfin` (nested try/finally),
-`loops` (nested for). June-2026 audit found `cond` severe super-linear (28 GB at depth 160 — Issue
-#602 conditional non-caching) and `inherit` quadratic (asSuper depth); the rest linear or mild. Then
-localize with `jfr-analyze.java inclusive` / `under` at the largest D, and confirm the root cause
-before proposing a fix (see the metric-mismatch trap below).
+`loops` (nested for), `fbound` (mutually F-bounded generics), `gmeth` (generic methods per class,
+with `pmeth` as its non-generic calibration), `inner` (nested generic inner classes), `tvchain`
+(type variables bounded by each other), `nestw`/`nests` (nested `? extends`/`? super` wildcards),
+`nestcall` (nested generic calls), `nullchk` (null-checked parameters per method). June-2026 audit
+found `cond` severe super-linear (28 GB at depth 160 — Issue #602 conditional non-caching) and
+`inherit` quadratic (asSuper depth); the rest linear or mild. The October-2026 audit found `inner`
+exponential and `gmeth` quadratic (both fixed) and `cond` linear since PR #2307; see the *Short
+list* in `performance-notes.md` for the rest. Then localize with `jfr-analyze.java inclusive` /
+`under` at the largest D, and confirm the root cause before proposing a fix (see the
+metric-mismatch trap below).
+
+`SWEEP_ARGS` replaces `-processor nullness` (another checker, or `-processor nullness
+-Amode=jspecify`), and `SWEEP_GEN_ARGS=--jspecify` makes every top-level type `@NullMarked`. To sweep
+the JSpecify reference checker, put its jar and `jspecify.jar` on both paths in `SWEEP_ARGS`; build
+the reference checker with this checkout as an included build (`--include-build`). Passing
+`-PskipAnnotatedJdk` to that build replaces `checker/dist/checker.jar` with one without the
+annotated JDK, so rerun `./gradlew assembleForJavac` afterwards. Sweep the Nullness Checker on the
+same shapes: a cost that both show is in the framework.
 
 **Metric-mismatch trap (cost you, June 2026): a CPU-inclusive hotspot is not necessarily the
 allocation driver — optimize the metric you're actually measuring.** On the `cond` shape,

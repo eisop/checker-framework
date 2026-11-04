@@ -60,7 +60,7 @@ public class ArrayTypeNode extends Node {
 
     @Override
     public int hashCode() {
-        return Objects.hash(getType());
+        return Objects.hashCode(getType());
     }
 
     @Override

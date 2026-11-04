@@ -1,4 +1,4 @@
-OrderOfCheckers.java:14:99: compiler.err.proc.messager: [[value, allcheckers]:assignment.type.incompatible] incompatible types in assignment.
+OrderOfCheckers.java:14:99: compiler.err.proc.messager: [[index, searchindex, value, allcheckers]:assignment.type.incompatible] incompatible types in assignment.
 found   : @UnknownVal int @UnknownVal []
 required: @UnknownVal int @BottomVal []
 OrderOfCheckers.java:14:99: compiler.err.proc.messager: [[index, searchindex, allcheckers]:assignment.type.incompatible] incompatible types in assignment.

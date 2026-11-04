@@ -4,7 +4,6 @@ import org.checkerframework.checker.fenum.qual.Fenum;
 import org.checkerframework.checker.fenum.qual.FenumBottom;
 import org.checkerframework.checker.fenum.qual.FenumTop;
 import org.checkerframework.checker.fenum.qual.FenumUnqualified;
-import org.checkerframework.checker.fenum.qual.PolyFenum;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -15,6 +14,7 @@ import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
@@ -63,13 +63,7 @@ public class FenumAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     @Override
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
         // Load everything in qual directory, and top, bottom, unqualified, and fake enum
-        Set<Class<? extends Annotation>> qualSet =
-                getBundledTypeQualifiers(
-                        FenumTop.class,
-                        Fenum.class,
-                        FenumUnqualified.class,
-                        FenumBottom.class,
-                        PolyFenum.class);
+        Set<Class<? extends Annotation>> qualSet = getBundledTypeQualifiers();
 
         // Load externally defined quals given in the -Aquals and/or -AqualDirs options
 
@@ -86,7 +80,7 @@ public class FenumAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         // load directories of qualifiers
-        for (String dirName : checker.getStringsOption("qualDirs", ',')) {
+        for (String dirName : SystemUtil.splitPaths(checker.getOption("qualDirs"))) {
             qualSet.addAll(loader.loadExternalAnnotationClassesFromDirectory(dirName));
         }
 

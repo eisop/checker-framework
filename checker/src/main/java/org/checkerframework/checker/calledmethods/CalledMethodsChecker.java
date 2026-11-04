@@ -72,7 +72,7 @@ public class CalledMethodsChecker extends AccumulationChecker {
     /**
      * Was the Returns Receiver Checker disabled on the command line?
      *
-     * @return whether the -AdisableReturnsReceiver option was specified on the command line
+     * @return true if the -AdisableReturnsReceiver option was specified on the command line
      */
     protected boolean isReturnsReceiverDisabled() {
         if (returnsReceiverDisabled == null) {
@@ -88,18 +88,15 @@ public class CalledMethodsChecker extends AccumulationChecker {
             checkers.add(ReturnsReceiverChecker.class);
         }
         // BaseTypeChecker#hasOption calls this method (so that all subcheckers' options are
-        // considered), so the processingEnvironment must be checked for options directly.
-        if (this.processingEnv.getOptions().containsKey(USE_VALUE_CHECKER)
-                || this.processingEnv
-                        .getOptions()
-                        .containsKey(this.getClass().getSimpleName() + "_" + USE_VALUE_CHECKER)) {
+        // considered), so use hasOptionNoSubcheckers to prevent infinite recursion.
+        if (hasOptionNoSubcheckers(USE_VALUE_CHECKER)) {
             checkers.add(ValueChecker.class);
         }
         return checkers;
     }
 
     /**
-     * Check whether the given alias analysis is enabled by this particular accumulation checker.
+     * Returns true if the given alias analysis is enabled by this particular accumulation checker.
      *
      * @param aliasAnalysis the analysis to check
      * @return true iff the analysis is enabled

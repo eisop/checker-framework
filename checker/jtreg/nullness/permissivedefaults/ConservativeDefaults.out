@@ -1,0 +1,29 @@
+PermissiveDefaults.java:21:23: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of Lib.setObject.
+found   : @UnknownKeyFor NullType
+required: @KeyForBottom Object
+PermissiveDefaults.java:21:23: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of Lib.setObject.
+found   : @Nullable NullType
+required: @NonNull Object
+PermissiveDefaults.java:22:24: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference Lib.getObject()
+PermissiveDefaults.java:22:33: compiler.err.proc.messager: [method.invocation.invalid] call to toString() not allowed on the given receiver.
+found   : @UnknownInitialization Object
+required: @Initialized Object
+PermissiveDefaults.java:26:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of Lib.upper.
+found   : @UnknownKeyFor Lib<@UnknownKeyFor Object>
+required: @KeyForBottom Lib<? [ extends @UnknownKeyFor Object super @KeyForBottom NullType ]>
+PermissiveDefaults.java:26:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of Lib.upper.
+found   : @Initialized Lib<@Initialized Object>
+required: @FBCBottom Lib<? extends @UnknownInitialization Object>
+PermissiveDefaults.java:27:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of Lib.lower.
+found   : @UnknownKeyFor Lib<@UnknownKeyFor Object>
+required: @KeyForBottom Lib<? [ extends @UnknownKeyFor Object super @KeyForBottom Object ]>
+PermissiveDefaults.java:27:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of Lib.lower.
+found   : @Initialized Lib<@Initialized Object>
+required: @FBCBottom Lib<? extends @UnknownInitialization Object super @FBCBottom Object>
+PermissiveDefaults.java:28:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of Lib.lower.
+found   : @UnknownKeyFor Lib<@UnknownKeyFor Object>
+required: @KeyForBottom Lib<? [ extends @UnknownKeyFor Object super @KeyForBottom Object ]>
+PermissiveDefaults.java:28:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of Lib.lower.
+found   : @Initialized Lib<@Initialized Object>
+required: @FBCBottom Lib<? extends @UnknownInitialization Object super @FBCBottom Object>
+10 errors

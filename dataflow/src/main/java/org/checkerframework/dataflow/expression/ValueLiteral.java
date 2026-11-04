@@ -6,6 +6,7 @@ import org.checkerframework.dataflow.cfg.node.ValueLiteralNode;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
+import org.plumelib.util.StringsPlume;
 
 import java.math.BigInteger;
 import java.util.Objects;
@@ -101,14 +102,20 @@ public class ValueLiteral extends JavaExpression {
         return value;
     }
 
-    @SuppressWarnings("unchecked") // generic cast
+    @SuppressWarnings({
+        "unchecked", // generic cast
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     @Override
     public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
         return getClass() == clazz ? (T) this : null;
     }
 
     @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
+    public boolean isPure(AnnotationProvider provider) {
         return true;
     }
 
@@ -158,15 +165,16 @@ public class ValueLiteral extends JavaExpression {
 
     @Override
     public String toString() {
-        if (TypesUtils.isString(type)) {
-            return "\"" + value + "\"";
+        if (value == null) {
+            return "null";
+        } else if (TypesUtils.isString(type)) {
+            return "\"" + StringsPlume.escapeJava((String) value) + "\"";
         } else if (type.getKind() == TypeKind.LONG) {
-            assert value != null : "@AssumeAssertion(nullness): invariant";
             return value.toString() + "L";
         } else if (type.getKind() == TypeKind.CHAR) {
-            return "\'" + value + "\'";
+            return StringsPlume.charLiteral((Character) value);
         }
-        return value == null ? "null" : value.toString();
+        return value.toString();
     }
 
     /** Cache the hashCode. Recomputed if zero. */

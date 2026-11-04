@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Generate Java programs that each scale ONE per-compilation-unit STRUCTURAL dimension D,
-to hunt for super-linear (quadratic) costs in the Checker Framework that are invisible on the
-tiny all-systems corpus.
+"""Generate Java programs that each scale ONE structural dimension D, for perf sweeps.
+
+The programs hunt for super-linear (quadratic) costs in the Checker Framework that are invisible
+on the tiny all-systems corpus; each scales one per-compilation-unit STRUCTURAL dimension D.
 
 Companion to gen-sized-program.py: that one sweeps the *method count* per file (and fixes the
 per-construct shape, e.g. deep-nesting is always 20 deep); this one fixes the count (R reps) and
@@ -12,29 +13,44 @@ D (Delta alloc / Delta D, via sweep.sh): constant marginal = linear; doubling-pe
 quadratic. Differencing removes the fixed JDK-stub allocation floor and the per-rep fixed cost.
 
 Shapes (which machinery each stresses):
-  control      R methods x D independent trivial statements        (linear calibration -- always run this)
-  cond         R methods x one ternary nested D deep                (#602 conditional non-caching)
-  chain        R methods x one .self() chain of length D            (methodFromUse receiver recompute)
-  inherit      D-deep class chain + R methods x D up-assignments    (asSuper / directSupertypes walk)
-  switchc      R methods x one switch with D cases                  (CFG branch fan-in + store merge)
-  repeat       R methods x D calls to the SAME method/receiver      (methodAsMemberOf element caching)
-  tryfin       R methods x D nested try/finally                     (CFG finally duplication)
-  loops        R methods x D nested for-loops                       (dataflow fixpoint over back-edges)
-  fbound       D mutually F-bounded interfaces I1..ID (Ii's bound mentions T1..Ti) + R calls to a
-               generic factory method returning ID<?,...,?> (D wildcards) with no explicit type
-               witness -- self-bounded/F-bounded generics with mutual dependencies among the
-               inference variables, the shape javac.comp.Infer's own worklist and CF's
-               typeinference8 (Resolution#resolve/resolveWithCapture, incorporateToFixedPoint) both
-               have to solve together. Modeled on Guava's MapMakerInternalMap<K,V,E extends
-               InternalEntry<K,V,E>,S extends Segment<K,V,E,S>> (which is D=2 with an extra K,V
-               pair) -- ordinary use of that class does NOT exercise typeinference8 at all (0
-               self-time samples over 7800 on the real 625-file Guava module); this isolates the
-               specific shape (many MUTUALLY bounded inference variables resolved via one wildcarded
-               generic call) that a size sweep can check for super-linear cost in D.
+  control      R methods x D independent trivial statements  (linear calibration: always run this)
+  cond         R methods x one ternary nested D deep  (#602 conditional non-caching)
+  chain        R methods x one .self() chain of length D  (methodFromUse receiver recompute)
+  inherit      D-deep class chain + R methods x D up-assignments  (asSuper / directSupertypes walk)
+  switchc      R methods x one switch with D cases  (CFG branch fan-in + store merge)
+  repeat       R methods x D calls to the SAME method/receiver  (methodAsMemberOf element caching)
+  tryfin       R methods x D nested try/finally  (CFG finally duplication)
+  loops        R methods x D nested for-loops  (dataflow fixpoint over back-edges)
+  fbound       D mutually F-bounded interfaces I1..ID (Ii's bound mentions T1..Ti) + R calls to
+               a generic factory method returning ID<?,...,?> (D wildcards) with no explicit
+               type witness -- self-bounded/F-bounded generics with mutual dependencies among
+               the inference variables, the shape javac.comp.Infer's own worklist and CF's
+               typeinference8 (Resolution#resolve/resolveWithCapture, incorporateToFixedPoint)
+               both have to solve together. Modeled on Guava's
+               MapMakerInternalMap<K,V,E extends InternalEntry<K,V,E>,S extends
+               Segment<K,V,E,S>> (which is D=2 with an extra K,V pair) -- ordinary use of that
+               class does NOT exercise typeinference8 at all (0 self-time samples over 7800 on
+               the real 625-file Guava module); this isolates the specific shape (many MUTUALLY
+               bounded inference variables resolved via one wildcarded generic call) that a
+               size sweep can check for super-linear cost in D.
+  gmeth        R classes x D generic methods  (per-type-parameter declaration lookup)
+  pmeth        R classes x D non-generic methods  (linear calibration for gmeth)
+  inner        generic inner classes nested D deep + R methods using the innermost type
+               (supertypes of enclosing types)
+  tvchain      R methods x D type variables, each bounded by the previous one
+  nestw        R methods using a type with D nested `? extends` wildcards
+  nests        R methods using a type with D nested `? super` wildcards
+  nestcall     R methods x one generic call nested D deep  (type-argument inference)
+  nullchk      R methods x D parameters, each null-checked and dereferenced  (dataflow store)
+
+--jspecify annotates every top-level type @NullMarked, for the JSpecify reference checker or
+-Amode=jspecify; compile with jspecify.jar on the classpath.
 
 Found (June 2026): `cond` is severe super-linear (28 GB at D=160; #602 conditional non-caching);
 `inherit` is quadratic (asSuper depth). `repeat`/`tryfin`/`loops` are linear; `chain`/`switchc`
-only mildly super-linear. See docs/developer/performance-notes.md (Short list size-sweep audit).
+only mildly super-linear. Found (October 2026): `inner` exponential and `gmeth` quadratic (both
+fixed); `tvchain`, `nestw`, `nests` and `nullchk` about quadratic; `nestcall` cubic. See
+docs/developer/performance-notes.md (Short list size-sweep audits).
 
 Usage:
     gen-shapes.py <D> --shape cond [--reps R]   > /tmp/cond_<D>.java
@@ -42,6 +58,7 @@ Usage:
 """
 
 import argparse
+import re
 import sys
 
 PREAMBLE = """\
@@ -53,79 +70,143 @@ class C {
 """
 
 
-def control(d, r):
+def control(d: int, r: int) -> str:
+    """Return r methods that each contain d independent trivial statements.
+
+    Args:
+        d: the number of statements per method
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
     out = [PREAMBLE, "class Big {"]
     for k in range(r):
         out.append(f"    void ctrl_{k}() {{")
-        for j in range(d):
-            out.append(f"        Object v{j} = new Object();")
+        out.extend(f"        Object v{j} = new Object();" for j in range(d))
         out.append("    }")
     out.append("}")
     return "\n".join(out) + "\n"
 
 
-def cond(d, r):
+def cond(d: int, r: int) -> str:
+    """Return r methods that each contain one ternary expression nested d deep.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
     out = [PREAMBLE, "class Big {"]
     expr = "x"
     for _ in range(d):
         expr = f"(b ? x : {expr})"
-    for k in range(r):
-        out.append(f"    Object cond_{k}(boolean b, Object x) {{ return {expr}; }}")
+    out.extend(f"    Object cond_{k}(boolean b, Object x) {{ return {expr}; }}" for k in range(r))
     out.append("}")
     return "\n".join(out) + "\n"
 
 
-def chain(d, r):
+def chain(d: int, r: int) -> str:
+    """Return r methods that each contain one ``.self()`` chain of length d.
+
+    Args:
+        d: the length of the chain
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
     out = [PREAMBLE, "class Big {"]
     calls = "c" + ".self()" * d
-    for k in range(r):
-        out.append(f"    void chain_{k}(C c) {{ {calls}; }}")
+    out.extend(f"    void chain_{k}(C c) {{ {calls}; }}" for k in range(r))
     out.append("}")
     return "\n".join(out) + "\n"
 
 
-def inherit(d, r):
+def inherit(d: int, r: int) -> str:
+    """Return a class chain of depth d and r methods that each assign up the chain.
+
+    Args:
+        d: the depth of the class chain
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
     out = ["class K0 {}"]
-    for i in range(1, d + 1):
-        out.append(f"class K{i} extends K{i - 1} {{}}")
+    out.extend(f"class K{i} extends K{i - 1} {{}}" for i in range(1, d + 1))
     out.append("class Big {")
     for k in range(r):
         out.append(f"    void inh_{k}(K{d} x) {{")
-        for i in range(d):
-            out.append(f"        K{i} a{i} = x;")
+        out.extend(f"        K{i} a{i} = x;" for i in range(d))
         out.append("    }")
     out.append("}")
     return "\n".join(out) + "\n"
 
 
-def switchc(d, r):
+def switchc(d: int, r: int) -> str:
+    """Return r methods that each contain a switch with d cases.
+
+    Args:
+        d: the number of cases
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
     out = [PREAMBLE, "class Big {"]
     for k in range(r):
-        out.append(f"    int sw_{k}(int s) {{")
-        out.append("        int res = 0;")
-        out.append("        switch (s) {")
-        for j in range(d):
-            out.append(f"            case {j}: res = {j}; break;")
-        out.append("            default: break;")
-        out.append("        }")
-        out.append("        return res;")
-        out.append("    }")
+        out.extend(
+            [
+                f"    int sw_{k}(int s) {{",
+                "        int res = 0;",
+                "        switch (s) {",
+            ]
+        )
+        out.extend(f"            case {j}: res = {j}; break;" for j in range(d))
+        out.extend(
+            [
+                "            default: break;",
+                "        }",
+                "        return res;",
+                "    }",
+            ]
+        )
     out.append("}")
     return "\n".join(out) + "\n"
 
 
-def repeat(d, r):
+def repeat(d: int, r: int) -> str:
+    """Return r methods that each call the same method d times on the same receiver.
+
+    Args:
+        d: the number of calls per method
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
     out = [PREAMBLE, "class Big {"]
     for k in range(r):
         out.append(f"    void rep_{k}(C c) {{")
-        for _ in range(d):
-            out.append("        c.act();")
+        out.extend("        c.act();" for _ in range(d))
         out.append("    }")
     out.append("}")
     return "\n".join(out) + "\n"
 
 
-def tryfin(d, r):
+def tryfin(d: int, r: int) -> str:
+    """Return r methods that each contain d nested try/finally statements.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
     out = [PREAMBLE, "class Big {"]
     for k in range(r):
         out.append(f"    void tf_{k}(C c) {{")
@@ -142,7 +223,16 @@ def tryfin(d, r):
     return "\n".join(out) + "\n"
 
 
-def loops(d, r):
+def loops(d: int, r: int) -> str:
+    """Return r methods that each contain d nested for-loops.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
     out = [PREAMBLE, "class Big {"]
     for k in range(r):
         out.append(f"    void lp_{k}(C c) {{")
@@ -159,7 +249,16 @@ def loops(d, r):
     return "\n".join(out) + "\n"
 
 
-def fbound(d, r):
+def fbound(d: int, r: int) -> str:
+    """Return d mutually F-bounded interfaces and r calls to a wildcarded generic factory.
+
+    Args:
+        d: the number of interfaces and type parameters
+        r: the number of calls
+
+    Returns:
+        the Java source text
+    """
     out = []
     for i in range(1, d + 1):
         params = ", ".join(
@@ -172,15 +271,201 @@ def fbound(d, r):
         for j in range(1, d + 1)
     )
     wargs = ", ".join("?" for _ in range(d))
-    out.append("class Factory {")
-    out.append('    @SuppressWarnings("nullness")')
-    out.append(f"    static <{targs}> I{d}<{wargs}> create() {{ return null; }}")
-    out.append("}")
-    out.append("class Big {")
-    for k in range(r):
-        out.append(f"    void fb_{k}() {{ var s = Factory.create(); }}")
+    out.extend(
+        [
+            "class Factory {",
+            '    @SuppressWarnings("nullness")',
+            f"    static <{targs}> I{d}<{wargs}> create() {{ return null; }}",
+            "}",
+            "class Big {",
+        ]
+    )
+    out.extend(f"    void fb_{k}() {{ var s = Factory.create(); }}" for k in range(r))
     out.append("}")
     return "\n".join(out) + "\n"
+
+
+def gmeth(d: int, r: int) -> str:
+    """Return r classes that each declare d generic methods.
+
+    Args:
+        d: the number of generic methods per class
+        r: the number of classes
+
+    Returns:
+        the Java source text
+    """
+    out = []
+    for c in range(r):
+        out.append(f"class Big{c} {{")
+        out.extend(f"    <T> T gm_{i}(T x) {{ return x; }}" for i in range(d))
+        out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def pmeth(d: int, r: int) -> str:
+    """Return r classes that each declare d non-generic methods (the calibration for gmeth).
+
+    Args:
+        d: the number of methods per class
+        r: the number of classes
+
+    Returns:
+        the Java source text
+    """
+    out = []
+    for c in range(r):
+        out.append(f"class Big{c} {{")
+        out.extend(f"    Object pm_{i}(Object x) {{ return x; }}" for i in range(d))
+        out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def inner(d: int, r: int) -> str:
+    """Return a chain of d generic inner classes and r methods that use the innermost type.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
+    out = ["class O<T0> {"]
+    out.extend("  " * i + f"class I{i}<T{i}> {{" for i in range(1, d + 1))
+    out.extend("  " * i + "}" for i in range(d, 0, -1))
+    out.append("}")
+    ty = "O<String>" + "".join(f".I{i}<String>" for i in range(1, d + 1))
+    out.extend(["abstract class Big {", f"    abstract void take({ty} x);"])
+    out.extend(f"    void in_{k}({ty} a) {{ {ty} b = a; take(b); }}" for k in range(r))
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def tvchain(d: int, r: int) -> str:
+    """Return r methods that each declare d type variables, each bounded by the previous one.
+
+    Args:
+        d: the number of type variables per method
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
+    tps = ", ".join(["T1"] + [f"T{i} extends T{i - 1}" for i in range(2, d + 1)])
+    out = ["class Big {"]
+    out.extend(f"    <{tps}> T1 tv_{k}(T{d} t) {{ t.toString(); return t; }}" for k in range(r))
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def _nestwild(d: int, r: int, wild: str) -> str:
+    """Return r methods that assign and pass a type with d nested wildcards.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+        wild: the wildcard, "? extends" or "? super"
+
+    Returns:
+        the Java source text
+    """
+    ty = "Object"
+    for _ in range(d):
+        ty = f"Lib<{wild} {ty}>"
+    out = [
+        "interface Lib<T> { T get(); }",
+        "abstract class Big {",
+        f"    abstract void take({ty} x);",
+        f"    abstract {ty} make();",
+    ]
+    out.extend(
+        f"    void nw_{k}({ty} a) {{ {ty} b = a; take(b); b = make(); take(a); }}" for k in range(r)
+    )
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def nestw(d: int, r: int) -> str:
+    """Return r methods that use a type with d nested ``? extends`` wildcards.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
+    return _nestwild(d, r, "? extends")
+
+
+def nests(d: int, r: int) -> str:
+    """Return r methods that use a type with d nested ``? super`` wildcards.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
+    return _nestwild(d, r, "? super")
+
+
+def nestcall(d: int, r: int) -> str:
+    """Return r methods that each contain one generic invocation nested d deep.
+
+    Args:
+        d: the nesting depth
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
+    expr = "x"
+    for _ in range(d):
+        expr = f"C.id({expr})"
+    out = [PREAMBLE, "class Big {"]
+    out.extend(f"    String nc_{k}(String x) {{ return {expr}; }}" for k in range(r))
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def nullchk(d: int, r: int) -> str:
+    """Return r methods that each null-check and dereference d parameters.
+
+    Args:
+        d: the number of parameters per method
+        r: the number of methods
+
+    Returns:
+        the Java source text
+    """
+    params = ", ".join(f"Object p{i}" for i in range(d))
+    out = ["class Big {"]
+    for k in range(r):
+        out.append(f"    void nn_{k}({params}) {{")
+        out.extend(f"        if (p{i} != null) {{ p{i}.toString(); }}" for i in range(d))
+        out.append("    }")
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+JSPECIFY_IMPORT = "import org.jspecify.annotations.NullMarked;\n"
+
+
+def null_marked(src: str) -> str:
+    """Return the source with every top-level class and interface annotated @NullMarked.
+
+    Args:
+        src: the Java source text
+
+    Returns:
+        the Java source text, with JSpecify annotations
+    """
+    return JSPECIFY_IMPORT + re.sub(
+        r"(?m)^((?:abstract |final )?(?:class|interface) )", r"@NullMarked\n\1", src
+    )
 
 
 SHAPES = {
@@ -193,6 +478,14 @@ SHAPES = {
     "tryfin": tryfin,
     "loops": loops,
     "fbound": fbound,
+    "gmeth": gmeth,
+    "pmeth": pmeth,
+    "inner": inner,
+    "tvchain": tvchain,
+    "nestw": nestw,
+    "nests": nests,
+    "nestcall": nestcall,
+    "nullchk": nullchk,
 }
 
 if __name__ == "__main__":
@@ -201,8 +494,12 @@ if __name__ == "__main__":
     )
     p.add_argument("d", type=int, help="per-construct dimension D (depth/length/count)")
     p.add_argument("--shape", choices=sorted(SHAPES), required=True)
+    p.add_argument("--reps", type=int, default=60, help="independent constructs per file")
     p.add_argument(
-        "--reps", type=int, default=60, help="independent constructs per file"
+        "--jspecify",
+        action="store_true",
+        help="annotate every top-level type @NullMarked (needs jspecify on the classpath)",
     )
     a = p.parse_args()
-    sys.stdout.write(SHAPES[a.shape](a.d, a.reps))
+    src = SHAPES[a.shape](a.d, a.reps)
+    sys.stdout.write(null_marked(src) if a.jspecify else src)

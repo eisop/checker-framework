@@ -1,68 +1,81 @@
 plugins {
-    id 'java-library'
-    id 'biz.aQute.bnd.builder' version '7.4.0'
+    id("java-library")
+    alias(libs.plugins.biz.aqute.bnd.builder)
 }
 
-apply plugin: 'biz.aQute.bnd.builder'
+apply plugin: "biz.aQute.bnd.builder"
 
 sourceSets {
     main {
         java {
-            exclude 'module-info.java'
+            exclude("module-info.java")
         }
     }
     module_info {
         java {
-            srcDirs ('src/main')
+            srcDirs ("src/main")
         }
     }
 }
 
-tasks.register('compileJava9', JavaCompile) {
+// Compiling module-info.java needs the packages it exports, so this task compiles all sources, for
+// Java 9, into a directory of its own, which lets Gradle cache it and compileJava separately.  The
+// jar takes only module-info.class from it; all other classes come from compileJava, for Java 8.
+def compileJava9 = tasks.register("compileJava9", JavaCompile) {
     source = sourceSets.module_info.java
-    destinationDirectory = sourceSets.main.output.classesDirs[0]
+    destinationDirectory = layout.buildDirectory.dir("classes/java/java9")
     classpath = configurations.allProjects
     options.release = 9
 }
 
 // Shadow 9.4.2 eagerly triggers compile tasks for all source sets.
 // Disable auto-generated Java 8 task; module_info is compiled by compileJava9.
-tasks.named('compileModule_infoJava') {
+tasks.named("compileModule_infoJava") {
     enabled = false
 }
 
-tasks.named('compileJava') {
+tasks.named("jar") {
+    def moduleInfoDir = compileJava9.flatMap { it.destinationDirectory }
     if (!isJava8) {
-        dependsOn 'compileJava9'
+        from(moduleInfoDir) {
+            include("module-info.class")
+        }
+    }
+    // Take module-info.class only from compileJava9's directory, and ignore one in compileJava's
+    // directory, where builds of older versions put it.
+    filesMatching("module-info.class") { details ->
+        if (details.file.parentFile != moduleInfoDir.get().asFile) {
+            details.exclude()
+        }
     }
 }
 
-tasks.named('javadoc') {
+tasks.named("javadoc") {
     modularity.inferModulePath = false
 }
 
-tasks.named('jar') {
+tasks.named("jar") {
     manifest {
-        attributes('-exportcontents': '*')
+        attributes("-exportcontents": "*")
     }
 }
 
-apply from: rootProject.file('gradle-mvn-push.gradle')
+apply from: rootProject.file("gradle-mvn-push.gradle")
 
 /** Adds information to the publication for uploading to Maven repositories. */
 final checkerQualPom(publication) {
     rootProject.sharedPublicationConfiguration(publication)
-    publication.from components.java
+    publication.from(components.java)
     publication.pom {
-        name = 'Checker Qual'
+        name = "Checker Qual"
         description = String.join(System.lineSeparator(),
-                'checker-qual contains annotations (type qualifiers) that a programmer',
-                'writes to specify Java code for type-checking by the Checker Framework.')
+                "checker-qual contains annotations (type qualifiers) that a programmer",
+                "writes to specify Java code for type-checking by the Checker Framework.")
         licenses {
             license {
-                name = 'The MIT License'
-                url = 'http://opensource.org/licenses/MIT'
-                distribution = 'repo'
+                name = "The MIT License"
+        url = "https://opensource.org/licenses/MIT"
+                distribution = "repo"
             }
         }
     }
@@ -71,11 +84,11 @@ final checkerQualPom(publication) {
 publishing {
     publications {
         checkerQual(MavenPublication) {
-            checkerQualPom it
+            checkerQualPom(it)
         }
     }
 }
 
 signing {
-    sign publishing.publications.checkerQual
+    sign(publishing.publications.checkerQual)
 }

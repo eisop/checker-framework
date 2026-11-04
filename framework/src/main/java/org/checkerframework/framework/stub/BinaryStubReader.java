@@ -19,9 +19,9 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
-import org.plumelib.util.IPair;
 
 import java.lang.annotation.Target;
 import java.util.ArrayList;
@@ -195,13 +195,168 @@ public class BinaryStubReader {
      */
     private static boolean isAnnotatedForThisChecker(
             AnnotationMirrorSet declAnnos, AnnotatedTypeFactory atypeFactory) {
+        // @AnnotatedFor is @Repeatable, so declAnnos can hold more than one -- this parser reads
+        // them from JavaParser source syntax rather than compiled bytecode, so they are never
+        // collapsed into a single AnnotatedFor.List the way javac's own Element view would
+        // collapse them. Applying (rather than the first entry alone) is what matches
+        // AnnotationFileParser.isAnnotatedForThisChecker.
+        boolean foundAnnotatedFor = false;
         for (AnnotationMirror am : declAnnos) {
             if (AnnotationUtils.annotationName(am)
                     == "org.checkerframework.framework.qual.AnnotatedFor") {
-                return atypeFactory.doesAnnotatedForApplyToThisChecker(am);
+                foundAnnotatedFor = true;
+                if (atypeFactory.doesAnnotatedForApplyToThisChecker(am)) {
+                    return true;
+                }
             }
         }
-        return true;
+        return !foundAnnotatedFor;
+    }
+
+    /**
+     * Returns true if the text parser skips the class of {@code cr} in a stub file (not the JDK)
+     * because of {@code @AnnotatedFor}: the class's own {@code @AnnotatedFor}, or that of a class
+     * that (directly or indirectly) encloses it, excludes this checker. {@code
+     * AnnotationFileParser.processTypeDecl} returns before it reaches the members of such a class,
+     * so the text parser never applies a nested class's annotations either; the binary form has a
+     * separate record for the nested class, which must be skipped the same way.
+     *
+     * @param cr the class record
+     * @param className the fully-qualified name of the class
+     * @param data the complete binary stub data, providing the enclosing classes' records
+     * @param atypeFactory the factory used to evaluate {@code @AnnotatedFor}
+     * @param elementTypes per-factory state, including the annotation-mirror cache
+     * @return true if an {@code @AnnotatedFor} on the class or an enclosing class excludes this
+     *     checker
+     */
+    static boolean isExcludedByAnnotatedFor(
+            BinaryStubData.ClassRecord cr,
+            String className,
+            BinaryStubData data,
+            AnnotatedTypeFactory atypeFactory,
+            AnnotationFileElementTypes elementTypes) {
+        if (!isAnnotatedForThisChecker(
+                parseDeclAnnos(cr.declAnnos, className, data, atypeFactory, elementTypes),
+                atypeFactory)) {
+            return true;
+        }
+        if (cr.outerNameIndex == 0) {
+            return false;
+        }
+        String outermost = data.stringPool[cr.outerNameIndex];
+        // Record keys are canonical names, so each enclosing class's key is a prefix of this one.
+        String name = className;
+        while (!name.equals(outermost)) {
+            int lastDot = name.lastIndexOf('.');
+            if (lastDot == -1) {
+                return false;
+            }
+            name = name.substring(0, lastDot);
+            BinaryStubData.ClassRecord enclosing = data.classes.get(name);
+            if (enclosing != null
+                    && !isAnnotatedForThisChecker(
+                            parseDeclAnnos(
+                                    enclosing.declAnnos, name, data, atypeFactory, elementTypes),
+                            atypeFactory)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns true if the text parser skips the method or constructor of {@code mr} in a stub file
+     * (not the JDK) because its own {@code @AnnotatedFor} excludes this checker, as {@code
+     * AnnotationFileParser.processCallableDeclaration} does -- before marking it
+     * {@code @FromStubFile}.
+     *
+     * @param mr the method record
+     * @param className the fully-qualified name of the enclosing class
+     * @param data the complete binary stub data
+     * @param atypeFactory the factory used to evaluate {@code @AnnotatedFor}
+     * @param elementTypes per-factory state, including the annotation-mirror cache
+     * @return true if an {@code @AnnotatedFor} on the method excludes this checker
+     */
+    static boolean isExcludedByAnnotatedFor(
+            BinaryStubData.MethodRecord mr,
+            String className,
+            BinaryStubData data,
+            AnnotatedTypeFactory atypeFactory,
+            AnnotationFileElementTypes elementTypes) {
+        return !isAnnotatedForThisChecker(
+                parseDeclAnnos(mr.declAnnos, className, data, atypeFactory, elementTypes),
+                atypeFactory);
+    }
+
+    /**
+     * Stores the class's type parameter declarations from {@code cr} in {@code target}, unless
+     * {@code target} already has them, as {@link #applyClassRecord} would. Callers apply this to
+     * every class record of a stub file, or of an annotated JDK source file, before applying any
+     * record in full, because a plain {@code ?} takes the bounds of its type variable's declaration
+     * ({@link AnnotationFileParser#annotateUnannotatedUnboundedWildcard}), which can be in a class
+     * whose record comes later, such as a nested class. The text parser processes a file in order,
+     * so it gets the stub's bounds only for a declaration that precedes the {@code ?}.
+     *
+     * @param cr the class record from the binary stub data
+     * @param className the fully-qualified name of the class
+     * @param atypeFactory the factory used to create types and parse annotations
+     * @param elementTypes per-factory state, including the annotation-mirror cache
+     * @param data the complete binary stub data
+     * @param target the annotation container to store the results in
+     * @param fromStubFileAnno the {@code @FromStubFile} mirror for a stub file, or {@code null} for
+     *     the annotated JDK
+     */
+    public static void applyClassTypeParamRecords(
+            BinaryStubData.ClassRecord cr,
+            String className,
+            AnnotatedTypeFactory atypeFactory,
+            AnnotationFileElementTypes elementTypes,
+            BinaryStubData data,
+            AnnotationFileAnnotations target,
+            @Nullable AnnotationMirror fromStubFileAnno) {
+        if (cr.typeParams.length == 0) {
+            return;
+        }
+        @SuppressWarnings("signature:argument.type.incompatible") // see applyClassRecord
+        TypeElement typeElt =
+                atypeFactory.getProcessingEnv().getElementUtils().getTypeElement(className);
+        if (typeElt == null
+                || classRecordKind(typeElt.getKind()) != cr.kind
+                || typeElt.getTypeParameters().size() != cr.typeParams.length) {
+            return;
+        }
+        if (fromStubFileAnno == null) {
+            boolean anyAnnotated = false;
+            for (BinaryStubData.TypeParamRecord tp : cr.typeParams) {
+                anyAnnotated |= typeParamRecordHasAnnos(tp);
+            }
+            if (!anyAnnotated) {
+                return;
+            }
+        } else if (isExcludedByAnnotatedFor(cr, className, data, atypeFactory, elementTypes)) {
+            return;
+        }
+        List<? extends TypeParameterElement> typeParamElts = typeElt.getTypeParameters();
+        for (int i = 0; i < cr.typeParams.length; i++) {
+            TypeParameterElement tpElt = typeParamElts.get(i);
+            if (target.atypes.containsKey(tpElt)) {
+                continue;
+            }
+            AnnotatedTypeMirror atm =
+                    AnnotatedTypeMirror.createType(tpElt.asType(), atypeFactory, false);
+            if (!(atm instanceof AnnotatedTypeVariable)) {
+                continue;
+            }
+            applyTypeParamRecord(
+                    cr.typeParams[i],
+                    (AnnotatedTypeVariable) atm,
+                    fromStubFileAnno == null ? null : tpElt,
+                    className,
+                    data,
+                    atypeFactory,
+                    elementTypes);
+            target.atypes.put(tpElt, atm);
+        }
     }
 
     /**
@@ -303,7 +458,8 @@ public class BinaryStubReader {
         // unconditionally regressed hundreds of JDK classes carrying @AnnotatedFor for an
         // unrelated checker (e.g. @AnnotatedFor("interning")) to have no declaration annotations
         // at all under every other checker.
-        if (fromStubFileAnno != null && !isAnnotatedForThisChecker(classDeclAnnos, atypeFactory)) {
+        if (fromStubFileAnno != null
+                && isExcludedByAnnotatedFor(cr, className, data, atypeFactory, elementTypes)) {
             return;
         }
         if (!classDeclAnnos.isEmpty()) {
@@ -327,14 +483,18 @@ public class BinaryStubReader {
         // source tree when none of its type parameters carry an annotation. If this is skipped, the
         // class-level-annotation code below still creates the stored type on demand (see its
         // "cr.typeParams was empty" comment, which also covers this case).
-        boolean anyTypeParamAnnotated = false;
+        // Every stub file but the annotated JDK stores the type even if no type parameter is
+        // annotated, as the text parser does: a stored type replaces the class file's, so the
+        // class file's annotations must not survive where the stub writes none. The annotated
+        // JDK's class files carry no qualifiers.
+        boolean applyTypeParams = fromStubFileAnno != null && cr.typeParams.length > 0;
         for (BinaryStubData.TypeParamRecord tp : cr.typeParams) {
             if (typeParamRecordHasAnnos(tp)) {
-                anyTypeParamAnnotated = true;
+                applyTypeParams = true;
                 break;
             }
         }
-        if (anyTypeParamAnnotated) {
+        if (applyTypeParams) {
             applyClassTypeParams(
                     cr,
                     className,
@@ -365,7 +525,7 @@ public class BinaryStubReader {
             if (!typeAlreadyPresent) {
                 AnnotatedTypeMirror storedType = target.atypes.get(typeElt);
                 if (storedType == null) {
-                    // anyTypeParamAnnotated was false, so applyClassTypeParams did not run; create
+                    // applyTypeParams was false, so applyClassTypeParams did not run; create
                     // one now.
                     storedType =
                             AnnotatedTypeMirror.createType(typeElt.asType(), atypeFactory, false);
@@ -637,7 +797,9 @@ public class BinaryStubReader {
                         fieldDeclAnnos,
                         fromStubFileAnno == null);
             }
-            if (fr.typeAnnos.length > 0) {
+            // Store the type even without annotations, except for the annotated JDK; see
+            // applyClassRecord's comment on applyTypeParams.
+            if (fr.typeAnnos.length > 0 || fromStubFileAnno != null) {
                 // Skip building the type at all when storeOrMerge would discard it: an entry
                 // exists and this content is from the lazily-loaded JDK.
                 if (!target.atypes.containsKey(ve) || fromStubFileAnno != null) {
@@ -703,6 +865,12 @@ public class BinaryStubReader {
                 }
                 continue;
             }
+            // @AnnotatedFor on the method itself, checked only for a stub file; see
+            // applyClassRecord.
+            if (fromStubFileAnno != null
+                    && isExcludedByAnnotatedFor(mr, className, data, atypeFactory, elementTypes)) {
+                continue;
+            }
             if (fromStubFileAnno != null) {
                 markFromStubFile(target, ee, fromStubFileAnno);
             }
@@ -723,7 +891,9 @@ public class BinaryStubReader {
                         fromStubFileAnno == null);
             }
 
-            if (!hasTypeInfo(mr)) {
+            // Store the type even without annotations, except for the annotated JDK; see
+            // applyClassRecord's comment on applyTypeParams.
+            if (!hasTypeInfo(mr) && fromStubFileAnno == null) {
                 continue;
             }
             // If an entry already exists and this content is from the lazily-loaded JDK, back
@@ -906,7 +1076,7 @@ public class BinaryStubReader {
                 aet.getReturnType(), returnTypeAnnos, className, data, atypeFactory, elementTypes);
         target.fakeOverrides
                 .computeIfAbsent(overridden, k -> new ArrayList<>(1))
-                .add(IPair.of(typeElt.asType(), aet));
+                .add(Pair.of(typeElt.asType(), aet));
     }
 
     /**
@@ -1259,7 +1429,13 @@ public class BinaryStubReader {
             }
             AnnotatedTypeVariable atv = (AnnotatedTypeVariable) typeArgs.get(i);
             applyTypeParamRecord(
-                    cr.typeParams[i], atv, className, data, atypeFactory, elementTypes);
+                    cr.typeParams[i],
+                    atv,
+                    fromStubFileAnno == null ? null : typeParamElts.get(i),
+                    className,
+                    data,
+                    atypeFactory,
+                    elementTypes);
             // Store keyed by TypeParameterElement — this is what
             // fromElement(TypeParameterElement) reads via stubTypes.getAnnotatedTypeMirror(tpe).
             // The same object is a type argument of declType, matching the text parser.
@@ -1311,7 +1487,16 @@ public class BinaryStubReader {
                 continue;
             }
             AnnotatedTypeVariable atv = (AnnotatedTypeVariable) typeVars.get(i);
-            applyTypeParamRecord(typeParams[i], atv, className, data, atypeFactory, elementTypes);
+            applyTypeParamRecord(
+                    typeParams[i],
+                    atv,
+                    fromStubFileAnno == null || i >= typeParamElts.size()
+                            ? null
+                            : typeParamElts.get(i),
+                    className,
+                    data,
+                    atypeFactory,
+                    elementTypes);
             if (i < typeParamElts.size()) {
                 storeOrMerge(target, typeParamElts.get(i), atv, atypeFactory, fromStubFileAnno);
             }
@@ -1324,16 +1509,21 @@ public class BinaryStubReader {
      *
      * <ul>
      *   <li>If the type parameter declares no bounds (e.g. {@code <@X T>}), annotations on the type
-     *       variable itself become its primary annotation, covering both bounds.
+     *       variable itself become its primary annotation, covering both bounds. The bounds are
+     *       otherwise the class file's (see {@code classFileElt}).
      *   <li>Otherwise, annotations on the type variable apply to the lower bound, and if exactly
-     *       one declared bound carries annotations, those are applied to the upper bound after
-     *       clearing its existing annotations (matching {@code clearAnnotations} in the text
-     *       parser's {@code annotate}). If more than one bound carries annotations, none are
-     *       applied — the text parser has the same (unimplemented) intersection-bound limitation.
+     *       one declared bound carries annotations (for a sole bound, a marker is enough), those
+     *       are applied to the upper bound after clearing its existing annotations (matching {@code
+     *       clearAnnotations} in the text parser's {@code annotate}). If more than one bound
+     *       carries annotations, none are applied — the text parser has the same (unimplemented)
+     *       intersection-bound limitation.
      * </ul>
      *
      * @param tp the type-parameter record to apply
      * @param atv the annotated type variable to annotate, modified in place
+     * @param classFileElt the type parameter's element, whose class-file bounds a type parameter
+     *     that the stub declares without a bound keeps; null for the annotated JDK, whose class
+     *     files carry no qualifiers
      * @param className the fully-qualified name of the enclosing class
      * @param data the complete binary stub data
      * @param atypeFactory the factory used to create types and parse annotations
@@ -1342,11 +1532,19 @@ public class BinaryStubReader {
     private static void applyTypeParamRecord(
             BinaryStubData.TypeParamRecord tp,
             AnnotatedTypeVariable atv,
+            @Nullable TypeParameterElement classFileElt,
             String className,
             BinaryStubData data,
             AnnotatedTypeFactory atypeFactory,
             AnnotationFileElementTypes elementTypes) {
         boolean hasDeclaredBounds = tp.boundAnnos.length > 0;
+        if (!hasDeclaredBounds && classFileElt != null) {
+            // The text parser keeps the class file's bounds where the stub declares none.
+            AnnotatedTypeVariable classFileAtv =
+                    (AnnotatedTypeVariable) atypeFactory.fromElement(classFileElt);
+            atv.getUpperBound().replaceAnnotations(classFileAtv.getUpperBound().getAnnotations());
+            atv.getLowerBound().replaceAnnotations(classFileAtv.getLowerBound().getAnnotations());
+        }
         for (int idx : tp.typeVarAnnos) {
             AnnotationMirror am =
                     annotationFromPool(idx, className, data, atypeFactory, elementTypes);
@@ -1359,10 +1557,13 @@ public class BinaryStubReader {
             }
         }
 
-        // Find the single bound that carries annotations, if any.
+        // Find the single bound that carries annotations, if any. The text parser annotates a sole
+        // bound unconditionally, so a marker is enough there; of several bounds, it considers only
+        // those with annotations.
+        boolean soleBound = tp.boundAnnos.length == 1;
         int annotatedBound = -1;
         for (int b = 0; b < tp.boundAnnos.length; b++) {
-            if (tp.boundAnnos[b].length > 0) {
+            if (soleBound ? tp.boundAnnos[b].length > 0 : hasAnnotation(tp.boundAnnos[b])) {
                 if (annotatedBound >= 0) {
                     // More than one annotated bound: not supported, matching the text parser.
                     return;
@@ -1380,6 +1581,22 @@ public class BinaryStubReader {
                     atypeFactory,
                     elementTypes);
         }
+    }
+
+    /**
+     * Returns true if {@code annos} contains an annotation, not only markers.
+     *
+     * @param annos type annotations
+     * @return true if some element of {@code annos} is not {@linkplain
+     *     BinaryStubData.TypeAnno#isUnboundedWildcard a marker}
+     */
+    private static boolean hasAnnotation(BinaryStubData.TypeAnno[] annos) {
+        for (BinaryStubData.TypeAnno ta : annos) {
+            if (!ta.isUnboundedWildcard()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -1504,10 +1721,13 @@ public class BinaryStubReader {
      * existing annotation from the same hierarchy is replaced rather than duplicated, and
      * annotations that are not supported qualifiers of the current checker are filtered out.
      *
-     * <p>Unlike the text parser, this does not copy type-variable bound annotations into implicit
-     * (unbounded, unannotated) wildcards: the text parser bakes the result of a parse-time {@code
-     * getAnnotatedType} call into the stored type, which is derived (and order-dependent) state
-     * that {@code mergeAnnotationFileAnnosIntoType}'s target recomputes at lookup time anyway.
+     * <p>A {@linkplain BinaryStubData.TypeAnno#isUnboundedWildcard marker} gives the wildcard at
+     * its path the annotations of the bounds of its type variable's declaration, by the method the
+     * text parser uses ({@link AnnotationFileParser#annotateUnannotatedUnboundedWildcard}). Without
+     * it, a plain {@code ?} over a class-file wildcard with a bound, such as the {@code ? extends
+     * Object} of {@code Provider.compute}'s {@code BiFunction} parameter, would keep an unannotated
+     * bound, which gets the default rather than the {@code @Nullable} bound of {@code BiFunction}'s
+     * {@code R}.
      *
      * @param atm the annotated type mirror to annotate
      * @param annos the type annotations to apply
@@ -1526,6 +1746,15 @@ public class BinaryStubReader {
         for (BinaryStubData.TypeAnno ta : annos) {
             AnnotatedTypeMirror component = resolvePath(atm, ta.path);
             if (component == null) {
+                continue;
+            }
+            if (ta.isUnboundedWildcard()) {
+                // A component that is not a wildcard means the stub does not match the class
+                // file; the text parser warns and skips it.
+                if (component instanceof AnnotatedWildcardType) {
+                    AnnotationFileParser.annotateUnannotatedUnboundedWildcard(
+                            (AnnotatedWildcardType) component, atypeFactory);
+                }
                 continue;
             }
             AnnotationMirror am =
@@ -1694,7 +1923,7 @@ public class BinaryStubReader {
      * @param val the value to dispatch; must be a type handled by {@link
      *     AnnotationBuilder#setValue}
      */
-    private static void dispatchSetValue(AnnotationBuilder builder, String name, Object val) {
+    static void dispatchSetValue(AnnotationBuilder builder, String name, Object val) {
         if (val instanceof TypeMirror) {
             builder.setValue(name, (TypeMirror) val);
         } else if (val instanceof VariableElement) {
@@ -1711,41 +1940,6 @@ public class BinaryStubReader {
                 || val instanceof AnnotationMirror) {
             builder.setValue(name, val);
         }
-    }
-
-    /**
-     * Looks up a field (not an enum constant) with the given simple name in a TypeElement, its
-     * superclasses, and its interfaces. Used to resolve simple-name constant references in
-     * annotation values (e.g. {@code @IntRange(from = MIN_CODE_POINT)}).
-     *
-     * <p>Traverses in the same order as the text parser's {@code
-     * AnnotationFileParser#findFieldElement}, which iterates {@link
-     * ElementUtils#getAllFieldsIn(TypeElement, javax.lang.model.util.Elements)}: the type's own
-     * fields first, then its superclasses and interfaces in {@link
-     * ElementUtils#getSuperTypes(TypeElement, javax.lang.model.util.Elements)}'s traversal order. A
-     * hand-rolled recursion that instead exhausts the whole superclass chain before looking at any
-     * interface can pick a different field than the text parser for an ambiguous simple name
-     * declared in both an interface and a deeper superclass.
-     *
-     * @param te the type element to search
-     * @param name the simple name of the field to find
-     * @param env the processing environment
-     * @return the resolved variable element, or {@code null} if not found
-     */
-    static VariableElement findFieldInType(TypeElement te, String name, ProcessingEnvironment env) {
-        if (te == null) {
-            return null;
-        }
-        for (VariableElement field : ElementUtils.getAllFieldsIn(te, env.getElementUtils())) {
-            // ElementFilter.fieldsIn (used by getAllFieldsIn) also matches ENUM_CONSTANT
-            // elements; skip those; callers use a separate ENUM_CONSTANT-specific lookup for
-            // that.
-            if (field.getKind() == ElementKind.FIELD
-                    && InternalUtils.sameName(field.getSimpleName(), name)) {
-                return field;
-            }
-        }
-        return null;
     }
 
     /**
@@ -1794,107 +1988,15 @@ public class BinaryStubReader {
                 cache.resolvedClassTypesCache.put(fqName, type);
             }
             return type;
-        } else if (val instanceof BinaryStubData.EnumConstantValue) {
-            // Despite the name, the writer tags every FieldAccessExpr this way (see
-            // BinaryStubWriter#writeValue), so the referenced member need not be an enum
-            // constant: e.g. "@IntRange(to = Integer.MAX_VALUE)" refers to a plain static final
-            // field. Mirror AnnotationFileParser#getValueOfExpressionInAnnotation, which resolves
-            // the field first and only then asks for its constant value (an enum constant has
-            // none, so the element itself is used; a constant field's value is used and coerced).
-            BinaryStubData.EnumConstantValue ev = (BinaryStubData.EnumConstantValue) val;
-            AnnotationFileElementTypes.BinaryStubDataCache cache =
-                    elementTypes.getBinaryStubDataCache();
-            if (cache != null) {
-                Map<String, Object> innerCache = cache.resolvedConstantsCache.get(ev.enumClassName);
-                if (innerCache != null && innerCache.containsKey(ev.constantName)) {
-                    Object cachedVal = innerCache.get(ev.constantName);
-                    if (cachedVal != null) {
-                        // coerceToKind is a no-op for a cached enum-constant VariableElement; it
-                        // only converts a cached constant field's numeric/character value.
-                        return coerceToKind(cachedVal, expectedKind);
-                    }
-                    return null;
-                }
-            }
-
-            Object resolved = null;
-            @SuppressWarnings("signature:argument.type.incompatible") // ev.enumClassName is read
-            // from the binary stub's string pool, which BinaryStubWriter populates only with
-            // fully-qualified names
-            TypeElement enumClass = env.getElementUtils().getTypeElement(ev.enumClassName);
-            if (enumClass != null) {
-                for (Element elt : enumClass.getEnclosedElements()) {
-                    if (elt.getKind() == ElementKind.ENUM_CONSTANT
-                            && elt.getSimpleName().contentEquals(ev.constantName)) {
-                        resolved = elt;
-                        break;
-                    }
-                }
-                if (resolved == null) {
-                    VariableElement fieldElt = findFieldInType(enumClass, ev.constantName, env);
-                    if (fieldElt != null) {
-                        resolved = fieldElt.getConstantValue();
-                    }
-                }
-            }
-
-            if (cache != null) {
-                Map<String, Object> innerCache = cache.resolvedConstantsCache.get(ev.enumClassName);
-                if (innerCache == null) {
-                    innerCache = new HashMap<>();
-                    cache.resolvedConstantsCache.put(ev.enumClassName, innerCache);
-                }
-                innerCache.put(ev.constantName, resolved);
-            }
-
-            if (resolved != null) {
-                return coerceToKind(resolved, expectedKind);
-            }
-            return null;
-        } else if (val instanceof BinaryStubData.NameLiteralValue) {
-            // A simple-name reference to a constant in the enclosing class (or a supertype).
-            String constantName = ((BinaryStubData.NameLiteralValue) val).name;
-            if (enclosingClassName != null) {
-                AnnotationFileElementTypes.BinaryStubDataCache cache =
-                        elementTypes.getBinaryStubDataCache();
-                if (cache != null) {
-                    Map<String, Object> innerCache =
-                            cache.resolvedConstantsCache.get(enclosingClassName);
-                    if (innerCache != null && innerCache.containsKey(constantName)) {
-                        Object cachedVal = innerCache.get(constantName);
-                        if (cachedVal != null) {
-                            return coerceToKind(cachedVal, expectedKind);
-                        }
-                        return null;
-                    }
-                }
-
-                Object resolved = null;
-                @SuppressWarnings("signature:argument.type.incompatible") // enclosingClassName is
-                // read from the binary stub's string pool, which BinaryStubWriter populates only
-                // with fully-qualified names
-                TypeElement te = env.getElementUtils().getTypeElement(enclosingClassName);
-                VariableElement ve = findFieldInType(te, constantName, env);
-                if (ve != null) {
-                    resolved = ve.getConstantValue();
-                }
-
-                if (cache != null) {
-                    Map<String, Object> innerCache =
-                            cache.resolvedConstantsCache.get(enclosingClassName);
-                    if (innerCache == null) {
-                        innerCache = new HashMap<>();
-                        cache.resolvedConstantsCache.put(enclosingClassName, innerCache);
-                    }
-                    innerCache.put(constantName, resolved);
-                }
-
-                if (resolved != null) {
-                    return coerceToKind(resolved, expectedKind);
-                }
-            }
-            // Could not resolve — skip silently, matching AnnotationFileParser behavior.
-            return null;
+        } else if (val instanceof BinaryStubData.EnumConstantValue
+                || val instanceof BinaryStubData.NameLiteralValue) {
+            // An enum constant is the element itself; a constant field is its value, as in
+            // AnnotationFileParser#getValueOfExpressionInAnnotation.
+            Object resolved = resolveVariable(val, enclosingClassName, env, elementTypes);
+            return resolved == null ? null : coerceToKind(resolved, expectedKind);
+        } else if (val instanceof BinaryStubData.OperationValue) {
+            Object constant = evaluateConstant(val, enclosingClassName, env, elementTypes);
+            return constant == null ? null : coerceToKind(constant, expectedKind);
         } else if (val instanceof BinaryStubData.AnnotationRecord) {
             return getAnnotationMirror(
                     (BinaryStubData.AnnotationRecord) val,
@@ -1907,6 +2009,136 @@ public class BinaryStubReader {
     }
 
     /**
+     * Returns the value of a constant expression in an annotation value, computed by {@link
+     * AnnotationConstants} exactly as {@code AnnotationFileParser#evaluateConstant} computes it
+     * from the text.
+     *
+     * @param val a literal value, a reference to a constant, or an {@link
+     *     BinaryStubData.OperationValue}
+     * @param enclosingClassName the fully-qualified name of the enclosing class, or null
+     * @param env the processing environment
+     * @param elementTypes per-factory state including the resolved-value caches
+     * @return the value, or null if it is not a constant
+     */
+    private static @Nullable Object evaluateConstant(
+            Object val,
+            @Nullable String enclosingClassName,
+            ProcessingEnvironment env,
+            AnnotationFileElementTypes elementTypes) {
+        if (val instanceof Boolean
+                || val instanceof String
+                || val instanceof Character
+                || val instanceof Number) {
+            return val;
+        } else if (val instanceof BinaryStubData.EnumConstantValue
+                || val instanceof BinaryStubData.NameLiteralValue) {
+            Object resolved = resolveVariable(val, enclosingClassName, env, elementTypes);
+            // An enum constant is not a constant expression.
+            return resolved instanceof VariableElement ? null : resolved;
+        } else if (!(val instanceof BinaryStubData.OperationValue)) {
+            return null;
+        }
+        BinaryStubData.OperationValue op = (BinaryStubData.OperationValue) val;
+        Object[] operands = new Object[op.operands.length];
+        for (int i = 0; i < operands.length; i++) {
+            operands[i] = evaluateConstant(op.operands[i], enclosingClassName, env, elementTypes);
+            if (operands[i] == null) {
+                return null;
+            }
+        }
+        switch (op.kind) {
+            case 'u':
+                return AnnotationConstants.unary(op.operator, operands[0]);
+            case 'b':
+                return AnnotationConstants.binary(op.operator, operands[0], operands[1]);
+            case '?':
+                return AnnotationConstants.conditional(operands[0], operands[1], operands[2]);
+            case 'x':
+                return AnnotationConstants.cast(op.operator, operands[0]);
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Resolves a reference to an enum constant or a constant field: a qualified name ({@link
+     * BinaryStubData.EnumConstantValue}) or a simple name ({@link
+     * BinaryStubData.NameLiteralValue}).
+     *
+     * @param val the reference
+     * @param enclosingClassName the fully-qualified name of the enclosing class, or null
+     * @param env the processing environment
+     * @param elementTypes per-factory state including the resolved-value caches
+     * @return the enum constant's element, the constant field's value, or null if the reference
+     *     does not resolve to either
+     */
+    private static @Nullable Object resolveVariable(
+            Object val,
+            @Nullable String enclosingClassName,
+            ProcessingEnvironment env,
+            AnnotationFileElementTypes elementTypes) {
+        if (val instanceof BinaryStubData.NameLiteralValue) {
+            // Not cached: the result depends on the enclosing class and on the stub file's
+            // imports, and a simple name is rare enough not to need it.
+            BinaryStubData.NameLiteralValue nv = (BinaryStubData.NameLiteralValue) val;
+            @SuppressWarnings("signature:argument.type.incompatible") // read from the string
+            // pool, which BinaryStubWriter populates only with fully-qualified names
+            TypeElement enclosing =
+                    enclosingClassName == null
+                            ? null
+                            : env.getElementUtils().getTypeElement(enclosingClassName);
+            return enumConstantOrValue(
+                    AnnotationConstants.findConstant(
+                            nv.name, enclosing, nv.candidateClasses, env.getElementUtils()));
+        }
+        // Despite the name, the writer tags every FieldAccessExpr this way (see
+        // BinaryStubWriter#writeValue), so the referenced member need not be an enum constant:
+        // e.g. "@IntRange(to = Integer.MAX_VALUE)" refers to a plain static final field.
+        BinaryStubData.EnumConstantValue ev = (BinaryStubData.EnumConstantValue) val;
+        AnnotationFileElementTypes.BinaryStubDataCache cache =
+                elementTypes.getBinaryStubDataCache();
+        if (cache != null) {
+            Map<String, Object> innerCache = cache.resolvedConstantsCache.get(ev.enumClassName);
+            if (innerCache != null && innerCache.containsKey(ev.constantName)) {
+                return innerCache.get(ev.constantName);
+            }
+        }
+
+        @SuppressWarnings("signature:argument.type.incompatible") // ev.enumClassName is read
+        // from the binary stub's string pool, which BinaryStubWriter populates only with
+        // fully-qualified names
+        TypeElement type = env.getElementUtils().getTypeElement(ev.enumClassName);
+        Object resolved =
+                type == null
+                        ? null
+                        : enumConstantOrValue(
+                                AnnotationConstants.findField(
+                                        type, ev.constantName, env.getElementUtils(), false));
+
+        if (cache != null) {
+            cache.resolvedConstantsCache
+                    .computeIfAbsent(ev.enumClassName, k -> new HashMap<>())
+                    .put(ev.constantName, resolved);
+        }
+        return resolved;
+    }
+
+    /**
+     * Returns the value that a reference to {@code field} has in an annotation: the element of an
+     * enum constant, or the value of a constant field.
+     *
+     * @param field the referenced field or enum constant, or null if the reference did not resolve
+     * @return the enum constant's element, the field's constant value, or null if {@code field} is
+     *     null or not a constant
+     */
+    private static @Nullable Object enumConstantOrValue(@Nullable VariableElement field) {
+        if (field == null) {
+            return null;
+        }
+        return field.getKind() == ElementKind.ENUM_CONSTANT ? field : field.getConstantValue();
+    }
+
+    /**
      * Resolves a structural annotation member value and adds it to the annotation builder.
      *
      * @param builder the annotation builder to add the value to
@@ -1916,11 +2148,13 @@ public class BinaryStubReader {
      * @param atypeFactory the type factory of the currently-running checker
      * @param data the complete binary stub data, providing the string pool
      * @param elementTypes per-factory state including the annotation mirror cache
+     * @return true if the value was added; false if it, or one of its array elements, could not be
+     *     resolved, in which case nothing was added
      * @throws BugInCF if the annotation type declares no member named {@code name}, or if the
      *     resolved value does not fit that member's declared type
      */
     @SuppressWarnings("unchecked")
-    private static void addValueToBuilder(
+    private static boolean addValueToBuilder(
             AnnotationBuilder builder,
             String name,
             Object val,
@@ -1940,51 +2174,44 @@ public class BinaryStubReader {
                         ? ((ArrayType) returnType).getComponentType().getKind()
                         : returnType.getKind();
 
-        if (isArray) {
-            if (val instanceof List) {
-                List<Object> rawList = (List<Object>) val;
-                List<Object> resolvedList = new ArrayList<>(rawList.size());
-                for (Object item : rawList) {
-                    Object resolved =
-                            resolveSingleValue(
-                                    item,
-                                    expectedKind,
-                                    enclosingClassName,
-                                    atypeFactory,
-                                    data,
-                                    elementTypes);
-                    if (resolved != null) {
-                        resolvedList.add(resolved);
-                    }
-                }
-                builder.setValue(name, resolvedList);
-            } else {
-                // A single value for an array member denotes a one-element array.
+        if (val instanceof List) {
+            if (!isArray) {
+                return false;
+            }
+            List<Object> rawList = (List<Object>) val;
+            List<Object> resolvedList = new ArrayList<>(rawList.size());
+            for (Object item : rawList) {
                 Object resolved =
                         resolveSingleValue(
-                                val,
+                                item,
                                 expectedKind,
                                 enclosingClassName,
                                 atypeFactory,
                                 data,
                                 elementTypes);
-                if (resolved != null) {
-                    builder.setValue(name, Collections.singletonList(resolved));
+                if (resolved == null) {
+                    // AnnotationFileParser#builderAddElement fails on any unresolvable element
+                    // and drops the whole annotation; it never builds a shorter array.
+                    return false;
                 }
+                resolvedList.add(resolved);
             }
-        } else {
-            Object resolved =
-                    resolveSingleValue(
-                            val,
-                            expectedKind,
-                            enclosingClassName,
-                            atypeFactory,
-                            data,
-                            elementTypes);
-            if (resolved != null) {
-                dispatchSetValue(builder, name, resolved);
-            }
+            builder.setValue(name, resolvedList);
+            return true;
         }
+        Object resolved =
+                resolveSingleValue(
+                        val, expectedKind, enclosingClassName, atypeFactory, data, elementTypes);
+        if (resolved == null) {
+            return false;
+        }
+        if (isArray) {
+            // A single value for an array member denotes a one-element array.
+            builder.setValue(name, Collections.singletonList(resolved));
+        } else {
+            dispatchSetValue(builder, name, resolved);
+        }
+        return true;
     }
 
     /**
@@ -2078,14 +2305,20 @@ public class BinaryStubReader {
         try {
             for (Map.Entry<Integer, Object> entry : ar.elementValues.entrySet()) {
                 String memberName = data.stringPool[entry.getKey()];
-                addValueToBuilder(
+                if (!addValueToBuilder(
                         builder,
                         memberName,
                         entry.getValue(),
                         enclosingClassName,
                         atypeFactory,
                         data,
-                        elementTypes);
+                        elementTypes)) {
+                    // A value the writer recorded does not resolve here, e.g. a constant of a
+                    // class that is not on the classpath. AnnotationFileParser#getAnnotation
+                    // drops the whole annotation in that case, with a warning for a -Astubs file.
+                    elementTypes.warnUnresolvedBinaryStubValue(fqn, memberName);
+                    return null;
+                }
             }
             return builder.build();
         } catch (BugInCF e) {

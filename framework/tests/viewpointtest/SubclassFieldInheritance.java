@@ -29,14 +29,14 @@ public class SubclassFieldInheritance {
         }
     }
 
-    @A static class SubA extends @A SuperClass {
+    @A static class SubA extends SuperClass {
         @ReceiverDependentQual Object subFieldInit = new @A Object();
 
         // :: error: (assignment.type.incompatible)
         @ReceiverDependentQual Object badSubFieldInit = new @B Object();
     }
 
-    @B static class SubB extends @B SuperClass {
+    @B static class SubB extends SuperClass {
         @ReceiverDependentQual Object subFieldInit = new @B Object();
 
         // :: error: (assignment.type.incompatible)

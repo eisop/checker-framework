@@ -1,0 +1,2 @@
+- compiler.err.proc.messager: The -AassumeAssertions option must be enabled, disabled, or neither, but is "true".
+1 error

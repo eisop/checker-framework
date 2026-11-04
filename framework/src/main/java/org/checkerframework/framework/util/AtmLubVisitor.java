@@ -46,7 +46,7 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
      * have been visited. Call {@link #visited(AnnotatedTypeMirror)} to check if the type has been
      * visited. Reference equality is used rather than {@link #equals(Object)} because the visitor
      * may visit two types that are structurally equal but not actually the same. For example, the
-     * wildcards in {@code IPair<?,?>} may be equal, but they both should be visited.
+     * wildcards in {@code Pair<?,?>} may be equal, but they both should be visited.
      *
      * <p>This set is re-instantiated in {@link #visit} instead of cleared to avoid the O(N) cost of
      * IdentityHashMap.clear().
@@ -169,6 +169,12 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
      * @param lub the value to cast to {@code T}
      * @return {@code lub}, casted to {@code T}
      */
+    @SuppressWarnings({
+        // The cast type has the qualifiers of the operand, which T need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
     private <T extends AnnotatedTypeMirror> T castLub(T type, AnnotatedTypeMirror lub) {
         if (type.getKind() != lub.getKind()) {
             throw new BugInCF(

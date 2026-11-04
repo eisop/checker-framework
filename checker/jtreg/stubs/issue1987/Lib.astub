@@ -1,0 +1,6 @@
+package issue1987;
+
+import org.checkerframework.framework.qual.AnnotatedFor;
+
+@AnnotatedFor("nullness")
+public class Lib {}

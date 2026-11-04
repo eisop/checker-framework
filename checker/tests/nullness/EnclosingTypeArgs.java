@@ -38,7 +38,8 @@ abstract class EnclosingTypeArgs {
     // expression itself is what is being validated here, independent of that receiver.
     static class Sub extends Min<String> {
         void make() {
-            // :: error: (type.argument.type.incompatible)
+            // The enclosing instance is `this`, whose type is a subtype of Min<@NonNull String>.
+            // :: error: (type.argument.type.incompatible) :: error: (assignment.type.incompatible)
             Min<@Nullable String>.Inner x = new Min<@Nullable String>.Inner();
         }
 

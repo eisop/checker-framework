@@ -18,7 +18,6 @@ import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
-import org.plumelib.util.IPair;
 
 import java.util.EnumSet;
 import java.util.Iterator;
@@ -249,7 +248,7 @@ public final class TreePathUtil {
      * @return a pair of a non-parenthesis tree that contains the argument, and its child that is
      *     the argument or is a parenthesized version of it
      */
-    public static IPair<Tree, Tree> enclosingNonParen(TreePath path) {
+    public static Pair<Tree, Tree> enclosingNonParen(TreePath path) {
         TreePath parentPath = path.getParentPath();
         Tree enclosing = parentPath.getLeaf();
         Tree enclosingChild = path.getLeaf();
@@ -258,7 +257,7 @@ public final class TreePathUtil {
             enclosingChild = enclosing;
             enclosing = parentPath.getLeaf();
         }
-        return IPair.of(enclosing, enclosingChild);
+        return Pair.of(enclosing, enclosingChild);
     }
 
     /**
@@ -467,7 +466,7 @@ public final class TreePathUtil {
     //
 
     /**
-     * Return a printed representation of a TreePath.
+     * Returns a printed representation of a TreePath.
      *
      * @param path a TreePath
      * @return a printed representation of the given TreePath
@@ -503,9 +502,9 @@ public final class TreePathUtil {
      * of the closest method scope if available; otherwise, it defaults to the enclosing class
      * scope.
      *
-     * @param path the {@link TreePath} to analyze for the nearest enclosing scope.
+     * @param path the {@link TreePath} to analyze for the nearest enclosing scope
      * @return the {@link Element} of the nearest enclosing method or class, or {@code null} if no
-     *     such enclosing element can be found.
+     *     such enclosing element can be found
      */
     public static @Nullable Element findNearestEnclosingElement(TreePath path) {
         MethodTree enclosingMethodTree = TreePathUtil.enclosingMethod(path);

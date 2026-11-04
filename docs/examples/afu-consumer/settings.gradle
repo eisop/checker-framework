@@ -1,0 +1,4 @@
+// Standalone project: an example of using the published Annotation File Utilities artifact,
+// io.github.eisop:annotation-file-utilities, from a Gradle build. It is not part of the
+// parent multi-project build, so it resolves dependencies as a real downstream project would.
+rootProject.name = "afu-consumer"

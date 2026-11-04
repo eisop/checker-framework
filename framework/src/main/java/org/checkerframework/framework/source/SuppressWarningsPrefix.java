@@ -13,12 +13,15 @@ import java.lang.annotation.Target;
  * related to the checker. They can also be used as a prefix, followed by a colon and a message key.
  *
  * <p>In order for this annotation to have an effect, it must be placed on the declaration of a
- * class that extends {@link SourceChecker}.
+ * class that extends {@link SourceChecker}. {@link SourceChecker#getSuppressWarningsPrefixes}
+ * collects these annotations from the checker's class hierarchy, so a subclass inherits the
+ * prefixes of its superclasses. Furthermore, subcheckers automatically inherit the prefixes of
+ * their enclosing parent checkers.
  *
- * <p>If this annotation is not present on a checker class, then the lowercase name of the checker
- * is used by default. The name of the checker is the part of the checker classname that comes
- * before "Checker" or "Subchecker". If the checker classname is not of this form, then the
- * classname is the checker name.)
+ * <p>If this annotation is not present on any class in a checker's class hierarchy, then the
+ * lowercase name of the checker is used by default. (The name of the checker is the part of the
+ * checker classname that comes before "Checker" or "Subchecker". If the checker classname is not of
+ * this form, then the classname is the checker name.)
  *
  * @checker_framework.manual #suppresswarnings-annotation-syntax
  */

@@ -242,4 +242,182 @@ public class TreePathCacherTest {
         Assert.assertTrue("null is cached", cacher.isCached(fromCu2));
         Assert.assertNull("absent tree, cached", cacher.getPath(cu1, fromCu2));
     }
+
+    /**
+     * Checks that {@link TreePathCacher#useUnit} keeps the cache, including the path of a tree that
+     * a scan cannot find (an artificial tree), when called again for the same compilation unit, and
+     * clears it for another compilation unit.
+     *
+     * @throws Exception if parsing the test sources fails
+     */
+    @Test
+    public void useUnitClearsOnlyForANewUnit() throws Exception {
+        CompilationUnitTree cu1 = parse("A", "class A { int f() { return 1; } }");
+        CompilationUnitTree cu2 = parse("B", "class B { int g() { return 2; } }");
+        List<Tree> cu2Trees = treesUnder(cu2);
+        // Stands in for an artificial tree: absent from cu1, so a scan of cu1 cannot find it.
+        Tree artificial = cu2Trees.get(cu2Trees.size() - 1);
+        TreePath parentPath = new TreePath(cu1);
+        TreePath artificialPath = new TreePath(parentPath, artificial);
+
+        TreePathCacher cacher = new TreePathCacher();
+        cacher.useUnit(cu1);
+        cacher.addArtificialPath(artificial, artificialPath);
+
+        cacher.useUnit(cu1);
+        Assert.assertSame(
+                "same unit keeps the path", artificialPath, cacher.getPath(cu1, artificial));
+
+        cacher.useUnit(cu2);
+        Assert.assertFalse("new unit clears the cache", cacher.isCached(artificial));
+    }
+
+    /**
+     * Simulates the checkers of a compound checker, which share one cache and each call {@link
+     * TreePathCacher#useUnit} when they start a compilation unit: every entry, a registered path, a
+     * path found by a scan, and a cached absence, survives the later checkers' calls for the same
+     * unit, and none survives the next unit, even when the unit after that is the first one again.
+     *
+     * @throws Exception if parsing the test sources fails
+     */
+    @Test
+    public void useUnitKeepsEntriesForAllCheckersOfAUnit() throws Exception {
+        CompilationUnitTree cu1 = parse("A", "class A { int f() { return 1; } }");
+        CompilationUnitTree cu2 = parse("B", "class B { int g() { return 2; } }");
+        List<Tree> cu1Trees = treesUnder(cu1);
+        List<Tree> cu2Trees = treesUnder(cu2);
+        Tree real = cu1Trees.get(cu1Trees.size() - 1);
+        Tree artificial = cu2Trees.get(cu2Trees.size() - 1);
+        Tree absent = cu2Trees.get(cu2Trees.size() - 2);
+        MethodTree f = method(cu1, "f");
+        TreePath artificialPath = new TreePath(TreePath.getPath(cu1, f.getBody()), artificial);
+
+        TreePathCacher cacher = new TreePathCacher();
+        // The first subchecker builds the CFG and registers the path of an artificial tree.
+        cacher.useUnit(cu1);
+        cacher.addArtificialPath(artificial, artificialPath);
+        TreePath realPath = cacher.getPath(cu1, real);
+        Assert.assertNull("absent tree", cacher.getPath(cu1, absent));
+
+        // The other subcheckers and the parent checker start the same unit.
+        for (int checker = 0; checker < 3; checker++) {
+            cacher.useUnit(cu1);
+            Assert.assertSame("registered path", artificialPath, cacher.getCachedPath(artificial));
+            Assert.assertSame("found path", realPath, cacher.getCachedPath(real));
+            Assert.assertTrue("cached absence", cacher.isCached(absent));
+        }
+
+        cacher.useUnit(cu2);
+        Assert.assertFalse("registered path cleared", cacher.isCached(artificial));
+        Assert.assertFalse("found path cleared", cacher.isCached(real));
+        Assert.assertFalse("cached absence cleared", cacher.isCached(absent));
+        cacher.addArtificialPath(artificial, artificialPath);
+
+        cacher.useUnit(cu1);
+        Assert.assertFalse("path from the previous unit cleared", cacher.isCached(artificial));
+        assertSamePath(
+                "path after clearing", TreePath.getPath(cu1, real), cacher.getPath(cu1, real));
+    }
+
+    /**
+     * Checks that {@link TreePathCacher#addArtificialPath} marks the tree as artificial, that the
+     * mark survives {@link TreePathCacher#useUnit} for the same unit, and that {@link
+     * TreePathCacher#clear} drops it.
+     *
+     * @throws Exception if parsing the test sources fails
+     */
+    @Test
+    public void addArtificialPathMarksTheTree() throws Exception {
+        CompilationUnitTree cu1 = parse("A", "class A { int f() { return 1; } }");
+        CompilationUnitTree cu2 = parse("B", "class B { int g() { return 2; } }");
+        List<Tree> cu1Trees = treesUnder(cu1);
+        List<Tree> cu2Trees = treesUnder(cu2);
+        Tree real = cu1Trees.get(cu1Trees.size() - 1);
+        // Stands in for an artificial tree: absent from cu1, so a scan of cu1 cannot find it.
+        Tree artificial = cu2Trees.get(cu2Trees.size() - 1);
+        TreePath artificialPath = new TreePath(new TreePath(cu1), artificial);
+
+        TreePathCacher cacher = new TreePathCacher();
+        cacher.useUnit(cu1);
+        cacher.addArtificialPath(artificial, artificialPath);
+        cacher.addPath(real, TreePath.getPath(cu1, real));
+        Assert.assertTrue("registered as artificial", cacher.isArtificial(artificial));
+        Assert.assertFalse("registered with addPath", cacher.isArtificial(real));
+
+        cacher.useUnit(cu1);
+        Assert.assertTrue("same unit keeps the mark", cacher.isArtificial(artificial));
+
+        cacher.clear();
+        Assert.assertFalse("clear drops the mark", cacher.isArtificial(artificial));
+    }
+
+    /**
+     * Checks that after {@link TreePathCacher#clear}, {@link TreePathCacher#useUnit} for the unit
+     * the cache was used for before clears the cache like for a fresh cache, instead of keeping the
+     * entries added after the clear.
+     *
+     * @throws Exception if parsing the test sources fails
+     */
+    @Test
+    public void useUnitAfterClearBehavesLikeAFreshCache() throws Exception {
+        CompilationUnitTree cu1 = parse("A", "class A { int f() { return 1; } }");
+        CompilationUnitTree cu2 = parse("B", "class B { int g() { return 2; } }");
+        List<Tree> cu2Trees = treesUnder(cu2);
+        // Stands in for an artificial tree: absent from cu1, so a scan of cu1 cannot find it.
+        Tree artificial = cu2Trees.get(cu2Trees.size() - 1);
+        TreePath artificialPath = new TreePath(new TreePath(cu1), artificial);
+
+        TreePathCacher cacher = new TreePathCacher();
+        cacher.useUnit(cu1);
+        cacher.clear();
+        cacher.addArtificialPath(artificial, artificialPath);
+
+        cacher.useUnit(cu1);
+        Assert.assertNull("cleared like a fresh cache", cacher.getPath(cu1, artificial));
+    }
+
+    /**
+     * Checks that many lookups under the same leaf, enough for {@code TreePathCacher} to index the
+     * leaf's subtree, match the JDK for targets under the leaf, outside it, and absent from the
+     * compilation unit. The body declares {@code Integer a, b;}, whose declarators share a type
+     * tree.
+     *
+     * @throws Exception if parsing the test sources fails
+     */
+    @Test
+    public void manyLookupsUnderOneLeafMatchJdk() throws Exception {
+        StringBuilder sb = new StringBuilder("class Long {\n  int other() { return 1; }\n");
+        sb.append("  void body(java.util.Map<String, Integer> map) {\n    Integer a, b;\n");
+        for (int i = 0; i < 100; i++) {
+            sb.append("    map.put(\"k").append(i).append("\", ").append(i).append(");\n");
+        }
+        sb.append("  }\n}\n");
+        CompilationUnitTree cu = parse("Long", sb.toString());
+        CompilationUnitTree otherCu = parse("B", "class B { int g() { return 2; } }");
+        MethodTree body = method(cu, "body");
+        TreePath bodyPath = TreePath.getPath(cu, body.getBody());
+
+        List<Tree> targets = new ArrayList<>(treesUnder(cu));
+        targets.addAll(treesUnder(otherCu));
+        for (boolean reverse : new boolean[] {false, true}) {
+            List<Tree> ordered = new ArrayList<>(targets);
+            if (reverse) {
+                Collections.reverse(ordered);
+            }
+            TreePathCacher cacher = new TreePathCacher();
+            for (Tree target : ordered) {
+                assertSamePath(
+                        "getPath(bodyPath, t)",
+                        TreePath.getPath(cu, target),
+                        cacher.getPath(bodyPath, target));
+            }
+            // Second pass: everything is cached now; results must still match.
+            for (Tree target : ordered) {
+                assertSamePath(
+                        "cached getPath(bodyPath, t)",
+                        TreePath.getPath(cu, target),
+                        cacher.getPath(bodyPath, target));
+            }
+        }
+    }
 }

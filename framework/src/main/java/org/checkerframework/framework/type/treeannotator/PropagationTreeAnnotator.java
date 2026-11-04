@@ -18,14 +18,16 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
-import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
+import org.plumelib.util.MapsP;
 
 import java.util.Map;
 import java.util.Set;
@@ -60,7 +62,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
     }
 
     /**
-     * Whether to use the assignment context when computing the type of a new array expression. This
+     * If true, use the assignment context when computing the type of a new array expression. This
      * is a hack to prevent infinite recursion if computing the type of the assignment context
      * includes computing the type of the right-hand side of the assignment. This happens when the
      * assignment is the pseudo-assignment of a method argument to a formal parameter.
@@ -76,7 +78,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      * infinite recursion and this cache is used to improve performance.
      */
     private final Map<MethodInvocationTree, AnnotatedExecutableType> methodInvocationToType =
-            CollectionsPlume.createLruCache(300);
+            MapsP.createLruCache(300);
 
     @Override
     public Void visitNewArray(NewArrayTree arrayTree, AnnotatedTypeMirror arrayType) {
@@ -87,8 +89,12 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
         TypeMirror componentTM = componentType.getUnderlyingType();
 
         // prev is the lub of the initializers if they exist, otherwise the current component type.
+        // The target type of an initializer is the component type without that lub (see
+        // AnnotatedTypeFactory#getInitializerTargetType).
         Set<? extends AnnotationMirror> prev = null;
-        if (arrayTree.getInitializers() != null && !arrayTree.getInitializers().isEmpty()) {
+        if (arrayTree.getInitializers() != null
+                && !arrayTree.getInitializers().isEmpty()
+                && !atypeFactory.isComputingInitializerTargetType(arrayTree)) {
             // We have initializers, either with or without an array type.
 
             // TODO (issue #599): This only works at the top level.  It should work at all levels of
@@ -230,7 +236,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             return null;
         }
 
-        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
+        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
                 atypeFactory.compoundAssignmentTreeArgTypes(tree);
         AnnotatedTypeMirror rhs = argTypes.first;
         AnnotatedTypeMirror lhs = argTypes.second;
@@ -259,7 +265,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             return null;
         }
 
-        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
+        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
                 atypeFactory.binaryTreeArgTypes(tree);
         AnnotatedTypeMirror type1 = argTypes.first;
         AnnotatedTypeMirror type2 = argTypes.second;
@@ -315,6 +321,11 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
 
     @Override
     public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
+        if (type.getKind() == TypeKind.INTERSECTION) {
+            visitIntersectionCast(tree, (AnnotatedIntersectionType) type);
+            return null;
+        }
+
         if (!((GenericAnnotatedTypeFactory) atypeFactory).isRelevant(type)) {
             return null;
         }
@@ -326,13 +337,49 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             return null;
         }
 
-        AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(tree.getExpression());
+        addOperandAnnotations(tree, type, atypeFactory.getAnnotatedType(tree.getExpression()));
+        return null;
+    }
+
+    /**
+     * Annotates {@code type}, the type of a cast to an intersection type, and summarizes its
+     * bounds. Each bound is annotated on its own, like the target of a cast to a non-intersection
+     * type: in a hierarchy where it has no written qualifier, it gets the qualifier of the operand.
+     * Only then are the bounds summarized (see {@link
+     * AnnotatedIntersectionType#summarizeBounds()}), so that a bound without a written qualifier
+     * takes part in the summary just like one with a written qualifier. For example, in {@code (Lib
+     * & @Nullable Lib2) nonNullValue}, the first bound is {@code @NonNull}.
+     *
+     * @param tree a cast to an intersection type
+     * @param type the type of {@code tree}, whose bounds have not been summarized yet
+     */
+    private void visitIntersectionCast(TypeCastTree tree, AnnotatedIntersectionType type) {
+        if (((GenericAnnotatedTypeFactory) atypeFactory).isRelevant(type)) {
+            AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(tree.getExpression());
+            for (AnnotatedTypeMirror bound : type.getBounds()) {
+                addOperandAnnotations(tree, bound, exprType);
+            }
+        }
+        type.summarizeBounds();
+    }
+
+    /**
+     * Adds to {@code type}, the target of a cast that is not an intersection type (or one bound of
+     * such a target), the qualifiers of the cast's operand in each hierarchy where it has none.
+     *
+     * @param tree the cast
+     * @param type the type to annotate
+     * @param exprType the type of the cast's operand
+     */
+    private void addOperandAnnotations(
+            TypeCastTree tree, AnnotatedTypeMirror type, AnnotatedTypeMirror exprType) {
         if (type.getKind() == TypeKind.TYPEVAR) {
             if (exprType.getKind() == TypeKind.TYPEVAR) {
                 // If both types are type variables, take the direct annotations.
                 type.addMissingAnnotations(exprType.getAnnotations());
+            } else {
+                addAnnoUnlessBelowLowerBound(type, exprType);
             }
-            // else do nothing.
         } else {
             // Use effective annotations from the expression, to get upper bound of type variables.
             AnnotationMirrorSet expressionAnnos = exprType.getEffectiveAnnotations();
@@ -367,8 +414,6 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             // expression qualifier.
             addAnnoOrBound(type, expressionAnnos);
         }
-
-        return null;
     }
 
     /**
@@ -379,11 +424,47 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      */
     private boolean hasPrimaryAnnotationInAllHierarchies(AnnotatedTypeMirror type) {
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-            if (type.getEffectiveAnnotationInHierarchy(top) == null) {
+            // Not the effective annotation: that of a type variable comes from its upper bound, so
+            // it would make every type variable look annotated and nothing would be propagated.
+            if (type.getAnnotationInHierarchy(top) == null) {
                 return false;
             }
         }
         return true;
+    }
+
+    /**
+     * Adds to {@code castType}, a type variable, the effective qualifiers of {@code exprType}, the
+     * type of a cast's operand that is not a type variable, in each hierarchy where they are not a
+     * subtype of the lower bound of {@code castType}.
+     *
+     * <p>A cast to a type variable is checked at run time only against the erasure of the type
+     * variable, so it cannot change the qualifier of the value. An operand whose qualifier is below
+     * the lower bound is a value of every instantiation of the type variable, so the cast type is
+     * left unannotated in that hierarchy. Otherwise the cast type gets the operand's qualifier,
+     * even if it is above the upper bound of the type variable: {@code (T) o} for a
+     * {@code @Nullable Object o} is {@code @Nullable T}, which is not a subtype of {@code T}.
+     *
+     * @param castType the type of the cast, a type variable
+     * @param exprType the type of the cast's operand, not a type variable
+     */
+    private void addAnnoUnlessBelowLowerBound(
+            AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+        AnnotationMirrorSet lowerBoundAnnos =
+                AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, castType);
+        TypeMirror castTM = castType.getUnderlyingType();
+        TypeMirror exprTM = exprType.getUnderlyingType();
+        AnnotationMirrorSet annosToAdd = new AnnotationMirrorSet();
+        for (AnnotationMirror exprAnno : exprType.getEffectiveAnnotations()) {
+            AnnotationMirror lowerBoundAnno =
+                    qualHierarchy.findAnnotationInSameHierarchy(lowerBoundAnnos, exprAnno);
+            if (lowerBoundAnno == null
+                    || !qualHierarchy.isSubtypeShallow(exprAnno, exprTM, lowerBoundAnno, castTM)) {
+                annosToAdd.add(exprAnno);
+            }
+        }
+        log("addAnnoUnlessBelowLowerBound(%s, %s): %s%n", castType, exprType, annosToAdd);
+        castType.addMissingAnnotations(annosToAdd);
     }
 
     /**

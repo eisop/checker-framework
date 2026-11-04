@@ -21,7 +21,8 @@ class Issue6393 {
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
-        // :: warning: (cast.unsafe)
+        // The cast is typed @Nullable T, which is not a subtype of T.
+        // :: error: (return.type.incompatible)
         return (T) z;
     }
 }

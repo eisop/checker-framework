@@ -1,0 +1,25 @@
+BoxingArgs.java:24:25: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter i of Integer.valueOf.
+found   : @H1S2 @H2Top int
+required: @H1S1 @H2Top int
+BoxingArgs.java:32:13: compiler.err.proc.messager: [method.invocation.invalid] call to intValue() not allowed on the given receiver.
+found   : @H1S2 @H2Top Integer
+required: @H1S1 @H2Top Integer
+BoxingArgs.java:40:9: compiler.err.proc.messager: [method.invocation.invalid] call to iterator() not allowed on the given receiver.
+found   : @H1S2 @H2Top List<@H1Top @H2Top String>
+required: @H1S1 @H2Top List<@H1Top @H2Top String>
+BoxingArgs.java:49:9: compiler.err.proc.messager: [method.invocation.invalid] call to close() not allowed on the given receiver.
+found   : @H1S2 @H2Top Resource
+required: @H1S1 @H2Top Resource
+BoxingArgs.java:20:41: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter i of Integer.valueOf.
+found   : @H1S2 @H2Top int
+required: @H1S1 @H2Top int
+BoxingArgs.java:28:27: compiler.err.proc.messager: [method.invocation.invalid] call to intValue() not allowed on the given receiver.
+found   : @H1S2 @H2Top Integer
+required: @H1S1 @H2Top Integer
+BoxingArgs.java:36:51: compiler.err.proc.messager: [method.invocation.invalid] call to iterator() not allowed on the given receiver.
+found   : @H1S2 @H2Top List<@H1Top @H2Top String>
+required: @H1S1 @H2Top List<@H1Top @H2Top String>
+BoxingArgs.java:44:16: compiler.err.proc.messager: [method.invocation.invalid] call to close() not allowed on the given receiver.
+found   : @H1S2 @H2Top Resource
+required: @H1S1 @H2Top Resource
+8 errors

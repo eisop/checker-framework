@@ -58,7 +58,7 @@ public abstract class AccumulationChecker extends BaseTypeChecker {
     }
 
     /**
-     * Get the alias analyses that this checker should employ.
+     * Returns the alias analyses that this checker should employ.
      *
      * @return the alias analyses
      */
@@ -68,7 +68,7 @@ public abstract class AccumulationChecker extends BaseTypeChecker {
     }
 
     /**
-     * Check whether the given alias analysis is enabled by this particular accumulation checker.
+     * Returns true if the given alias analysis is enabled by this particular accumulation checker.
      *
      * @param aliasAnalysis the analysis to check
      * @return true iff the analysis is enabled

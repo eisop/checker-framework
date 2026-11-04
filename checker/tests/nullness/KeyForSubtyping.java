@@ -43,7 +43,7 @@ public class KeyForSubtyping {
             @KeyFor("this.mapB") String b,
             @KeyFor({"this.mapA", "this.mapB"}) String ab) {
         // Test that when a valid assignment is made, dataflow transfers the
-        // KeyFor type qualifier from the right hand side to the left hand side.
+        // KeyFor type qualifier from the right-hand side to the left-hand side.
 
         // :: error: (argument.type.incompatible)
         method1(not_yet_a_key);

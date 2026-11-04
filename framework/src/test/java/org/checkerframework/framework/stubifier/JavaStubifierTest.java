@@ -6,7 +6,6 @@ import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -46,10 +45,10 @@ public class JavaStubifierTest {
      * @throws IOException if the file cannot be read
      */
     private static BinaryStubData load(Path dir) throws IOException {
-        File file = new File(dir.toFile(), BinaryStubWriter.OUTPUT_FILENAME);
+        Path file = dir.resolve(BinaryStubWriter.OUTPUT_FILENAME);
         // BinaryStubData's constructor already GZIP-decompresses internally, so pass it the raw
         // file stream (not pre-wrapped in a GZIPInputStream, which would double-decompress).
-        try (InputStream in = new FileInputStream(file)) {
+        try (InputStream in = Files.newInputStream(file)) {
             return new BinaryStubData(in);
         }
     }

@@ -191,6 +191,13 @@ public class BinaryStubData {
             if (value instanceof AnnotationRecord) {
                 return ((AnnotationRecord) value).hasNameLiteral;
             }
+            if (value instanceof OperationValue) {
+                for (Object operand : ((OperationValue) value).operands) {
+                    if (containsNameLiteral(operand)) {
+                        return true;
+                    }
+                }
+            }
             return false;
         }
 
@@ -261,18 +268,32 @@ public class BinaryStubData {
         }
     }
 
-    /** Represents a simple name reference constant value. */
+    /**
+     * A simple name that refers to a constant, written {@code 'n'}. It is resolved where the stub
+     * file is read, by {@code AnnotationConstants.findConstant}: among the fields of the enclosing
+     * class and the classes that enclose it, then among the static fields of {@link
+     * #candidateClasses}.
+     */
     public static class NameLiteralValue {
         /** The simple name of the referenced constant. */
         public final String name;
 
         /**
+         * The fully-qualified names of the classes that the stub file's static imports can import
+         * {@link #name} from, in the order they are searched.
+         */
+        public final List<String> candidateClasses;
+
+        /**
          * Constructs a NameLiteralValue.
          *
          * @param name the simple name of the referenced constant
+         * @param candidateClasses the classes that the stub file's static imports can import {@code
+         *     name} from, in the order they are searched
          */
-        public NameLiteralValue(String name) {
+        public NameLiteralValue(String name, List<String> candidateClasses) {
             this.name = name;
+            this.candidateClasses = candidateClasses;
         }
 
         @Override
@@ -280,12 +301,44 @@ public class BinaryStubData {
             if (this == o) return true;
             if (!(o instanceof NameLiteralValue)) return false;
             NameLiteralValue that = (NameLiteralValue) o;
-            return Objects.equals(name, that.name);
+            return name.equals(that.name) && candidateClasses.equals(that.candidateClasses);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hashCode(name);
+            return Objects.hash(name, candidateClasses);
+        }
+    }
+
+    /**
+     * An operation in a constant expression, evaluated where the stub file is read, by {@code
+     * AnnotationConstants}: a unary operation (written {@code 'u'}), a binary operation ({@code
+     * 'b'}), a conditional expression ({@code '?'}), or a cast ({@code 'x'}).
+     */
+    public static class OperationValue {
+        /** The kind of operation: {@code 'u'}, {@code 'b'}, {@code '?'}, or {@code 'x'}. */
+        public final char kind;
+
+        /**
+         * The operator's Java token, such as {@code "-"} or {@code ">>>"}; for a cast, the name of
+         * the type; for a conditional expression, {@code "?:"}.
+         */
+        public final String operator;
+
+        /** The operands, which are values of any kind but a class literal or an annotation. */
+        public final Object[] operands;
+
+        /**
+         * Constructs an OperationValue.
+         *
+         * @param kind the kind of operation
+         * @param operator the operator's token or the type of a cast
+         * @param operands the operands
+         */
+        public OperationValue(char kind, String operator, Object... operands) {
+            this.kind = kind;
+            this.operator = operator;
+            this.operands = operands;
         }
     }
 
@@ -386,9 +439,22 @@ public class BinaryStubData {
         }
     }
 
-    /** Represents a type annotation with its type path. */
+    /**
+     * Represents a type annotation with its type path, or a marker for a plain wildcard {@code ?}
+     * (see {@link #UNBOUNDED_WILDCARD}).
+     */
     public static class TypeAnno {
-        /** Index into {@link BinaryStubData#annotationPool} of the annotation record. */
+        /**
+         * {@link #annoIndex} of a marker: a type annotation that carries no annotation and whose
+         * path locates a plain wildcard {@code ?}. Defined once in {@link
+         * BinaryStubWriter#TYPE_ANNO_UNBOUNDED_WILDCARD}, which says what the reader does with it.
+         */
+        public static final int UNBOUNDED_WILDCARD = BinaryStubWriter.TYPE_ANNO_UNBOUNDED_WILDCARD;
+
+        /**
+         * Index into {@link BinaryStubData#annotationPool} of the annotation record, or {@link
+         * #UNBOUNDED_WILDCARD}.
+         */
         public final int annoIndex;
 
         /** Type-path steps locating the annotated component. */
@@ -397,12 +463,23 @@ public class BinaryStubData {
         /**
          * Constructs a TypeAnno.
          *
-         * @param annoIndex index into the annotation pool of the annotation record
+         * @param annoIndex index into the annotation pool of the annotation record, or {@link
+         *     #UNBOUNDED_WILDCARD}
          * @param path type-path steps locating the annotated component
          */
         public TypeAnno(int annoIndex, TypePathStep[] path) {
             this.annoIndex = annoIndex;
             this.path = path;
+        }
+
+        /**
+         * Returns true if this is a marker for a plain wildcard {@code ?} rather than an
+         * annotation.
+         *
+         * @return true if {@link #annoIndex} is {@link #UNBOUNDED_WILDCARD}
+         */
+        public boolean isUnboundedWildcard() {
+            return annoIndex == UNBOUNDED_WILDCARD;
         }
     }
 
@@ -933,8 +1010,12 @@ public class BinaryStubData {
                 return dataIn.readBoolean();
             case 'C':
                 return dataIn.readChar();
+            case 'I':
+                return dataIn.readInt();
             case 'J':
                 return dataIn.readLong();
+            case 'F':
+                return dataIn.readFloat();
             case 'D':
                 return dataIn.readDouble();
             case 's':
@@ -946,7 +1027,38 @@ public class BinaryStubData {
                         stringPool[readStringIndex(dataIn, "enum class")],
                         stringPool[readStringIndex(dataIn, "enum constant")]);
             case 'n':
-                return new NameLiteralValue(stringPool[readStringIndex(dataIn, "name literal")]);
+                {
+                    String name = stringPool[readStringIndex(dataIn, "name literal")];
+                    int count = dataIn.readUnsignedShort();
+                    List<String> candidates = new ArrayList<>(count);
+                    for (int i = 0; i < count; i++) {
+                        candidates.add(stringPool[readStringIndex(dataIn, "import candidate")]);
+                    }
+                    return new NameLiteralValue(name, candidates);
+                }
+            case 'u':
+                return new OperationValue(
+                        'u',
+                        stringPool[readStringIndex(dataIn, "unary operator")],
+                        readAnnotationValue(dataIn));
+            case 'b':
+                return new OperationValue(
+                        'b',
+                        stringPool[readStringIndex(dataIn, "binary operator")],
+                        readAnnotationValue(dataIn),
+                        readAnnotationValue(dataIn));
+            case '?':
+                return new OperationValue(
+                        '?',
+                        "?:",
+                        readAnnotationValue(dataIn),
+                        readAnnotationValue(dataIn),
+                        readAnnotationValue(dataIn));
+            case 'x':
+                return new OperationValue(
+                        'x',
+                        stringPool[readStringIndex(dataIn, "cast type")],
+                        readAnnotationValue(dataIn));
             case '@':
                 {
                     int nameIdx = readStringIndex(dataIn, "nested annotation name");
@@ -991,6 +1103,18 @@ public class BinaryStubData {
      */
     private int readAnnoIndex(DataInputStream dataIn, String what) throws IOException {
         int index = dataIn.readInt();
+        checkAnnoIndex(index, what);
+        return index;
+    }
+
+    /**
+     * Throws if {@code index} is not an index into the annotation pool.
+     *
+     * @param index the index to check
+     * @param what what the index is for, for the error message
+     * @throws IOException if the index is outside the pool
+     */
+    private void checkAnnoIndex(int index, String what) throws IOException {
         if (index < 0 || index >= annotationPool.length) {
             throw new IOException(
                     "Malformed binary stub file: "
@@ -1000,7 +1124,6 @@ public class BinaryStubData {
                             + " is outside the annotation pool of size "
                             + annotationPool.length);
         }
-        return index;
     }
 
     /**
@@ -1069,7 +1192,10 @@ public class BinaryStubData {
      * @throws IOException if the stream cannot be read
      */
     private TypeAnno readTypeAnno(DataInputStream dataIn) throws IOException {
-        int annoIndex = readAnnoIndex(dataIn, "type annotation");
+        int annoIndex = dataIn.readInt();
+        if (annoIndex != TypeAnno.UNBOUNDED_WILDCARD) {
+            checkAnnoIndex(annoIndex, "type annotation");
+        }
         // path_length (JVMS 4.7.20.1) is a u1; read unsigned since it sizes the path array below
         // (a plain readByte() would misread a length of 128 or greater as negative). kind and
         // argIndex are stored as signed bytes (see TypePathStep's field javadoc), so plain

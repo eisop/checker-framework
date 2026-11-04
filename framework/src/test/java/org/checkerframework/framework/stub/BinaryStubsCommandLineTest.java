@@ -84,6 +84,144 @@ public class BinaryStubsCommandLineTest {
     private static final String LIB_STUB_UNANNOTATED =
             "public class Lib {\n" + "    public static Object maybeEncrypted();\n" + "}\n";
 
+    /**
+     * The source of a class whose method returns {@code Box<? extends @Encrypted Object>}: the
+     * class file carries a qualifier on the wildcard's bound.
+     */
+    private static final String WILDCARD_LIB_SOURCE =
+            "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "public class Lib {\n"
+                    + "    public interface Box<T extends Object> { T get(); }\n"
+                    + "    public static Box<? extends @Encrypted Object> make() { return null; }\n"
+                    + "}\n";
+
+    /**
+     * A stub for {@link #WILDCARD_LIB_SOURCE} that writes the return type's wildcard as a plain
+     * {@code ?}, which takes the bound of {@code Box}'s type parameter (here unqualified) in place
+     * of whatever the class file says.
+     */
+    private static final String WILDCARD_STUB =
+            "public class Lib {\n"
+                    + "    public interface Box<T extends Object> { T get(); }\n"
+                    + "    public static Box<?> make();\n"
+                    + "}\n";
+
+    /** Uses the value of the wildcard's bound where {@code @Encrypted} is required. */
+    private static final String WILDCARD_USE_SOURCE =
+            "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "class Use {\n"
+                    + "    void m() {\n"
+                    + "        @Encrypted Object o = Lib.make().get();\n"
+                    + "    }\n"
+                    + "}\n";
+
+    /**
+     * A stub annotating {@code Lib.maybeEncrypted()}'s return type as {@code @Encrypted}, on a
+     * method whose own {@code @AnnotatedFor} names only a different checker.
+     */
+    private static final String ANNOTATED_FOR_METHOD_STUB =
+            "import org.checkerframework.framework.qual.AnnotatedFor;\n"
+                    + "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "public class Lib {\n"
+                    + "    @AnnotatedFor(\"nullness\")\n"
+                    + "    public static @Encrypted Object maybeEncrypted();\n"
+                    + "}\n";
+
+    /** The source of a class with a nested class, whose method a stub annotates. */
+    private static final String NESTED_LIB_SOURCE =
+            "public class Lib {\n"
+                    + "    public static class Inner {\n"
+                    + "        public static Object maybeEncrypted() { return null; }\n"
+                    + "    }\n"
+                    + "}\n";
+
+    /**
+     * A stub annotating the method of a nested class as {@code @Encrypted}, in an enclosing class
+     * whose {@code @AnnotatedFor} names only a different checker.
+     */
+    private static final String ANNOTATED_FOR_OUTER_CLASS_STUB =
+            "import org.checkerframework.framework.qual.AnnotatedFor;\n"
+                    + "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "@AnnotatedFor(\"nullness\")\n"
+                    + "public class Lib {\n"
+                    + "    public static class Inner {\n"
+                    + "        public static @Encrypted Object maybeEncrypted();\n"
+                    + "    }\n"
+                    + "}\n";
+
+    /** Calls the nested class's stub-annotated method where {@code @Encrypted} is required. */
+    private static final String NESTED_USE_SOURCE =
+            "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "class Use {\n"
+                    + "    static void needsEncrypted(@Encrypted Object o) {}\n"
+                    + "    void m() {\n"
+                    + "        needsEncrypted(Lib.Inner.maybeEncrypted());\n"
+                    + "    }\n"
+                    + "}\n";
+
+    /**
+     * The source of a class whose methods {@link #VALUES_STUB} annotates with declaration
+     * annotations that carry element values.
+     */
+    private static final String VALUES_LIB_SOURCE =
+            "public class Lib {\n"
+                    + "    public static Object maybeEncrypted() { return null; }\n"
+                    + "    public static void escaped(Object o) {}\n"
+                    + "    public static void missingConstantInArray(Object o) {}\n"
+                    + "    public static void missingClass(Object o) {}\n"
+                    + "}\n";
+
+    /**
+     * A stub whose annotation values the text parser and the binary form must agree on: a string
+     * with escape sequences, and values that cannot be resolved, so that the whole annotation is
+     * dropped -- a constant of a class that does not exist (as one array element), and a class
+     * literal of a class that does not exist.
+     */
+    private static final String VALUES_STUB =
+            "import org.checkerframework.framework.qual.EnsuresQualifier;\n"
+                    + "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "public class Lib {\n"
+                    + "    public static @Encrypted Object maybeEncrypted();\n"
+                    + "    @EnsuresQualifier(expression = \"\\\\d+\\t\", qualifier = Encrypted.class)\n"
+                    + "    public static void escaped(Object o);\n"
+                    + "    @EnsuresQualifier(\n"
+                    + "            expression = {\"#1\", Missing.X},\n"
+                    + "            qualifier = Encrypted.class)\n"
+                    + "    public static void missingConstantInArray(Object o);\n"
+                    + "    @EnsuresQualifier(expression = \"#1\", qualifier = Missing.class)\n"
+                    + "    public static void missingClass(Object o);\n"
+                    + "}\n";
+
+    /** The source of a class with a method that a stub gives a postcondition. */
+    private static final String ENSURES_LIB_SOURCE =
+            "public class Lib {\n" + "    public static void ensure(Object o) {}\n" + "}\n";
+
+    /**
+     * A stub that gives {@code Lib.ensure} the postcondition that its argument is
+     * {@code @Encrypted}, through the container annotation {@code @EnsuresQualifier.List}, whose
+     * value is an array of nested annotations.
+     */
+    private static final String NESTED_ANNOTATION_STUB =
+            "import org.checkerframework.framework.qual.EnsuresQualifier;\n"
+                    + "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "public class Lib {\n"
+                    + "    @EnsuresQualifier.List({\n"
+                    + "        @EnsuresQualifier(expression = \"#1\", qualifier = Encrypted.class)\n"
+                    + "    })\n"
+                    + "    public static void ensure(Object o);\n"
+                    + "}\n";
+
+    /** Relies on {@code Lib.ensure}'s postcondition. */
+    private static final String ENSURES_USE_SOURCE =
+            "import org.checkerframework.framework.testchecker.util.Encrypted;\n"
+                    + "class Use {\n"
+                    + "    static void needsEncrypted(@Encrypted Object o) {}\n"
+                    + "    void m(Object o) {\n"
+                    + "        Lib.ensure(o);\n"
+                    + "        needsEncrypted(o);\n"
+                    + "    }\n"
+                    + "}\n";
+
     /** A trivial, unrelated stub file, used to make a directory's binary setup incomplete. */
     private static final String OTHER_STUB = "class Other {\n}\n";
 
@@ -121,7 +259,7 @@ public class BinaryStubsCommandLineTest {
      * @param content the file's content
      * @throws IOException if the file cannot be written
      */
-    private static void write(Path path, String content) throws IOException {
+    static void write(Path path, String content) throws IOException {
         Files.createDirectories(path.getParent());
         Files.write(path, content.getBytes(StandardCharsets.UTF_8));
     }
@@ -136,6 +274,38 @@ public class BinaryStubsCommandLineTest {
      */
     private List<Diagnostic<? extends JavaFileObject>> compile(String... extraOptions)
             throws IOException {
+        return compileSources(LIB_SOURCE, USE_SOURCE, extraOptions);
+    }
+
+    /**
+     * Compiles fresh copies of the given library and use sources with the Subtyping Checker and the
+     * given extra options, and returns the actual diagnostics.
+     *
+     * @param libSource the source of {@code Lib}, compiled with plain {@code javac} first
+     * @param useSource the source of {@code Use}, which the Subtyping Checker checks
+     * @param extraOptions options in addition to {@code -Aquals=...} (e.g. {@code -Astubs=...})
+     * @return the diagnostics the compilation produced
+     * @throws IOException if writing the source files fails
+     */
+    private List<Diagnostic<? extends JavaFileObject>> compileSources(
+            String libSource, String useSource, String... extraOptions) throws IOException {
+        return compileSources(tempDir, libSource, useSource, extraOptions);
+    }
+
+    /**
+     * Compiles fresh copies of the given library and use sources, in the given directory, with the
+     * Subtyping Checker and the given extra options, and returns the actual diagnostics.
+     *
+     * @param dir the directory to write the sources and classes into
+     * @param libSource the source of {@code Lib}, compiled with plain {@code javac} first
+     * @param useSource the source of {@code Use}, which the Subtyping Checker checks
+     * @param extraOptions options in addition to {@code -Aquals=...} (e.g. {@code -Astubs=...})
+     * @return the diagnostics the compilation produced
+     * @throws IOException if writing the source files fails
+     */
+    static List<Diagnostic<? extends JavaFileObject>> compileSources(
+            Path dir, String libSource, String useSource, String... extraOptions)
+            throws IOException {
         // Lib.java is compiled separately, ahead of time, and put on the classpath -- not
         // compiled as a source file alongside Use.java. A -Astubs file is meant to annotate a
         // library whose source is not part of the current compilation; a class that IS being
@@ -144,10 +314,10 @@ public class BinaryStubsCommandLineTest {
         // because they must distinguish "the stub's annotation took effect" from "the checker
         // fell back to Lib's real, unannotated declaration" -- which looks identical unless Lib
         // is genuinely precompiled, exactly as a real library would be.
-        File libClasses = compileLib();
+        File libClasses = compileLib(dir, libSource);
 
-        File useFile = tempDir.resolve("Use.java").toFile();
-        write(useFile.toPath(), USE_SOURCE);
+        File useFile = dir.resolve("Use.java").toFile();
+        write(useFile.toPath(), useSource);
 
         List<String> options = new ArrayList<>();
         options.add(
@@ -158,7 +328,7 @@ public class BinaryStubsCommandLineTest {
 
         TestConfiguration config =
                 TestConfigurationBuilder.buildDefaultConfiguration(
-                        tempDir.toString(),
+                        dir.toString(),
                         Collections.singletonList(useFile),
                         Collections.singletonList(libClasses.getAbsolutePath()),
                         Collections.singletonList(
@@ -170,17 +340,19 @@ public class BinaryStubsCommandLineTest {
     }
 
     /**
-     * Compiles a fresh copy of {@link #LIB_SOURCE} (plain {@code javac}, no annotation processing)
-     * into a classes directory under {@link #tempDir}, and returns that directory.
+     * Compiles {@code libSource} (plain {@code javac}, no annotation processing) into a classes
+     * directory under {@code dir}, and returns that directory.
      *
+     * @param dir the directory to write the source and classes into
+     * @param libSource the source of {@code Lib}
      * @return the directory {@code Lib.class} was compiled into
      * @throws IOException if writing the source or compiling it fails
      */
-    private File compileLib() throws IOException {
-        File libFile = tempDir.resolve("lib-src").resolve("Lib.java").toFile();
-        write(libFile.toPath(), LIB_SOURCE);
-        File libClasses = tempDir.resolve("lib-classes").toFile();
-        Assert.assertTrue(libClasses.mkdirs());
+    static File compileLib(Path dir, String libSource) throws IOException {
+        File libFile = dir.resolve("lib-src").resolve("Lib.java").toFile();
+        write(libFile.toPath(), libSource);
+        File libClasses = dir.resolve("lib-classes").toFile();
+        Files.createDirectories(libClasses.toPath());
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         int result =
                 compiler.run(
@@ -221,6 +393,36 @@ public class BinaryStubsCommandLineTest {
         Assert.assertTrue(
                 "expected " + MISMATCH_KEY + " with no stub file at all",
                 has(diagnostics, MISMATCH_KEY));
+    }
+
+    /**
+     * A plain {@code ?} in a stub takes the annotations of the type parameter's bound, replacing
+     * what the class file has on the wildcard's bound. Text parsing and the binary form must agree:
+     * both give {@code Lib.make().get()} the unqualified type, so assigning it to an
+     * {@code @Encrypted} variable is an error.
+     */
+    @Test
+    public void unboundedWildcardTakesTypeParameterBound() throws IOException {
+        Path stubsDir = tempDir.resolve("stubs");
+        write(stubsDir.resolve("Lib.astub"), WILDCARD_STUB);
+        BinaryStubFileGenerator.main(new String[] {stubsDir.toString(), stubsDir.toString()});
+
+        String assignmentKey = "assignment.type.incompatible";
+        List<Diagnostic<? extends JavaFileObject>> text =
+                compileSources(
+                        WILDCARD_LIB_SOURCE,
+                        WILDCARD_USE_SOURCE,
+                        "-Astubs=" + stubsDir,
+                        "-AstubWarnIfNotFound");
+        Assert.assertTrue(
+                "text parsing: the stub's plain ? must replace the class file's @Encrypted bound",
+                has(text, assignmentKey));
+
+        List<Diagnostic<? extends JavaFileObject>> binary =
+                compileSources(WILDCARD_LIB_SOURCE, WILDCARD_USE_SOURCE, "-Astubs=" + stubsDir);
+        Assert.assertTrue(
+                "binary form: the stub's plain ? must replace the class file's @Encrypted bound",
+                has(binary, assignmentKey));
     }
 
     /** A fresh per-file binary sibling is read and applied, with no extra warnings. */
@@ -451,6 +653,181 @@ public class BinaryStubsCommandLineTest {
                 "the binary stub's @Encrypted must have been applied",
                 has(diagnostics, MISMATCH_KEY));
         assertNoDiffCheckMismatch(diagnostics);
+    }
+
+    /**
+     * /** A method whose own {@code @AnnotatedFor} excludes the running checker is skipped by text
+     * parsing ({@code AnnotationFileParser.processCallableDeclaration}) and by the binary form
+     * alike, so its {@code @Encrypted} return type does not apply.
+     */
+    @Test
+    public void annotatedForOnMethodExcludingTheCheckerSkipsIt() throws IOException {
+        assertStubNotApplied(ANNOTATED_FOR_METHOD_STUB, LIB_SOURCE, USE_SOURCE);
+    }
+
+    /**
+     * A nested class inside a class whose {@code @AnnotatedFor} excludes the running checker is
+     * skipped by text parsing ({@code AnnotationFileParser.processTypeDecl} never reaches the
+     * enclosing class's members) and by the binary form alike, although the binary form has a
+     * separate record for the nested class.
+     */
+    @Test
+    public void annotatedForOnOuterClassExcludingTheCheckerSkipsNestedClass() throws IOException {
+        assertStubNotApplied(ANNOTATED_FOR_OUTER_CLASS_STUB, NESTED_LIB_SOURCE, NESTED_USE_SOURCE);
+    }
+
+    /**
+     * Asserts that {@code stub}, as a {@code -Astubs} file, does not make {@code useSource}'s call
+     * type-check, both when text-parsed and when read from its binary form, and that the
+     * differential check finds no mismatch between the two forms.
+     *
+     * @param stub the content of the stub file
+     * @param libSource the source of {@code Lib}
+     * @param useSource the source of {@code Use}, which passes a stub-annotated method's result
+     *     where {@code @Encrypted} is required
+     * @throws IOException if writing or compiling a file fails
+     */
+    private void assertStubNotApplied(String stub, String libSource, String useSource)
+            throws IOException {
+        Path stubsDir = tempDir.resolve("stubs");
+        write(stubsDir.resolve("Lib.astub"), stub);
+        BinaryStubFileGenerator.main(new String[] {stubsDir.toString(), stubsDir.toString()});
+        Assert.assertTrue(
+                "generator must have written a sibling binary",
+                Files.isRegularFile(stubsDir.resolve("Lib.astub.bin.gz")));
+
+        // -AstubWarnIfNotFound forces text parsing; see useBinaryForCommandLineStubs.
+        List<Diagnostic<? extends JavaFileObject>> text =
+                compileSources(libSource, useSource, "-Astubs=" + stubsDir, "-AstubWarnIfNotFound");
+        Assert.assertTrue("text parsing must not apply the stub", has(text, MISMATCH_KEY));
+
+        List<Diagnostic<? extends JavaFileObject>> binary =
+                compileSources(
+                        libSource, useSource, "-Astubs=" + stubsDir, "-AbinaryStubDiffCheck");
+        Assert.assertTrue("the binary form must not apply the stub", has(binary, MISMATCH_KEY));
+        assertNoDiffCheckMismatch(binary);
+    }
+
+    /**
+     * The binary form of a stub applies the same annotation element values as text parsing does, as
+     * the differential check ({@code -AbinaryStubDiffCheck}) verifies by comparing the annotations
+     * of both, with their values: a string value is unescaped, and an annotation with a value that
+     * the text parser rejects or cannot resolve is dropped as a whole, not kept with the value
+     * evaluated anyway, resolved against the enclosing class, or left out.
+     */
+    @Test
+    public void annotationValuesMatchTextParsing() throws IOException {
+        Path stubsDir = tempDir.resolve("stubs");
+        write(stubsDir.resolve("Lib.astub"), VALUES_STUB);
+        BinaryStubFileGenerator.main(new String[] {stubsDir.toString(), stubsDir.toString()});
+        Assert.assertTrue(
+                "generator must have written a sibling binary",
+                Files.isRegularFile(stubsDir.resolve("Lib.astub.bin.gz")));
+
+        List<Diagnostic<? extends JavaFileObject>> diagnostics =
+                compileSources(
+                        VALUES_LIB_SOURCE,
+                        USE_SOURCE,
+                        "-Astubs=" + stubsDir,
+                        "-AbinaryStubDiffCheck");
+        Assert.assertFalse(
+                "the binary stub must have been applied", has(diagnostics, MISMATCH_KEY));
+        assertNoDiffCheckMismatch(diagnostics);
+    }
+
+    /**
+     * Like text parsing, applying the binary form of a {@code -Astubs} file warns about an
+     * annotation it skips because one of its values does not resolve.
+     */
+    @Test
+    public void unresolvableValueIsWarnedAbout() throws IOException {
+        Path stubsDir = tempDir.resolve("stubs");
+        write(stubsDir.resolve("Lib.astub"), VALUES_STUB);
+        BinaryStubFileGenerator.main(new String[] {stubsDir.toString(), stubsDir.toString()});
+
+        // -AstubWarnIfNotFound forces text parsing; see useBinaryForCommandLineStubs.
+        List<Diagnostic<? extends JavaFileObject>> text =
+                compileSources(
+                        VALUES_LIB_SOURCE,
+                        USE_SOURCE,
+                        "-Astubs=" + stubsDir,
+                        "-AstubWarnIfNotFound");
+        List<Diagnostic<? extends JavaFileObject>> binary =
+                compileSources(VALUES_LIB_SOURCE, USE_SOURCE, "-Astubs=" + stubsDir);
+        for (String element : new String[] {"expression", "qualifier"}) {
+            Assert.assertTrue(
+                    "text parsing must warn about the unresolvable " + element,
+                    hasWarningContaining(text, "could not add  " + element + "="));
+            Assert.assertTrue(
+                    "the binary form must warn about the unresolvable " + element,
+                    hasWarningContaining(binary, "could not add a value for " + element));
+        }
+    }
+
+    /**
+     * Returns true if {@code diagnostics} contains a warning whose message contains {@code text}.
+     *
+     * @param diagnostics the diagnostics to search
+     * @param text the text to look for
+     * @return true if found
+     */
+    private static boolean hasWarningContaining(
+            List<Diagnostic<? extends JavaFileObject>> diagnostics, String text) {
+        for (Diagnostic<? extends JavaFileObject> d : diagnostics) {
+            String message = d.getMessage(null);
+            if (d.getKind() == Diagnostic.Kind.WARNING
+                    && message != null
+                    && message.contains(text)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A nested annotation as an annotation element value -- here in the array value of a container
+     * annotation -- applies both when the stub file is text-parsed and when it is read from its
+     * binary form.
+     */
+    @Test
+    public void nestedAnnotationValueApplies() throws IOException {
+        Path stubsDir = tempDir.resolve("stubs");
+        write(stubsDir.resolve("Lib.astub"), NESTED_ANNOTATION_STUB);
+        BinaryStubFileGenerator.main(new String[] {stubsDir.toString(), stubsDir.toString()});
+
+        // -AstubWarnIfNotFound forces text parsing; see useBinaryForCommandLineStubs.
+        List<Diagnostic<? extends JavaFileObject>> text =
+                compileSources(
+                        ENSURES_LIB_SOURCE,
+                        ENSURES_USE_SOURCE,
+                        "-Astubs=" + stubsDir,
+                        "-AstubWarnIfNotFound");
+        Assert.assertFalse("text parsing must apply the postcondition", has(text, MISMATCH_KEY));
+
+        List<Diagnostic<? extends JavaFileObject>> binary =
+                compileSources(
+                        ENSURES_LIB_SOURCE,
+                        ENSURES_USE_SOURCE,
+                        "-Astubs=" + stubsDir,
+                        "-AbinaryStubDiffCheck");
+        assertNoDiffCheckMismatch(binary);
+        Assert.assertFalse(
+                "the binary form must apply the postcondition", has(binary, MISMATCH_KEY));
+    }
+
+    /**
+     * Under {@code -AmergeStubsWithSource}, text parsing of the annotated JDK applies the
+     * annotations of the private classes that the minimized JDK keeps (such as {@code
+     * java.util.AbstractList.Itr}), which the binary stub file omits. The annotated JDK is then
+     * text-parsed, so the differential check, which compares the two whenever the binary is read,
+     * finds no mismatch.
+     */
+    @Test
+    public void mergeStubsWithSourceTextParsesTheAnnotatedJdk() throws IOException {
+        List<Diagnostic<? extends JavaFileObject>> diagnostics =
+                compile("-AmergeStubsWithSource", "-AbinaryStubDiffCheck");
+        assertNoDiffCheckMismatch(diagnostics);
+        Assert.assertTrue("no stub applies @Encrypted", has(diagnostics, MISMATCH_KEY));
     }
 
     /**

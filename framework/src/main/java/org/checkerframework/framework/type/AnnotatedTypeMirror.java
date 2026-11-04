@@ -10,14 +10,14 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
 import org.checkerframework.framework.util.AnnotatedTypes;
-import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.DeepCopyable;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
+import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.DeepCopyable;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -136,7 +136,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     // public AnnotatedTypeMirror clone() { ... }
 
     /**
-     * Creates an AnnotatedTypeMirror for the provided type. The result contains no annotations.
+     * Creates an empty AnnotatedTypeMirror for the provided type. The result contains no
+     * annotations.
      *
      * @param type the underlying type for the resulting AnnotatedTypeMirror
      * @param atypeFactory the type factory that will build the result
@@ -156,15 +157,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 result = new AnnotatedArrayType((ArrayType) type, atypeFactory);
                 break;
             case DECLARED:
+            // An ERROR type is a class whose class file is not on the classpath.  javac reported no
+            // error, because it completes such a symbol lazily and never needs it, so treat the
+            // type like any other declared type.  See eisop issue 2094 and typetools issue 8055.
+            case ERROR:
                 result =
                         new AnnotatedDeclaredType((DeclaredType) type, atypeFactory, isDeclaration);
                 break;
-            case ERROR:
-                throw new ErrorTypeKindException(
-                        "AnnotatedTypeMirror.createType: input is not compilable. Found error type:"
-                                + " "
-                                + type);
-
             case EXECUTABLE:
                 result = new AnnotatedExecutableType((ExecutableType) type, atypeFactory);
                 break;
@@ -298,7 +297,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      *
      * @param annotation the qualifier hierarchy to check for
      * @return true iff this type has a primary annotation in the same hierarchy as {@code
-     *     annotation}.
+     *     annotation}
      */
     // typetools: hasPrimaryAnnotationInHierarchy
     public boolean hasAnnotationInHierarchy(AnnotationMirror annotation) {
@@ -317,7 +316,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * <p>May return null if the receiver is a type variable or a wildcard without a primary
      * annotation, or if the receiver is not yet fully annotated.
      *
-     * @param annotation an annotation in the qualifier hierarchy to check for
+     * @param annotation an annotation in the qualifier hierarchy to check for, or an alias for one
      * @return the annotation mirror whose class is named {@code annoNAme} or null
      */
     // typetools: getPrimaryAnnotationInHierarchy
@@ -325,15 +324,10 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         if (primaryAnnotations.isEmpty()) {
             return null;
         }
-        AnnotationMirror canonical;
-        if (atypeFactory.isSupportedQualifier(annotation)) {
-            canonical = annotation;
-        } else {
-            canonical = atypeFactory.canonicalAnnotation(annotation);
-            if (canonical == null || !atypeFactory.isSupportedQualifier(canonical)) {
-                // This can happen if annotation is unrelated to this AnnotatedTypeMirror.
-                return null;
-            }
+        // This can be null if annotation is unrelated to this AnnotatedTypeMirror.
+        AnnotationMirror canonical = atypeFactory.asSupportedQualifier(annotation);
+        if (canonical == null) {
+            return null;
         }
         QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
         return qualHierarchy.findAnnotationInSameHierarchy(primaryAnnotations, canonical);
@@ -346,19 +340,14 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * <p>An effective annotation is the annotation on the type itself, or on the upper/extends
      * bound of a type variable/wildcard (recursively, until a class type is reached).
      *
-     * @param annotation an annotation in the qualifier hierarchy to check for
+     * @param annotation an annotation in the qualifier hierarchy to check for, or an alias for one
      * @return an annotation from the same hierarchy as {@code annotation} if present
      */
     public @Nullable AnnotationMirror getEffectiveAnnotationInHierarchy(
             AnnotationMirror annotation) {
-        AnnotationMirror canonical;
-        if (atypeFactory.isSupportedQualifier(annotation)) {
-            canonical = annotation;
-        } else {
-            canonical = atypeFactory.canonicalAnnotation(annotation);
-            if (canonical == null || !atypeFactory.isSupportedQualifier(canonical)) {
-                return null;
-            }
+        AnnotationMirror canonical = atypeFactory.asSupportedQualifier(annotation);
+        if (canonical == null) {
+            return null;
         }
         QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
         return qualHierarchy.findAnnotationInSameHierarchy(getEffectiveAnnotations(), canonical);
@@ -477,12 +466,15 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     }
 
     /**
-     * Returns the set of explicitly written annotations on this type that are supported by this
-     * checker. This is useful to check the validity of annotations explicitly present on a type, as
-     * flow inference might add annotations that were not previously present. Note that since
-     * AnnotatedTypeMirror instances are created for type uses, this method will return explicit
-     * annotations in type use locations but will not return explicit annotations that had an impact
-     * on defaulting, such as an explicit annotation on a class declaration. For example, given:
+     * Returns the set of explicitly written annotations on this type that this checker recognizes
+     * -- directly, or via an alias. An alias is replaced by its canonical form, since every caller
+     * of this method has needed the canonical form to compare against, and none has needed to
+     * recover which literal alias was written. This is useful to check the validity of annotations
+     * explicitly present on a type, as flow inference might add annotations that were not
+     * previously present. Note that since AnnotatedTypeMirror instances are created for type uses,
+     * this method will return explicit annotations in type use locations but will not return
+     * explicit annotations that had an impact on defaulting, such as an explicit annotation on a
+     * class declaration. For example, given:
      *
      * <p>{@code @MyExplicitAnno class MyClass {}; MyClass myClassInstance; }
      *
@@ -491,8 +483,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      *
      * <p>will not contain {@code @MyExplicitAnno}.
      *
-     * @return the set of explicitly written annotations on this type that are supported by this
-     *     checker
+     * @return the set of explicitly written annotations on this type that this checker recognizes,
+     *     directly or via an alias; each in canonical form
      */
     public AnnotationMirrorSet getExplicitAnnotations() {
         // TODO JSR 308: The explicit type annotations should be always present
@@ -501,8 +493,12 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 this.getUnderlyingType().getAnnotationMirrors();
 
         for (AnnotationMirror explicitAnno : typeAnnotations) {
-            if (atypeFactory.isSupportedQualifier(explicitAnno)) {
-                explicitAnnotations.add(explicitAnno);
+            // explicitAnno comes from the underlying TypeMirror, not from addAnnotation, so it is
+            // as written and may be an alias; asSupportedQualifier resolves that in one step,
+            // rather than testing support and then discarding the resolved qualifier.
+            AnnotationMirror supported = atypeFactory.asSupportedQualifier(explicitAnno);
+            if (supported != null) {
+                explicitAnnotations.add(supported);
             }
         }
 
@@ -645,14 +641,14 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * @see #getExplicitAnnotations()
      */
     public boolean hasExplicitAnnotation(Class<? extends Annotation> a) {
-        return AnnotationUtils.containsSameByName(getExplicitAnnotations(), getAnnotation(a));
+        return AnnotationUtils.containsSameByClass(getExplicitAnnotations(), a);
     }
 
     /**
      * Adds the canonical version of {@code annotation} as a primary annotation of this type and, in
      * the case of {@link AnnotatedTypeVariable}s, {@link AnnotatedWildcardType}s, and {@link
      * AnnotatedIntersectionType}s, adds it to all bounds. (The canonical version is found via
-     * {@link AnnotatedTypeFactory#canonicalAnnotation}.) If the canonical version of {@code
+     * {@link AnnotatedTypeFactory#asSupportedQualifier}.) If the canonical version of {@code
      * annotation} is not a supported qualifier, then no annotation is added. If this type already
      * has annotation in the same hierarchy as {@code annotation}, the behavior of this method is
      * undefined.
@@ -664,13 +660,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             throw new BugInCF("AnnotatedTypeMirror.addAnnotation: null argument.");
         }
         checkMutable();
-        if (atypeFactory.isSupportedQualifier(annotation)) {
-            this.primaryAnnotations.add(annotation);
-        } else {
-            AnnotationMirror canonical = atypeFactory.canonicalAnnotation(annotation);
-            if (atypeFactory.isSupportedQualifier(canonical)) {
-                addAnnotation(canonical);
-            }
+        AnnotationMirror canonical = atypeFactory.asSupportedQualifier(annotation);
+        if (canonical != null) {
+            this.primaryAnnotations.add(canonical);
         }
     }
 
@@ -683,20 +675,6 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     public void replaceAnnotation(AnnotationMirror a) {
         this.removeAnnotationInHierarchy(a);
         this.addAnnotation(a);
-    }
-
-    /**
-     * Adds an annotation to this type.
-     *
-     * @param a the class of the annotation to add
-     * @deprecated This method creates a new {@code AnnotationMirror} every time it is called.
-     *     Instead of calling this method, store the {@code AnnotationMirror} in a field and use
-     *     {@link #addAnnotation(AnnotationMirror)} instead.
-     */
-    @Deprecated // 2023-06-15
-    public void addAnnotation(Class<? extends Annotation> a) {
-        AnnotationMirror anno = AnnotationBuilder.fromClass(atypeFactory.elements, a);
-        addAnnotation(anno);
     }
 
     /**
@@ -849,24 +827,6 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     public boolean removeAnnotationInHierarchy(AnnotationMirror a) {
         AnnotationMirror prev = this.getAnnotationInHierarchy(a);
         if (prev != null) {
-            return this.removeAnnotation(prev);
-        }
-        return false;
-    }
-
-    /**
-     * Remove an annotation that is in the same qualifier hierarchy as the parameter, unless it's
-     * the top annotation.
-     *
-     * @param a an annotation from the same qualifier hierarchy
-     * @return if an annotation was removed
-     * @deprecated This will be removed in a future release
-     */
-    @Deprecated // 2023-06-15
-    public boolean removeNonTopAnnotationInHierarchy(AnnotationMirror a) {
-        AnnotationMirror prev = this.getAnnotationInHierarchy(a);
-        QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
-        if (prev != null && !prev.equals(qualHierarchy.getTopAnnotation(a))) {
             return this.removeAnnotation(prev);
         }
         return false;
@@ -1065,8 +1025,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * Returns a shallow copy of this type. A shallow copy implies that each component type in the
      * output copy refers to the same object as the object being copied.
      *
-     * @param copyAnnotations whether copy should have annotations, i.e. whether field {@code
-     *     annotations} should be copied.
+     * @param copyAnnotations true if copy should have annotations, i.e., field {@code annotations}
+     *     should be copied
+     * @return a shallow copy of this type
      */
     public abstract AnnotatedTypeMirror shallowCopy(boolean copyAnnotations);
 
@@ -1176,7 +1137,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         protected @MonotonicNonNull List<AnnotatedTypeMirror> typeArgs;
 
         /**
-         * Whether the type was initially raw, i.e. the user did not provide the type arguments.
+         * True if the type was initially raw, i.e. the user did not provide the type arguments.
          * typeArgs will contain inferred type arguments, which might be too conservative at the
          * moment.
          *
@@ -1354,10 +1315,14 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 }
             } else if (isDeclaration()) {
                 for (TypeMirror javaTypeArg : javaTypeArgs) {
-                    AnnotatedTypeVariable tv =
-                            (AnnotatedTypeVariable)
-                                    AnnotatedTypeMirror.createType(javaTypeArg, atypeFactory, true);
-                    typeArgs.add(tv);
+                    AnnotatedTypeMirror typeArg =
+                            AnnotatedTypeMirror.createType(javaTypeArg, atypeFactory, true);
+                    if (!(typeArg instanceof AnnotatedTypeVariable)) {
+                        throw new BugInCF(
+                                "Type argument %s of declaration %s has kind %s, not TYPEVAR.",
+                                javaTypeArg, t, javaTypeArg.getKind());
+                    }
+                    typeArgs.add(typeArg);
                 }
             } else {
                 // Lazily resolve typeParameters; only needed if a wildcard type argument is
@@ -1443,7 +1408,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Return the declared type with its type arguments removed. This also replaces the
+         * Returns the declared type with its type arguments removed. This also replaces the
          * underlying type with its erasure.
          *
          * @return a fresh copy of the declared type with no type arguments
@@ -1459,7 +1424,17 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             erased.addAnnotations(this.getAnnotationsField());
             AnnotatedDeclaredType erasedEnclosing = erased.getEnclosingType();
             AnnotatedDeclaredType thisEnclosing = this.getEnclosingType();
-            while (erasedEnclosing != null) {
+            // The enclosing types of this type need not be those of its underlying type: for an
+            // anonymous class `outer.new Inner() {}`, the enclosing type is the type of `outer`
+            // (see AnnotatedTypeFactory#getConstructorReceiverType), but javac's is the class
+            // that lexically encloses the anonymous class. Copy annotations only while both
+            // chains are at the same class.
+            while (erasedEnclosing != null
+                    && thisEnclosing != null
+                    && erasedEnclosing
+                            .getUnderlyingType()
+                            .asElement()
+                            .equals(thisEnclosing.getUnderlyingType().asElement())) {
                 erasedEnclosing.addAnnotations(thisEnclosing.getAnnotationsField());
                 erasedEnclosing = erasedEnclosing.getEnclosingType();
                 thisEnclosing = thisEnclosing.getEnclosingType();
@@ -1793,7 +1768,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          *
          * @param receiverType the receiver type
          */
-        /*package-private*/ void setReceiverType(@Nullable AnnotatedDeclaredType receiverType) {
+        public void setReceiverType(@Nullable AnnotatedDeclaredType receiverType) {
             this.receiverType = receiverType;
             receiverTypeComputed = true;
         }
@@ -2294,7 +2269,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Get the lower bound field directly, bypassing any lazy initialization. This method is
+         * Returns the lower bound field directly, bypassing any lazy initialization. This method is
          * necessary to prevent infinite recursions in initialization. In general, prefer
          * getLowerBound.
          *
@@ -2311,12 +2286,45 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         public AnnotatedTypeMirror getLowerBound() {
             if (lowerBound == null) { // lazy init
-                BoundsInitializer.initializeBounds(this);
-                fixupBoundAnnotations();
-                freezeLazyComponent(lowerBound);
-                freezeLazyComponent(upperBound);
+                initializeBounds();
             }
             return lowerBound;
+        }
+
+        /**
+         * Initializes both bounds from the underlying type. A use also gets the annotations written
+         * on the bounds of its declaration, in the declaration's element or in an annotation file,
+         * as a use created from a tree or for an element has them (see {@code
+         * TypeFromTypeTreeVisitor#getTypeVariableFromDeclaration} and {@code TypeVarUseApplier}).
+         * Otherwise the bounds of a use created from a {@link TypeMirror}, such as in a supertype
+         * taken from a class's element, would only be defaulted. A use that {@link
+         * BoundsInitializer} creates inside a bound, such as {@code S} in {@code T extends
+         * Comparable<S>}, is not annotated: its bounds are set eagerly, and annotating them could
+         * create such a use again, without end for an F-bound.
+         */
+        private void initializeBounds() {
+            BoundsInitializer.initializeBounds(this);
+            if (annotatesBoundsFromDeclaration()) {
+                ElementAnnotationApplier.annotateTypeVariableUse(this, atypeFactory);
+            }
+            fixupBoundAnnotations();
+            freezeLazyComponent(lowerBound);
+            freezeLazyComponent(upperBound);
+        }
+
+        /**
+         * Returns true if lazily initializing the bounds of this type variable annotates them from
+         * its declaration (see {@link #initializeBounds}): it is a use, not a declaration or a
+         * captured type variable, and no annotation file is being parsed (the parser annotates the
+         * types it creates).
+         *
+         * @return true if lazily initializing the bounds of this type variable annotates them from
+         *     its declaration
+         */
+        /*package-private*/ boolean annotatesBoundsFromDeclaration() {
+            return !declaration
+                    && !TypesUtils.isCapturedTypeVariable(getUnderlyingType())
+                    && !atypeFactory.isParsingAnnotationFile();
         }
 
         // If the lower bound was not present in underlyingType, then its annotation was defaulted
@@ -2365,7 +2373,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Get the upper bound field directly, bypassing any lazy initialization. This method is
+         * Returns the upper bound field directly, bypassing any lazy initialization. This method is
          * necessary to prevent infinite recursions in initialization. In general, prefer
          * getUpperBound.
          *
@@ -2376,18 +2384,16 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Get the upper bound of the type variable, possibly lazily initializing it. Attention: If
-         * the upper bound is lazily initialized, it will not contain any annotations! Callers of
-         * the method have to make sure that an AnnotatedTypeFactory first processed the bound.
+         * Returns the upper bound of the type variable, possibly lazily initializing it. Attention:
+         * If the upper bound is lazily initialized, it contains only the annotations written on the
+         * declaration's bound, not the defaults! Callers of the method have to make sure that an
+         * AnnotatedTypeFactory first processed the bound.
          *
          * @return the upper bound type of this type variable
          */
         public AnnotatedTypeMirror getUpperBound() {
             if (upperBound == null) { // lazy init
-                BoundsInitializer.initializeBounds(this);
-                fixupBoundAnnotations();
-                freezeLazyComponent(upperBound);
-                freezeLazyComponent(lowerBound);
+                initializeBounds();
             }
             return upperBound;
         }
@@ -2633,7 +2639,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         private AnnotatedTypeMirror extendsBound;
 
         /**
-         * Whether this is a type argument for a type whose {@code #underlyingType} is raw. The
+         * True if this is a type argument for a type whose {@code #underlyingType} is raw. The
          * Checker Framework gives raw types wildcard type arguments so that the annotated type can
          * be used as if the annotated type was not raw.
          */
@@ -2869,11 +2875,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Whether this is a type argument to a type whose {@code #underlyingType} is raw. The
-         * Checker Framework gives raw types wildcard type arguments so that the annotated type can
-         * be used as if the annotated type was not raw.
+         * Returns true if this is a type argument to a type whose {@code #underlyingType} is raw.
+         * The Checker Framework gives raw types wildcard type arguments so that the annotated type
+         * can be used as if the annotated type was not raw.
          *
-         * @return whether this is a type argument to a type whose {@code #underlyingType} is raw
+         * @return true if this is a type argument to a type whose {@code #underlyingType} is raw
          */
         public boolean isTypeArgOfRawType() {
             return typeArgOfRawType;
@@ -3073,17 +3079,15 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * variable's own intersection upper bound, only after each bound has already been
          * independently defaulted, so the combining hook sees every bound's real qualifier; calling
          * it any earlier for that position would see only bounds' explicit annotations, since
-         * defaulting has not run yet, exactly like the intersection cast target case below. A type
-         * variable's own intersection upper bound is summarized only when the enclosing {@code
-         * AnnotatedTypeFactory} runs {@code QualifierDefaults}; one that does not (there is one in
-         * this repository, used only for debugging output) leaves it unsummarized.
+         * defaulting has not run yet. A type variable's own intersection upper bound is summarized
+         * only when the enclosing {@code AnnotatedTypeFactory} runs {@code QualifierDefaults}; one
+         * that does not (there is one in this repository, used only for debugging output) leaves it
+         * unsummarized.
          *
-         * <p>An intersection cast target's construction also calls this method, but before
-         * defaulting, so only explicit annotations are seen there; a hierarchy no bound constrains
-         * explicitly is simply left out of the summary, because a cast target's remaining
-         * hierarchies are instead filled from the cast operand by {@code
-         * PropagationTreeAnnotator#visitTypeCast}, not by {@code QualifierDefaults}. See {@code
-         * framework/tests/lubglb/IntersectionBoundDefaulting.java}.
+         * <p>For an intersection cast target, {@code PropagationTreeAnnotator#visitTypeCast} calls
+         * this method, after it gave each bound the cast operand's qualifier in every hierarchy in
+         * which that bound has no written qualifier, as for the target of a cast to a
+         * non-intersection type. See {@code framework/tests/lubglb/IntersectionCastBounds.java}.
          */
         public void summarizeBounds() {
             QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
@@ -3291,20 +3295,6 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      */
     public List<? extends AnnotatedTypeMirror> directSupertypes() {
         return SupertypeFinder.directSupertypes(this);
-    }
-
-    /**
-     * Returns true if this type has a primary annotation in the same hierarchy as {@code
-     * annotation}.
-     *
-     * @param annotation the qualifier hierarchy to check for
-     * @return true iff this type has a primary annotation in the same hierarchy as {@code
-     *     annotation}.
-     * @deprecated use {@link #hasAnnotationInHierarchy(AnnotationMirror)}
-     */
-    @Deprecated // 2023-06-15
-    public boolean isAnnotatedInHierarchy(AnnotationMirror annotation) {
-        return hasAnnotationInHierarchy(annotation);
     }
 
     /** An ERROR TypeKind was found. */

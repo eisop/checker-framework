@@ -131,9 +131,9 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
     }
 
     /**
-     * Returns whether or not the set of annotations can be missing an annotation for any hierarchy.
+     * Returns true if the set of annotations can be missing an annotation for any hierarchy.
      *
-     * @return whether or not the set of annotations can be missing an annotation
+     * @return true if the set of annotations can be missing an annotation
      */
     public boolean canBeMissingAnnotations() {
         return canBeMissingAnnotations(underlyingType);
@@ -248,6 +248,22 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
     }
 
     /**
+     * Returns this value as a {@code V}.
+     *
+     * @return this value
+     */
+    @SuppressWarnings({
+        "unchecked", // V is the type of this value
+        // The cast type has the qualifiers of `this`, which V need not accept.
+        "interning:return.type.incompatible",
+        "rlccalledmethods:return.type.incompatible",
+        "signature:return.type.incompatible"
+    })
+    private V thisAsV() {
+        return (V) this;
+    }
+
+    /**
      * Returns the more specific of two values {@code this} and {@code other}. If they do not
      * contain information for all hierarchies, then it is possible that information from both
      * {@code this} and {@code other} are taken.
@@ -263,9 +279,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
      */
     public V mostSpecific(@Nullable V other, @Nullable V backup) {
         if (other == null) {
-            @SuppressWarnings("unchecked")
-            V v = (V) this;
-            return v;
+            return thisAsV();
         }
         TypeMirror thisType = this.getUnderlyingType();
         TypeMirror otherType = other.getUnderlyingType();
@@ -527,9 +541,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
      */
     private V upperBound(@Nullable V other, boolean shouldWiden) {
         if (other == null) {
-            @SuppressWarnings("unchecked")
-            V v = (V) this;
-            return v;
+            return thisAsV();
         }
         TypeMirror thisType = this.getUnderlyingType();
         TypeMirror otherType = other.getUnderlyingType();
@@ -691,9 +703,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
      */
     public V greatestLowerBound(@Nullable V other) {
         if (other == null) {
-            @SuppressWarnings("unchecked")
-            V v = (V) this;
-            return v;
+            return thisAsV();
         }
         TypeMirror thisType = this.getUnderlyingType();
         TypeMirror otherType = other.getUnderlyingType();
@@ -821,8 +831,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
          * @param aSet a set of annotation mirrors
          * @param bTypeMirror the type mirror associated with {@code bSet}
          * @param bSet a set of annotation mirrors
-         * @param canCombinedSetBeMissingAnnos whether or not the combined set can be missing
-         *     annotations
+         * @param canCombinedSetBeMissingAnnos true if the combined set can be missing annotations
          * @return the combined sets
          */
         protected AnnotationMirrorSet combineSets(
@@ -918,7 +927,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
          * @param bAtv a type variable that does not have a primary annotation in {@code top}
          *     hierarchy
          * @param top the top annotation in the hierarchy
-         * @param canCombinedSetBeMissingAnnos whether or not
+         * @param canCombinedSetBeMissingAnnos true if the combined set can be missing annotations
          * @return the result of combining the two type variables, which may be null
          */
         protected abstract @Nullable AnnotationMirror combineTwoTypeVars(
@@ -936,7 +945,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
          * @param annotation an annotation
          * @param typeVar a type variable that does not have a primary annotation in the hierarchy
          * @param top the top annotation of the hierarchy
-         * @param canCombinedSetBeMissingAnnos whether or not
+         * @param canCombinedSetBeMissingAnnos true if the combined set can be missing annotations
          * @return the result of combining {@code annotation} with {@code typeVar}
          */
         protected abstract @Nullable AnnotationMirror combineAnnotationWithTypeVar(

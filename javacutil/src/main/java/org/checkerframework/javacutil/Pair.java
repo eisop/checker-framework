@@ -14,11 +14,9 @@ import java.util.Objects;
  *
  * @param <V1> the type of the first element of the pair
  * @param <V2> the type of the second element of the pair
- * @deprecated use org.plumelib.util.IPair
  */
-@Deprecated // 2023-06-02
 // TODO: as class is immutable, use @Covariant annotation.
-public class Pair<V1, V2> {
+public final class Pair<V1, V2> {
     /** The first element of the pair. */
     public final V1 first;
 
@@ -111,9 +109,7 @@ public class Pair<V1, V2> {
         if (!(obj instanceof Pair)) {
             return false;
         }
-        // generics are not checked at run time!
-        @SuppressWarnings("unchecked")
-        Pair<V1, V2> other = (Pair<V1, V2>) obj;
+        Pair<?, ?> other = (Pair<?, ?>) obj;
         return Objects.equals(this.first, other.first) && Objects.equals(this.second, other.second);
     }
 
@@ -123,13 +119,15 @@ public class Pair<V1, V2> {
     @Pure
     @Override
     public int hashCode() {
-        if (hashCode == -1) {
-            int h = 1;
-            h = 31 * h + (first != null ? first.hashCode() : 0);
-            h = 31 * h + (second != null ? second.hashCode() : 0);
+        int h = hashCode;
+        if (h == -1) {
+            int computed = 1;
+            computed = 31 * computed + (first != null ? first.hashCode() : 0);
+            computed = 31 * computed + (second != null ? second.hashCode() : 0);
+            h = (computed == -1 ? 0 : computed);
             hashCode = h;
         }
-        return hashCode;
+        return h;
     }
 
     @SideEffectFree

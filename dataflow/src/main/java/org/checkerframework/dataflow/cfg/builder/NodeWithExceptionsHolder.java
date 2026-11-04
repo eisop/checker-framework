@@ -39,7 +39,7 @@ import javax.lang.model.type.TypeMirror;
     }
 
     /**
-     * Get the exceptions for the node.
+     * Returns the exceptions for the node.
      *
      * @return exceptions for the node
      */

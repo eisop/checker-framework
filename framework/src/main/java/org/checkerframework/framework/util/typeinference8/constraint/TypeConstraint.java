@@ -19,8 +19,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
 
-import javax.lang.model.type.TypeKind;
-
 /**
  * Constraints are between either an expression and a type, two types, or an expression and a thrown
  * type. Defined in <a
@@ -29,7 +27,7 @@ import javax.lang.model.type.TypeKind;
  */
 public abstract class TypeConstraint implements Constraint {
 
-    /** T, the type on the right hand side of the constraint; may contain inference variables. */
+    /** T, the type on the right-hand side of the constraint; may contain inference variables. */
     protected AbstractType T;
 
     /**
@@ -45,10 +43,10 @@ public abstract class TypeConstraint implements Constraint {
     public @Nullable String source;
 
     /**
-     * Creates a type constraint
+     * Creates a type constraint.
      *
      * @param source a string describing where this constraint came from
-     * @param T the type of the right hand side of the constraint
+     * @param T the type of the right-hand side of the constraint
      */
     protected TypeConstraint(String source, AbstractType T) {
         assert T != null : "Can't create a constraint with a null type.";
@@ -58,10 +56,10 @@ public abstract class TypeConstraint implements Constraint {
     }
 
     /**
-     * Creates a type constraint
+     * Creates a type constraint.
      *
      * @param parent the constraint whose reduction created this constraint
-     * @param T the type of the right hand side of the constraint
+     * @param T the type of the right-hand side of the constraint
      */
     protected TypeConstraint(Constraint parent, AbstractType T) {
         assert T != null : "Can't create a constraint with a null type.";
@@ -98,9 +96,9 @@ public abstract class TypeConstraint implements Constraint {
     }
 
     /**
-     * Returns T which is the type on the right hand side of the constraint.
+     * Returns T which is the type on the right-hand side of the constraint.
      *
-     * @return T, that is the type on the right hand side of the constraint
+     * @return t, that is the type on the right-hand side of the constraint
      */
     public AbstractType getT() {
         return T;
@@ -117,23 +115,6 @@ public abstract class TypeConstraint implements Constraint {
     public Set<Variable> getInferenceVariables() {
         return T.getInferenceVariables();
     }
-
-    /**
-     * For lambda and method references constraints, input variables are roughly the inference
-     * variables mentioned by they function type's parameter types and return types. For conditional
-     * expression constraints and switch expression constraints, input variables are the union of
-     * the input variables of its subexpressions. For all other constraints, no input variables
-     * exist.
-     *
-     * <p>Defined in <a
-     * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-18.html#jls-18.5.2.2">JLS
-     * section 18.5.2.2</a>
-     *
-     * <p>Callers that need to mutate the result should make a defensive copy first.
-     *
-     * @return input variables for this constraint
-     */
-    public abstract Set<Variable> getInputVariables();
 
     /**
      * "The output variables of [expression] constraints are all inference variables mentioned by
@@ -177,7 +158,7 @@ public abstract class TypeConstraint implements Constraint {
      * https://docs.oracle.com/javase/specs/jls/se8/html/jls-18.html#jls-18.5.2-200
      *
      * @param tree an expression tree
-     * @param T the type of the right hand side of the constraint
+     * @param T the type of the right-hand side of the constraint
      * @return the input variables for this constraint
      */
     protected Set<Variable> getInputVariablesForExpression(ExpressionTree tree, AbstractType T) {
@@ -199,7 +180,7 @@ public abstract class TypeConstraint implements Constraint {
                         }
                     }
                     AbstractType R = this.T.getFunctionTypeReturnType();
-                    if (R == null || R.getTypeKind() == TypeKind.NONE) {
+                    if (R == null) {
                         return inputs;
                     }
                     for (ExpressionTree e : TreeUtils.getReturnedExpressions(lambdaTree)) {

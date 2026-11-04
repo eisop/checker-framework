@@ -6,6 +6,7 @@ import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.CompoundAssignmentTree;
+import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
@@ -30,15 +31,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.dataflow.expression.JavaExpression;
+import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.Unknown;
-import org.checkerframework.dataflow.qual.Deterministic;
-import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.util.PurityUtils;
 import org.checkerframework.framework.flow.CFAbstractValue;
 import org.checkerframework.framework.type.AnnotatedTypeFactory.ParameterizedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesError;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -74,14 +74,14 @@ import javax.lang.model.type.TypeMirror;
  * @checker_framework.manual #lock-checker Lock Checker
  */
 public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
-    /** The class of GuardedBy */
+    /** The class of GuardedBy. */
     private static final Class<? extends Annotation> checkerGuardedByClass = GuardedBy.class;
 
-    /** The class of GuardSatisfied */
+    /** The class of GuardSatisfied. */
     private static final Class<? extends Annotation> checkerGuardSatisfiedClass =
             GuardSatisfied.class;
 
-    /** A pattern for spotting self receiver */
+    /** A pattern for spotting self receiver. */
     protected static final Pattern SELF_RECEIVER_PATTERN = Pattern.compile("^<self>(\\.(.*))?$");
 
     /**
@@ -275,7 +275,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
      * @param methodDefinitionReceiver the ATM of the formal receiver parameter of the method being
      *     called
      * @param methodCallReceiver the ATM of the receiver argument of the method call
-     * @return whether the caller can skip the receiver subtype check
+     * @return true if the caller can skip the receiver subtype check
      */
     @Override
     protected boolean skipReceiverSubtypeCheck(
@@ -337,7 +337,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
         // Newly created objects are guarded by nothing, so allow @GuardedBy({}) on constructor
         // results.
         AnnotationMirror anno =
@@ -346,7 +346,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                         .getAnnotationInHierarchy(atypeFactory.GUARDEDBYUNKNOWN);
         if (AnnotationUtils.areSame(anno, atypeFactory.GUARDEDBYUNKNOWN)
                 || AnnotationUtils.areSame(anno, atypeFactory.GUARDEDBYBOTTOM)) {
-            checker.reportWarning(constructorElement, "inconsistent.constructor.type", anno, null);
+            checker.reportWarning(constructorTree, "inconsistent.constructor.type", anno, null);
         }
     }
 
@@ -526,6 +526,22 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
     }
 
     /**
+     * Checks the lock of the expression of an enhanced for loop, which the loop dereferences: it
+     * calls {@code iterator()} on an {@code Iterable} or reads the length and the elements of an
+     * array.
+     */
+    @Override
+    public Void visitEnhancedForLoop(EnhancedForLoopTree tree, Void p) {
+        ExpressionTree iterated = tree.getExpression();
+        AnnotationMirror gb =
+                atypeFactory
+                        .getAnnotatedType(iterated)
+                        .getEffectiveAnnotationInHierarchy(atypeFactory.GUARDEDBYUNKNOWN);
+        checkLock(iterated, gb);
+        return super.visitEnhancedForLoop(tree, p);
+    }
+
+    /**
      * Skips the call to super and returns true.
      *
      * <p>{@code GuardedBy({})} is the default type on class declarations, which is a subtype of the
@@ -666,13 +682,12 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
         guardSatisfiedIndex[0] = -1;
 
-        AnnotatedTypeMirror methodDefinitionReceiver = null;
         AnnotatedTypeMirror methodCallReceiver = null;
 
         ExecutableElement invokedMethodElement = invokedMethod.getElement();
         if (!ElementUtils.isStatic(invokedMethodElement)
                 && invokedMethod.getElement().getKind() != ElementKind.CONSTRUCTOR) {
-            methodDefinitionReceiver = invokedMethod.getReceiverType();
+            AnnotatedTypeMirror methodDefinitionReceiver = invokedMethod.getReceiverType();
             if (methodDefinitionReceiver != null
                     && methodDefinitionReceiver.hasAnnotation(checkerGuardSatisfiedClass)) {
                 guardSatisfiedIndex[0] =
@@ -854,9 +869,8 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
         MethodTree enclosingMethod = TreePathUtil.enclosingMethod(atypeFactory.getPath(tree));
 
-        ExecutableElement methodElement = null;
         if (enclosingMethod != null) {
-            methodElement = TreeUtils.elementFromDeclaration(enclosingMethod);
+            ExecutableElement methodElement = TreeUtils.elementFromDeclaration(enclosingMethod);
 
             SideEffectAnnotation seaOfEnclosingMethod =
                     atypeFactory.methodSideEffectAnnotation(methodElement, false);
@@ -872,13 +886,13 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
     /**
      * Ensures that each variable accessed in an expression is final or effectively final and that
-     * each called method in the expression is @Deterministic. Issues an error otherwise.
-     * Recursively performs this check on method arguments. Only intended to be used on the
-     * expression of a synchronized block.
+     * each called method in the expression is pure (deterministic and side-effect-free). Issues an
+     * error otherwise. Recursively performs this check on method arguments. Only intended to be
+     * used on the expression of a synchronized block.
      *
      * <p>Example: given the expression var1.field1.method1(var2.method2()).field2, var1, var2,
      * field1 and field2 are enforced to be final or effectively final, and method1 and method2 are
-     * enforced to be @Deterministic.
+     * enforced to be pure.
      *
      * @param lockExpressionTree the expression tree of a synchronized block
      * @return true if the check succeeds, false if an error message was issued
@@ -912,14 +926,14 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                     }
                     return result;
                 case METHOD_INVOCATION:
-                    Element elem = TreeUtils.elementFromUse(tree);
-                    if (atypeFactory.getDeclAnnotationNoAliases(elem, Deterministic.class) == null
-                            && atypeFactory.getDeclAnnotationNoAliases(elem, Pure.class) == null) {
+                    MethodInvocationTree methodInvocationTree = (MethodInvocationTree) tree;
+                    ExecutableElement method = TreeUtils.elementFromUse(methodInvocationTree);
+                    // A deterministic method that is not side-effect-free may change the heap, so
+                    // two evaluations of the call could return different locks.
+                    if (!PurityUtils.isPure(atypeFactory, method)) {
                         checker.reportError(tree, "lock.expression.not.final", lockExpressionTree);
                         return false;
                     }
-
-                    MethodInvocationTree methodInvocationTree = (MethodInvocationTree) tree;
 
                     for (ExpressionTree argTree : methodInvocationTree.getArguments()) {
                         result = ensureExpressionIsEffectivelyFinal(argTree) && result;

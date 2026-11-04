@@ -1,0 +1,72 @@
+// Standalone example and test: depends on the published Annotation File Utilities artifact and
+// runs its annotator, org.checkerframework.afu.annotator.Main, on src/Insert.jaif and
+// src/Insert.java. `afuVersion` is passed in by checker/bin-devel/test-release.sh, which
+// publishes that version to a throw-away Maven local repository right before running this build.
+plugins {
+    id("java")
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+def afuVersion = project.findProperty("afuVersion")
+if (afuVersion == null) {
+    throw new GradleException(
+    "afuVersion project property not set; run via checker/bin-devel/test-release.sh")
+}
+
+repositories {
+    // The artifacts published by test-release.sh just before this build runs.
+    mavenLocal {
+        content {
+            includeGroup "io.github.eisop"
+        }
+    }
+    // Needed for the dependencies of the AFU.  Central must not serve the version under test: a
+    // previously released artifact of that version would mask a broken local publish.
+    mavenCentral {
+        content {
+            excludeVersionByRegex(
+                    "io\\.github\\.eisop", ".*", java.util.regex.Pattern.quote(afuVersion))
+        }
+    }
+}
+
+dependencies {
+    // The annotations that Insert.jaif refers to; the AFU needs them only to resolve names.
+    runtimeOnly("io.github.eisop:checker-qual:${afuVersion}")
+    implementation("io.github.eisop:annotation-file-utilities:${afuVersion}")
+}
+
+def outDir = layout.buildDirectory.dir("annotated")
+
+tasks.register("insertAnnotations", JavaExec) {
+    description = "Inserts the annotations of src/Insert.jaif into src/Insert.java."
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "org.checkerframework.afu.annotator.Main"
+    // On JDK 9 and later, the AFU accesses javac internals reflectively.
+    if (JavaVersion.current().isJava9Compatible()) {
+        jvmArgs += [
+            "api", "code", "main", "tree", "util",
+        ].collect { "--add-opens=jdk.compiler/com.sun.tools.javac." + it + "=ALL-UNNAMED" }
+        jvmArgs += "--add-opens=jdk.internal.opt/jdk.internal.opt=ALL-UNNAMED"
+    }
+    args = ["-d", outDir.get().asFile.path, "src/Insert.jaif", "src/Insert.java"]
+    doFirst { delete(outDir) }
+}
+
+tasks.register("smoketest") {
+    description = "Checks that the annotator produced src/Insert.java.expected."
+    dependsOn("insertAnnotations")
+    doLast {
+        def actual = outDir.get().file("Insert.java").asFile
+        def expected = file("src/Insert.java.expected")
+        if (!actual.exists() || actual.text != expected.text) {
+            throw new GradleException(
+            "The annotator output ${actual} does not match ${expected}:\n" +
+            (actual.exists() ? actual.text : "(no output)"))
+        }
+    }
+}

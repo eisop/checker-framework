@@ -49,6 +49,8 @@ public class LombokSupport implements BuilderFrameworkSupport {
     // class files for its own implementation, to prevent itself from being accidentally
     // added to clients' compile classpaths. This design decision means that it is
     // impossible to depend directly on Lombok internals.
+    // Avoid changes to the string constants by ShadowJar relocate by using "start".toString() +
+    // "rest".  Keep the original string constant in a comment to allow searching for it.
     /** The list of annotations that Lombok treats as non-null. */
     public static final List<String> NONNULL_ANNOTATIONS =
             Collections.unmodifiableList(
@@ -59,9 +61,11 @@ public class LombokSupport implements BuilderFrameworkSupport {
                             "androidx.annotation.NonNull",
                             "androidx.annotation.RecentlyNonNull",
                             "com.android.annotations.NonNull",
-                            "com.google.firebase.database.annotations.NotNull", // Even though it's
-                            // in a database package, it does mean semantically: "Check if never
-                            // null at the language level", and not 'db column cannot be null'.
+                            // Even though it's in a database package, it does mean
+                            // semantically: "Check if never null at the language level", and not
+                            // 'db column cannot be null'.
+                            // "com.google.firebase.database.annotations.NotNull",
+                            "com.go".toString() + "ogle.firebase.database.annotations.NotNull",
                             "com.mongodb.lang.NonNull", // Even though mongo is a DB engine,
                             // this semantically refers to language, not DB table designs (mongo is
                             // a document DB engine, so this isn't surprising perhaps).
@@ -80,7 +84,8 @@ public class LombokSupport implements BuilderFrameworkSupport {
                             "org.checkerframework.checker.nullness.qual.NonNull",
                             "org.checkerframework.checker.nullness.compatqual.NonNullDecl",
                             "org.checkerframework.checker.nullness.compatqual.NonNullType",
-                            "org.codehaus.commons.nullanalysis.NotNull",
+                            // "org.codehaus.commons.nullanalysis.NotNull",
+                            "org.co".toString() + "dehaus.commons.nullanalysis.NotNull",
                             "org.eclipse.jdt.annotation.NonNull",
                             "org.jetbrains.annotations.NotNull",
                             "org.jmlspecs.annotation.NonNull",

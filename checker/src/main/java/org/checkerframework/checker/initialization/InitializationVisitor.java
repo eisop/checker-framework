@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.StringJoiner;
 
 import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 
 /* NO-AFU
@@ -109,7 +108,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
 
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+            AnnotatedExecutableType constructorType, MethodTree constructorTree) {
         // Nothing to check
     }
 
@@ -193,7 +192,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         // field must be initialized.  Java forbids uninitialized variables and static initializer
         // blocks.
         if (nodeKind != Tree.Kind.INTERFACE && nodeKind != Tree.Kind.ANNOTATION_TYPE) {
-            // See GenericAnnotatedTypeFactory.performFlowAnalysis for why we use
+            // See GenericAnnotatedTypeFactory.performFlowAnalysisForClass for why we use
             // the regular exit store of the class here.
             InitializationStore store = atypeFactory.getRegularExitStore(tree);
             if (store != null) {
@@ -216,14 +215,13 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         if (TreeUtils.isConstructor(tree)) {
             Collection<? extends AnnotationMirror> returnTypeAnnotations =
                     AnnotationUtils.getExplicitAnnotationsOnConstructorResult(tree);
-            // check for invalid constructor return type
-            outer:
-            for (AnnotationMirror a : returnTypeAnnotations) {
-                for (Class<? extends Annotation> c : atypeFactory.getSupportedTypeQualifiers()) {
-                    if (atypeFactory.areSameByClass(a, c)) {
-                        checker.reportError(tree, COMMITMENT_INVALID_CONSTRUCTOR_RETURN_TYPE, tree);
-                        break outer;
-                    }
+            // getExplicitAnnotationsOnConstructorResult is a javacutil-level utility with no
+            // factory access, so it returns each annotation as written; resolve aliasing here,
+            // via the same asSupportedQualifier used by AnnotatedTypeMirror#getExplicitAnnotations.
+            for (AnnotationMirror am : returnTypeAnnotations) {
+                if (atypeFactory.asSupportedQualifier(am) != null) {
+                    checker.reportError(tree, COMMITMENT_INVALID_CONSTRUCTOR_RETURN_TYPE, tree);
+                    break;
                 }
             }
 
@@ -292,6 +290,57 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         super.visitMethodInvocation(node, p);
         commonAssignmentTree = oldCommonAssignmentTree;
         return null;
+    }
+
+    @Override
+    protected void reportMethodInvocabilityError(
+            MethodInvocationTree tree, AnnotatedTypeMirror found, AnnotatedTypeMirror expected) {
+        // Field initialization is tracked only for the current receiver, so the fields cannot be
+        // named for a call on anything else.
+        if (!TreeUtils.isSelfAccess(tree)) {
+            super.reportMethodInvocabilityError(tree, found, expected);
+            return;
+        }
+
+        GenericAnnotatedTypeFactory<?, ?, ?, ?> targetFactory =
+                checker.getTypeFactoryOfSubcheckerOrNull(
+                        ((InitializationChecker) checker).getTargetCheckerClass());
+        InitializationStore initStore = atypeFactory.getStoreBefore(tree);
+        CFAbstractStore<?, ?> targetStore = targetFactory.getStoreBefore(tree);
+        if (initStore == null) {
+            // Without a store, which fields are initialized cannot be determined.
+            super.reportMethodInvocabilityError(tree, found, expected);
+            return;
+        }
+
+        List<VariableTree> uninitializedFields =
+                targetStore != null
+                        ? atypeFactory.getUninitializedFields(
+                                initStore,
+                                targetStore,
+                                getCurrentPath(),
+                                false,
+                                Collections.emptyList())
+                        : atypeFactory.getUninitializedFields(
+                                initStore, getCurrentPath(), false, Collections.emptyList());
+        uninitializedFields.removeAll(initializedFields);
+        if (uninitializedFields.isEmpty()) {
+            // There is nothing to add to the message the superclass issues.
+            super.reportMethodInvocabilityError(tree, found, expected);
+            return;
+        }
+
+        StringJoiner fields = new StringJoiner(", ");
+        for (VariableTree f : uninitializedFields) {
+            fields.add(f.getName());
+        }
+        checker.reportError(
+                tree,
+                "initialization.method.invocation.invalid",
+                TreeUtils.elementFromUse(tree),
+                fields.toString(),
+                found.toString(),
+                expected.toString());
     }
 
     /**

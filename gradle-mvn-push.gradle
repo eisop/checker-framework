@@ -1,18 +1,18 @@
-apply plugin: 'maven-publish'
-apply plugin: 'signing'
+apply plugin: "maven-publish"
+apply plugin: "signing"
 
-final isSnapshot = version.contains('SNAPSHOT')
+final isSnapshot = version.contains("SNAPSHOT")
 
 publishing {
     repositories {
         maven {
             url = (isSnapshot
-            ? (findProperty('SNAPSHOT_REPOSITORY_URL') ?: 'https://central.sonatype.com/repository/maven-snapshots/')
-            : (findProperty('RELEASE_REPOSITORY_URL') ?: 'https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/')
+            ? (findProperty("SNAPSHOT_REPOSITORY_URL") ?: "https://central.sonatype.com/repository/maven-snapshots/")
+            : (findProperty("RELEASE_REPOSITORY_URL") ?: "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/")
             )
             credentials {
-                username = findProperty('SONATYPE_NEXUS_USERNAME')
-                password = findProperty('SONATYPE_NEXUS_PASSWORD')
+                username = findProperty("SONATYPE_NEXUS_USERNAME")
+                password = findProperty("SONATYPE_NEXUS_PASSWORD")
             }
         }
     }
@@ -30,8 +30,34 @@ signing {
 }
 
 // Only sign releases; snapshots are unsigned.
+// The properties are read here, because a task action that refers to the project cannot be stored
+// in the configuration cache.
+final signReleases = !isSnapshot && project.hasProperty("release")
+final hasSigningKeyName = project.hasProperty("signing.gnupg.keyName")
 tasks.withType(Sign).configureEach {
     onlyIf {
-        !isSnapshot && project.hasProperty("release")
+        signReleases
     }
+    doFirst {
+        // Any maintainer may sign a release, each with their own key, so no key is hardcoded.
+        // Require the key to be named explicitly: otherwise gpg falls back to whichever secret
+        // key happens to be its default, which may not be one Maven Central can verify.
+        if (!hasSigningKeyName) {
+            throw new GradleException(
+                "signing.gnupg.keyName is not set, so gpg would sign with its default key.\n" +
+                "Set it to your own key, either in ~/.gradle/gradle.properties or as\n" +
+                "-Psigning.gnupg.keyName=<key id or email>.\n" +
+                "See docs/developer/maven-central-publishing.md.")
+        }
+    }
+}
+
+// A project with several publications (such as dataflow) shares the sources and Javadoc jars among
+// them, so every Sign task writes the signatures of those jars, and every publish task uploads
+// them.  Gradle rejects a publish task that reads a Sign task's output without a dependency on it.
+tasks.withType(PublishToMavenRepository).configureEach {
+    mustRunAfter(tasks.withType(Sign))
+}
+tasks.withType(PublishToMavenLocal).configureEach {
+    mustRunAfter(tasks.withType(Sign))
 }

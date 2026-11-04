@@ -39,7 +39,7 @@
 //                                          high-level operation dominates.
 //   under  <ctxSubstr> <file...>           Leaf self-time histogram restricted to
 //                                          samples whose stack contains <ctxSubstr>
-//                                          (e.g. performFlowAnalysis): where does a
+//                                          (e.g. performFlowAnalysisForClass): where does a
 //                                          given subsystem spend its self-time.
 //   cooccur <target> <ctx> <file...>       Of samples whose stack contains <target>,
 //                                          what fraction also contains <ctx>. Attributes
@@ -64,6 +64,17 @@
 // Self-time is taken from jdk.ExecutionSample ONLY. jdk.NativeMethodSample
 // catches threads parked in native (sun.nio.ch.EPoll.wait and friends on the
 // Gradle worker's messaging thread) and is pure idle noise for CF profiling.
+// On a JDK 25+ recording, `-Djfr.sample=jdk.CPUTimeSample` (before the file
+// name: `java -Djfr.sample=jdk.CPUTimeSample jfr-analyze.java <mode> ...`)
+// uses the CPU-time sampler's events instead; see SAMPLE_EVENT.
+//
+// SAMPLE QUALITY: on JDK 21 the ExecutionSample sampler drops most samples of
+// deep CF stacks (KeY's key.core: 15-26 samples/s of the 100/s a 10 ms period
+// asks for), so its percentages are biased toward whatever code it can walk.
+// JDK 25 records 86/s on the same workload. Truncated stacks (deeper than
+// -XX:FlightRecorderOptions=stackdepth, default 64) lose their outermost frames,
+// so inclusive time is undercounted. `phase` prints both; record on JDK 25+
+// with record-jfr.sh, which sets stackdepth.
 
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordedFrame;
@@ -85,6 +96,16 @@ public class jfr_analyze {
             return "<null>";
         }
         return me.getType().getName() + "." + me.getName();
+    }
+
+    /**
+     * The event type whose stack traces are the CPU samples: jdk.ExecutionSample by default, or
+     * the value of the jfr.sample system property (e.g. jdk.CPUTimeSample, JDK 25+).
+     */
+    static final String SAMPLE_EVENT = System.getProperty("jfr.sample", "jdk.ExecutionSample");
+
+    static boolean isSample(String type) {
+        return type.equals(SAMPLE_EVENT);
     }
 
     static boolean isAlloc(String type) {
@@ -189,7 +210,7 @@ public class jfr_analyze {
             try (RecordingFile rf = new RecordingFile(Paths.get(args[i]))) {
                 while (rf.hasMoreEvents()) {
                     RecordedEvent e = rf.readEvent();
-                    if (!e.getEventType().getName().equals("jdk.ExecutionSample")) {
+                    if (!isSample(e.getEventType().getName())) {
                         continue;
                     }
                     RecordedStackTrace st = e.getStackTrace();
@@ -219,7 +240,7 @@ public class jfr_analyze {
             try (RecordingFile rf = new RecordingFile(Paths.get(args[i]))) {
                 while (rf.hasMoreEvents()) {
                     RecordedEvent e = rf.readEvent();
-                    if (!e.getEventType().getName().equals("jdk.ExecutionSample")) {
+                    if (!isSample(e.getEventType().getName())) {
                         continue;
                     }
                     RecordedStackTrace st = e.getStackTrace();
@@ -252,7 +273,7 @@ public class jfr_analyze {
             try (RecordingFile rf = new RecordingFile(Paths.get(args[i]))) {
                 while (rf.hasMoreEvents()) {
                     RecordedEvent e = rf.readEvent();
-                    if (!e.getEventType().getName().equals("jdk.ExecutionSample")) {
+                    if (!isSample(e.getEventType().getName())) {
                         continue;
                     }
                     RecordedStackTrace st = e.getStackTrace();
@@ -296,7 +317,7 @@ public class jfr_analyze {
                 while (rf.hasMoreEvents()) {
                     RecordedEvent e = rf.readEvent();
                     String type = e.getEventType().getName();
-                    if (type.equals("jdk.ExecutionSample")) {
+                    if (isSample(type)) {
                         RecordedStackTrace st = e.getStackTrace();
                         if (st == null || st.getFrames().isEmpty()) {
                             continue;
@@ -352,7 +373,7 @@ public class jfr_analyze {
                     String type = e.getEventType().getName();
                     boolean want;
                     if (mode.equals("self")) {
-                        want = type.equals("jdk.ExecutionSample");
+                        want = isSample(type);
                     } else {
                         want = isAlloc(type);
                     }
@@ -443,18 +464,60 @@ public class jfr_analyze {
         return "JDK/runtime (uncategorized)";
     }
 
+    /**
+     * Prints how trustworthy the samples are: the sampler, the JVM, the sample rate over the span
+     * that has samples, the fraction of truncated stacks, and lost CPU-time samples, with a warning
+     * for a JVM whose ExecutionSample sampler drops samples or for truncated stacks.
+     */
+    static void printSampleQuality(
+            long samples, long truncated, long lost, double spanSec, String jvmVersion) {
+        double truncatedPct = samples == 0 ? 0 : 100.0 * truncated / samples;
+        // jvmVersion is e.g. "OpenJDK 64-Bit Server VM (25.0.1+8-27) for linux-amd64 JRE ...".
+        java.util.regex.Matcher version =
+                java.util.regex.Pattern.compile("\\(([^)]*)\\)").matcher(jvmVersion);
+        String jdk = version.find() ? "JDK " + version.group(1) : jvmVersion;
+        System.out.printf(
+                "Sample quality: %s on %s; %.0f samples/s over the sampled span (10 ms period"
+                        + " = 100/s per busy thread); %.1f%% truncated stacks; %d CPU-time"
+                        + " samples lost.%n",
+                SAMPLE_EVENT, jdk, spanSec == 0 ? 0 : samples / spanSec, truncatedPct, lost);
+        if (samples == 0) {
+            System.out.println(
+                    "*** NO SAMPLES: the recording has no " + SAMPLE_EVENT + " events"
+                            + " (jdk.CPUTimeSample needs JDK 25+ and Linux).");
+        }
+        java.util.regex.Matcher major =
+                java.util.regex.Pattern.compile("\\((\\d+)[.+]").matcher(jvmVersion);
+        boolean oldJdk = major.find() && Integer.parseInt(major.group(1)) < 25;
+        // Without jdk.JVMInformation, a low rate over a long span is the symptom.
+        boolean lowRate = spanSec > 30 && samples / spanSec < 50;
+        if (SAMPLE_EVENT.equals("jdk.ExecutionSample") && samples > 0 && (oldJdk || lowRate)) {
+            System.out.println(
+                    "*** SAMPLER WARNING: JDK < 25 drops most ExecutionSamples of deep CF stacks;"
+                            + " percentages are biased. Record on JDK 25+ (or the thread was"
+                            + " idle for much of the span).");
+        }
+        if (truncatedPct > 1) {
+            System.out.println(
+                    "*** TRUNCATION WARNING: inclusive time is undercounted. Record with"
+                            + " -XX:FlightRecorderOptions=stackdepth=1024 (record-jfr.sh does).");
+        }
+    }
+
     /** High-level wall-clock breakdown: on-CPU Java by subsystem, plus GC pause and native/idle. */
     static void phase(String[] args, int start) throws Exception {
         Map<String, Long> bucket = new HashMap<>();
         long exec = 0, nativeIdle = 0, nativeReal = 0, gcPauseNanos = 0;
         int gcCount = 0;
+        long truncated = 0, lostCpuTimeSamples = 0;
+        String jvmVersion = "unknown";
         java.time.Instant spanStart = null, spanEnd = null;
         for (int i = start; i < args.length; i++) {
             try (RecordingFile rf = new RecordingFile(Paths.get(args[i]))) {
                 while (rf.hasMoreEvents()) {
                     RecordedEvent e = rf.readEvent();
                     String type = e.getEventType().getName();
-                    if (type.equals("jdk.ExecutionSample")) {
+                    if (isSample(type)) {
                         RecordedStackTrace st = e.getStackTrace();
                         if (st == null || st.getFrames().isEmpty()) {
                             continue;
@@ -463,7 +526,14 @@ public class jfr_analyze {
                         if (spanStart == null || t.isBefore(spanStart)) spanStart = t;
                         if (spanEnd == null || t.isAfter(spanEnd)) spanEnd = t;
                         exec++;
+                        if (st.isTruncated()) {
+                            truncated++;
+                        }
                         bucket.merge(phaseBucket(st.getFrames()), 1L, Long::sum);
+                    } else if (type.equals("jdk.CPUTimeSamplesLost")) {
+                        lostCpuTimeSamples += e.getLong("lostSamples");
+                    } else if (type.equals("jdk.JVMInformation")) {
+                        jvmVersion = e.getString("jvmVersion");
                     } else if (type.equals("jdk.NativeMethodSample")) {
                         RecordedStackTrace st = e.getStackTrace();
                         String leaf = st == null || st.getFrames().isEmpty() ? "" : m(st.getFrames().get(0));
@@ -493,11 +563,12 @@ public class jfr_analyze {
                         ? 0
                         : java.time.Duration.between(spanStart, spanEnd).toMillis() / 1000.0;
         System.out.printf(
-                "On-CPU Java: %d ExecutionSamples (~%.1f s at 10ms).  Recording span: %.0f s wall."
+                "On-CPU Java: %d samples (~%.1f s at 10ms).  Recording span: %.0f s wall."
                         + "  GC: %d collections, %.0f ms summed pause.%n",
                 exec, exec * 0.010, spanSec, gcCount, gcPauseNanos / 1e6);
         System.out.printf(
                 "Native samples: %d idle (EPoll/park -- not work) + %d real I/O.%n", nativeIdle, nativeReal);
+        printSampleQuality(exec, truncated, lostCpuTimeSamples, spanSec, jvmVersion);
         // Scope guard: the full `./gradlew checknullness` (all ~10 subprojects, one worker JVM) is
         // ~15-17k samples / ~155-170 s. A trace this small is almost certainly a single-subproject
         // slice (e.g. `:checker:checkNullness`), which undercounts build-level impact ~2x.

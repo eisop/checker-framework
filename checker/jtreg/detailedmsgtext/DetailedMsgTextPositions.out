@@ -1,0 +1,2 @@
+DetailedMsgTextPositions.java:13:20: compiler.err.proc.messager: (dereference.of.nullable) $$ 1 $$ nble $$ ( 494, 507 ) $$ dereference of possibly-null reference nble
+1 error

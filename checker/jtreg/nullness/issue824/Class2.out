@@ -1,8 +1,9 @@
 Class2.java:14:39: compiler.err.proc.messager: (type.argument.type.incompatible)
 Class2.java:15:22: compiler.err.proc.messager: (type.argument.type.incompatible)
-Class2.java:15:47: compiler.err.proc.messager: (type.argument.type.incompatible)
+Class2.java:15:50: compiler.err.proc.messager: (type.argument.type.incompatible)
+Class2.java:15:67: compiler.err.proc.messager: (type.argument.type.incompatible)
 Class2.java:16:31: compiler.err.proc.messager: (type.arguments.not.inferred)
 Class2.java:19:31: compiler.err.proc.messager: (type.arguments.not.inferred)
 Class2.java:20:30: compiler.err.proc.messager: (argument.type.incompatible)
 Class2.java:29:37: compiler.err.proc.messager: (type.arguments.not.inferred)
-7 errors
+8 errors

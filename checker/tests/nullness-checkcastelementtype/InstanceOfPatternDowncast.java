@@ -12,12 +12,9 @@ public class InstanceOfPatternDowncast {
     interface SubSupplier<T extends @Nullable Object> extends Supplier<T> {}
 
     void test(Supplier<@Nullable String> supplier) {
-        // TODO: this narrows the type argument's nullness (@Nullable String to String) the same
-        // way Downcast.java's downcastUnsafe does via an explicit cast, but -AcheckCastElementType
-        // does not warn here. visitInstanceOf's binding-pattern check shares isTypeCastSafe with
-        // the cast check, so this looks like a pre-existing, separate gap in that call site
-        // (not something this file's downcast fix introduced or fixes) rather than a difference
-        // in what is safe.
+        // Narrows the type argument's nullness (@Nullable String to String); with
+        // -AcheckCastElementType, visitInstanceOf's binding-pattern check issues a warning.
+        // :: warning: (instanceof.pattern.unsafe)
         if (supplier instanceof SubSupplier<String> sub) {
             sub.toString();
         }

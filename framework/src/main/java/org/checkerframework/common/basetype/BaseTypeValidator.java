@@ -9,6 +9,7 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
 
@@ -36,11 +37,11 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.ArrayMap;
-import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -203,8 +204,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      *
      * @param type the AnnotatedTypeMirror being validated
      * @param tree a Tree whose type is {@code type}
-     * @return whether or not the top-level type should be checked, if {@code type} is a declared or
-     *     primitive type.
+     * @return true if the top-level type should be checked, if {@code type} is a declared or
+     *     primitive type
      */
     protected boolean shouldCheckTopLevelDeclaredOrPrimitiveType(
             AnnotatedTypeMirror type, Tree tree) {
@@ -427,7 +428,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
          * Try to reconstruct the ParameterizedTypeTree from the given tree.
          * TODO: there has to be a nicer way to do this...
          */
-        IPair<ParameterizedTypeTree, AnnotatedDeclaredType> p =
+        Pair<ParameterizedTypeTree, AnnotatedDeclaredType> p =
                 extractParameterizedTypeTree(tree, type);
         ParameterizedTypeTree typeArgTree = p.first;
         type = p.second;
@@ -512,7 +513,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         List<? extends Tree> boundTrees = typeParameterTree.getBounds();
         if (boundTrees.size() == 1) {
             scan(typeParameter.getUpperBound(), boundTrees.get(0));
-        } else if (boundTrees.size() == 0) {
+        } else if (boundTrees.isEmpty()) {
             // The upper bound is implicitly Object
             scan(typeParameter.getUpperBound(), typeParameterTree);
         } else {
@@ -533,7 +534,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @return if {@code tree} has a {@code ParameterizedTypeTree}, then returns the tree and its
      *     type. Otherwise, returns null and {@code type}.
      */
-    private IPair<@Nullable ParameterizedTypeTree, AnnotatedDeclaredType>
+    private Pair<@Nullable ParameterizedTypeTree, AnnotatedDeclaredType>
             extractParameterizedTypeTree(Tree tree, AnnotatedDeclaredType type) {
         ParameterizedTypeTree typeargtree = null;
 
@@ -573,7 +574,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                     // TODO: add more test cases to ensure that nested types are
                     // handled correctly,
                     // e.g. @Nullable() List<@Nullable Object>[][]
-                    IPair<ParameterizedTypeTree, AnnotatedDeclaredType> p =
+                    Pair<ParameterizedTypeTree, AnnotatedDeclaredType> p =
                             extractParameterizedTypeTree(undtr, type);
                     typeargtree = p.first;
                     type = p.second;
@@ -597,13 +598,17 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                     typeargtree = (ParameterizedTypeTree) methodTree.getReturnType();
                 }
                 break;
+            case TYPE_CAST:
+                // BaseTypeVisitor#visitTypeCast validates the cast, whose type has the type
+                // arguments written in the cast's type.
+                return extractParameterizedTypeTree(((TypeCastTree) tree).getType(), type);
             default:
                 // The parameterized type is the result of some expression tree.
                 // No need to do anything further.
                 break;
         }
 
-        return IPair.of(typeargtree, type);
+        return Pair.of(typeargtree, type);
     }
 
     @Override
@@ -685,9 +690,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                         && ((NewClassTree) tree).getEnclosingExpression() == null;
 
         // Unwrap the type tree down to the tree that actually names the type: strip a surrounding
-        // VariableTree or AnnotatedTypeTree, unwrap a MethodTree to its return type or a
-        // NewClassTree to its instantiated type, then drop a top-level ParameterizedTypeTree's own
-        // type arguments to reach the (possibly qualified) name.
+        // VariableTree or AnnotatedTypeTree, unwrap a MethodTree to its return type, a NewClassTree
+        // to its instantiated type, or a TypeCastTree to its target type, then drop a top-level
+        // ParameterizedTypeTree's own type arguments to reach the (possibly qualified) name.
         Tree nameTree = tree;
         while (true) {
             if (nameTree instanceof VariableTree) {
@@ -702,12 +707,33 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 }
             } else if (nameTree instanceof NewClassTree) {
                 nameTree = ((NewClassTree) nameTree).getIdentifier();
+            } else if (nameTree instanceof TypeCastTree) {
+                nameTree = ((TypeCastTree) nameTree).getType();
             } else {
                 break;
             }
         }
+        // A lambda parameter without a declared type has no type tree.
+        if (nameTree == null) {
+            return;
+        }
         if (nameTree instanceof ParameterizedTypeTree) {
             nameTree = ((ParameterizedTypeTree) nameTree).getType();
+        }
+
+        // The scan of a declared type also visits its enclosing type, passing the same tree. Then
+        // `type` is an enclosing type of the type that the tree names, and the levels of `type`'s
+        // enclosing-type chain do not correspond to the levels of the tree's qualifier chain. The
+        // visit of the type that the tree names validates the whole chain, so do nothing here.
+        Element typeElement = type.getUnderlyingType().asElement();
+        Element namedElement = TreeUtils.elementFromTree(nameTree);
+        for (Element enclosingElement =
+                        namedElement == null ? null : namedElement.getEnclosingElement();
+                enclosingElement != null;
+                enclosingElement = enclosingElement.getEnclosingElement()) {
+            if (enclosingElement.equals(typeElement)) {
+                return;
+            }
         }
 
         // Walk outward through the qualifier chain, validating each enclosing type that is written
@@ -763,6 +789,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         List<AnnotatedTypeParameterBounds> bounds =
                 atypeFactory.typeVariablesFromUse(capturedType, element);
 
+        // A type argument outside its bounds is reported, but does not make the type invalid:
+        // the type is well-formed, so the checks that compare it still run. See
+        // BaseTypeVisitor#validateType.
         visitor.checkTypeArguments(
                 tree,
                 bounds,
@@ -868,10 +897,13 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * Checks, for every wildcard type argument whose capture is not itself a captured type
      * variable, the special case described by JDK-8054309: if the super bound of the wildcard is
      * the same as the upper bound of the type parameter, then javac uses the bound rather than
-     * creating a fresh type variable. (See https://bugs.openjdk.org/browse/JDK-8054309.) In this
-     * case, the Checker Framework uses the annotations on the super bound of the wildcard and
-     * ignores the annotations on the extends bound. For example, {@code Set<@1 ? super @2 Object>}
-     * will collapse into {@code Set<@2 Object>}. This method issues the
+     * creating a fresh type variable. (See https://bugs.openjdk.org/browse/JDK-8054309.) If the
+     * collapsed type argument is a declared type and the bounds' annotations differ, {@link
+     * AnnotatedTypeFactory#applyCaptureConversion} creates the type variable javac did not, so the
+     * capture is a captured type variable and this method does not check it. If the collapsed type
+     * argument is a type variable, as for {@code Gen<F, ? super F>} with {@code Gen<T, S extends
+     * T>}, the Checker Framework uses the annotations on the super bound of the wildcard and
+     * ignores the annotations on the extends bound. This method issues the
      * "type.invalid.super.wildcard" error if the annotations on the extends bound are not the same
      * as the annotations on the super bound.
      *
@@ -898,13 +930,16 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 // type parameter, then javac uses the bound rather than creating a fresh
                 // type variable.
                 // (See https://bugs.openjdk.org/browse/JDK-8054309.)
-                // In this case, the Checker Framework uses the annotations on the super
-                // bound of the wildcard and ignores the annotations on the extends bound.
-                // For example, Set<@1 ? super @2 Object> will collapse into Set<@2 Object>.
-                // So, issue a warning if the annotations on the extends bound are not the
-                // same as the annotations on the super bound.
-                if (!areCollapsedWildcardBoundsEqual(
-                        wildcard.getExtendsBound(), wildcard.getSuperBound())) {
+                // If the bounds' annotations differ, applyCaptureConversion re-creates the type
+                // variable for a wildcard that collapsed to a declared type, so this can only
+                // fail for one that collapsed to a type variable. The Checker Framework uses the
+                // annotations on its super bound and ignores those on its extends bound, so
+                // issue an error if they are not the same.
+                TypeHierarchy typeHierarchy = atypeFactory.getTypeHierarchy();
+                if (!typeHierarchy.isSubtypeShallowEffective(
+                                wildcard.getSuperBound(), wildcard.getExtendsBound())
+                        || !typeHierarchy.isSubtypeShallowEffective(
+                                wildcard.getExtendsBound(), wildcard.getSuperBound())) {
                     checker.reportError(
                             tree.getTypeArguments().get(i),
                             "type.invalid.super.wildcard",
@@ -913,34 +948,6 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 }
             }
         }
-    }
-
-    /**
-     * Returns true if, for the purposes of the JDK-8054309 collapsed-wildcard check in {@link
-     * #checkExplicitSuperBoundWildcards}, {@code extendsBound} and {@code superBound} count as the
-     * same bound.
-     *
-     * <p>The default implementation tests this via a bidirectional {@code
-     * isSubtypeShallowEffective} check, i.e. "each is a subtype of the other". That is a correct
-     * test for "same qualifier" only in an antisymmetric qualifier hierarchy, which is the case for
-     * all of CF's own type systems.
-     *
-     * <p>A checker whose qualifier hierarchy is not antisymmetric -- for example, one with an
-     * "unspecified" qualifier that is (by design) mutually a subtype of every other qualifier, so
-     * that it is compatible in both directions during subtype checks -- must override this method
-     * to compare the bounds directly (e.g. by comparing their effective annotation sets for
-     * equality) rather than relying on mutual subtyping, since mutual subtyping no longer implies
-     * equality in such a hierarchy.
-     *
-     * @param extendsBound the extends bound of the wildcard
-     * @param superBound the super bound of the wildcard
-     * @return true if the two bounds should be treated as equal for this check
-     */
-    protected boolean areCollapsedWildcardBoundsEqual(
-            AnnotatedTypeMirror extendsBound, AnnotatedTypeMirror superBound) {
-        TypeHierarchy typeHierarchy = atypeFactory.getTypeHierarchy();
-        return typeHierarchy.isSubtypeShallowEffective(superBound, extendsBound)
-                && typeHierarchy.isSubtypeShallowEffective(extendsBound, superBound);
     }
 
     @Override

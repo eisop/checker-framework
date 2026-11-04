@@ -16,7 +16,17 @@ compile:
 	$(MAKE) -C BazelExample
 	$(MAKE) -C nullaway
 	$(MAKE) -C jspecify
+# Not on Windows, where make runs the script's "#!/bin/bash" with the bash of the Windows Subsystem
+# for Linux rather than that of Git for Windows.  Releases are published on Linux.
+ifneq ($(OS),Windows_NT)
 	$(MAKE) -C publish-smoketest
+endif
+	$(MAKE) -C eisop-errorprone
+	$(MAKE) -C typetools-checker-qual
+
+# afu-consumer is not built here: it needs the afuVersion of a locally published
+# annotation-file-utilities artifact.  checker/bin-devel/test-release.sh publishes it and builds
+# the example.
 
 # TODO: type check the different files with the right checker;
 #   some tests expect errors, compare against expected errors.
@@ -33,3 +43,5 @@ clean:
 	$(MAKE) -C nullaway clean
 	$(MAKE) -C jspecify clean
 	$(MAKE) -C publish-smoketest clean
+	$(MAKE) -C eisop-errorprone clean
+	$(MAKE) -C typetools-checker-qual clean

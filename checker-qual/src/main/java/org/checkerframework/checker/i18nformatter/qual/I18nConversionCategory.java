@@ -94,7 +94,7 @@ public enum I18nConversionCategory {
     }
 
     /**
-     * Return true if a is a subset of b.
+     * Returns true if a is a subset of b.
      *
      * @return true if a is a subset of b
      */

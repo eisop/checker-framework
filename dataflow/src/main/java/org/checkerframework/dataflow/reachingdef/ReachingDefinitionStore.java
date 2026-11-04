@@ -18,7 +18,7 @@ import java.util.StringJoiner;
  */
 public class ReachingDefinitionStore implements Store<ReachingDefinitionStore> {
 
-    /** The set of reaching definitions in this store */
+    /** The set of reaching definitions in this store. */
     private final Set<ReachingDefinitionNode> reachingDefSet;
 
     /** Create a new ReachDefinitionStore. */

@@ -20,7 +20,7 @@ import java.lang.annotation.Target;
  * <pre>
  * {@literal @}Format({GENERAL, INT}) String f = "String '%s' has length %d";
  *
- *  String.format(f, "Example", 7);
+ * String.format(f, "Example", 7);
  * </pre>
  *
  * </blockquote>

@@ -89,10 +89,6 @@ import javax.lang.model.type.TypeMirror;
  *
  * <p>See {@link ResourceLeakChecker#ENABLE_WPI_FOR_RLC} for an explanation of the meaning of the
  * flags {@code -Ainfer} and {@code -AenableWpiForRlc}.
- *
- * @see <a
- *     href="https://checkerframework.org/manual/#resource-leak-checker-inference-algo">Automatic
- *     Inference of Resource Leak Specifications</a>
  */
 public class MustCallInference {
 
@@ -525,12 +521,12 @@ public class MustCallInference {
     }
 
     /**
-     * Return the (1-based) index of the method parameter that exist in the set of aliases of the
+     * Returns the (1-based) index of the method parameter that exist in the set of aliases of the
      * given {@code obligation}, if one exists; otherwise, return -1.
      *
      * @param obligation the obligation
      * @return the index of the current method parameter that exist in the set of aliases of the
-     *     given obligation, if one exists; otherwise, return -1.
+     *     given obligation, if one exists; otherwise, return -1
      */
     private int getIndexOfParam(Obligation obligation) {
         Set<ResourceAlias> resourceAliases = obligation.resourceAliases;
@@ -694,8 +690,8 @@ public class MustCallInference {
     }
 
     /**
-     * Checks whether the given element is a resource alias of the given node in the provided set of
-     * obligations.
+     * Returns true if the given element is a resource alias of the given node in the provided set
+     * of obligations.
      *
      * @param obligations the current set of tracked Obligations
      * @param node the node

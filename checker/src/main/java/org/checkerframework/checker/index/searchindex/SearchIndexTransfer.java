@@ -51,9 +51,9 @@ public class SearchIndexTransfer extends IndexAbstractTransfer {
      * <pre>
      * <code>
      * {@literal @}SearchIndexFor("a") int index = Arrays.binarySearch(a, y);
-     *  if (index &lt; 0) {
-     *    {@literal @}NegativeIndexFor("a") int negInsertionPoint = index;
-     *  }
+     * if (index &lt; 0) {
+     *   {@literal @}NegativeIndexFor("a") int negInsertionPoint = index;
+     * }
      * </code>
      * </pre>
      *

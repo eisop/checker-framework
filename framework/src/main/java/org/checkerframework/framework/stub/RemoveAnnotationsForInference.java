@@ -558,7 +558,10 @@ public class RemoveAnnotationsForInference {
                 || name.equals("Singleton")
                 || name.equals("javax.inject.Singleton")
                 || name.equals("Option")
-                || name.equals("org.plumelib.options.Option")) {
+                // Avoid changes to the string constant by ShadowJar relocate by using
+                // "start".toString() + "rest".  The original constant is
+                // "org.plumelib.options.Option".
+                || name.equals("org.pl".toString() + "umelib.options.Option")) {
             return Collections.singletonList("allcheckers");
         }
 
@@ -612,7 +615,7 @@ public class RemoveAnnotationsForInference {
      * @return the part of s before the colon, or the whole thing if it contains no colon
      */
     private static String checkerName(String s) {
-        int colonPos = s.indexOf(":");
+        int colonPos = s.indexOf(':');
         if (colonPos == -1) {
             return s;
         } else {

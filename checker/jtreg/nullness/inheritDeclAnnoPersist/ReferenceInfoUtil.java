@@ -14,10 +14,31 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
 
+/**
+ * Utility class for extracting and comparing declaration annotations from a {@link ClassFile} using
+ * the legacy {@code com.sun.tools.classfile} API on JDK versions prior to 25.
+ *
+ * <p>For JDK 25 and later, see the counterpart utility {@code
+ * checker/jtreg/nullness/inheritDeclAnnoPersist25/ReferenceInfoUtil.java} which uses {@code
+ * java.lang.classfile}.
+ *
+ * @see Driver
+ * @see PersistUtil
+ */
 public class ReferenceInfoUtil {
 
+    /** Sentinel value for ignored attributes or indices. */
     public static final int IGNORE_VALUE = -321;
 
+    /** Private constructor to prevent instantiation of utility class. */
+    private ReferenceInfoUtil() {}
+
+    /**
+     * Extracts all declaration annotations from methods in the given class file.
+     *
+     * @param cf the class file to inspect
+     * @return list of annotations found on methods
+     */
     public static List<Annotation> extendedAnnotationsOf(ClassFile cf) {
         List<Annotation> annos = new ArrayList<>();
         findAnnotations(cf, annos);
@@ -63,6 +84,17 @@ public class ReferenceInfoUtil {
         return null;
     }
 
+    /**
+     * Compares expected declaration annotations against actual annotations found on methods.
+     *
+     * @param expectedAnnos the expected annotation class names
+     * @param actualAnnos the actual annotations found
+     * @param cf the class file being inspected
+     * @param diagnostic diagnostic context for error message
+     * @return true if all expected annotations match
+     * @throws InvalidIndex if constant pool index is invalid
+     * @throws UnexpectedEntry if constant pool entry has unexpected type
+     */
     public static boolean compare(
             List<String> expectedAnnos,
             List<Annotation> actualAnnos,
@@ -102,13 +134,30 @@ public class ReferenceInfoUtil {
     }
 }
 
+/**
+ * Exception thrown when expected declaration annotations do not match actual annotations in
+ * bytecode.
+ */
 class ComparisonException extends RuntimeException {
     private static final long serialVersionUID = -3930499712333815821L;
 
+    /** The expected annotation names. */
     public final List<String> expected;
+
+    /** The actual annotations found. */
     public final List<Annotation> found;
+
+    /** The class file being inspected. */
     public final ClassFile cf;
 
+    /**
+     * Constructs a ComparisonException with diagnostic details.
+     *
+     * @param message the detail message
+     * @param expected the expected annotation names
+     * @param found the actual annotations found
+     * @param cf the class file being inspected
+     */
     public ComparisonException(
             String message, List<String> expected, List<Annotation> found, ClassFile cf) {
         super(message);

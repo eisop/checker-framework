@@ -208,10 +208,94 @@ command-line option.)
   might clear any built-in property, as described above.
 
 \item
+  If you supply the \code{-Amode=jspecify} command-line option, then the Nullness
+  Checker behaves as JSpecify specifies:  it checks only code in the scope of a
+  corresponding \code{@AnnotatedFor}, treats \code{org.jspecify.annotations.NullMarked}
+  as a defaulting annotation, and performs neither initialization checking nor
+  map-key checking, neither of which JSpecify specifies.
+  It also reports a nullness annotation written where JSpecify gives it no meaning
+  (see \code{-AjspecifyUnrecognizedLocations} below): in some of those locations the
+  Checker Framework attaches its own meaning to the annotation, so silently accepting
+  it there would defeat the purpose of this mode.  A user relying on
+  \code{-Amode=jspecify} to behave as JSpecify specifies would otherwise have no way
+  to know that some of what they wrote was being interpreted by the checker's own
+  rules instead of JSpecify's.
+  It also assumes that every called method is pure
+  (Section~\ref{purity-suppress-warnings}) and that assertions are enabled
+  (Section~\ref{type-refinement-assertions}).
+  It writes only source-code annotations into the \<.class> file
+  (Section~\ref{AstoreInBytecode}):  the qualifiers the checker infers by
+  defaulting are not part of the JSpecify specification of the code, and storing
+  them breaks downstream tools.
+  Code outside the scope of a \code{@NullMarked} or \code{@AnnotatedFor} has what
+  JSpecify calls unspecified nullness.  JSpecify leaves it to each tool how to treat
+  unspecified nullness, from strict to lenient (see the
+  \href{https://jspecify.dev/docs/spec/#multiple-worlds}{``multiple worlds'' discussion}
+  in the JSpecify specification).  The mode currently interprets it leniently, with
+  permissive defaults (Section~\ref{defaults-classfile}) for both source code and bytecode.
+  This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
+  -AassumeKeyFor -AjspecifyUnrecognizedLocations -AassumePure
+  -AstoreInBytecode=false -AassumeAssertions=enabled
+  -AusePermissiveDefaultsForUncheckedCode=source,bytecode}.  The first five are on/off
+  flags with no negative form, so there is currently no way to enable this mode but turn
+  one of them back off.
+  The last three take a value, so writing one together with
+  \code{-Amode=jspecify} overrides what the mode assumes; for example,
+  \code{-AstoreInBytecode=true} stores the defaulted qualifiers after all,
+  \code{-AassumeAssertions=neither} restores the default treatment of \code{assert}
+  statements (Section~\ref{type-refinement-assertions}), and
+  \code{-AusePermissiveDefaultsForUncheckedCode=-source,-bytecode} restores the ordinary
+  defaults for unchecked code.  To use conservative defaults for unchecked code instead,
+  write \code{-AuseConservativeDefaultsForUncheckedCode}, which replaces the mode's
+  permissive defaults.
+
+\item
   \label{nullness-jspecifyNullMarkedAlias}%
   If you supply the \code{-AjspecifyNullMarkedAlias=false} command-line option, then the
-  checker will not treat \code{org.jspecify.nullness.NullMarked} as a defaulting
-  annotation. By default the \code{NullMarked} annotation is recognized.
+  checker will not recognize \code{org.jspecify.annotations.NullMarked} or
+  \code{org.jspecify.annotations.NullUnmarked}.
+  By default \code{@NullMarked} is recognized, both as a defaulting
+  annotation and as an alias for \code{@AnnotatedFor}, scoped to nullness checking alone
+  (not initialization or \code{@KeyFor} checking, which JSpecify does not define and
+  which \code{-Amode=jspecify} already excludes) with \code{applyToSubpackages = false},
+  the latter so that \code{-AonlyAnnotatedFor} and
+  \code{-AuseConservativeDefaultsForUncheckedCode=source} type-check \code{@NullMarked}
+  code for nullness (Section~\ref{aonlyannotatedfor}).  A written
+  \code{@AnnotatedFor("initialization")} or \code{@AnnotatedFor("keyfor")} still composes
+  normally alongside \code{@NullMarked}.
+  As JSpecify specifies, a \code{@NullMarked} package does not cover its subpackages.
+  \code{@NullUnmarked} is recognized as the inverse of both halves:  it undoes the
+  upper-bound default within its scope, and it aliases to \code{@UnannotatedFor} with the
+  same checker name and the same \code{applyToSubpackages = false}, so it subtracts its
+  scope from an enclosing \code{@NullMarked}.
+
+\item
+  \label{nullness-jspecifyUnrecognizedLocations}%
+  JSpecify defines the locations at which a nullness annotation carries meaning
+  and gives an annotation written anywhere else none.  If you supply the
+  \code{-AjspecifyUnrecognizedLocations} command-line option, the checker reports
+  an error for a nullness annotation written on a class declaration, on a wildcard,
+  before a type parameter, on a pattern, on a type argument of a receiver parameter's
+  type, or on the root type of a local variable, of a resource variable, of a cast, or
+  of a method reference.  Each of these locations is reported under its own
+  \code{jspecify.unrecognized.location.*} message key, the same way other diagnostics in
+  this manual distinguish one location from another:  \code{.class}, \code{.wildcard},
+  \code{.typevar}, \code{.pattern}, \code{.receiver}, \code{.local},
+  \code{.resource}, \code{.cast}, and \code{.methodref}, in the order of the
+  locations above.
+  Four related locations are reported whether or not you supply this option, because the
+  Checker Framework gives an annotation there no meaning either:  the root of the type
+  after \code{instanceof}, or of a type that a pattern binds, is reported as
+  \code{instanceof.nullable} or \code{instanceof.nonnull.redundant}; a component of
+  the type after an \code{instanceof} that binds no variable, as in
+  \code{o instanceof @Nullable String[]}, is reported as \code{instanceof.component};
+  a thrown type, as in \code{void m() throws @Nullable Exception}, is reported as
+  \code{nullness.on.throws}, since (unlike an exception parameter) it declares no
+  variable that a later reassignment could give a reason to annotate; and any component
+  of an annotation interface member's return type, as in \code{@Nullable String value();},
+  is reported as \code{nullness.on.annotation.member}, since an annotation element's
+  value must be a constant expression and \code{null} is never one, for any element
+  type, so no usage can ever supply one.
 \end{itemize}
 
 \end{enumerate}
@@ -361,6 +445,9 @@ been assigned.
 \item[\refqualclass{checker/initialization/qual}{UnknownInitialization}]
 \item[\refqualclass{checker/initialization/qual}{UnderInitialization}]
 \item[\refqualclass{checker/initialization/qual}{PolyInitialized}]
+\item[\refqualclass{checker/initialization/qual}{EnsuresInitialized}]
+  indicates a method postcondition.  After the method returns normally, the given
+  expressions are initialized.
 \end{description}
 
 \noindent
@@ -525,7 +612,7 @@ uses such a pattern:
 Another example is \sunjavadoc{java.base/java/util/Queue.html\#peek()}{Queue.peek}
 and \sunjavadoc{java.base/java/util/Queue.html\#poll()}{Queue.poll}, which return
 non-null if \sunjavadoc{java.base/java/util/Collection.html\#isEmpty()}{isEmpty}
-returns false.
+returns false (see Section~\ref{nullness-queue-retrieval}).
 
 The argument to \code{@EnsuresNonNullIf} is a Java expression, including method calls
 (as shown above), method formal parameters, fields, etc.; for details, see
@@ -631,6 +718,56 @@ This is a fact about
 not a limitation of this heuristic.
 
 
+\subsectionAndLabel{Nullness and copying arrays}{nullness-arrays-copyof}
+
+% Implemented in org.checkerframework.checker.nullness.NullnessNoInitAnnotatedTypeFactory
+
+A call to \sunjavadoc{java.base/java/util/Arrays.html\#copyOf(T[],int)}{Arrays.copyOf}
+returns an array whose elements beyond the length of the original array are
+\<null>, so its component type is \<@Nullable> in general.  The Nullness
+Checker gives the result the component type of the original array, such as
+\<@NonNull>, when the length argument is the length of that same array and the
+array expression is side-effect-free and deterministic, as in
+\<Arrays.copyOf(a, a.length)>.  The same holds for
+\sunjavadoc{java.base/java/util/Arrays.html\#copyOfRange(T[],int,int)}{Arrays.copyOfRange}
+when its \<to> argument is the length of the original array.
+
+When the result of \<Arrays.copyOf> is assigned where an array of \<@NonNull>
+elements is required and the copied array's elements are \<@NonNull>, the
+Nullness Checker issues, in addition to the type error, a warning that says
+why it could not keep the component type:
+\begin{itemize}
+\item \<arrays.copyof.size.mismatch>:  the length argument is not an array
+  length access, as in \<Arrays.copyOf(a, n)>;
+\item \<arrays.copyof.array.mismatch>:  the length argument is the length of a
+  different array, as in \<Arrays.copyOf(a, b.length)>;
+\item \<arrays.copyof.impure>:  the array expression has side effects or is not
+  deterministic, as in \<Arrays.copyOf(getArray(), getArray().length)>.
+\end{itemize}
+
+
+\subsectionAndLabel{Nullness and queue or deque retrieval methods}{nullness-queue-retrieval}
+
+Methods such as \sunjavadoc{java.base/java/util/Queue.html\#poll()}{Queue.poll},
+\sunjavadoc{java.base/java/util/Queue.html\#peek()}{Queue.peek},
+\sunjavadoc{java.base/java/util/Deque.html\#pollFirst()}{Deque.pollFirst},
+\sunjavadoc{java.base/java/util/Deque.html\#pollLast()}{Deque.pollLast},
+\sunjavadoc{java.base/java/util/Deque.html\#peekFirst()}{Deque.peekFirst}, and
+\sunjavadoc{java.base/java/util/Deque.html\#peekLast()}{Deque.peekLast} return
+\<@Nullable> when invoked on an empty queue or deque, but return a non-null
+element when invoked on a non-empty queue or deque whose element type is \<@NonNull>.
+
+The Nullness Checker tracks when a queue or deque expression is known to be
+non-empty (such as on the false branch of
+\sunjavadoc{java.base/java/util/Collection.html\#isEmpty()}{isEmpty()}).
+When a retrieval method is called on a known non-empty receiver with a
+\<@NonNull> element type, the return value is refined to \<@NonNull>.
+Mutating operations (including calls to \<poll()>, \<pollFirst()>, \<pollLast()>,
+or other side-effecting methods) conservatively clear this non-empty knowledge,
+so subsequent poll or peek operations will not be refined without another
+non-emptiness check.
+
+
 \subsectionAndLabel{Run-time checks for nullness}{nullness-runtime-checks}
 
 When you perform a run-time check for nullness, such as \<if (x != null)
@@ -660,8 +797,8 @@ Section~\ref{null-defaults}) your code uses.  You only need one of these tools.
   %
   If your code uses the standard CLIMB-to-top default (Section~\ref{climb-to-top}) or
   the NonNull default, then use the
-  \href{http://plse.cs.washington.edu/daikon/download/doc/daikon.html#AnnotateNullable}{AnnotateNullable}
-  tool of the \href{http://plse.cs.washington.edu/daikon/}{Daikon invariant
+  \href{https://plse.cs.washington.edu/daikon/download/doc/daikon.html#AnnotateNullable}{AnnotateNullable}
+  tool of the \href{https://plse.cs.washington.edu/daikon/}{Daikon invariant
     detector}.
 
 \item
@@ -918,7 +1055,7 @@ Type-checking occurs on each build.
 
 \item
 The
-\href{http://plse.cs.washington.edu/daikon/}{Daikon invariant detector}.
+\href{https://plse.cs.washington.edu/daikon/}{Daikon invariant detector}.
 Run the command \code{make check-nullness}.
 
 \end{itemize}
@@ -1104,7 +1241,6 @@ Section~\ref{declaration-annotations-moved}.
  ~org.jetbrains.annotations.NotNull~ \\ \hline
  ~org.jmlspecs.annotation.NonNull~ \\ \hline
  ~org.jspecify.annotations.NonNull~ \\ \hline
- ~org.jspecify.nullness.NonNull~ \\ \hline
  ~org.netbeans.api.annotations.common.NonNull~ \\ \hline
  ~org.springframework.lang.NonNull~ \\ \hline
  ~reactor.util.annotation.NonNull~ \\ \hline
@@ -1178,8 +1314,6 @@ $\Rightarrow$
  ~org.jetbrains.annotations.UnknownNullability~ \\ \hline
  ~org.jmlspecs.annotation.Nullable~ \\ \hline
  ~org.jspecify.annotations.Nullable~ \\ \hline
- ~org.jspecify.nullness.Nullable~ \\ \hline
- ~org.jspecify.nullness.NullnessUnspecified~ \\ \hline
  ~org.netbeans.api.annotations.common.CheckForNull~ \\ \hline
  ~org.netbeans.api.annotations.common.NullAllowed~ \\ \hline
  ~org.netbeans.api.annotations.common.NullUnknown~ \\ \hline
@@ -1659,18 +1793,13 @@ All \code{@NonNull} fields must either have a
 default in the field declaration, or be assigned in the constructor or in a
 helper method that the constructor calls.  If
 your code initializes (some) fields in a helper method, you will need to
-annotate the helper method with an annotation such as
+annotate the helper method with a postcondition annotation.
+If the field is a reference type, you should use
 \refqualclass{checker/nullness/qual}{EnsuresNonNull}\code{(\{"field1", "field2"\})}
-for all the fields that the helper method assigns.
-
-% TODO:
-% We need an
-%   @EnsuresInitialized("b")
-% that is analogous to
-%   @EnsuresNonNull("b")
-% when we are dealing with a field of primitive type.
-% But, for now just use the same annotation, @EnsuresNonNull, for both purposes.
-
+to inform both the Nullness and Initialization checkers that the field is non-null and therefore initialized.
+If the field is a primitive type (or if you only wish to guarantee initialization and not non-nullness), use
+\refqualclass{checker/initialization/qual}{EnsuresInitialized}\code{(\{"field1", "field2"\})}
+instead.
 
 \subsectionAndLabel{\code{@UnderInitialization} examples}{underinitialization-examples}
 
@@ -1901,6 +2030,12 @@ Client.java:7: error: [method.invocation.invalid] call to process(int) not allow
   found   : @UnderInitialization(A.class) A
   required: @Initialized A
 \end{Verbatim}
+
+\noindent
+If the call is on \<this> and some fields of the current class have not yet
+been set at the call, the error is instead
+\<initialization.method.invocation.invalid>, and its message lists those
+fields.
 
 Here is a subclass and client code that crashes with a \<NullPointerException>.
 
@@ -2218,8 +2353,9 @@ class MyClass {
 
 \noindent
 You are likely to want to annotate \<initHelper()> with
-\refqualclass{checker/nullness/qual}{EnsuresNonNull} as well; see
-Section~\ref{nullness-method-annotations}.
+\refqualclass{checker/nullness/qual}{EnsuresNonNull}
+(or \refqualclass{checker/initialization/qual}{EnsuresInitialized})
+as well; see Section~\ref{nullness-method-annotations}.
 
 You may get the ``call to \ldots\ is not allowed on the given receiver''
 error even if your constructor has already initialized all the fields.
@@ -2296,7 +2432,8 @@ A method with a non-initialized receiver may assume that a few fields (but not a
 of them) are non-null, and it sometimes sets some more fields to non-null
 values.  To express these concepts, use the
 \refqualclass{checker/nullness/qual}{RequiresNonNull},
-\refqualclass{checker/nullness/qual}{EnsuresNonNull}, and
+\refqualclass{checker/nullness/qual}{EnsuresNonNull}
+(or \refqualclass{checker/initialization/qual}{EnsuresInitialized}), and
 \refqualclass{checker/nullness/qual}{EnsuresNonNullIf} method annotations;
 see Section~\ref{nullness-method-annotations}.
 

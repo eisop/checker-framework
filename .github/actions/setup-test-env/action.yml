@@ -1,0 +1,183 @@
+name: 'Set up test environment'
+description: 'Sets up JDKs (primary and target), Gradle, Maven cache, Bazel, and misc test dependencies'
+
+inputs:
+  primary-jdk:
+    description: 'Primary JDK version used by Gradle'
+    required: false
+    default: '21'
+  target-jdk:
+    description: 'Target JDK version for tests'
+    required: false
+    default: '21'
+  # No defaults: the only copy of these values is JDK_EA_MAJOR and JDK_EA_BUILD in ci.yml, which
+  # Renovate updates.
+  jdk-ea-major:
+    description: 'Major version of current Early Access JDK'
+    required: true
+  jdk-ea-build:
+    description: 'Build number of current Early Access JDK'
+    required: true
+  script:
+    description: 'Test script name (e.g. cftests-nonjunit, guava, misc)'
+    required: false
+    default: ''
+  cache-read-only:
+    description: 'Whether Gradle cache should be read-only'
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    # GitHub does not enforce "required" for the inputs of a composite action.
+    - name: Check the early-access JDK inputs
+      shell: bash
+      env:
+        MAJOR: ${{ inputs.jdk-ea-major }}
+        BUILD: ${{ inputs.jdk-ea-build }}
+      run: |
+        if [ -z "$MAJOR" ] || [ -z "$BUILD" ]; then
+          echo "::error::Pass jdk-ea-major and jdk-ea-build, from JDK_EA_MAJOR and JDK_EA_BUILD in ci.yml."
+          exit 1
+        fi
+
+    - name: Set up primary JDK ${{ inputs.primary-jdk }}
+      uses: actions/setup-java@v6.1.0
+      with:
+        java-version: ${{ inputs.primary-jdk }}
+        distribution: 'zulu'
+
+    - name: Set up stable target JDK ${{ inputs.target-jdk }}
+      if: ${{ inputs.target-jdk != inputs.primary-jdk && inputs.target-jdk != inputs.jdk-ea-major }}
+      uses: actions/setup-java@v6.1.0
+      with:
+        java-version: ${{ inputs.target-jdk }}
+        distribution: 'zulu'
+
+    # A pre-release build lives on one of two download paths, depending on how
+    # far through its release cycle it is, so resolve the pinned build against
+    # both rather than assuming either.
+    - name: Resolve pinned JDK ${{ inputs.jdk-ea-major }} build ${{ inputs.jdk-ea-build }}
+      id: ea-jdk
+      if: ${{ inputs.target-jdk == inputs.jdk-ea-major }}
+      shell: bash
+      env:
+        MAJOR: ${{ inputs.jdk-ea-major }}
+        BUILD: ${{ inputs.jdk-ea-build }}
+      run: |
+        ea="https://download.java.net/java/early_access/jdk${MAJOR}/${BUILD}/GPL/openjdk-${MAJOR}-ea+${BUILD}_linux-x64_bin.tar.gz"
+        if curl -sfI "$ea" > /dev/null; then
+          # Early-access builds stay downloadable long after they stop being
+          # current, so this covers the whole early-access phase.
+          echo "Resolved build ${BUILD} on the early-access path."
+          echo "uri=$ea" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        # Once a release reaches its release-candidate phase, its builds move to
+        # a path containing a hash that the build number cannot yield, so read
+        # the URI off the release page instead of constructing it.
+        page="https://jdk.java.net/${MAJOR}/"
+        pattern="https://download\.java\.net/java/GA/jdk${MAJOR}/[0-9a-f]+/[0-9]+/GPL/openjdk-${MAJOR}_linux-x64_bin\.tar\.gz"
+        uri=$(curl -sf "$page" | grep -oE "$pattern" | sort -u | head -n 1) || true
+        if [ -z "$uri" ]; then
+          echo "::error::JDK ${MAJOR} build ${BUILD} is not on the early-access path, and ${page} lists no linux-x64 release-candidate archive. Check that page and update JDK_EA_MAJOR/JDK_EA_BUILD."
+          exit 1
+        fi
+        # That page only ever shows the current build, so confirm it is the
+        # pinned one instead of silently testing whatever has replaced it.
+        found=$(printf '%s' "$uri" | sed -E 's#.*/[0-9a-f]+/([0-9]+)/GPL/.*#\1#')
+        if [ "$found" != "$BUILD" ]; then
+          echo "::error::Pinned JDK ${MAJOR} build ${BUILD} is no longer available: it is not on the early-access path, and ${page} now offers build ${found}. Superseded release-candidate builds are not retained, so set JDK_EA_BUILD to ${found}."
+          exit 1
+        fi
+        echo "Resolved build ${BUILD} on the release-candidate path."
+        echo "uri=$uri" >> "$GITHUB_OUTPUT"
+
+    - name: Set up early-access JDK ${{ inputs.jdk-ea-major }}
+      if: ${{ inputs.target-jdk == inputs.jdk-ea-major }}
+      uses: oracle-actions/setup-java@v1
+      with:
+        uri: ${{ steps.ea-jdk.outputs.uri }}
+        install-as-version: ${{ inputs.jdk-ea-major }}
+
+    # setup-java adds problem matchers that turn every "File.java:N: error:" and "warning:" line
+    # into an annotation.  The tests print such lines on purpose (expected checker errors and the
+    # commands that grep for them), and Javadoc prints thousands of warnings, so a passing run
+    # showed dozens of annotations.  A real compiler error still fails the step and is in its log.
+    - name: Remove the javac problem matchers
+      shell: bash
+      run: |
+        echo "::remove-matcher owner=javac::"
+        echo "::remove-matcher owner=maven-javac::"
+
+    - name: Pin Gradle to primary JDK via gradle.properties
+      if: ${{ inputs.target-jdk != inputs.primary-jdk }}
+      shell: bash
+      run: |
+        mkdir -p ~/.gradle
+        echo "org.gradle.java.home=$JAVA_HOME_${{ inputs.primary-jdk }}_X64" >> ~/.gradle/gradle.properties
+
+    # By default, a job whose own cache entry is missing restores the newest entry of any job
+    # in the matrix, whose build cache holds the outputs for a different JDK.  Key the entries
+    # by the JDK that compiles: the target JDK, except for cftests-junit-jdk21, which compiles
+    # with JDK 21.  Set in GITHUB_ENV so that the post step that saves the cache sees it, too.
+    - name: Key the Gradle cache by the compiling JDK
+      shell: bash
+      run: echo "GRADLE_BUILD_ACTION_CACHE_KEY_JOB=tests-jdk${{ inputs.script == 'cftests-junit-jdk21' && '21' || inputs.target-jdk }}" >> "$GITHUB_ENV"
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v6.4.1
+      with:
+        cache-read-only: ${{ inputs.cache-read-only == 'true' }}
+
+    - name: Cache Maven repository
+      if: ${{ inputs.script == 'cftests-nonjunit' || inputs.script == 'guava' }}
+      uses: actions/cache@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          maven-${{ runner.os }}-
+
+    # The downloadJtreg task in build.gradle skips the download when jtreg is already in ../jtreg.
+    # Key the cache by the name of the file that the task downloads, so that a new version of
+    # jtreg is downloaded once.
+    - name: Find the jtreg version
+      id: jtreg
+      if: ${{ inputs.script == 'cftests-nonjunit' }}
+      shell: bash
+      run: |
+        file=$(grep -o 'jtreg/jtreg-[^"]*\.zip' build.gradle | cut -d/ -f2)
+        test -n "$file"
+        echo "file=$file" >> "$GITHUB_OUTPUT"
+
+    - name: Cache jtreg
+      if: ${{ inputs.script == 'cftests-nonjunit' }}
+      uses: actions/cache@v6
+      with:
+        # The directory that contains the checkout, which is where build.gradle looks for jtreg.
+        # actions/cache rejects a path that contains "..".
+        path: ${{ runner.workspace }}/jtreg
+        key: ${{ steps.jtreg.outputs.file }}
+
+    # docs/examples/BazelExample/Makefile runs Bazel only on JDK 21 and earlier.
+    - name: Setup Bazel
+      if: ${{ inputs.script == 'cftests-nonjunit' && fromJSON(inputs.target-jdk) <= 21 }}
+      uses: bazel-contrib/setup-bazel@0.19.1
+      with:
+        bazelisk-cache: true
+        disk-cache: ${{ github.workflow }}
+        repository-cache: true
+        # The cache keys hash the example's MODULE.bazel and BUILD files.
+        module-root: docs/examples/BazelExample
+        cache-save: ${{ github.ref == 'refs/heads/master' }}
+
+    - name: Set up misc test dependencies
+      if: ${{ inputs.script == 'misc' || inputs.script == 'release' }}
+      uses: ./.github/actions/setup-misc
+
+    - name: Output version information to debug CI
+      if: ${{ inputs.target-jdk != inputs.primary-jdk }}
+      shell: bash
+      run: which java && ./gradlew --version

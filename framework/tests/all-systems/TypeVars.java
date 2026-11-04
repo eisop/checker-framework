@@ -2,7 +2,9 @@ public class TypeVars {
 
     class Test1<T> {
         void m() {
-            @SuppressWarnings("unchecked")
+            // The cast is unsafe in a type system in which the qualifier of new Object() is not
+            // below the lower bound of T, such as the Units Checker.
+            @SuppressWarnings({"unchecked", "assignment.type.incompatible"})
             T x = (T) new Object();
 
             Object o = x;

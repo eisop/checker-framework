@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -66,7 +67,7 @@ public class ConstraintSet implements ReductionResult {
     /** Fast O(1) lookup set to accompany the list. */
     private HashSet<Constraint> fastLookup;
 
-    /** Whether inference failed because the qualifiers where not in the correct relationship. */
+    /** True if inference failed because the qualifiers where not in the correct relationship. */
     private boolean annotationFailure = false;
 
     /**
@@ -135,9 +136,9 @@ public class ConstraintSet implements ReductionResult {
     }
 
     /**
-     * Return whether or not this constraint set is empty.
+     * Returns true if this constraint set is empty.
      *
-     * @return whether or not this constraint set is empty
+     * @return true if this constraint set is empty
      */
     public boolean isEmpty() {
         return list.isEmpty();
@@ -162,6 +163,28 @@ public class ConstraintSet implements ReductionResult {
         Constraint c = list.removeFirst();
         fastLookup.remove(c);
         return c;
+    }
+
+    /**
+     * Returns the constraints in this set, compared by identity.
+     *
+     * @return the constraints in this set, compared by identity
+     */
+    public Set<Constraint> identitySnapshot() {
+        Set<Constraint> snapshot = Collections.newSetFromMap(new IdentityHashMap<>());
+        snapshot.addAll(list);
+        return snapshot;
+    }
+
+    /**
+     * Removes from this set every constraint that is not in {@code kept}.
+     *
+     * @param kept the constraints to keep, compared by identity, such as returned by {@link
+     *     #identitySnapshot()}
+     */
+    public void retainOnly(Set<Constraint> kept) {
+        list.removeIf(c -> !kept.contains(c));
+        fastLookup.removeIf(c -> !kept.contains(c));
     }
 
     /**
@@ -246,9 +269,9 @@ public class ConstraintSet implements ReductionResult {
         for (Constraint constraint : c.list) {
             if (constraint.getKind() == Kind.EXPRESSION
                     || constraint.getKind() == Kind.LAMBDA_EXCEPTION
-                    || constraint.getKind() == Kind.METHOD_REF_EXCEPTION) {
-                Set<Variable> inputsOfSingleConstraint =
-                        ((TypeConstraint) constraint).getInputVariables();
+                    || constraint.getKind() == Kind.METHOD_REF_EXCEPTION
+                    || constraint.getKind() == Kind.ADDITIONAL_ARG) {
+                Set<Variable> inputsOfSingleConstraint = constraint.getInputVariables();
                 boolean foundInfluence = false;
                 inputLoop:
                 for (Variable in : inputsOfSingleConstraint) {
@@ -331,7 +354,7 @@ public class ConstraintSet implements ReductionResult {
     }
 
     /**
-     * Return all variables mentioned by any constraint in this set.
+     * Returns all variables mentioned by any constraint in this set.
      *
      * @return all variables mentioned by any constraint in this set
      */
@@ -349,7 +372,7 @@ public class ConstraintSet implements ReductionResult {
     }
 
     /**
-     * Return all input variables for all constraints in this set.
+     * Returns all input variables for all constraints in this set.
      *
      * @return all input variables for all constraints in this set
      */
@@ -357,11 +380,7 @@ public class ConstraintSet implements ReductionResult {
         // addAllLazily does not mutate its first argument.
         Set<Variable> vars = Collections.emptySet();
         for (Constraint constraint : list) {
-            if (constraint instanceof TypeConstraint) {
-                vars =
-                        TypeConstraint.addAllLazily(
-                                vars, ((TypeConstraint) constraint).getInputVariables());
-            }
+            vars = TypeConstraint.addAllLazily(vars, constraint.getInputVariables());
         }
         return vars;
     }
@@ -419,6 +438,34 @@ public class ConstraintSet implements ReductionResult {
             boundSet.merge(result);
         }
         return boundSet;
+    }
+
+    /**
+     * Reduces the additional argument constraints in this set whose invocation has been reduced as
+     * part of this inference problem (see {@link AdditionalArgument#isInvocationReduced}) and adds
+     * the resulting constraints to this set.
+     *
+     * @param context the context
+     */
+    public void reduceAdditionalArgsOfReducedInvocations(Java8InferenceContext context) {
+        ConstraintSet reduced = null;
+        for (Iterator<Constraint> iter = list.iterator(); iter.hasNext(); ) {
+            Constraint constraint = iter.next();
+            if (constraint instanceof AdditionalArgument
+                    && ((AdditionalArgument) constraint).isInvocationReduced(context)) {
+                iter.remove();
+                fastLookup.remove(constraint);
+                ConstraintSet set = ((AdditionalArgument) constraint).reduce(context);
+                if (reduced == null) {
+                    reduced = set;
+                } else {
+                    reduced.addAll(set);
+                }
+            }
+        }
+        if (reduced != null) {
+            addAll(reduced);
+        }
     }
 
     /**

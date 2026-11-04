@@ -1,6 +1,7 @@
 package org.checkerframework.framework.type;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import java.util.List;
 
@@ -78,6 +79,18 @@ public interface ViewpointAdapter {
     void viewpointAdaptTypeParameterBounds(
             AnnotatedTypeMirror receiverType,
             List<AnnotatedTypeParameterBounds> typeParameterBounds);
+
+    /**
+     * Viewpoint-adapts the primary qualifiers of {@code declarationBoundType} from the viewpoint of
+     * {@code viewpointBounds}. This is how a supertype declared with a receiver-dependent bound
+     * takes on the bound of the subtype that extends or implements it.
+     *
+     * @param viewpointBounds the type-declaration bounds that provide the viewpoint
+     * @param declarationBoundType the type whose declaration bounds to adapt
+     * @return the adapted declaration bounds
+     */
+    AnnotationMirrorSet viewpointAdaptTypeDeclarationBounds(
+            AnnotationMirrorSet viewpointBounds, AnnotatedTypeMirror declarationBoundType);
 
     /**
      * Viewpoint-adapts a type written from the receiver's declaration viewpoint.
