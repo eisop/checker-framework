@@ -15,4 +15,13 @@ public class DontCheck {
             }
         };
     }
+
+    static Result local() {
+        class Local implements Result {
+            public Object get() {
+                return null;
+            }
+        }
+        return new Local();
+    }
 }

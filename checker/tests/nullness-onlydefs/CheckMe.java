@@ -30,4 +30,16 @@ public class CheckMe {
         }
         return new Local();
     }
+
+    static Result nestedInLocal() {
+        class Local {
+            class Nested implements Result {
+                public Object get() {
+                    // :: error: (return.type.incompatible)
+                    return null;
+                }
+            }
+        }
+        return new Local().new Nested();
+    }
 }

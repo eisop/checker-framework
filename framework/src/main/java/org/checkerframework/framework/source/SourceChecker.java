@@ -4377,8 +4377,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Returns true if the class definition should not be checked because it matches the {@code
      * checker.skipDefs} property, or does not match the {@code checker.onlyDefs} property. An
-     * anonymous or local class, which has no qualified name, is checked if and only if its
-     * innermost enclosing class with a qualified name is.
+     * anonymous or local class, which has no fully-qualified name, is checked if and only if its
+     * innermost enclosing class with a fully-qualified name is.
      *
      * @param tree class to potentially skip
      * @return true if checker should not type-check {@code tree}
@@ -4407,10 +4407,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Returns the innermost class that encloses {@code type}, or is {@code type}, and is not
      * enclosed in an anonymous or local class, nor is one itself. Its type, unlike that of an
-     * anonymous or local class, prints as a qualified name.
+     * anonymous or local class, prints as a fully-qualified name.
      *
      * @param type a class
-     * @return the innermost class enclosing or equal to {@code type} that has a qualified name
+     * @return the innermost class enclosing or equal to {@code type} that has a fully-qualified
+     *     name
      */
     private static TypeElement namedEnclosingClass(TypeElement type) {
         @Nullable TypeElement named = null;
@@ -4424,7 +4425,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 named = t;
             }
         }
-        // A class nested in a local or anonymous class has a named, top-level enclosing class.
+        // The outermost class is a top-level class, which is neither anonymous nor local.
         assert named != null : "@AssumeAssertion(nullness): a top-level class is named";
         return named;
     }

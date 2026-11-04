@@ -236,9 +236,9 @@ Command-line option additions and changes:
   such as `D:/quals`. The Fenum Checker had split `-AqualDirs` on commas,
   contrary to its manual.
 - `-AonlyDefs` now checks an anonymous or local class if its enclosing class
-  matches. It matched the pattern against such a class's unqualified name, so a
-  package pattern such as `^mypackage\.` silently skipped every anonymous and
-  local class.
+  matches. It matched such a class by a name without its package, such as
+  `<anonymous Outer$1>`, so a package pattern such as `^mypackage\.` silently
+  skipped every anonymous and local class.
 
 A stub file that declares a record where the running JDK has a class (for example
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
