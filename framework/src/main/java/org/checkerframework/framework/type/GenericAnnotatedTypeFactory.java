@@ -1532,6 +1532,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param tree a tree whose node's value is being computed
      * @return the type of {@code tree} inferred without its enclosing invocation, or null
      */
+    @SuppressWarnings("interning:not.interned") // comparing trees for identity
     public @Nullable AnnotatedTypeMirror getStandaloneTypeForNodeValue(Tree tree) {
         if (!(tree instanceof NewClassTree)
                 || !(typeArgumentInference instanceof DefaultTypeArgumentInference)
