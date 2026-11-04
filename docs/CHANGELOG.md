@@ -22,6 +22,10 @@ with 4000 fields now type-checks in ~11 seconds instead of ~26. Merging
 dataflow stores after many method calls in such a class is also faster.
 Very long method bodies, and many calls to methods with contracts such as `Map.put`,
 are also faster.
+Type-checking an array initializer whose elements need type argument inference, such as
+`new Pair[] {new Pair<>(a, b), ...}`, is no longer exponential or quadratic in the number of
+elements: a file with 28 such elements did not finish in 6 hours and now type-checks in about
+2 seconds.
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale

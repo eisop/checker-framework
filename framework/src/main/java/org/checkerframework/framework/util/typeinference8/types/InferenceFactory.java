@@ -214,8 +214,7 @@ public class InferenceFactory {
             case NEW_ARRAY:
                 NewArrayTree newArrayTree = (NewArrayTree) context;
                 ArrayType arrayType = (ArrayType) TreeUtils.typeOf(newArrayTree);
-                AnnotatedArrayType type = factory.getAnnotatedType((NewArrayTree) context);
-                AnnotatedTypeMirror component = type.getComponentType();
+                AnnotatedTypeMirror component = factory.getInitializerTargetType(newArrayTree);
                 return new ProperType(component, arrayType.getComponentType(), this.context);
             case LAMBDA_EXPRESSION:
                 {
