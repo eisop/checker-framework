@@ -1,5 +1,6 @@
 package viewpointtest;
 
+import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
@@ -13,6 +14,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.util.AnnotatedTypes;
+import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.List;
 
@@ -34,6 +36,9 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
     private static final @CompilerMessageKey String LOST_TYPE_ARGUMENT =
             "viewpointtest.lost.type.argument";
 
+    /** Error key for {@code @Lost} in a supertype of a class declaration. */
+    private static final @CompilerMessageKey String LOST_SUPERTYPE = "viewpointtest.lost.supertype";
+
     /**
      * Create a new ViewpointTestVisitor.
      *
@@ -46,7 +51,12 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
     @Override
     public Void visitNewClass(NewClassTree tree, Void p) {
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
-        if (type.hasAnnotation(atypeFactory.TOP) || type.hasAnnotation(atypeFactory.LOST)) {
+        // Only explicit type arguments are checked for @Lost; see checkLostTypeArguments.
+        boolean isLost =
+                TreeUtils.isDiamondTree(tree)
+                        ? type.hasAnnotation(atypeFactory.LOST)
+                        : AnnotatedTypes.containsModifier(type, atypeFactory.LOST);
+        if (type.hasAnnotation(atypeFactory.TOP) || isLost) {
             checker.reportError(tree, "new.class.type.invalid", type.getAnnotations());
         }
         Void result = super.visitNewClass(tree, p);
@@ -57,6 +67,30 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
                 tree);
         checkLostTypeArguments(tree.getTypeArguments());
         return result;
+    }
+
+    @Override
+    public void processClassTree(ClassTree tree) {
+        Tree extendsClause = tree.getExtendsClause();
+        if (extendsClause != null) {
+            checkLostSupertype(extendsClause);
+        }
+        for (Tree implementsClause : tree.getImplementsClause()) {
+            checkLostSupertype(implementsClause);
+        }
+        super.processClassTree(tree);
+    }
+
+    /**
+     * Report an error if a supertype in a class declaration contains {@code @Lost}.
+     *
+     * @param supertypeTree an {@code extends} or {@code implements} clause
+     */
+    private void checkLostSupertype(Tree supertypeTree) {
+        AnnotatedTypeMirror supertype = atypeFactory.getAnnotatedTypeFromTypeTree(supertypeTree);
+        if (AnnotatedTypes.containsModifier(supertype, atypeFactory.LOST)) {
+            checker.reportError(supertypeTree, LOST_SUPERTYPE);
+        }
     }
 
     @Override

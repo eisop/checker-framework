@@ -36,6 +36,19 @@ public class LostInvalidPositions {
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
     @ReceiverDependentQual <T> LostInvalidPositions() {}
 
+    static class Box<E> {
+        @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
+        @ReceiverDependentQual Box() {}
+    }
+
+    // :: error: (viewpointtest.lost.supertype)
+    static class LostSuperclass extends Box<@Lost Object> {}
+
+    interface Iface<E> {}
+
+    // :: error: (viewpointtest.lost.supertype)
+    static class LostInterface implements Iface<@Lost Object> {}
+
     void test(@Top LostInvalidPositions obj, @Bottom Object bottomObj) {
         // :: error: (viewpointtest.lost.lhs)
         this.f = obj.f;
@@ -78,6 +91,10 @@ public class LostInvalidPositions {
         @Top Object inferred = this.id(obj.f);
         // :: error: (viewpointtest.lost.type.argument)
         new <@Lost Object>@A LostInvalidPositions();
+
+        // :: error: (new.class.type.invalid)
+        new @A Box<@Lost Object>();
+        new @A Box<@A Object>();
 
         // :: error: (compound.assignment.type.incompatible) :: error: (viewpointtest.lost.lhs)
         obj.i += 1;
