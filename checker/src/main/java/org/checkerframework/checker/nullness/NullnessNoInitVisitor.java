@@ -345,6 +345,27 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                             ? "jspecify.unrecognized.location.resource"
                             : "jspecify.unrecognized.location.local");
         }
+        if (varElt != null && ElementUtils.isBindingVariable(varElt)) {
+            // The variable of a nested pattern that matches null is bound to the value of a record
+            // component, which must be compatible with the nullness written on the pattern.
+            AnnotatedTypeMirror componentType = atypeFactory.getNullMatchingComponentType(tree);
+            if (componentType != null) {
+                AnnotatedTypeMirror varType = atypeFactory.getAnnotatedTypeLhs(tree);
+                AnnotationMirror componentAnno =
+                        componentType.getEffectiveAnnotationInHierarchy(NULLABLE);
+                AnnotationMirror varAnno = varType.getEffectiveAnnotationInHierarchy(NULLABLE);
+                if (componentAnno != null
+                        && varAnno != null
+                        && !qualHierarchy.isSubtypeShallow(
+                                componentAnno,
+                                componentType.getUnderlyingType(),
+                                varAnno,
+                                varType.getUnderlyingType())) {
+                    checker.reportError(
+                            tree, "assignment.type.incompatible", componentType, varType);
+                }
+            }
+        }
 
         return super.visitVariable(tree, p);
     }
@@ -704,16 +725,18 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         //
         // 1. A "root" annotation is written on the type of a reference that the test itself
         //    examines: the tested type when there is no pattern, or the type of a variable that a
-        //    pattern binds (including a binding nested in a deconstruction pattern; per JLS
-        //    14.30.2, null matches no type pattern, nested or not).  Such an annotation asserts
+        //    pattern binds, if that pattern does not match null.  Such an annotation asserts
         //    something about that reference's own nullness, so @Nullable contradicts the test and
         //    @NonNull is redundant.  Those two diagnostics are always issued.
         //
-        // 2. Any other, nested component annotation, such as the "@Nullable" in
-        //    "@Nullable String[]", asserts that the array's elements may be null, which says
-        //    nothing about the reference under test.  Where a pattern binds a variable, the
-        //    Nullness Checker does give such an annotation a meaning -- it refines the elements of
-        //    the bound variable -- so it is reported only in JSpecify mode, which gives no meaning
+        // 2. Any other annotation is treated like a nested component annotation.  For example,
+        //    the "@Nullable" in "@Nullable String[]" asserts that the array's elements may be
+        //    null, which says nothing about the reference under test.  Likewise, a type pattern
+        //    nested in a record pattern matches null when it is unconditional for the type of the
+        //    record component (JLS 14.30.1), so the root annotation of such a pattern is like
+        //    that of any other variable declaration.  Where a pattern binds a variable, the
+        //    Nullness Checker does give such an annotation a meaning -- it refines the type of the
+        //    bound variable -- so it is reported only in JSpecify mode, which gives no meaning
         //    to any component of a pattern.  Where no variable is bound, it constrains nothing at
         //    all, so it is always reported.
         //
@@ -766,8 +789,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     /**
      * Splits the annotations written within {@code tree}, a pattern, into those on the root of the
-     * type of a variable that the pattern binds, and those on some nested component of such a type.
-     * Recurses into the nested patterns of a deconstruction pattern.
+     * type of a variable that a pattern that does not match null binds, and all others. Recurses
+     * into the nested patterns of a deconstruction pattern.
      *
      * @param tree a pattern tree ({@code BindingPatternTree} or {@code DeconstructionPatternTree}),
      *     or a type tree
@@ -779,6 +802,11 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         if (TreeUtils.isBindingPatternTree(tree)) {
             VariableTree variableTree = BindingPatternUtils.getVariable(tree);
             Tree typeTree = variableTree.getType();
+            // A nested pattern that matches null binds a variable that may be null, so the root
+            // of its type is like that of any other variable declaration, not a root annotation.
+            if (atypeFactory.getNullMatchingComponentType(variableTree) != null) {
+                rootAnnos = nestedAnnos;
+            }
             if (variableTree.getModifiers() != null) {
                 // An annotation written before the type is attached to the variable's modifiers,
                 // whichever component of the type it applies to. It applies to the root of the

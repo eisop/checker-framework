@@ -89,8 +89,12 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
         TypeMirror componentTM = componentType.getUnderlyingType();
 
         // prev is the lub of the initializers if they exist, otherwise the current component type.
+        // The target type of an initializer is the component type without that lub (see
+        // AnnotatedTypeFactory#getInitializerTargetType).
         Set<? extends AnnotationMirror> prev = null;
-        if (arrayTree.getInitializers() != null && !arrayTree.getInitializers().isEmpty()) {
+        if (arrayTree.getInitializers() != null
+                && !arrayTree.getInitializers().isEmpty()
+                && !atypeFactory.isComputingInitializerTargetType(arrayTree)) {
             // We have initializers, either with or without an array type.
 
             // TODO (issue #599): This only works at the top level.  It should work at all levels of

@@ -22,6 +22,10 @@ with 4000 fields now type-checks in ~11 seconds instead of ~26. Merging
 dataflow stores after many method calls in such a class is also faster.
 Very long method bodies, and many calls to methods with contracts such as `Map.put`,
 are also faster.
+Type-checking an array initializer whose elements need type argument inference, such as
+`new Pair[] {new Pair<>(a, b), ...}`, is no longer exponential or quadratic in the number of
+elements: a file with 28 such elements did not finish in 6 hours and now type-checks in about
+2 seconds.
 The result of type argument inference for a generic call is computed once and reused, instead of
 once for the check and again for the call's type: on a large project, 7% less allocation and 6%
 less time. The result is also reused for the poly expression arguments of the call, such as
@@ -195,6 +199,10 @@ Nullness Checker improvements:
   rather than the root type.
 - New `-AjspecifyUnrecognizedLocations` (also enabled by `-Amode=jspecify`)
   errors on nullness annotations where JSpecify gives them no meaning.
+- A type pattern nested in a record pattern that is unconditional for the
+  record component, such as `String b` or `var b` in `o instanceof P(String a,
+  String b)`, matches null. Its variable now has the nullness of the record
+  component, and `@Nullable` on it is no longer reported as `instanceof.nullable`.
 
 Initialization Checker improvements:
 
@@ -239,6 +247,10 @@ Command-line option additions and changes:
   directories with the platform's path separator, so they accept Windows paths
   such as `D:/quals`. The Fenum Checker had split `-AqualDirs` on commas,
   contrary to its manual.
+- `-AonlyDefs` now checks an anonymous or local class if its enclosing class
+  matches. It matched such a class by a name without its package, such as
+  `<anonymous Outer$1>`, so a package pattern such as `^mypackage\.` silently
+  skipped every anonymous and local class.
 
 A stub file that declares a record where the running JDK has a class (for example
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
@@ -767,6 +779,8 @@ eisop#2461,
 eisop#2478,
 eisop#2479,
 eisop#2485,
+eisop#2490,
+eisop#2491,
 typetools#399,
 typetools#602,
 typetools#2816,

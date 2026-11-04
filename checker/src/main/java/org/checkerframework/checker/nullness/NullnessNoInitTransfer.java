@@ -3,6 +3,7 @@ package org.checkerframework.checker.nullness;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -12,8 +13,10 @@ import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
+import org.checkerframework.dataflow.cfg.node.DeconstructorPatternNode;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
 import org.checkerframework.dataflow.cfg.node.InstanceOfNode;
+import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.MethodAccessNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
@@ -379,6 +382,23 @@ public class NullnessNoInitTransfer
         NullnessNoInitStore thenStore = result.getThenStore();
         NullnessNoInitStore elseStore = result.getElseStore();
         makeNonNull(thenStore, n.getOperand());
+        Node pattern = n.getPatternNode();
+        if (pattern instanceof DeconstructorPatternNode) {
+            // The superclass refines every binding variable to the type of the operand.  The
+            // variable of a nested pattern that matches null instead has the nullness of its
+            // record component, which the type factory determines.
+            for (LocalVariableNode bindingVar :
+                    ((DeconstructorPatternNode) pattern).getBindingVariables()) {
+                if (bindingVar.getTree() instanceof VariableTree
+                        && nullnessTypeFactory.getNullMatchingComponentType(
+                                        (VariableTree) bindingVar.getTree())
+                                != null) {
+                    JavaExpression bindingExpr = JavaExpression.fromNode(bindingVar);
+                    thenStore.clearValue(bindingExpr);
+                    elseStore.clearValue(bindingExpr);
+                }
+            }
+        }
         return new ConditionalTransferResult<>(result.getResultValue(), thenStore, elseStore);
     }
 
