@@ -123,6 +123,14 @@ checker's JDK is the one that runs javac: `JAVA_HOME` for `checker/bin/javac`,
 or the JDK that runs Gradle's compiler worker. `record-jfr.sh` sets
 `stackdepth=1024`; CF stacks are about 100 frames deep (p99 about 200).
 
+JDK 21's losses also vary from run to run, and a larger stack depth does not
+recover them: the same compile (an array of 14 `Arrays.asList` calls with 14
+diamond arguments each, `profile-cf.jfc`) recorded 547 to 3094
+`jdk.ExecutionSample`s in separate runs, with no consistent difference between
+depths 64, 256, 1024 and 2048. JDK 25 recorded 1549 and 1633. So do not compare
+sample counts between JDK 21 runs, and do not attribute a low count to the
+stack depth.
+
 ## Analyzing the trace
 
 **Do not use `jfr view` or `jfr print`.** On JDK 25 both crash with a
