@@ -117,6 +117,12 @@ public class InvocationTypeInference {
     protected final Tree inferenceExpression;
 
     /**
+     * Whether to infer {@link #inferenceExpression} without a target type, as if it were not nested
+     * in another expression; see {@link DefaultTypeArgumentInference#inferStandalone}.
+     */
+    boolean withoutTargetType = false;
+
+    /**
      * Creates an inference problem.
      *
      * @param factory the annotated type factory to use
@@ -160,7 +166,7 @@ public class InvocationTypeInference {
         }
         ExecutableType e = methodType.getUnderlyingType();
         InvocationType invocationType = new InvocationType(methodType, e, invocation, context);
-        ProperType target = context.inferenceTypeFactory.getTargetType();
+        ProperType target = withoutTargetType ? null : context.inferenceTypeFactory.getTargetType();
         List<? extends ExpressionTree> args;
         if (invocation instanceof MethodInvocationTree) {
             args = ((MethodInvocationTree) invocation).getArguments();

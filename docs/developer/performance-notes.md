@@ -2708,6 +2708,26 @@ arguments 7.1 → 5.7 s; a flat array of 24 diamonds 1.8 → 1.9 s. The remainin
 inferences each linear in k; removing it needs the node value of a non-root poly expression
 without inferring the enclosing call, which is not known to be sound for every checker.
 
+**A nested diamond's node value without the enclosing inference (November 2026).** To check
+whether that is sound, temporary instrumentation in `getValueFromFactory` compared, for every poly
+expression nested in an enclosing inference, the primary annotations of its type with and without
+the enclosing inference (the enclosing invocations not inferred and no target type). A diamond
+or generic `new` never differed: 0 of 72 (`:framework:test`), 209 (`:checker:test`, every
+checker), and 90 (KeY `key.core`, Nullness) comparisons, including `@PolyNull` constructors. A
+generic method invocation did differ, in 163 of about 7000 comparisons in the test suites: a type
+variable that only the enclosing invocation determines, such as a return-only `T`, gets its bound
+instead; and an implicitly typed lambda argument has no type without the enclosing target. The
+underlying type often differs for both, so a dataflow value must take it from javac. So
+`GenericAnnotatedTypeFactory.getStandaloneTypeForNodeValue` types a non-anonymous diamond whose
+arguments are not poly expressions without inferring the enclosing invocation
+(`DefaultTypeArgumentInference.inferStandalone`), and `getValueFromFactory` combines its primary
+annotations with javac's underlying type. As no argument is a poly expression, no other tree's
+type is computed in this mode. The outer call is then inferred a constant number of times per
+subchecker. On this branch (without the Resolution fix): `asList` with 24 diamonds 2.7 → 2.2 s;
+14 rows of a 14-argument `asList` in one array initializer 5.7 → 5.0 s. KeY `key.core`, Nullness:
+3308 errors and 43 warnings, the same diagnostics as master line for line; wall 128.6 → 123.6 s
+(one run each).
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a

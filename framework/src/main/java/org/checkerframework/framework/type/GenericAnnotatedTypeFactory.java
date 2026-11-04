@@ -88,6 +88,7 @@ import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesTreeAnnotator;
 import org.checkerframework.framework.util.typeinference8.DefaultTypeArgumentInference;
+import org.checkerframework.framework.util.typeinference8.types.InferenceFactory;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -1512,6 +1513,48 @@ public abstract class GenericAnnotatedTypeFactory<
     @Override
     protected boolean isComputingNodeValue() {
         return analysis != null && analysis.isRunning() && analysis.getCurrentTree() != null;
+    }
+
+    /**
+     * Returns the type of {@code tree} for the dataflow value of its node, computed as if {@code
+     * tree} were not nested in another expression, or null if the value is computed from {@link
+     * #getAnnotatedType(Tree)} as usual.
+     *
+     * <p>This applies to a diamond that does not create an anonymous class, has no poly expression
+     * argument, and is inferred together with an enclosing invocation, such as {@code new Pair<>(a,
+     * b)} in {@code Arrays.asList(new Pair<>(a, b), ...)}. Its type arguments come from that
+     * invocation, but its primary annotations, which are all that a dataflow value keeps of its
+     * type, do not; inferring the enclosing invocation for each such argument would take time
+     * quadratic in the number of arguments. Because no argument is a poly expression, the type of
+     * no other tree is computed differently. The underlying type of the result is not the one javac
+     * infers, so the caller uses only its primary annotations.
+     *
+     * @param tree a tree whose node's value is being computed
+     * @return the type of {@code tree} inferred without its enclosing invocation, or null
+     */
+    public @Nullable AnnotatedTypeMirror getStandaloneTypeForNodeValue(Tree tree) {
+        if (!(tree instanceof NewClassTree)
+                || !(typeArgumentInference instanceof DefaultTypeArgumentInference)
+                || ((DefaultTypeArgumentInference) typeArgumentInference).isInferring()) {
+            return null;
+        }
+        NewClassTree newClassTree = (NewClassTree) tree;
+        if (!TreeUtils.isDiamondTree(newClassTree) || newClassTree.getClassBody() != null) {
+            return null;
+        }
+        for (ExpressionTree arg : newClassTree.getArguments()) {
+            if (InferenceFactory.isPolyExpression(arg)) {
+                return null;
+            }
+        }
+        TreePath path = getPath(newClassTree);
+        if (path == null
+                || DefaultTypeArgumentInference.outerInference(newClassTree, path.getParentPath())
+                        == newClassTree) {
+            return null;
+        }
+        return ((DefaultTypeArgumentInference) typeArgumentInference)
+                .inferStandalone(newClassTree, () -> getAnnotatedType(newClassTree));
     }
 
     /**

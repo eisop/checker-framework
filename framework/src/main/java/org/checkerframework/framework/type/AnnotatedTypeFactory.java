@@ -1610,7 +1610,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // analysis, the types of the arguments can differ from those after it: for example, a
         // boxed argument has the type of its boxing conversion.
         IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>> cache;
-        if (inferenceResultCache == null || isInferring()) {
+        if (inferenceResultCache == null || isInferring() || isInferringStandalone()) {
             cache = null;
         } else if (canCacheFlowDependentType(tree) && canUseCachedFlowDependentType(tree)) {
             cache = inferenceResultCache;
@@ -1633,6 +1633,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             cacheResultForOtherInvocations(tree, cachedResult, cache);
         }
         return result;
+    }
+
+    /**
+     * Returns true if the type arguments of a poly expression are being inferred as if it were not
+     * nested in another expression ({@link DefaultTypeArgumentInference#inferStandalone}). Such
+     * results are not cached.
+     *
+     * @return true if {@link DefaultTypeArgumentInference#inferStandalone} is running
+     */
+    protected boolean isInferringStandalone() {
+        return typeArgumentInference instanceof DefaultTypeArgumentInference
+                && ((DefaultTypeArgumentInference) typeArgumentInference).isInferringStandalone();
     }
 
     /**
