@@ -29,8 +29,6 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
 import org.plumelib.util.MapsP;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -82,18 +80,6 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
     private final Map<MethodInvocationTree, AnnotatedExecutableType> methodInvocationToType =
             MapsP.createLruCache(300);
 
-    /**
-     * The new array expressions whose initializers are being visited by {@link #visitNewArray}.
-     * Getting the type of an initializer can ask for the type of the new array expression again:
-     * type argument inference of a generic initializer, such as {@code new Pair<>(a, b)}, uses the
-     * array's component type as its target type. That target type does not depend on the other
-     * initializers, so while the initializers of an expression are being visited, the type of that
-     * expression is computed without them. Otherwise each initializer would infer every other one
-     * again, and the time would grow exponentially with the number of initializers.
-     */
-    private final Set<NewArrayTree> visitingInitializers =
-            Collections.newSetFromMap(new IdentityHashMap<>());
-
     @Override
     public Void visitNewArray(NewArrayTree arrayTree, AnnotatedTypeMirror arrayType) {
         assert arrayType.getKind() == TypeKind.ARRAY
@@ -102,30 +88,27 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
         AnnotatedTypeMirror componentType = ((AnnotatedArrayType) arrayType).getComponentType();
         TypeMirror componentTM = componentType.getUnderlyingType();
 
-        // prev is the lub of the initializers if they exist and are not being visited (see
-        // visitingInitializers), otherwise the current component type.
+        // prev is the lub of the initializers if they exist, otherwise the current component type.
+        // The target type of an initializer is the component type without that lub (see
+        // AnnotatedTypeFactory#getInitializerTargetType).
         Set<? extends AnnotationMirror> prev = null;
         if (arrayTree.getInitializers() != null
                 && !arrayTree.getInitializers().isEmpty()
-                && visitingInitializers.add(arrayTree)) {
+                && !atypeFactory.isComputingInitializerTargetType(arrayTree)) {
             // We have initializers, either with or without an array type.
 
             // TODO (issue #599): This only works at the top level.  It should work at all levels of
             // the array.
-            try {
-                for (ExpressionTree init : arrayTree.getInitializers()) {
-                    AnnotatedTypeMirror initType = atypeFactory.getAnnotatedType(init);
-                    // initType might be a typeVariable, so use effectiveAnnotations.
-                    AnnotationMirrorSet annos = initType.getEffectiveAnnotations();
+            for (ExpressionTree init : arrayTree.getInitializers()) {
+                AnnotatedTypeMirror initType = atypeFactory.getAnnotatedType(init);
+                // initType might be a typeVariable, so use effectiveAnnotations.
+                AnnotationMirrorSet annos = initType.getEffectiveAnnotations();
 
-                    prev =
-                            (prev == null)
-                                    ? annos
-                                    : qualHierarchy.leastUpperBoundsShallow(
-                                            prev, componentTM, annos, initType.getUnderlyingType());
-                }
-            } finally {
-                visitingInitializers.remove(arrayTree);
+                prev =
+                        (prev == null)
+                                ? annos
+                                : qualHierarchy.leastUpperBoundsShallow(
+                                        prev, componentTM, annos, initType.getUnderlyingType());
             }
         } else {
             prev = componentType.getAnnotations();

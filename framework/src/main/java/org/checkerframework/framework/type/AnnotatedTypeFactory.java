@@ -3273,6 +3273,48 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
     }
 
+    /**
+     * The new array expressions whose type is being computed for the target type of one of their
+     * initializers, by {@link #getInitializerTargetType}.
+     */
+    private final Set<NewArrayTree> initializerTargetArrays =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /**
+     * Returns the target type of an initializer of {@code newArray}: the component type of the
+     * array (JLS 10.6), without the lub of the initializers' types that {@link
+     * #getAnnotatedType(Tree)} gives the array. Type argument inference of a generic initializer,
+     * such as {@code new Pair<>(a, b)}, and the functional interface type of a lambda initializer
+     * use it. The lub would infer every initializer again for each initializer, which is quadratic
+     * in the number of initializers, and exponential where the initializers' inference asks for the
+     * target type again.
+     *
+     * @param newArray a new array expression with initializers
+     * @return the target type of an initializer of {@code newArray}
+     */
+    public AnnotatedTypeMirror getInitializerTargetType(NewArrayTree newArray) {
+        boolean added = initializerTargetArrays.add(newArray);
+        try {
+            return getAnnotatedType(newArray).getComponentType();
+        } finally {
+            if (added) {
+                initializerTargetArrays.remove(newArray);
+            }
+        }
+    }
+
+    /**
+     * Returns true if the type of {@code newArray} is being computed by {@link
+     * #getInitializerTargetType}, so it must not depend on the types of the initializers.
+     *
+     * @param newArray a new array expression
+     * @return true if the type of {@code newArray} is being computed for the target type of one of
+     *     its initializers
+     */
+    public boolean isComputingInitializerTargetType(NewArrayTree newArray) {
+        return initializerTargetArrays.contains(newArray);
+    }
+
     /** A set containing class, method, and annotation tree kinds. */
     private static final Set<Tree.Kind> classMethodAnnotationKinds =
             EnumSet.copyOf(TreeUtils.classTreeKinds());
@@ -6709,8 +6751,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
             case NEW_ARRAY:
                 NewArrayTree newArray = (NewArrayTree) parentTree;
-                AnnotatedArrayType newArrayATM = getAnnotatedType(newArray);
-                AnnotatedTypeMirror elementATM = newArrayATM.getComponentType();
+                AnnotatedTypeMirror elementATM = getInitializerTargetType(newArray);
                 assertIsFunctionalInterface(elementATM.getUnderlyingType(), parentTree, tree);
                 return elementATM;
 
