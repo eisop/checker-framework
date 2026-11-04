@@ -220,6 +220,10 @@ Command-line option additions and changes:
   by subcheckers; more specific options take precedence.
 - Invalid option arguments (e.g. malformed regex) now produce compiler errors
   instead of stack traces.
+- `-AqualDirs` (Subtyping and Fenum Checkers) and `-AunitsDirs` now separate
+  directories with the platform's path separator, so they accept Windows paths
+  such as `D:/quals`. The Fenum Checker had split `-AqualDirs` on commas,
+  contrary to its manual.
 
 A stub file that declares a record where the running JDK has a class (for example
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
@@ -295,6 +299,9 @@ source: for a variable declared in an earlier `case` of an old-style `switch`, a
 or a local variable of an enclosing method used in a local or anonymous class (eisop#2375).
 
 ### Implementation details
+
+New `SystemUtil.splitPaths(String)` splits a list of paths on the platform's path separator.
+Deprecated `SystemUtil.COLON_SPLITTER`.
 
 Removed methods that have been deprecated for more than two years:
 `TreeUtils.constructor(NewClassTree)` (use `elementFromUse`), `TreeUtils.yieldTreeGetValue`,
