@@ -3,7 +3,14 @@ FILES=qual/Frequency.java \
   qual/Hz.java \
   qual/kHz.java
 
-JAVAOPTS= -classpath .:../../../checker/dist/checker.jar
+# The separator of class path entries; java on Windows takes ";".
+ifeq ($(OS),Windows_NT)
+  SEP := ;
+else
+  SEP := :
+endif
+
+JAVAOPTS= -classpath ".$(SEP)../../../checker/dist/checker.jar"
 
 JAVAC?=../../../checker/bin/javac
 
