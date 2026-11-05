@@ -1,23 +1,32 @@
 /*
  * @test
  *
- * @summary Test that a permissive default in the signature of a method of unchecked bytecode (a parameter, the return type, or a type parameter bound) does not constrain an override, unlike a written qualifier.
+ * @summary Test that a permissive default in the signature of a method of unchecked code (a parameter, the return type, or a type parameter bound) does not constrain an override, unlike a written qualifier, for unchecked bytecode and for unchecked source code in either order.
+ *
  * @compile -proc:none ../permissivedefaultslib/OverrideLib.java
  * @compile/fail/ref=PermissiveOverride.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=bytecode PermissiveOverride.java
  * @compile/fail/ref=PermissiveOverrideNoOption.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker PermissiveOverride.java
  *
  * @compile -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=source ../permissivedefaultslib/OverrideLib.java
  * @compile/fail/ref=PermissiveOverride.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=bytecode PermissiveOverride.java
+ *
+ * @compile/fail/ref=PermissiveOverride.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=source ../permissivedefaultslib/OverrideLib.java PermissiveOverride.java
+ * @compile/fail/ref=PermissiveOverride.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=source PermissiveOverride.java ../permissivedefaultslib/OverrideLib.java
+ * @compile/fail/ref=PermissiveOverrideNoOption.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker ../permissivedefaultslib/OverrideLib.java PermissiveOverride.java
  */
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.Collections;
 import java.util.List;
 
 import permissivedefaultslib.OverrideLib;
 
+// OverrideLib is not @AnnotatedFor("nullness"), so it is unchecked code with
+// -AusePermissiveDefaultsForUncheckedCode=source; this class is checked code.
+@AnnotatedFor("nullness")
 public class PermissiveOverride extends OverrideLib {
     // Only the permissive default makes the overridden parameter @Nullable, so a non-null
     // parameter is allowed.

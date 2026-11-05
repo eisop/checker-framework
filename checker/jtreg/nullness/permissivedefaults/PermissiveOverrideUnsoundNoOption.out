@@ -1,11 +1,11 @@
-PermissiveOverrideUnsound.java:32:26: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
-found   : @Nullable String
-required: @NonNull String
+PermissiveOverrideUnsound.java:33:26: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
+found   : @Nullable Object
+required: @NonNull Object
 Consequence: method in @NonNull Impl
-  @Nullable String get(@NonNull Impl this)
-cannot override method in @NonNull UnsoundLib
-  @NonNull String get(@NonNull UnsoundLib this)
-PermissiveOverrideUnsound.java:40:22: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of UnsoundLib.take.
+  @Nullable Object unannotatedReturn(@NonNull Impl this)
+cannot override method in @NonNull OverrideLib
+  @NonNull Object unannotatedReturn(@NonNull OverrideLib this)
+PermissiveOverrideUnsound.java:41:29: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of OverrideLib.unannotated.
 found   : @Nullable NullType
-required: @NonNull String
+required: @NonNull Object
 2 errors
