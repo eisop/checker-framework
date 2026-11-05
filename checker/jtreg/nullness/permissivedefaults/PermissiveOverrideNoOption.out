@@ -68,4 +68,11 @@ Consequence: method in @NonNull PermissiveOverride
   <T extends @NonNull Object> @NonNull void nullableTypeParameterBoundNarrowed(@NonNull PermissiveOverride this, T extends @NonNull Object p0)
 cannot override method in @NonNull OverrideLib
   <T extends @Nullable Object> @NonNull void nullableTypeParameterBoundNarrowed(@NonNull OverrideLib this, T extends @Nullable Object p0)
-10 errors
+PermissiveOverride.java:105:36: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for value.
+found   : @NonNull Object
+required: @Nullable Object
+Consequence: method in @NonNull PermissiveOverride
+  @NonNull void erasedBound(@NonNull PermissiveOverride this, @NonNull Object p0)
+cannot override method in @NonNull OverrideLib
+  @NonNull void erasedBound(@NonNull OverrideLib</*Type args not initialized*/> this, @Nullable Object p0)
+11 errors

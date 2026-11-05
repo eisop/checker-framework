@@ -1572,8 +1572,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param overriddenType the supertype that contains the overridden method
      * @param overriddenMethodElt the element of the overridden method
      * @param overriderType the type of the class declaring the overriding method
-     * @param overriddenMethodDeclType the type of the declaration of the overridden method, to
-     *     which defaults are added at the locations that have no qualifier
+     * @param overriddenMethodDeclType the type of the declaration of the overridden method; as for
+     *     any instance method, {@link AnnotatedTypes#asMemberOf} adds the defaults at the locations
+     *     that have no qualifier
      * @return the overridden method type, with type variables substituted and viewpoint-adapted to
      *     the overriding class
      */

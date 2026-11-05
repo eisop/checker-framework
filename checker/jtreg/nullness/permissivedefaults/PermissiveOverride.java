@@ -99,4 +99,8 @@ public class PermissiveOverride extends OverrideLib {
 
     @Override
     public <T extends @NonNull Object> void nullableTypeParameterBoundNarrowed(T value) {}
+
+    // An override by the erasure of a method whose type parameter has no written bound.
+    @Override
+    public void erasedBound(Object value) {}
 }

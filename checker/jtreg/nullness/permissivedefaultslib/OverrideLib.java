@@ -48,4 +48,6 @@ public class OverrideLib {
     public <T extends @Nullable Object> void nullableTypeParameterBound(T value) {}
 
     public <T extends @Nullable Object> void nullableTypeParameterBoundNarrowed(T value) {}
+
+    public <T> void erasedBound(T value) {}
 }
