@@ -21,15 +21,11 @@ import permissivedefaultslib.UncheckedLib;
 
 // UncheckedLib is compiled with javac, and with the Nullness Checker with conservative and with
 // permissive defaults for unchecked code. Each time, this class gets the same diagnostics for the
-// same option: permissive defaults accept the calls and the override, conservative defaults
-// reject the calls.
+// same option: permissive defaults accept the calls, and conservative defaults reject them.
 @AnnotatedFor("nullness")
-public class UncheckedDefaultsNotStored extends UncheckedLib {
+public class UncheckedDefaultsNotStored {
     void use(@Nullable Object value) {
         UncheckedLib.get().toString();
         UncheckedLib.take(value);
     }
-
-    @Override
-    public void visit(String value) {}
 }

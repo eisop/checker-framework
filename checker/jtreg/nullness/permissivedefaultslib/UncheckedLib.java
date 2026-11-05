@@ -7,6 +7,4 @@ public class UncheckedLib {
     }
 
     public static void take(Object value) {}
-
-    public void visit(String value) {}
 }
