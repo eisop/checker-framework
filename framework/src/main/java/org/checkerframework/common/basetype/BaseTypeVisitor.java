@@ -5195,15 +5195,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         /** The type of the overridden method. */
         protected final AnnotatedExecutableType overridden;
 
-        /**
-         * The type of the overridden method with only its written qualifiers, or null; see {@link
-         * #writtenOverridden}. Valid only if {@link #writtenOverriddenComputed} is true.
-         */
-        private @Nullable AnnotatedExecutableType writtenOverriddenType;
-
-        /** Whether {@link #writtenOverriddenType} has been computed. */
-        private boolean writtenOverriddenComputed = false;
-
         /** The supertype that declares the overridden method. */
         protected final AnnotatedDeclaredType overriddenType;
 
@@ -5242,11 +5233,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             this.overrider = overrider;
             this.overriderType = overriderType;
             this.overriderReturnType = overriderReturnType;
-            this.overridden = overridden;
             this.overriddenType = overriddenType;
+            this.isMethodReference = overriderTree instanceof MemberReferenceTree;
+
+            if (atypeFactory
+                    .getQualifierDefaults()
+                    .applyPermissiveDefaults(overridden.getElement())) {
+                AnnotatedExecutableType permissive = permissiveOverridden(overridden);
+                // The return type of a method reference to a void method is the overrider's.
+                if (overridden.getReturnType().getKind() != TypeKind.VOID) {
+                    overriddenReturnType = permissive.getReturnType();
+                }
+                overridden = permissive;
+            }
+            this.overridden = overridden;
             this.overriddenReturnType = overriddenReturnType;
 
-            this.isMethodReference = overriderTree instanceof MemberReferenceTree;
             this.typeVariableMapping = computeTypeVariableMapping();
         }
 
@@ -5461,14 +5463,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (methodRefKind == MemberReferenceKind.UNBOUND) {
                 AnnotatedTypeMirror overriderReceiver = overrider.getReceiverType();
                 AnnotatedTypeMirror overriddenReceiver = overridden.getParameterTypes().get(0);
-                AnnotatedExecutableType writtenOverridden = writtenOverridden();
-                if (writtenOverridden != null) {
-                    overriddenReceiver =
-                            unconstrainedCopy(
-                                    overriddenReceiver,
-                                    writtenOverridden.getParameterTypes().get(0),
-                                    overriderReceiver);
-                }
                 boolean success = typeHierarchy.isSubtype(overriddenReceiver, overriderReceiver);
                 if (!success) {
                     checker.reportError(
@@ -5735,34 +5729,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * @return true if the overrider's parameter types are valid
          */
         private boolean checkParameters() {
-            List<AnnotatedTypeMirror> overriderParams = overrider.getParameterTypes();
-            List<AnnotatedTypeMirror> overriddenParams = overridden.getParameterTypes();
-            // The same types with only their written qualifiers, or null.
-            AnnotatedExecutableType writtenOverridden = writtenOverridden();
-            List<AnnotatedTypeMirror> writtenOverriddenParams =
-                    writtenOverridden == null ? null : writtenOverridden.getParameterTypes();
-
-            // Fix up method reference parameters.
-            // See https://docs.oracle.com/javase/specs/jls/se17/html/jls-15.html#jls-15.13.1
-            if (isMethodReference) {
-                // The functional interface of an unbound member reference has an extra parameter
-                // (the receiver).
-                if (MemberReferenceKind.getMemberReferenceKind((MemberReferenceTree) overriderTree)
-                        == MemberReferenceKind.UNBOUND) {
-                    overriddenParams = new ArrayList<>(overriddenParams);
-                    overriddenParams.remove(0);
-                    if (writtenOverriddenParams != null) {
-                        writtenOverriddenParams = new ArrayList<>(writtenOverriddenParams);
-                        writtenOverriddenParams.remove(0);
-                    }
-                }
-                // Deal with varargs
-                if (overrider.isVarargs() && !overridden.isVarargs()) {
-                    overriderParams =
-                            AnnotatedTypes.expandVarargsParametersFromTypes(
-                                    overrider, overriddenParams);
-                }
-            }
+            List<AnnotatedTypeMirror> overriddenParams = overriddenParameters(overridden);
+            List<AnnotatedTypeMirror> overriderParams =
+                    overriderParameters(overriddenParams, overridden);
 
             List<AnnotatedTypeMirror> adaptedParams = new ArrayList<>(overriddenParams.size());
             for (AnnotatedTypeMirror overriddenParam : overriddenParams) {
@@ -5772,14 +5741,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             boolean result = true;
             for (int i = 0; i < overriderParams.size(); ++i) {
-                if (writtenOverriddenParams != null && i < writtenOverriddenParams.size()) {
-                    overriddenParams.set(
-                            i,
-                            unconstrainedCopy(
-                                    overriddenParams.get(i),
-                                    writtenOverriddenParams.get(i),
-                                    overriderParams.get(i)));
-                }
                 AnnotatedTypeMirror capturedParam =
                         atypeFactory.applyCaptureConversion(overriddenParams.get(i));
                 boolean success =
@@ -5792,148 +5753,202 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
-         * Returns the type of the overridden method with only the qualifiers written on it, in
-         * source code or bytecode, without defaults, if the overridden method is in unchecked code
-         * that gets the permissive defaults (see {@link
-         * org.checkerframework.framework.util.defaults.QualifierDefaults#applyPermissiveDefaults}).
-         * Then a qualifier that only the permissive default supplies to its signature does not
-         * constrain the overrider at that location (see {@link #unconstrainUnwrittenLocations}).
-         * Returns null otherwise. For a method reference, the overridden method is the method of
-         * the functional interface.
+         * Returns the parameter types of {@code overridden} that correspond to parameters of the
+         * overriding method: for an unbound method reference, all but the first, which is the
+         * receiver of the referenced method.
          *
-         * <p>The types of unchecked code are not stored into its elements (see {@code
-         * TypesIntoElements}), so {@link AnnotatedTypeFactory#fromElement} gives the written
-         * qualifiers whether or not the class of the overridden method has been type-checked
-         * already.
-         *
-         * @return the type of the overridden method with only its written qualifiers, or null if
-         *     the permissive defaults do not apply to it
+         * @param overridden the type of the overridden method
+         * @return the parameter types of {@code overridden} that correspond to parameters of the
+         *     overriding method
          */
-        private @Nullable AnnotatedExecutableType writtenOverridden() {
-            if (!writtenOverriddenComputed) {
-                writtenOverriddenComputed = true;
-                ExecutableElement element = overridden.getElement();
-                if (atypeFactory.getQualifierDefaults().applyPermissiveDefaults(element)) {
-                    writtenOverriddenType = atypeFactory.fromElement(element);
+        private List<AnnotatedTypeMirror> overriddenParameters(AnnotatedExecutableType overridden) {
+            List<AnnotatedTypeMirror> overriddenParams = overridden.getParameterTypes();
+            // See https://docs.oracle.com/javase/specs/jls/se17/html/jls-15.html#jls-15.13.1
+            // The functional interface of an unbound member reference has an extra parameter (the
+            // receiver).
+            if (isMethodReference
+                    && MemberReferenceKind.getMemberReferenceKind(
+                                    (MemberReferenceTree) overriderTree)
+                            == MemberReferenceKind.UNBOUND) {
+                overriddenParams = new ArrayList<>(overriddenParams);
+                overriddenParams.remove(0);
+            }
+            return overriddenParams;
+        }
+
+        /**
+         * Returns the parameter types of the overriding method that correspond to {@code
+         * overriddenParams}: for a method reference to a varargs method, its variable arity
+         * parameter is expanded to the number of parameters of the functional interface.
+         *
+         * @param overriddenParams the result of {@link #overriddenParameters} for {@code
+         *     overridden}
+         * @param overridden the type of the overridden method
+         * @return the parameter types of the overriding method, one for each of {@code
+         *     overriddenParams}
+         */
+        private List<AnnotatedTypeMirror> overriderParameters(
+                List<AnnotatedTypeMirror> overriddenParams, AnnotatedExecutableType overridden) {
+            if (isMethodReference && overrider.isVarargs() && !overridden.isVarargs()) {
+                return AnnotatedTypes.expandVarargsParametersFromTypes(overrider, overriddenParams);
+            }
+            return overrider.getParameterTypes();
+        }
+
+        /**
+         * Returns the type of the overridden method, which is in unchecked code that gets the
+         * permissive defaults (see {@link
+         * org.checkerframework.framework.util.defaults.QualifierDefaults#applyPermissiveDefaults}),
+         * with the qualifiers of the overriding method at the locations of its signature that have
+         * no written qualifier. Then a qualifier that only a permissive default would supply, the
+         * top qualifier for a parameter or an upper bound and the bottom qualifier for a return
+         * type or a lower bound, does not constrain the overrider. A qualifier written at any
+         * location, such as {@code @Nullable} in {@code List<@Nullable Object>}, still does. For a
+         * method reference, the overridden method is the method of the functional interface.
+         *
+         * <p>The type is computed as {@code overridden} is, from the declaration of the method with
+         * only its written qualifiers, those of the overrider filled in (see {@link
+         * #fillUnwrittenLocations(AnnotatedExecutableType)}): as a member of {@link
+         * #overriddenType}, where the type arguments that the overrider's class gives the type
+         * variables of the overridden class are substituted with their qualifiers, and where the
+         * defaults apply to the locations that are still unwritten. The types of unchecked code are
+         * not stored into its elements (see {@code TypesIntoElements}), so {@link
+         * AnnotatedTypeFactory#fromElement} gives the written qualifiers whether or not the class
+         * of the overridden method has been type-checked already.
+         *
+         * @param overridden the type of the overridden method
+         * @return the type of the overridden method in which its unwritten locations do not
+         *     constrain the overrider
+         */
+        private AnnotatedExecutableType permissiveOverridden(AnnotatedExecutableType overridden) {
+            ExecutableElement element = overridden.getElement();
+            AnnotatedExecutableType written = atypeFactory.fromElement(element);
+            fillUnwrittenLocations(written);
+            AnnotatedExecutableType result =
+                    isMethodReference
+                            ? AnnotatedTypes.asMemberOf(
+                                    types, atypeFactory, overriddenType, element, written)
+                            : atypeFactory.overriddenMethodType(
+                                    overriddenType,
+                                    element,
+                                    (AnnotatedDeclaredType) overriderType,
+                                    written);
+            if (overridden.getTypeVariables().isEmpty() && !result.getTypeVariables().isEmpty()) {
+                result = result.getErased();
+            }
+            return result;
+        }
+
+        /**
+         * Gives each location of the signature of {@code written} that has no qualifier in a
+         * hierarchy the qualifier of the overriding method at that location: the parameter types,
+         * the return type, and the bounds of the type parameters, and for an unbound method
+         * reference the receiver.
+         *
+         * @param written the type of the declaration of the overridden method, with only its
+         *     written qualifiers; side effected by this method
+         */
+        private void fillUnwrittenLocations(AnnotatedExecutableType written) {
+            List<AnnotatedTypeMirror> writtenParams = written.getParameterTypes();
+            List<AnnotatedTypeMirror> params = overriddenParameters(written);
+            if (params.size() < writtenParams.size()) {
+                // The first parameter is the receiver of an unbound method reference.
+                AnnotatedTypeMirror overriderReceiver = overrider.getReceiverType();
+                if (overriderReceiver != null) {
+                    fillUnwrittenLocations(writtenParams.get(0), overriderReceiver);
                 }
             }
-            return writtenOverriddenType;
+            fillUnwrittenLocations(params, overriderParameters(params, written));
+            fillUnwrittenLocations(written.getReturnType(), overriderReturnType);
+            if (!isMethodReference) {
+                List<AnnotatedTypeVariable> writtenTypeVars = written.getTypeVariables();
+                List<AnnotatedTypeVariable> overriderTypeVars = overrider.getTypeVariables();
+                if (writtenTypeVars.size() == overriderTypeVars.size()) {
+                    for (int i = 0; i < writtenTypeVars.size(); i++) {
+                        fillUnwrittenLocations(
+                                writtenTypeVars.get(i).getUpperBound(),
+                                overriderTypeVars.get(i).getUpperBound());
+                        fillUnwrittenLocations(
+                                writtenTypeVars.get(i).getLowerBound(),
+                                overriderTypeVars.get(i).getLowerBound());
+                    }
+                }
+            }
         }
 
         /**
-         * Returns a copy of {@code overriddenPart} in which the locations without a written
-         * qualifier impose no constraint on {@code overriderPart}; see {@link
-         * #unconstrainUnwrittenLocations(AnnotatedTypeMirror, AnnotatedTypeMirror,
-         * AnnotatedTypeMirror)}.
+         * Gives each location of {@code writtenPart} that has no qualifier in a hierarchy the
+         * qualifier of {@code overriderPart} at that location. Nothing is filled in at a use of a
+         * type variable of a class or interface, which is replaced by the type argument that the
+         * overrider's class gives it, nor where the two types do not have the same structure, for
+         * example where {@code overriderPart} is a raw type; the defaults apply there.
          *
-         * @param overriddenPart a parameter type, the return type, or a bound of a type parameter
-         *     of the overridden method, adapted to the overrider
-         * @param writtenPart the same type with only its written qualifiers, from {@link
-         *     #writtenOverridden}
-         * @param overriderPart the corresponding type of the overriding method
-         * @return a copy of {@code overriddenPart} with its unwritten locations unconstrained
-         */
-        private AnnotatedTypeMirror unconstrainedCopy(
-                AnnotatedTypeMirror overriddenPart,
-                AnnotatedTypeMirror writtenPart,
-                AnnotatedTypeMirror overriderPart) {
-            AnnotatedTypeMirror copy = overriddenPart.deepCopy();
-            unconstrainUnwrittenLocations(copy, writtenPart, overriderPart);
-            return copy;
-        }
-
-        /**
-         * Lets the locations of {@code overriddenPart}, a type in the signature of the overridden
-         * method, that have no written qualifier impose no constraint on {@code overriderPart}: in
-         * each hierarchy in which {@code writtenPart} has no qualifier at a location, gives {@code
-         * overriddenPart} the qualifier of {@code overriderPart} at that location. A qualifier
-         * written at any location, such as {@code @Nullable} in {@code List<@Nullable Object>},
-         * still constrains the overrider.
-         *
-         * <p>This is for an overridden method in unchecked code that gets the permissive defaults
-         * (see {@link #writtenOverridden}): a qualifier that only a permissive default supplies,
-         * the top qualifier for a parameter or an upper bound and the bottom qualifier for a return
-         * type or a lower bound, says nothing about the overrider. Where the three types do not
-         * have the same structure, for example where a type variable of the overridden class is
-         * replaced by the type argument that the overrider's class gives it, the qualifiers of
-         * {@code overriddenPart} are kept, so they constrain the overrider.
-         *
-         * @param overriddenPart a parameter type, the return type, or a bound of a type parameter
-         *     of the overridden method, adapted to the overrider; side effected by this method
-         * @param writtenPart the same type with only its written qualifiers, from {@link
-         *     #writtenOverridden}
+         * @param writtenPart a parameter type, the return type, or a bound of a type parameter of
+         *     the declaration of the overridden method, with only its written qualifiers; side
+         *     effected by this method
          * @param overriderPart the corresponding type of the overriding method
          */
-        private void unconstrainUnwrittenLocations(
-                AnnotatedTypeMirror overriddenPart,
-                AnnotatedTypeMirror writtenPart,
-                AnnotatedTypeMirror overriderPart) {
-            TypeKind kind = overriddenPart.getKind();
-            if (writtenPart.getKind() != kind || overriderPart.getKind() != kind) {
+        private void fillUnwrittenLocations(
+                AnnotatedTypeMirror writtenPart, AnnotatedTypeMirror overriderPart) {
+            TypeKind kind = writtenPart.getKind();
+            if (overriderPart.getKind() != kind) {
+                return;
+            }
+            if (kind == TypeKind.TYPEVAR
+                    && !(((TypeVariable) writtenPart.getUnderlyingType())
+                                    .asElement()
+                                    .getEnclosingElement()
+                            instanceof ExecutableElement)) {
+                // A type variable of a class or interface, which asMemberOf replaces by the type
+                // argument that the overrider's class gives it, with its qualifiers.
                 return;
             }
             if (kind != TypeKind.WILDCARD) {
                 // The qualifiers of a wildcard are those of its bounds, visited below.
                 for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-                    if (writtenPart.getAnnotationInHierarchy(top) != null) {
-                        continue;
-                    }
-                    AnnotationMirror overriderAnno = overriderPart.getAnnotationInHierarchy(top);
-                    if (overriderAnno != null) {
-                        overriddenPart.replaceAnnotation(overriderAnno);
-                    } else {
-                        overriddenPart.removeAnnotationInHierarchy(top);
+                    if (writtenPart.getAnnotationInHierarchy(top) == null) {
+                        AnnotationMirror overriderAnno =
+                                overriderPart.getAnnotationInHierarchy(top);
+                        if (overriderAnno != null) {
+                            writtenPart.addAnnotation(overriderAnno);
+                        }
                     }
                 }
             }
             switch (kind) {
                 case DECLARED:
-                    AnnotatedDeclaredType overriddenDeclared =
-                            (AnnotatedDeclaredType) overriddenPart;
                     AnnotatedDeclaredType writtenDeclared = (AnnotatedDeclaredType) writtenPart;
                     AnnotatedDeclaredType overriderDeclared = (AnnotatedDeclaredType) overriderPart;
-                    unconstrainUnwrittenLocations(
-                            overriddenDeclared.getTypeArguments(),
+                    fillUnwrittenLocations(
                             writtenDeclared.getTypeArguments(),
                             overriderDeclared.getTypeArguments());
-                    if (overriddenDeclared.getEnclosingType() != null
-                            && writtenDeclared.getEnclosingType() != null
+                    if (writtenDeclared.getEnclosingType() != null
                             && overriderDeclared.getEnclosingType() != null) {
-                        unconstrainUnwrittenLocations(
-                                overriddenDeclared.getEnclosingType(),
+                        fillUnwrittenLocations(
                                 writtenDeclared.getEnclosingType(),
                                 overriderDeclared.getEnclosingType());
                     }
                     break;
                 case ARRAY:
-                    unconstrainUnwrittenLocations(
-                            ((AnnotatedArrayType) overriddenPart).getComponentType(),
+                    fillUnwrittenLocations(
                             ((AnnotatedArrayType) writtenPart).getComponentType(),
                             ((AnnotatedArrayType) overriderPart).getComponentType());
                     break;
                 case WILDCARD:
-                    AnnotatedWildcardType overriddenWildcard =
-                            (AnnotatedWildcardType) overriddenPart;
                     AnnotatedWildcardType writtenWildcard = (AnnotatedWildcardType) writtenPart;
                     AnnotatedWildcardType overriderWildcard = (AnnotatedWildcardType) overriderPart;
-                    unconstrainUnwrittenLocations(
-                            overriddenWildcard.getExtendsBound(),
-                            writtenWildcard.getExtendsBound(),
-                            overriderWildcard.getExtendsBound());
-                    unconstrainUnwrittenLocations(
-                            overriddenWildcard.getSuperBound(),
-                            writtenWildcard.getSuperBound(),
-                            overriderWildcard.getSuperBound());
+                    fillUnwrittenLocations(
+                            writtenWildcard.getExtendsBound(), overriderWildcard.getExtendsBound());
+                    fillUnwrittenLocations(
+                            writtenWildcard.getSuperBound(), overriderWildcard.getSuperBound());
                     break;
                 case INTERSECTION:
-                    unconstrainUnwrittenLocations(
-                            ((AnnotatedIntersectionType) overriddenPart).getBounds(),
+                    fillUnwrittenLocations(
                             ((AnnotatedIntersectionType) writtenPart).getBounds(),
                             ((AnnotatedIntersectionType) overriderPart).getBounds());
                     break;
                 case UNION:
-                    unconstrainUnwrittenLocations(
-                            ((AnnotatedUnionType) overriddenPart).getAlternatives(),
+                    fillUnwrittenLocations(
                             ((AnnotatedUnionType) writtenPart).getAlternatives(),
                             ((AnnotatedUnionType) overriderPart).getAlternatives());
                     break;
@@ -5945,26 +5960,21 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
-         * Calls {@link #unconstrainUnwrittenLocations(AnnotatedTypeMirror, AnnotatedTypeMirror,
-         * AnnotatedTypeMirror)} on the corresponding elements of the three lists, if they have the
-         * same size.
+         * Calls {@link #fillUnwrittenLocations(AnnotatedTypeMirror, AnnotatedTypeMirror)} on the
+         * corresponding elements of the two lists, if they have the same size.
          *
-         * @param overriddenParts types in the signature of the overridden method; side effected by
-         *     this method
-         * @param writtenParts the same types with only their written qualifiers
+         * @param writtenParts types in the signature of the declaration of the overridden method;
+         *     side effected by this method
          * @param overriderParts the corresponding types of the overriding method
          */
-        private void unconstrainUnwrittenLocations(
-                List<? extends AnnotatedTypeMirror> overriddenParts,
+        private void fillUnwrittenLocations(
                 List<? extends AnnotatedTypeMirror> writtenParts,
                 List<? extends AnnotatedTypeMirror> overriderParts) {
-            if (overriddenParts.size() != writtenParts.size()
-                    || overriddenParts.size() != overriderParts.size()) {
+            if (writtenParts.size() != overriderParts.size()) {
                 return;
             }
-            for (int i = 0; i < overriddenParts.size(); i++) {
-                unconstrainUnwrittenLocations(
-                        overriddenParts.get(i), writtenParts.get(i), overriderParts.get(i));
+            for (int i = 0; i < writtenParts.size(); i++) {
+                fillUnwrittenLocations(writtenParts.get(i), overriderParts.get(i));
             }
         }
 
@@ -6110,24 +6120,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 adaptedTypeVars.add(adapted);
             }
             overriddenTypeVars = adaptedTypeVars;
-            AnnotatedExecutableType written = writtenOverridden();
-            if (written != null) {
-                for (int i = 0; i < count; i++) {
-                    AnnotatedTypeVariable adapted = overriddenTypeVars.get(i);
-                    AnnotatedTypeVariable writtenTypeVar = written.getTypeVariables().get(i);
-                    AnnotatedTypeVariable overriderTypeVar = overriderTypeVars.get(i);
-                    adapted.setUpperBound(
-                            unconstrainedCopy(
-                                    adapted.getUpperBound(),
-                                    writtenTypeVar.getUpperBound(),
-                                    overriderTypeVar.getUpperBound()));
-                    adapted.setLowerBound(
-                            unconstrainedCopy(
-                                    adapted.getLowerBound(),
-                                    writtenTypeVar.getLowerBound(),
-                                    overriderTypeVar.getLowerBound()));
-                }
-            }
             boolean result = true;
             for (int i = 0; i < count; i++) {
                 boolean success =
@@ -6260,14 +6252,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 return true;
             }
             AnnotatedTypeMirror adaptedReturnType = adaptToOverrider(overriddenReturnType);
-            AnnotatedExecutableType writtenOverridden = writtenOverridden();
-            if (writtenOverridden != null) {
-                adaptedReturnType =
-                        unconstrainedCopy(
-                                adaptedReturnType,
-                                writtenOverridden.getReturnType(),
-                                overriderReturnType);
-            }
             boolean success = isReturnOverrideValid(adaptedReturnType, overriderReturnType);
 
             // Sometimes the overridden return type of a method reference becomes a captured

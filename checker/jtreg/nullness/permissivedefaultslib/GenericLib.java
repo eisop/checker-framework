@@ -13,4 +13,9 @@ public class GenericLib<T> {
     public void consumeAll(List<T> values) {}
 
     public void unannotated(String value) {}
+
+    /** An interface with a type variable. */
+    public interface Consumer<T> {
+        void consume(T value);
+    }
 }

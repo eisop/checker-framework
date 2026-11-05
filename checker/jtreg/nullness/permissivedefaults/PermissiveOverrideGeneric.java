@@ -38,6 +38,21 @@ public class PermissiveOverrideGeneric {
         }
     }
 
+    // The extends clause gives T a type variable of the subclass, written @Nullable.
+    static class TypeVariableArgument<U> extends GenericLib<@Nullable U> {
+        @Override
+        public void consume(U value) {}
+
+        @Override
+        public void consumeAll(List<U> values) {}
+    }
+
+    // The same for a type variable of an interface, with a qualifier written on the overrider's.
+    static class InterfaceTypeVariableArgument<U> implements GenericLib.Consumer<@Nullable U> {
+        @Override
+        public void consume(@NonNull U value) {}
+    }
+
     // The extends clause gives T the default @NonNull.
     static class DefaultArgument extends GenericLib<String> {
         @Override

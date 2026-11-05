@@ -23,6 +23,7 @@ import permissivedefaultslib.MethodRefLib.Item;
 import permissivedefaultslib.MethodRefLib.ItemHandler;
 import permissivedefaultslib.MethodRefLib.Namer;
 import permissivedefaultslib.MethodRefLib.NullableCallback;
+import permissivedefaultslib.MethodRefLib.Sink;
 
 @AnnotatedFor("nullness")
 public class PermissiveMethodReference {
@@ -45,4 +46,7 @@ public class PermissiveMethodReference {
     Namer namer = PermissiveMethodReference::nullableReturn;
     NullableCallback nullableCallback = PermissiveMethodReference::nonNullParameter;
     ItemHandler unbound = Item::use;
+
+    // The type argument of the functional interface is written @Nullable.
+    Sink<@Nullable String> nullableSink = PermissiveMethodReference::nonNullParameter;
 }

@@ -21,6 +21,8 @@ public class OverrideLib {
 
     public void unannotatedElement(List<String> values) {}
 
+    public void unannotatedElementWidened(List<String> values) {}
+
     public void unannotatedBound(List<? extends Object> values) {}
 
     public void nullableBoundNarrowed(List<? extends @Nullable Object> values) {}

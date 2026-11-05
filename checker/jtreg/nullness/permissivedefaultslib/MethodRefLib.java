@@ -34,6 +34,11 @@ public class MethodRefLib {
         void run(@Nullable String value);
     }
 
+    /** A functional interface with a type variable. */
+    public interface Sink<T> {
+        void accept(T value);
+    }
+
     /** A class with an instance method, for an unbound method reference. */
     public static class Item {
         public void use() {}

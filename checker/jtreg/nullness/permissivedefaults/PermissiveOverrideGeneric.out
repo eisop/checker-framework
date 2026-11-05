@@ -11,19 +11,40 @@ required: @NonNull List<@Nullable String>
 Consequence: method in @NonNull Narrowed
   @NonNull void consumeAll(@NonNull Narrowed this, @NonNull List<@NonNull String> p0)
 cannot override method in @NonNull GenericLib<@Nullable String>
-  @NonNull void consumeAll(@NonNull GenericLib<@Nullable String> this, @Nullable List<@Nullable String> p0)
-PermissiveOverrideGeneric.java:57:30: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
+  @NonNull void consumeAll(@NonNull GenericLib<@Nullable String> this, @NonNull List<@Nullable String> p0)
+PermissiveOverrideGeneric.java:44:31: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for value.
+found   : U [ extends @Nullable Object super @NonNull NullType ]
+required: U [ extends @Nullable Object super @Nullable NullType ]
+Consequence: method in @NonNull TypeVariableArgument<U extends @Nullable Object>
+  @NonNull void consume(@NonNull TypeVariableArgument<U extends @Nullable Object> this, U extends @Nullable Object p0)
+cannot override method in @NonNull GenericLib<U extends @Nullable Object>
+  @NonNull void consume(@NonNull GenericLib<U extends @Nullable Object> this, U extends @Nullable Object p0)
+PermissiveOverrideGeneric.java:47:40: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
+found   : @NonNull List<U [ extends @Nullable Object super @NonNull NullType ]>
+required: @NonNull List<U [ extends @Nullable Object super @Nullable NullType ]>
+Consequence: method in @NonNull TypeVariableArgument<U extends @Nullable Object>
+  @NonNull void consumeAll(@NonNull TypeVariableArgument<U extends @Nullable Object> this, @NonNull List<U extends @Nullable Object> p0)
+cannot override method in @NonNull GenericLib<U extends @Nullable Object>
+  @NonNull void consumeAll(@NonNull GenericLib<U extends @Nullable Object> this, @NonNull List<U extends @Nullable Object> p0)
+PermissiveOverrideGeneric.java:53:40: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for value.
+found   : @org.checkerframework.checker.nullness.qual.NonNull U extends @NonNull Object
+required: U extends @Nullable Object
+Consequence: method in @NonNull InterfaceTypeVariableArgument<U extends @Nullable Object>
+  @NonNull void consume(@NonNull InterfaceTypeVariableArgument<U extends @Nullable Object> this, @org.checkerframework.checker.nullness.qual.NonNull U extends @NonNull Object p0)
+cannot override method in @NonNull Consumer<U extends @Nullable Object>
+  @NonNull void consume(@NonNull Consumer<U extends @Nullable Object> this, U extends @Nullable Object p0)
+PermissiveOverrideGeneric.java:72:30: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
 found   : @Nullable String
 required: @NonNull String
 Consequence: method in @NonNull Widened
   @Nullable String produce(@NonNull Widened this)
 cannot override method in @NonNull GenericLib<@NonNull String>
   @NonNull String produce(@NonNull GenericLib<@NonNull String> this)
-PermissiveOverrideGeneric.java:62:59: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
+PermissiveOverrideGeneric.java:77:59: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
 found   : @NonNull List<@Nullable String>
 required: @NonNull List<@NonNull String>
 Consequence: method in @NonNull Widened
   @NonNull void consumeAll(@NonNull Widened this, @NonNull List<@Nullable String> p0)
 cannot override method in @NonNull GenericLib<@NonNull String>
-  @NonNull void consumeAll(@NonNull GenericLib<@NonNull String> this, @Nullable List<@NonNull String> p0)
-4 errors
+  @NonNull void consumeAll(@NonNull GenericLib<@NonNull String> this, @NonNull List<@NonNull String> p0)
+7 errors

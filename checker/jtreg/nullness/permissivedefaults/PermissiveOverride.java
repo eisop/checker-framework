@@ -55,6 +55,9 @@ public class PermissiveOverride extends OverrideLib {
     @Override
     public void unannotatedElement(List<String> values) {}
 
+    @Override
+    public void unannotatedElementWidened(List<@Nullable String> values) {}
+
     // No qualifier is written on the bound of the overridden wildcard.
     @Override
     public void unannotatedBound(List<? extends Object> values) {}

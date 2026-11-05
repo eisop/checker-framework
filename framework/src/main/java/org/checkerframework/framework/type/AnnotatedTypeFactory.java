@@ -1557,8 +1557,34 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             AnnotatedDeclaredType overriddenType,
             ExecutableElement overriddenMethodElt,
             AnnotatedDeclaredType overriderType) {
+        return overriddenMethodType(
+                overriddenType,
+                overriddenMethodElt,
+                overriderType,
+                getAnnotatedType(overriddenMethodElt));
+    }
+
+    /**
+     * Returns the type of an overridden method as it should be seen for an override check against
+     * the given overriding class, starting from the given type of its declaration. See {@link
+     * #overriddenMethodType(AnnotatedDeclaredType, ExecutableElement, AnnotatedDeclaredType)}.
+     *
+     * @param overriddenType the supertype that contains the overridden method
+     * @param overriddenMethodElt the element of the overridden method
+     * @param overriderType the type of the class declaring the overriding method
+     * @param overriddenMethodDeclType the type of the declaration of the overridden method, to
+     *     which defaults are added at the locations that have no qualifier
+     * @return the overridden method type, with type variables substituted and viewpoint-adapted to
+     *     the overriding class
+     */
+    public AnnotatedExecutableType overriddenMethodType(
+            AnnotatedDeclaredType overriddenType,
+            ExecutableElement overriddenMethodElt,
+            AnnotatedDeclaredType overriderType,
+            AnnotatedExecutableType overriddenMethodDeclType) {
         AnnotatedExecutableType result =
-                AnnotatedTypes.asMemberOf(types, this, overriddenType, overriddenMethodElt);
+                AnnotatedTypes.asMemberOf(
+                        types, this, overriddenType, overriddenMethodElt, overriddenMethodDeclType);
         if (viewpointAdapter != null) {
             // Adapt to a use of the class: the type arguments of its declaration are type variable
             // declarations, which cannot be type variable bounds.

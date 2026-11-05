@@ -19,46 +19,53 @@ Consequence: method in @NonNull PermissiveOverride
   @NonNull void nullableComponentNarrowed(@NonNull PermissiveOverride this, @NonNull Object @NonNull [] p0)
 cannot override method in @NonNull OverrideLib
   @NonNull void nullableComponentNarrowed(@NonNull OverrideLib this, @Nullable Object @NonNull [] p0)
-PermissiveOverride.java:64:62: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
+PermissiveOverride.java:59:66: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
+found   : @NonNull List<@Nullable String>
+required: @NonNull List<@NonNull String>
+Consequence: method in @NonNull PermissiveOverride
+  @NonNull void unannotatedElementWidened(@NonNull PermissiveOverride this, @NonNull List<@Nullable String> p0)
+cannot override method in @NonNull OverrideLib
+  @NonNull void unannotatedElementWidened(@NonNull OverrideLib this, @NonNull List<@NonNull String> p0)
+PermissiveOverride.java:67:62: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
 found   : @NonNull List<? extends @NonNull Object>
 required: @NonNull List<? extends @Nullable Object>
 Consequence: method in @NonNull PermissiveOverride
   @NonNull void nullableBoundNarrowed(@NonNull PermissiveOverride this, @NonNull List<? extends @NonNull Object> p0)
 cannot override method in @NonNull OverrideLib
   @NonNull void nullableBoundNarrowed(@NonNull OverrideLib this, @NonNull List<? extends @Nullable Object> p0)
-PermissiveOverride.java:68:22: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
+PermissiveOverride.java:71:22: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
 found   : @Nullable Object
 required: @NonNull Object
 Consequence: method in @NonNull PermissiveOverride
   @Nullable Object unannotatedReturn(@NonNull PermissiveOverride this)
 cannot override method in @NonNull OverrideLib
   @NonNull Object unannotatedReturn(@NonNull OverrideLib this)
-PermissiveOverride.java:74:22: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
+PermissiveOverride.java:77:22: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
 found   : @Nullable Object
 required: @NonNull Object
 Consequence: method in @NonNull PermissiveOverride
   @Nullable Object nonNullReturn(@NonNull PermissiveOverride this)
 cannot override method in @NonNull OverrideLib
   @NonNull Object nonNullReturn(@NonNull OverrideLib this)
-PermissiveOverride.java:80:26: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
+PermissiveOverride.java:83:26: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
 found   : @Nullable List<@NonNull Object>
 required: @NonNull List<@NonNull Object>
 Consequence: method in @NonNull PermissiveOverride
   @Nullable List<@NonNull Object> nonNullElementReturn(@NonNull PermissiveOverride this)
 cannot override method in @NonNull OverrideLib
   @NonNull List<@NonNull Object> nonNullElementReturn(@NonNull OverrideLib this)
-PermissiveOverride.java:85:16: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
+PermissiveOverride.java:88:16: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
 found   : @NonNull List<@Nullable Object>
 required: @NonNull List<@NonNull Object>
 Consequence: method in @NonNull PermissiveOverride
   @NonNull List<@Nullable Object> nonNullElementReturnChanged(@NonNull PermissiveOverride this)
 cannot override method in @NonNull OverrideLib
   @NonNull List<@NonNull Object> nonNullElementReturnChanged(@NonNull OverrideLib this)
-PermissiveOverride.java:98:13: compiler.err.proc.messager: [override.typaram.invalid] Incompatible bound for type parameter T.
+PermissiveOverride.java:101:13: compiler.err.proc.messager: [override.typaram.invalid] Incompatible bound for type parameter T.
 found   : [ extends @NonNull Object super @NonNull NullType ]
 required: [ extends @Nullable Object super @NonNull NullType ]
 Consequence: method in @NonNull PermissiveOverride
   <T extends @NonNull Object> @NonNull void nullableTypeParameterBoundNarrowed(@NonNull PermissiveOverride this, T extends @NonNull Object p0)
 cannot override method in @NonNull OverrideLib
   <T extends @Nullable Object> @NonNull void nullableTypeParameterBoundNarrowed(@NonNull OverrideLib this, T extends @Nullable Object p0)
-9 errors
+10 errors
