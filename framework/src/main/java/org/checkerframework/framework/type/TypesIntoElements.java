@@ -27,12 +27,14 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVari
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
+import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.Types;
 
@@ -65,7 +67,9 @@ public final class TypesIntoElements {
         Symbol.ClassSymbol csym = (Symbol.ClassSymbol) TreeUtils.elementFromDeclaration(tree);
         Types types = processingEnv.getTypeUtils();
 
-        storeTypeParameters(processingEnv, types, atypeFactory, tree.getTypeParameters(), csym);
+        if (!hasUncheckedDefaults(atypeFactory, csym)) {
+            storeTypeParameters(processingEnv, types, atypeFactory, tree.getTypeParameters(), csym);
+        }
 
         /* TODO: storing extends/implements types results in
          * a strange error e.g. from the Nullness Checker.
@@ -89,15 +93,51 @@ public final class TypesIntoElements {
 
         for (Tree mem : tree.getMembers()) {
             if (mem instanceof MethodTree) {
-                storeMethod(processingEnv, types, atypeFactory, (MethodTree) mem);
+                if (!hasUncheckedDefaults(
+                        atypeFactory, TreeUtils.elementFromDeclaration((MethodTree) mem))) {
+                    storeMethod(processingEnv, types, atypeFactory, (MethodTree) mem);
+                }
             } else if (mem instanceof VariableTree) {
-                storeVariable(processingEnv, types, atypeFactory, (VariableTree) mem);
+                if (!hasUncheckedDefaults(
+                        atypeFactory, TreeUtils.elementFromDeclaration((VariableTree) mem))) {
+                    storeVariable(processingEnv, types, atypeFactory, (VariableTree) mem);
+                }
             } else {
                 // System.out.println("Unhandled member tree: " + mem);
             }
         }
     }
 
+    /**
+     * Returns true if the types of {@code elt} get the defaults for unchecked code (see {@link
+     * QualifierDefaults#applyPermissiveDefaults} and {@link
+     * QualifierDefaults#applyConservativeDefaults}). Such types are not stored: they are not the
+     * result of type-checking, and stored into the element they would look written, both to a
+     * client of the class file and to the type factories of this compilation, which read the
+     * written qualifiers of an element with {@link AnnotatedTypeFactory#fromElement}.
+     *
+     * @param atypeFactory the type factory
+     * @param elt an element of a class that was type-checked
+     * @return true if the types of {@code elt} get the defaults for unchecked code
+     */
+    private static boolean hasUncheckedDefaults(AnnotatedTypeFactory atypeFactory, Element elt) {
+        if (!(atypeFactory instanceof GenericAnnotatedTypeFactory)) {
+            return false;
+        }
+        QualifierDefaults defaults =
+                ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory).getQualifierDefaults();
+        return defaults.applyPermissiveDefaults(elt) || defaults.applyConservativeDefaults(elt);
+    }
+
+    /**
+     * Stores the annotated types of the return type, receiver, parameters, throws clauses, and type
+     * parameters of {@code meth} into its symbol.
+     *
+     * @param processingEnv the processing environment
+     * @param types the type utilities
+     * @param atypeFactory the type factory
+     * @param meth the method to store the types of
+     */
     private static void storeMethod(
             ProcessingEnvironment processingEnv,
             Types types,

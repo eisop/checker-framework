@@ -230,6 +230,11 @@ Command-line option additions and changes:
   `@NonNull` on a class type parameter as non-nullable; `javac` 25 reports
   "cannot attach type annotations" if the annotation's type is off the
   classpath). Implied by `-Amode=jspecify`.
+- The defaults that `-AuseConservativeDefaultsForUncheckedCode` and
+  `-AusePermissiveDefaultsForUncheckedCode` give to unchecked code are no longer
+  stored into its class files, where they looked like written qualifiers to the
+  code compiled against them. That code applies the defaults of its own options
+  to the bytecode.
 - `-AignoreDeadCode`: skips checking unreachable code (e.g. `if (false)`
   branches, catch blocks for unthrown exceptions).
 - `-AassumeAssertions=enabled|disabled|neither` (default `neither`): replaces

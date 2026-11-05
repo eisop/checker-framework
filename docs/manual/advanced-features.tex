@@ -608,6 +608,11 @@ then there is no need for
 defaults:  the \<.class> file has an explicit qualifier at each type use.
 (Furthermore, unless warnings were suppressed, those qualifiers are
 guaranteed to be correct.)
+The exception is code that the checker treated as unchecked, because of
+\<-AuseConservativeDefaultsForUncheckedCode=source> or
+\<-AusePermissiveDefaultsForUncheckedCode=source>:  the defaults it gave that
+code are not stored, so its \<.class> file contains only the qualifiers
+written in the source code, as if it had not been compiled using the checker.
 %% True, but it distracts from the point of this section.
 % When you are performing pluggable type-checking,
 % it is best if the compiler only reads such \<.class> files.

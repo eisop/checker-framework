@@ -1,0 +1,36 @@
+UncheckedDefaultsNotStored.java:32:27: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference UncheckedLib.get()
+UncheckedDefaultsNotStored.java:32:36: compiler.err.proc.messager: [method.invocation.invalid] call to toString() not allowed on the given receiver.
+found   : @UnknownInitialization Object
+required: @Initialized Object
+UncheckedDefaultsNotStored.java:33:27: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of UncheckedLib.take.
+found   : @UnknownKeyFor Object
+required: @KeyForBottom Object
+UncheckedDefaultsNotStored.java:33:27: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of UncheckedLib.take.
+found   : @Nullable Object
+required: @NonNull Object
+UncheckedDefaultsNotStored.java:33:27: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of UncheckedLib.take.
+found   : @Initialized Object
+required: @FBCBottom Object
+UncheckedDefaultsNotStored.java:38:35: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference UncheckedLib.getNullable()
+UncheckedDefaultsNotStored.java:38:44: compiler.err.proc.messager: [method.invocation.invalid] call to toString() not allowed on the given receiver.
+found   : @UnknownInitialization Object
+required: @Initialized Object
+UncheckedDefaultsNotStored.java:40:43: compiler.err.proc.messager: [method.invocation.invalid] call to toString() not allowed on the given receiver.
+found   : @UnknownInitialization Object
+required: @Initialized Object
+UncheckedDefaultsNotStored.java:42:35: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of UncheckedLib.takeNullable.
+found   : @UnknownKeyFor Object
+required: @KeyForBottom Object
+UncheckedDefaultsNotStored.java:42:35: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of UncheckedLib.takeNullable.
+found   : @Initialized Object
+required: @FBCBottom Object
+UncheckedDefaultsNotStored.java:44:34: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of UncheckedLib.takeNonNull.
+found   : @UnknownKeyFor Object
+required: @KeyForBottom Object
+UncheckedDefaultsNotStored.java:44:34: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of UncheckedLib.takeNonNull.
+found   : @Nullable Object
+required: @NonNull Object
+UncheckedDefaultsNotStored.java:44:34: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of UncheckedLib.takeNonNull.
+found   : @Initialized Object
+required: @FBCBottom Object
+13 errors
