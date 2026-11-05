@@ -1,6 +1,7 @@
 // A library to be compiled with
 //   -AuseConservativeDefaultsForUncheckedCode=source,bytecode
-// and then to be read from bytecode.
+// and then to be read from bytecode.  The conservative defaults of SdfuscLibNotAnnotatedFor, which
+// is unchecked code, are not stored into its class file.
 
 import org.checkerframework.checker.nullness.qual.*;
 import org.checkerframework.framework.qual.AnnotatedFor;
