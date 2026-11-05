@@ -420,6 +420,10 @@ but does not change the default qualifiers for source code (see
 Section~\ref{aonlyannotatedfor}).
 In code with a relevant \<@AnnotatedFor> annotation, warnings can be suppressed
 by an explicit \<@SuppressWarnings> annotation.
+The defaults are not stored in the \<.class> files of the classes without
+\<@AnnotatedFor>, which contain only the qualifiers written in their source
+code.  A client of the library chooses its own defaults for them, for example
+by passing \<-AuseConservativeDefaultsForUncheckedCode=bytecode>.
 \end{sloppypar}
 
 As an unsound alternative, use

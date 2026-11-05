@@ -1,0 +1,5 @@
+UncheckedDefaultsNotStored.java:38:35: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference UncheckedLib.getNullable()
+UncheckedDefaultsNotStored.java:44:34: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of UncheckedLib.takeNonNull.
+found   : @Nullable Object
+required: @NonNull Object
+2 errors

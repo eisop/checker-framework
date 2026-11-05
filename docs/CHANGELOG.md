@@ -31,6 +31,15 @@ variable together instead of one at a time, so the work for an invocation with m
 expression arguments, such as `Arrays.asList(new Pair<>(a, b), ...)`, grows linearly instead
 of quadratically in the number of arguments. Such a call with 36 or more arguments no longer
 exceeds the inference work budget (a false `type.argument.inference.budget` error).
+The result of type argument inference for a generic call is computed once and reused, instead of
+once for the check and again for the call's type: on a large project, 7% less allocation and 6%
+less time. The result is also reused for the poly expression arguments of the call, such as
+diamonds, whose type arguments are inferred together with it, so a call with many such arguments
+is no longer inferred once per argument. During dataflow analysis, the results are reused while
+the value of one node is computed, so the array created for the variable arguments of such a
+call no longer infers it once per argument either, and the value of a diamond argument whose own
+arguments are not poly expressions is computed without inferring the call at all.
+`Arrays.asList` with 24 diamond arguments under the Nullness Checker: 4.1 to 2.2 seconds.
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale
@@ -196,6 +205,10 @@ Nullness Checker improvements:
   rather than the root type.
 - New `-AjspecifyUnrecognizedLocations` (also enabled by `-Amode=jspecify`)
   errors on nullness annotations where JSpecify gives them no meaning.
+- A type pattern nested in a record pattern that is unconditional for the
+  record component, such as `String b` or `var b` in `o instanceof P(String a,
+  String b)`, matches null. Its variable now has the nullness of the record
+  component, and `@Nullable` on it is no longer reported as `instanceof.nullable`.
 
 Initialization Checker improvements:
 
@@ -222,6 +235,11 @@ Command-line option additions and changes:
   `@NonNull` on a class type parameter as non-nullable; `javac` 25 reports
   "cannot attach type annotations" if the annotation's type is off the
   classpath). Implied by `-Amode=jspecify`.
+- The defaults that `-AuseConservativeDefaultsForUncheckedCode` and
+  `-AusePermissiveDefaultsForUncheckedCode` give to unchecked code are no longer
+  stored into its class files, where they looked like written qualifiers to the
+  code compiled against them. That code applies the defaults of its own options
+  to the bytecode.
 - `-AignoreDeadCode`: skips checking unreachable code (e.g. `if (false)`
   branches, catch blocks for unthrown exceptions).
 - `-AassumeAssertions=enabled|disabled|neither` (default `neither`): replaces
@@ -240,6 +258,10 @@ Command-line option additions and changes:
   directories with the platform's path separator, so they accept Windows paths
   such as `D:/quals`. The Fenum Checker had split `-AqualDirs` on commas,
   contrary to its manual.
+- `-AonlyDefs` now checks an anonymous or local class if its enclosing class
+  matches. It matched such a class by a name without its package, such as
+  `<anonymous Outer$1>`, so a package pattern such as `^mypackage\.` silently
+  skipped every anonymous and local class.
 
 A stub file that declares a record where the running JDK has a class (for example
 the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the annotations of the
@@ -768,6 +790,8 @@ eisop#2461,
 eisop#2478,
 eisop#2479,
 eisop#2485,
+eisop#2490,
+eisop#2491,
 typetools#399,
 typetools#602,
 typetools#2816,

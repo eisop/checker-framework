@@ -101,6 +101,7 @@ import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
@@ -4375,13 +4376,16 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Returns true if the class definition should not be checked because it matches the {@code
-     * checker.skipDefs} property.
+     * checker.skipDefs} property, or does not match the {@code checker.onlyDefs} property. An
+     * anonymous or local class, which has no fully-qualified name, is checked if and only if its
+     * innermost enclosing class with a fully-qualified name is.
      *
      * @param tree class to potentially skip
      * @return true if checker should not type-check {@code tree}
      */
     public boolean shouldSkipDefs(ClassTree tree) {
-        String qualifiedName = TreeUtils.typeOf(tree).toString();
+        String qualifiedName =
+                namedEnclosingClass(TreeUtils.elementFromDeclaration(tree)).asType().toString();
         // System.out.printf("shouldSkipDefs(%s) %s%nskipDefs %s%nonlyDefs %s%nresult %s%n%n",
         //                   tree,
         //                   qualifiedName,
@@ -4398,6 +4402,32 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         return skipDefsPattern.matcher(qualifiedName).find()
                 || !onlyDefsPattern.matcher(qualifiedName).find();
+    }
+
+    /**
+     * Returns the innermost class that encloses {@code type}, or is {@code type}, and is not
+     * enclosed in an anonymous or local class, nor is one itself. Its type, unlike that of an
+     * anonymous or local class, prints as a fully-qualified name.
+     *
+     * @param type a class
+     * @return the innermost class enclosing or equal to {@code type} that has a fully-qualified
+     *     name
+     */
+    private static TypeElement namedEnclosingClass(TypeElement type) {
+        @Nullable TypeElement named = null;
+        for (@Nullable TypeElement t = type;
+                t != null;
+                t = ElementUtils.strictEnclosingTypeElement(t)) {
+            NestingKind kind = t.getNestingKind();
+            if (kind == NestingKind.ANONYMOUS || kind == NestingKind.LOCAL) {
+                named = null;
+            } else if (named == null) {
+                named = t;
+            }
+        }
+        // The outermost class is a top-level class, which is neither anonymous nor local.
+        assert named != null : "@AssumeAssertion(nullness): a top-level class is named";
+        return named;
     }
 
     /**
