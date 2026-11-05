@@ -1,7 +1,7 @@
 /*
  * @test
  *
- * @summary Test that a permissive default in the signature of a method or functional interface of unchecked code does not constrain a method reference, unlike a written qualifier.
+ * @summary Test that a permissive default in the signature of a functional interface of unchecked code does not constrain a method reference, unlike a written qualifier, and that a referenced method of unchecked code is checked as at a call.
  *
  * @compile -proc:none -parameters ../permissivedefaultslib/MethodRefLib.java
  * @compile/fail/ref=PermissiveMethodReference.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=bytecode PermissiveMethodReference.java
@@ -32,7 +32,8 @@ public class PermissiveMethodReference {
         return null;
     }
 
-    // A referenced method of unchecked code: only the permissive defaults are unwritten.
+    // A referenced method of unchecked code is checked as at a call: its permissive defaults apply,
+    // and its unannotated type argument and vararg component get the ordinary default.
     Consumer<@Nullable String> unannotated = MethodRefLib::unannotated;
     Consumer<@Nullable String> nonNull = MethodRefLib::nonNull;
     Consumer<List<@Nullable String>> unannotatedElement = MethodRefLib::unannotatedElement;
