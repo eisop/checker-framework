@@ -5463,11 +5463,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 AnnotatedTypeMirror overriddenReceiver = overridden.getParameterTypes().get(0);
                 AnnotatedExecutableType writtenOverridden = writtenOverridden();
                 if (writtenOverridden != null) {
-                    overriddenReceiver = overriddenReceiver.deepCopy();
-                    unconstrainUnwrittenLocations(
-                            overriddenReceiver,
-                            writtenOverridden.getParameterTypes().get(0),
-                            overriderReceiver);
+                    overriddenReceiver =
+                            unconstrainedCopy(
+                                    overriddenReceiver,
+                                    writtenOverridden.getParameterTypes().get(0),
+                                    overriderReceiver);
                 }
                 boolean success = typeHierarchy.isSubtype(overriddenReceiver, overriderReceiver);
                 if (!success) {
@@ -5773,10 +5773,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             boolean result = true;
             for (int i = 0; i < overriderParams.size(); ++i) {
                 if (writtenOverriddenParams != null && i < writtenOverriddenParams.size()) {
-                    AnnotatedTypeMirror unconstrained = overriddenParams.get(i).deepCopy();
-                    unconstrainUnwrittenLocations(
-                            unconstrained, writtenOverriddenParams.get(i), overriderParams.get(i));
-                    overriddenParams.set(i, unconstrained);
+                    overriddenParams.set(
+                            i,
+                            unconstrainedCopy(
+                                    overriddenParams.get(i),
+                                    writtenOverriddenParams.get(i),
+                                    overriderParams.get(i)));
                 }
                 AnnotatedTypeMirror capturedParam =
                         atypeFactory.applyCaptureConversion(overriddenParams.get(i));
@@ -5816,6 +5818,28 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 }
             }
             return writtenOverriddenType;
+        }
+
+        /**
+         * Returns a copy of {@code overriddenPart} in which the locations without a written
+         * qualifier impose no constraint on {@code overriderPart}; see {@link
+         * #unconstrainUnwrittenLocations(AnnotatedTypeMirror, AnnotatedTypeMirror,
+         * AnnotatedTypeMirror)}.
+         *
+         * @param overriddenPart a parameter type, the return type, or a bound of a type parameter
+         *     of the overridden method, adapted to the overrider
+         * @param writtenPart the same type with only its written qualifiers, from {@link
+         *     #writtenOverridden}
+         * @param overriderPart the corresponding type of the overriding method
+         * @return a copy of {@code overriddenPart} with its unwritten locations unconstrained
+         */
+        private AnnotatedTypeMirror unconstrainedCopy(
+                AnnotatedTypeMirror overriddenPart,
+                AnnotatedTypeMirror writtenPart,
+                AnnotatedTypeMirror overriderPart) {
+            AnnotatedTypeMirror copy = overriddenPart.deepCopy();
+            unconstrainUnwrittenLocations(copy, writtenPart, overriderPart);
+            return copy;
         }
 
         /**
@@ -6092,18 +6116,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     AnnotatedTypeVariable adapted = overriddenTypeVars.get(i);
                     AnnotatedTypeVariable writtenTypeVar = written.getTypeVariables().get(i);
                     AnnotatedTypeVariable overriderTypeVar = overriderTypeVars.get(i);
-                    AnnotatedTypeMirror upper = adapted.getUpperBound().deepCopy();
-                    unconstrainUnwrittenLocations(
-                            upper,
-                            writtenTypeVar.getUpperBound(),
-                            overriderTypeVar.getUpperBound());
-                    adapted.setUpperBound(upper);
-                    AnnotatedTypeMirror lower = adapted.getLowerBound().deepCopy();
-                    unconstrainUnwrittenLocations(
-                            lower,
-                            writtenTypeVar.getLowerBound(),
-                            overriderTypeVar.getLowerBound());
-                    adapted.setLowerBound(lower);
+                    adapted.setUpperBound(
+                            unconstrainedCopy(
+                                    adapted.getUpperBound(),
+                                    writtenTypeVar.getUpperBound(),
+                                    overriderTypeVar.getUpperBound()));
+                    adapted.setLowerBound(
+                            unconstrainedCopy(
+                                    adapted.getLowerBound(),
+                                    writtenTypeVar.getLowerBound(),
+                                    overriderTypeVar.getLowerBound()));
                 }
             }
             boolean result = true;
@@ -6240,9 +6262,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotatedTypeMirror adaptedReturnType = adaptToOverrider(overriddenReturnType);
             AnnotatedExecutableType writtenOverridden = writtenOverridden();
             if (writtenOverridden != null) {
-                adaptedReturnType = adaptedReturnType.deepCopy();
-                unconstrainUnwrittenLocations(
-                        adaptedReturnType, writtenOverridden.getReturnType(), overriderReturnType);
+                adaptedReturnType =
+                        unconstrainedCopy(
+                                adaptedReturnType,
+                                writtenOverridden.getReturnType(),
+                                overriderReturnType);
             }
             boolean success = isReturnOverrideValid(adaptedReturnType, overriderReturnType);
 
