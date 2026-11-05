@@ -129,6 +129,15 @@ public final class TypesIntoElements {
         return defaults.applyPermissiveDefaults(elt) || defaults.applyConservativeDefaults(elt);
     }
 
+    /**
+     * Stores the annotated types of the return type, receiver, parameters, throws clauses, and type
+     * parameters of {@code meth} into its symbol.
+     *
+     * @param processingEnv the processing environment
+     * @param types the type utilities
+     * @param atypeFactory the type factory
+     * @param meth the method to store the types of
+     */
     private static void storeMethod(
             ProcessingEnvironment processingEnv,
             Types types,
