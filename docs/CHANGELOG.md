@@ -179,10 +179,7 @@ JSpecify support in the Nullness Checker:
   the return type, or a type parameter bound) does not constrain an overriding
   method at that location, so, for example, a non-null parameter may override
   it (as for JSpecify's unspecified nullness); a qualifier written elsewhere in
-  the same type, as in `List<@Nullable Object>`, still does. The defaulted
-  types of unchecked code (with this option or
-  `-AuseConservativeDefaultsForUncheckedCode`) are no longer stored into its
-  class files, where they looked like written qualifiers.
+  the same type, as in `List<@Nullable Object>`, still does.
 - New `@UnannotatedFor` excludes a package, class, method, or constructor from
   an enclosing `@AnnotatedFor`'s scope for the given checkers (a nested
   `@AnnotatedFor` takes effect again). Like `@AnnotatedFor`, it's repeatable
@@ -238,6 +235,11 @@ Command-line option additions and changes:
   `@NonNull` on a class type parameter as non-nullable; `javac` 25 reports
   "cannot attach type annotations" if the annotation's type is off the
   classpath). Implied by `-Amode=jspecify`.
+- The defaults that `-AuseConservativeDefaultsForUncheckedCode` and
+  `-AusePermissiveDefaultsForUncheckedCode` give to unchecked code are no longer
+  stored into its class files, where they looked like written qualifiers to the
+  code compiled against them. That code applies the defaults of its own options
+  to the bytecode.
 - `-AignoreDeadCode`: skips checking unreachable code (e.g. `if (false)`
   branches, catch blocks for unthrown exceptions).
 - `-AassumeAssertions=enabled|disabled|neither` (default `neither`): replaces
