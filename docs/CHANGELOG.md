@@ -177,9 +177,11 @@ JSpecify support in the Nullness Checker:
   warnings outside `@AnnotatedFor` scope. A qualifier that only the permissive
   default supplies to the signature of a method of such code (a parameter type,
   the return type, or a type parameter bound) does not constrain an overriding
-  method at that location, so, for example, a non-null parameter may override
-  it (as for JSpecify's unspecified nullness); a qualifier written elsewhere in
-  the same type, as in `List<@Nullable Object>`, still does.
+  method or a method reference at that location, so, for example, a non-null
+  parameter may override it (as for JSpecify's unspecified nullness); a
+  qualifier written elsewhere in the same type, as in `List<@Nullable Object>`,
+  still does. This holds for a method that a method reference refers to as
+  well as for the method of its functional interface.
 - New `@UnannotatedFor` excludes a package, class, method, or constructor from
   an enclosing `@AnnotatedFor`'s scope for the given checkers (a nested
   `@AnnotatedFor` takes effect again). Like `@AnnotatedFor`, it's repeatable

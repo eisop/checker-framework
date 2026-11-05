@@ -1,0 +1,43 @@
+PermissiveMethodReference.java:36:46: compiler.err.proc.messager: [methodref.param.invalid] Incompatible parameter type for value
+found   : @NonNull String
+required: @Nullable String
+Consequence: method in @NonNull MethodRefLib
+  @NonNull void unannotated(@NonNull String p0)
+is not a valid method reference for method in @NonNull Consumer<@Nullable String>
+  @NonNull void accept(@NonNull Consumer<@Nullable String> this, @Nullable String p0)
+PermissiveMethodReference.java:37:42: compiler.err.proc.messager: [methodref.param.invalid] Incompatible parameter type for value
+found   : @NonNull String
+required: @Nullable String
+Consequence: method in @NonNull MethodRefLib
+  @NonNull void nonNull(@NonNull String p0)
+is not a valid method reference for method in @NonNull Consumer<@Nullable String>
+  @NonNull void accept(@NonNull Consumer<@Nullable String> this, @Nullable String p0)
+PermissiveMethodReference.java:38:59: compiler.err.proc.messager: [methodref.param.invalid] Incompatible parameter type for values
+found   : @NonNull List<@NonNull String>
+required: @NonNull List<@Nullable String>
+Consequence: method in @NonNull MethodRefLib
+  @NonNull void unannotatedElement(@NonNull List<@NonNull String> p0)
+is not a valid method reference for method in @NonNull Consumer<@NonNull List<@Nullable String>>
+  @NonNull void accept(@NonNull Consumer<@NonNull List<@Nullable String>> this, @NonNull List<@Nullable String> p0)
+PermissiveMethodReference.java:40:42: compiler.err.proc.messager: [methodref.param.invalid] Incompatible parameter type for values
+found   : @NonNull String
+required: @Nullable String
+Consequence: method in @NonNull MethodRefLib
+  @NonNull void varargs(@NonNull String @NonNull [] p0)
+is not a valid method reference for method in @NonNull Consumer<@Nullable String>
+  @NonNull void accept(@NonNull Consumer<@Nullable String> this, @Nullable String p0)
+PermissiveMethodReference.java:44:19: compiler.err.proc.messager: [methodref.return.invalid] Incompatible return type
+found   : @Nullable String
+required: @NonNull String
+Consequence: method in @NonNull PermissiveMethodReference
+  @Nullable String nullableReturn()
+is not a valid method reference for method in @NonNull Namer
+  @NonNull String name(@NonNull Namer this)
+PermissiveMethodReference.java:45:41: compiler.err.proc.messager: [methodref.param.invalid] Incompatible parameter type for value
+found   : @NonNull String
+required: @Nullable String
+Consequence: method in @NonNull PermissiveMethodReference
+  @NonNull void nonNullParameter(@NonNull String p0)
+is not a valid method reference for method in @NonNull NullableCallback
+  @NonNull void run(@NonNull NullableCallback this, @Nullable String p0)
+6 errors

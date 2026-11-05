@@ -1,0 +1,15 @@
+PermissiveMethodReference.java:37:42: compiler.err.proc.messager: [methodref.param.invalid] Incompatible parameter type for value
+found   : @NonNull String
+required: @Nullable String
+Consequence: method in @NonNull MethodRefLib
+  @NonNull void nonNull(@NonNull String p0)
+is not a valid method reference for method in @NonNull Consumer<@Nullable String>
+  @NonNull void accept(@NonNull Consumer<@Nullable String> this, @Nullable String p0)
+PermissiveMethodReference.java:45:41: compiler.err.proc.messager: [methodref.param.invalid] Incompatible parameter type for value
+found   : @NonNull String
+required: @Nullable String
+Consequence: method in @NonNull PermissiveMethodReference
+  @NonNull void nonNullParameter(@NonNull String p0)
+is not a valid method reference for method in @NonNull NullableCallback
+  @NonNull void run(@NonNull NullableCallback this, @Nullable String p0)
+2 errors
