@@ -180,7 +180,8 @@ JSpecify support in the Nullness Checker:
   method reference to a functional interface of such code, at that location: for
   example, a non-null parameter may override it, as for JSpecify's unspecified
   nullness. A qualifier written in the same type, as in `List<@Nullable Object>`,
-  still does.
+  still does. This is unsound: a call through the unchecked supertype is checked
+  against its permissive defaults, not against the overriding method.
 - New `@UnannotatedFor` excludes a package, class, method, or constructor from
   an enclosing `@AnnotatedFor`'s scope for the given checkers (a nested
   `@AnnotatedFor` takes effect again). Like `@AnnotatedFor`, it's repeatable

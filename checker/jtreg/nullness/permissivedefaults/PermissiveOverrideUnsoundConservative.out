@@ -1,0 +1,11 @@
+PermissiveOverrideUnsound.java:40:22: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of UnsoundLib.take.
+found   : @UnknownKeyFor NullType
+required: @KeyForBottom String
+PermissiveOverrideUnsound.java:40:22: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of UnsoundLib.take.
+found   : @Nullable NullType
+required: @NonNull String
+PermissiveOverrideUnsound.java:41:22: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference lib.get()
+PermissiveOverrideUnsound.java:41:29: compiler.err.proc.messager: [method.invocation.invalid] call to length() not allowed on the given receiver.
+found   : @UnknownInitialization String
+required: @Initialized String
+4 errors
