@@ -5857,10 +5857,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * unchecked code that gets the permissive defaults. Then a qualifier that only the
          * permissive default supplies to its signature does not constrain the functional interface
          * at that location, and a qualifier written on it still does (see {@link
-         * #unconstrainUnwrittenLocations}). Returns null otherwise, and if this does not check a
-         * method reference to a method. An ordinary overrider in unchecked code is not checked
-         * against the overridden method: in source code, its warnings are suppressed, and in
-         * bytecode it is not checked at all.
+         * #unconstrainUnwrittenLocations}). Returns null otherwise, in particular if this does not
+         * check a method reference to a method. An ordinary overrider in unchecked code is not
+         * checked against the overridden method: in source code, its warnings are suppressed, and
+         * in bytecode it is not checked at all.
          *
          * @return the type of the referenced method with only its written qualifiers, or null
          */
@@ -5878,12 +5878,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
-         * Makes each location of {@code overriddenPart}, a type in the signature of the overridden
-         * method, whose qualifier is not written impose no constraint on the corresponding location
-         * of {@code overriderPart}: in each hierarchy in which {@code writtenPart} has no qualifier
-         * at a location, gives {@code overriddenPart} the qualifier of {@code overriderPart} at
-         * that location. A qualifier written at any location, such as {@code @Nullable} in {@code
-         * List<@Nullable Object>}, still constrains the overrider.
+         * Lets the locations of {@code overriddenPart}, a type in the signature of the overridden
+         * method, that have no written qualifier impose no constraint on {@code overriderPart}: in
+         * each hierarchy in which {@code writtenPart} has no qualifier at a location, gives {@code
+         * overriddenPart} the qualifier of {@code overriderPart} at that location. A qualifier
+         * written at any location, such as {@code @Nullable} in {@code List<@Nullable Object>},
+         * still constrains the overrider.
          *
          * <p>This is for an overridden method in unchecked code that gets the permissive defaults
          * (see {@link #writtenOverridden}): a qualifier that only a permissive default supplies,
@@ -5901,7 +5901,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * @param overriddenPart a parameter type, the return type, or a bound of a type parameter
          *     of the overridden method, adapted to the overrider; side effected by this method
          * @param writtenPart the same type with only its written qualifiers, from {@link
-         *     #writtenOverridden}
+         *     #writtenOverridden} or {@link #writtenReferenced}
          * @param overriderPart the corresponding type of the overriding method
          */
         private void unconstrainUnwrittenLocations(
@@ -5991,7 +5991,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          *
          * @param overriddenParts types in the signature of the overridden method; side effected by
          *     this method
-         * @param writtenParts the same types with only their writtenPart qualifiers
+         * @param writtenParts the same types with only their written qualifiers
          * @param overriderParts the corresponding types of the overriding method
          */
         private void unconstrainUnwrittenLocations(
