@@ -2670,6 +2670,8 @@ Wall clock (`rev-fixes/time.sh`, JDK 21, includes ~1.5 s startup): varargs k = 6
 array of 24 diamonds: 1.8 s both. Regression test:
 `checker/tests/inference-budget/InferenceIndependentVariables.java` (20 diamonds, budget 2000;
 verified to fail on the previous code).
+After "Results of type argument inference" below, with one run each: k = 24/48/96 took
+2.5 s / budget error / budget error without this fix and 2.5/2.4/3.3 s with it.
 
 What remained was the ~17k inferences of the outer call, each linear in k, so the total was still
 quadratic with a small constant; the next section, "Results of type argument inference", reuses
