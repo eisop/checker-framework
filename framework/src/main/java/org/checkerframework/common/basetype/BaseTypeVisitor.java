@@ -4985,6 +4985,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         // Get the type of the overriding method.
         AnnotatedExecutableType overriderMethodType = atypeFactory.getAnnotatedType(overriderTree);
+        overriddenMethodType =
+                atypeFactory.permissiveOverriddenType(
+                        overriderTree,
+                        overriderMethodType,
+                        overriderMethodType.getReturnType(),
+                        overriderType,
+                        overriddenMethodType,
+                        overriddenType);
 
         // Call the other version of the method, which takes overriderMethodType. Both versions
         // exist to allow checkers to override one or the other depending on their needs.
@@ -5099,6 +5107,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                                 memberReferenceTree, compileTimeDeclaration, enclosingType)
                         .executableType;
 
+        // The result of an array constructor reference is the array type.
+        boolean isArrayConstructor =
+                compileTimeDeclaration.getKind() == ElementKind.CONSTRUCTOR
+                        && enclosingType.getKind() == TypeKind.ARRAY;
+
+        if (functionalInterface.getKind() == TypeKind.DECLARED) {
+            functionType =
+                    atypeFactory.permissiveOverriddenType(
+                            memberReferenceTree,
+                            invocationType,
+                            isArrayConstructor ? enclosingType : invocationType.getReturnType(),
+                            null,
+                            functionType,
+                            (AnnotatedDeclaredType) functionalInterface);
+        }
+
         // This needs to be done before invocationType.getReturnType() and
         // functionType.getReturnType()
         if (invocationType.getTypeVariables().isEmpty()
@@ -5111,15 +5135,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         poly.resolve(functionType, invocationType);
 
         AnnotatedTypeMirror invocationReturnType;
-        if (compileTimeDeclaration.getKind() == ElementKind.CONSTRUCTOR) {
-            if (enclosingType.getKind() == TypeKind.ARRAY) {
-                // Special casing for the return of array constructor
-                invocationReturnType = enclosingType;
-            } else {
-                invocationReturnType =
-                        atypeFactory.getResultingTypeOfConstructorMemberReference(
-                                memberReferenceTree, invocationType);
-            }
+        if (isArrayConstructor) {
+            invocationReturnType = enclosingType;
+        } else if (compileTimeDeclaration.getKind() == ElementKind.CONSTRUCTOR) {
+            invocationReturnType =
+                    atypeFactory.getResultingTypeOfConstructorMemberReference(
+                            memberReferenceTree, invocationType);
         } else {
             invocationReturnType = invocationType.getReturnType();
         }
@@ -5717,26 +5738,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * @return true if the overrider's parameter types are valid
          */
         private boolean checkParameters() {
-            List<AnnotatedTypeMirror> overriderParams = overrider.getParameterTypes();
-            List<AnnotatedTypeMirror> overriddenParams = overridden.getParameterTypes();
-
-            // Fix up method reference parameters.
-            // See https://docs.oracle.com/javase/specs/jls/se17/html/jls-15.html#jls-15.13.1
-            if (isMethodReference) {
-                // The functional interface of an unbound member reference has an extra parameter
-                // (the receiver).
-                if (MemberReferenceKind.getMemberReferenceKind((MemberReferenceTree) overriderTree)
-                        == MemberReferenceKind.UNBOUND) {
-                    overriddenParams = new ArrayList<>(overriddenParams);
-                    overriddenParams.remove(0);
-                }
-                // Deal with varargs
-                if (overrider.isVarargs() && !overridden.isVarargs()) {
-                    overriderParams =
-                            AnnotatedTypes.expandVarargsParametersFromTypes(
-                                    overrider, overriddenParams);
-                }
-            }
+            List<AnnotatedTypeMirror> overriddenParams =
+                    AnnotatedTypes.overriddenParameters(overriderTree, overridden);
+            List<AnnotatedTypeMirror> overriderParams =
+                    AnnotatedTypes.overriderParameters(
+                            overriderTree, overrider, overriddenParams, overridden);
 
             List<AnnotatedTypeMirror> adaptedParams = new ArrayList<>(overriddenParams.size());
             for (AnnotatedTypeMirror overriddenParam : overriddenParams) {

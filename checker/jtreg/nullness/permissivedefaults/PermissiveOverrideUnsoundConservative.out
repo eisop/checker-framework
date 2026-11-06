@@ -1,0 +1,11 @@
+PermissiveOverrideUnsound.java:41:29: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of OverrideLib.unannotated.
+found   : @UnknownKeyFor NullType
+required: @KeyForBottom Object
+PermissiveOverrideUnsound.java:41:29: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of OverrideLib.unannotated.
+found   : @Nullable NullType
+required: @NonNull Object
+PermissiveOverrideUnsound.java:42:36: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference lib.unannotatedReturn()
+PermissiveOverrideUnsound.java:42:45: compiler.err.proc.messager: [method.invocation.invalid] call to toString() not allowed on the given receiver.
+found   : @UnknownInitialization Object
+required: @Initialized Object
+4 errors

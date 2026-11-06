@@ -460,11 +460,7 @@ public abstract class GenericAnnotatedTypeFactory<
         this.inferredTypesApplier = new DefaultInferredTypesApplier(getQualifierHierarchy(), this);
     }
 
-    /**
-     * Returns the {@link QualifierDefaults} this factory applies.
-     *
-     * @return the {@link QualifierDefaults} this factory applies
-     */
+    @Override
     public QualifierDefaults getQualifierDefaults() {
         return defaults;
     }

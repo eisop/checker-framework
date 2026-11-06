@@ -1,0 +1,36 @@
+PermissiveMethodReference.java:40:42: compiler.err.proc.messager: [methodref.param.invalid] Incompatible parameter type for value
+found   : @NonNull String
+required: @Nullable String
+Consequence: method in @NonNull MethodRefLib
+  @NonNull void nonNull(@NonNull String p0)
+is not a valid method reference for method in @NonNull Consumer<@Nullable String>
+  @NonNull void accept(@NonNull Consumer<@Nullable String> this, @Nullable String p0)
+PermissiveMethodReference.java:41:59: compiler.err.proc.messager: [methodref.param.invalid] Incompatible parameter type for values
+found   : @Nullable List<@NonNull String>
+required: @NonNull List<@Nullable String>
+Consequence: method in @NonNull MethodRefLib
+  @NonNull void unannotatedElement(@Nullable List<@NonNull String> p0)
+is not a valid method reference for method in @NonNull Consumer<@NonNull List<@Nullable String>>
+  @NonNull void accept(@NonNull Consumer<@NonNull List<@Nullable String>> this, @NonNull List<@Nullable String> p0)
+PermissiveMethodReference.java:43:42: compiler.err.proc.messager: [methodref.param.invalid] Incompatible parameter type for values
+found   : @NonNull String
+required: @Nullable String
+Consequence: method in @NonNull MethodRefLib
+  @NonNull void varargs(@NonNull String @Nullable [] p0)
+is not a valid method reference for method in @NonNull Consumer<@Nullable String>
+  @NonNull void accept(@NonNull Consumer<@Nullable String> this, @Nullable String p0)
+PermissiveMethodReference.java:48:41: compiler.err.proc.messager: [methodref.param.invalid] Incompatible parameter type for value
+found   : @NonNull String
+required: @Nullable String
+Consequence: method in @NonNull PermissiveMethodReference
+  @NonNull void nonNullParameter(@NonNull String p0)
+is not a valid method reference for method in @NonNull NullableCallback
+  @NonNull void run(@NonNull NullableCallback this, @Nullable String p0)
+PermissiveMethodReference.java:53:43: compiler.err.proc.messager: [methodref.param.invalid] Incompatible parameter type for value
+found   : @NonNull String
+required: @Nullable String
+Consequence: method in @NonNull PermissiveMethodReference
+  @NonNull void nonNullParameter(@NonNull String p0)
+is not a valid method reference for method in @NonNull Sink<@Nullable String>
+  @NonNull void accept(@NonNull Sink<@Nullable String> this, @Nullable String p0)
+5 errors

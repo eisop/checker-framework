@@ -433,6 +433,48 @@ Section~\ref{defaults-classfile}) and suppresses warnings in unannotated source 
 like \<-AuseConservativeDefaultsForUncheckedCode=source>.  A kind of code cannot
 use both permissive and conservative defaults.
 
+A permissive default does not constrain an override.  At each location of the
+signature of a method outside a relevant \<@AnnotatedFor> scope that has no
+explicit annotation --- a parameter type, the return type, a bound of a type
+parameter, or a type argument or array component within one --- an
+overriding method may use any qualifier.  A default, including one from
+\refqualclass{framework/qual}{DefaultQualifier}, is not an explicit
+annotation.  For example, a method
+\<void m(Object o)> may be overridden by \<void m(@NonNull Object o)>, and
+\<Object get()> by \<@Nullable Object get()>.  An explicit annotation still
+constrains the overriding method:  \code{void m(List<@Nullable Object> l)} may
+not be overridden by \code{void m(List<Object> l)}.  The same holds for a method
+reference to a functional interface outside a relevant \<@AnnotatedFor>
+scope.  A call of a method outside such a scope, and a method reference to one,
+are checked against its permissive defaults, so there a type argument or array
+component without an explicit annotation gets the ordinary default.
+
+This is unsound:  a call through the supertype is checked against the
+supertype's permissive defaults, not against the overriding method.  In the
+following example, \<Lib> is outside a relevant \<@AnnotatedFor> scope, so
+its parameter is \<@Nullable> and its return type is \<@NonNull>.  The
+checker accepts all of this code, but both calls in \<use> throw a
+\<NullPointerException>.
+
+\begin{Verbatim}
+class Lib {
+  void take(String s) {}
+  String get() { return ""; }
+}
+
+@AnnotatedFor("nullness")
+class Impl extends Lib {
+  @Override void take(String s) { s.length(); }
+  @Override @Nullable String get() { return null; }
+
+  static void use() {
+    Lib lib = new Impl();
+    lib.take(null);
+    lib.get().length();
+  }
+}
+\end{Verbatim}
+
 The \refqualclass{framework/qual}{AnnotatedFor} annotation, written on a
 class, indicates that the class has been annotated for certain type
 systems.
