@@ -580,9 +580,11 @@ public abstract class GenericAnnotatedTypeFactory<
      * class or interface, which {@link AnnotatedTypes#asMemberOf} replaces by the type argument
      * that the overrider's class gives it, with its qualifiers, nor where the two types do not have
      * the same structure, for example where the overrider's type is a raw type; the defaults apply
-     * there. The first type is side effected; the second is the overrider's.
+     * there. An overrider's type whose class is a subclass of the other's, as for a covariant
+     * return type, is first viewed as that superclass. The first type is side effected; the second
+     * is the overrider's.
      */
-    private static class UnwrittenLocationFiller extends DoubleAnnotatedTypeScanner<Void> {
+    private class UnwrittenLocationFiller extends DoubleAnnotatedTypeScanner<Void> {
 
         /** Creates an UnwrittenLocationFiller. */
         UnwrittenLocationFiller() {}
@@ -608,6 +610,27 @@ public abstract class GenericAnnotatedTypeFactory<
             }
             if (overriderPart.getKind() != writtenPart.getKind()) {
                 return null;
+            }
+            if (writtenPart.getKind() == TypeKind.DECLARED
+                    && !((AnnotatedDeclaredType) writtenPart)
+                            .getUnderlyingType()
+                            .asElement()
+                            .equals(
+                                    ((AnnotatedDeclaredType) overriderPart)
+                                            .getUnderlyingType()
+                                            .asElement())) {
+                if (!TypesUtils.isErasedSubtype(
+                        overriderPart.getUnderlyingType(),
+                        writtenPart.getUnderlyingType(),
+                        types)) {
+                    defaultAction(writtenPart, overriderPart);
+                    return null;
+                }
+                // View a covariant return type as the class of the overridden method's return
+                // type, so that their type arguments correspond.
+                overriderPart =
+                        AnnotatedTypes.asSuper(
+                                GenericAnnotatedTypeFactory.this, overriderPart, writtenPart);
             }
             return super.scan(writtenPart, overriderPart);
         }

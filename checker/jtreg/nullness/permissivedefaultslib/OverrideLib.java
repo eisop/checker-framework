@@ -4,7 +4,9 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class OverrideLib {
     public void unannotated(Object value) {}
@@ -50,4 +52,12 @@ public class OverrideLib {
     public <T extends @Nullable Object> void nullableTypeParameterBoundNarrowed(T value) {}
 
     public <T> void erasedBound(T value) {}
+
+    public Map<String, Object> unannotatedElementSubclassReturn() {
+        return new HashMap<>();
+    }
+
+    public Map<String, @NonNull Object> nonNullElementSubclassReturn() {
+        return new HashMap<>();
+    }
 }

@@ -20,6 +20,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 import permissivedefaultslib.OverrideLib;
@@ -103,4 +104,18 @@ public class PermissiveOverride extends OverrideLib {
     // An override by the erasure of a method whose type parameter has no written bound.
     @Override
     public void erasedBound(Object value) {}
+
+    // A map whose type arguments are in the other order than those of Map.
+    static class Swapped<A, B> extends HashMap<B, A> {}
+
+    // A return type of a subclass, which is a Map<String, @Nullable Object>.
+    @Override
+    public Swapped<@Nullable Object, String> unannotatedElementSubclassReturn() {
+        return new Swapped<>();
+    }
+
+    @Override
+    public Swapped<@Nullable Object, String> nonNullElementSubclassReturn() {
+        return new Swapped<>();
+    }
 }
