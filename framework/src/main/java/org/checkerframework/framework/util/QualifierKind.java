@@ -87,6 +87,15 @@ public @Interned interface QualifierKind extends Comparable<QualifierKind> {
     boolean isPoly();
 
     /**
+     * Returns true if this qualifier kind represents a dynamic annotation, such as
+     * {@code @ReadWriteDynamic}.
+     *
+     * @return true if this qualifier kind represents a dynamic annotation
+     */
+    @Pure
+    boolean isDynamicAnnotation();
+
+    /**
      * Returns true if the annotation class this qualifier kind represents has annotation
      * elements/arguments.
      *
