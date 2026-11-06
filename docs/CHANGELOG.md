@@ -341,6 +341,10 @@ variable named in a lock expression, except where the variable's declaration is 
 source: for a variable declared in an earlier `case` of an old-style `switch`, a pattern variable,
 or a local variable of an enclosing method used in a local or anonymous class (eisop#2375).
 
+A comparison `a == b` or `a != b` refines `b` to the more specific of the two operands' qualifiers
+in each type hierarchy. Previously it stored `a`'s qualifiers for `b` even where they were less
+specific, which could make a postcondition about `b` in another type hierarchy fail.
+
 ### Implementation details
 
 New `SystemUtil.splitPaths(String)` splits a list of paths on the platform's path separator.

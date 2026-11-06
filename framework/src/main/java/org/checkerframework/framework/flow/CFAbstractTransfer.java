@@ -1018,9 +1018,13 @@ public abstract class CFAbstractTransfer<
             V firstValue,
             V secondValue,
             boolean notEqualTo) {
-        if (firstValue != null) {
-            // Only need to insert if the second value is actually different.
-            if (!firstValue.equals(secondValue)) {
+        // Only need to insert if the second value is actually different.
+        if (firstValue != null && !firstValue.equals(secondValue)) {
+            // The second node has both values, so it gets the more specific one in each
+            // hierarchy. If the store has no value for the second node, inserting firstValue
+            // alone would store a value less specific than secondValue.
+            V refinedValue = firstValue.mostSpecific(secondValue, firstValue);
+            if (!refinedValue.equals(secondValue)) {
                 List<Node> secondParts = splitAssignments(secondNode);
                 for (Node secondPart : secondParts) {
                     JavaExpression secondInternal = JavaExpression.fromNode(secondPart);
@@ -1031,9 +1035,9 @@ public abstract class CFAbstractTransfer<
                         S thenStore = res.getThenStore();
                         S elseStore = res.getElseStore();
                         if (notEqualTo) {
-                            elseStore.insertValue(secondInternal, firstValue);
+                            elseStore.insertValue(secondInternal, refinedValue);
                         } else {
-                            thenStore.insertValue(secondInternal, firstValue);
+                            thenStore.insertValue(secondInternal, refinedValue);
                         }
                         // To handle `(a = b = c) == x`, repeat for all insertable receivers of
                         // splitted assignments instead of returning.
