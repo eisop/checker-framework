@@ -121,12 +121,10 @@ public final class TypesIntoElements {
      * @return true if the types of {@code elt} get the defaults for unchecked code
      */
     private static boolean hasUncheckedDefaults(AnnotatedTypeFactory atypeFactory, Element elt) {
-        if (!(atypeFactory instanceof GenericAnnotatedTypeFactory)) {
-            return false;
-        }
-        QualifierDefaults defaults =
-                ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory).getQualifierDefaults();
-        return defaults.applyPermissiveDefaults(elt) || defaults.applyConservativeDefaults(elt);
+        QualifierDefaults defaults = atypeFactory.getQualifierDefaults();
+        return defaults != null
+                && (defaults.applyPermissiveDefaults(elt)
+                        || defaults.applyConservativeDefaults(elt));
     }
 
     /**

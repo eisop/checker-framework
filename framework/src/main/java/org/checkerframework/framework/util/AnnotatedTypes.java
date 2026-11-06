@@ -31,6 +31,7 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
@@ -1228,6 +1229,55 @@ public class AnnotatedTypes {
         }
 
         return expanded;
+    }
+
+    /**
+     * Returns the parameter types of {@code overridden} that correspond to parameters of the
+     * overriding method: for an unbound method reference, all but the first, which is the receiver
+     * of the referenced method.
+     *
+     * @param overriderTree the declaration of the overriding method, or a method reference
+     * @param overridden the type of the overridden method
+     * @return the parameter types of {@code overridden} that correspond to parameters of the
+     *     overriding method
+     */
+    public static List<AnnotatedTypeMirror> overriddenParameters(
+            Tree overriderTree, AnnotatedExecutableType overridden) {
+        List<AnnotatedTypeMirror> overriddenParams = overridden.getParameterTypes();
+        // See https://docs.oracle.com/javase/specs/jls/se17/html/jls-15.html#jls-15.13.1
+        // The functional interface of an unbound member reference has an extra parameter (the
+        // receiver).
+        if (overriderTree instanceof MemberReferenceTree
+                && MemberReferenceKind.getMemberReferenceKind((MemberReferenceTree) overriderTree)
+                        == MemberReferenceKind.UNBOUND) {
+            overriddenParams = new ArrayList<>(overriddenParams);
+            overriddenParams.remove(0);
+        }
+        return overriddenParams;
+    }
+
+    /**
+     * Returns the parameter types of the overriding method that correspond to {@code
+     * overriddenParams}: for a method reference to a varargs method, its variable arity parameter
+     * is expanded to the number of parameters of the functional interface.
+     *
+     * @param overriderTree the declaration of the overriding method, or a method reference
+     * @param overrider the type of the overriding method
+     * @param overriddenParams the result of {@link #overriddenParameters} for {@code overridden}
+     * @param overridden the type of the overridden method
+     * @return the parameter types of {@code overrider}, one for each of {@code overriddenParams}
+     */
+    public static List<AnnotatedTypeMirror> overriderParameters(
+            Tree overriderTree,
+            AnnotatedExecutableType overrider,
+            List<AnnotatedTypeMirror> overriddenParams,
+            AnnotatedExecutableType overridden) {
+        if (overriderTree instanceof MemberReferenceTree
+                && overrider.isVarargs()
+                && !overridden.isVarargs()) {
+            return expandVarargsParametersFromTypes(overrider, overriddenParams);
+        }
+        return overrider.getParameterTypes();
     }
 
     /**
