@@ -24,7 +24,7 @@ de-undercouch-download = { id = "de.undercouch.download", version = "5.7.0" }
 
 io-github-andygoossens-modernizer = { id = "io.github.andygoossens.modernizer", version = "2.0.0" }
 
-me-champeau-jmh = { id = "me.champeau.jmh", version = "0.7.3" }
+me-champeau-jmh = { id = "me.champeau.jmh", version = "0.7.4" }
 
 net-ltgt-errorprone = { id = "net.ltgt.errorprone", version = "5.1.1" }
 
