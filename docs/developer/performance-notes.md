@@ -2642,6 +2642,41 @@ The marginal allocation still grows about threefold per doubling of the depth af
 cost is now polynomial rather than linear; real code rarely nests generic classes more than two or
 three deep. On Guava (610 files) the wall time does not change measurably.
 
+### Java 8 type-argument inference: resolve independent variables together (November 2026)
+
+A generic varargs call with many poly expression arguments, `Arrays.asList(new Pair<>("a", 1),
+...)` with k diamonds under the Nullness Checker, took 1.7/3.3/6.2/8.2 s at k = 3/12/24/30 and
+from k = 36 on exceeded the inference work budget: a false `type.argument.inference.budget` error
+on valid code. Counters in `DefaultTypeArgumentInference.inferTypeArgs` and
+`VariableBounds.save` (k = 6/12/24): each inference of the call cost 169/625/2401 `save` calls,
+exactly (2k+1)², and 539/1649/5597 units of budgeted work. The bound set has 2k+1 variables (`T`
+and `A_i`, `B_i` per diamond); `Resolution.resolve` resolved one smallest dependency set per
+round, so 2k rounds each of which `resolveSmallestSet` began by copying the bounds of every
+variable (`new BoundSet(..)` + `saveBounds()`, 52% of the samples) and ended with an incorporation
+that re-scanned `T`'s O(k) bounds. The number of inferences of the call is itself ~17k (about
+5 per diamond per subchecker, from `getAnnotatedType` of the argument in the visitor's
+`commonAssignmentCheck`, `validateTypeOf`, `visitNewClass`, and in dataflow's transfer for the
+argument and for the synthetic varargs array), each of which re-infers the outer call because a
+diamond argument's target type comes from it, so the total was O(k³).
+
+Fix (`Resolution.resolve`): the unresolved variables whose dependency set contains no other
+unresolved variable are each a smallest set, so they are resolved together in one
+`resolveWithoutCapture` attempt, with one save and one incorporation. If that attempt fails, the
+bounds are restored and the one-at-a-time loop resumes, so only the variable that fails is
+resolved with capture, as before. Per inference: `save` calls 26/50/98, work 173/335/659 — linear.
+Wall clock (`rev-fixes/time.sh`, JDK 21, includes ~1.5 s startup): varargs k = 6/12/24: 2.2/2.9/6.7
+→ 2.0/2.7/5.1 s; k = 48/96: budget error → 9.5/25.5 s with no error; 14 rows of a 14-argument
+`asList` in one array initializer: 13.9 → 11.9 s; 80 rows of 4 arguments: 10.5 → 9.6 s; a flat
+array of 24 diamonds: 1.8 s both. Regression test:
+`checker/tests/inference-budget/InferenceIndependentVariables.java` (20 diamonds, budget 2000;
+verified to fail on the previous code).
+After "Results of type argument inference" below, with one run each: k = 24/48/96 took
+2.5 s / budget error / budget error without this fix and 2.5/2.4/3.3 s with it.
+
+What remained was the ~17k inferences of the outer call, each linear in k, so the total was still
+quadratic with a small constant; the next section, "Results of type argument inference", reuses
+the result of the outer inference for the call's arguments.
+
 ---
 
 ### Results of type argument inference (November 2026)
