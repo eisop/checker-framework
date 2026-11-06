@@ -7,6 +7,7 @@ import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LambdaExpressionTree;
+import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
@@ -67,6 +68,7 @@ import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.poly.DefaultQualifierPolymorphism;
 import org.checkerframework.framework.type.poly.QualifierPolymorphism;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
@@ -79,6 +81,8 @@ import org.checkerframework.framework.type.typeannotator.IrrelevantTypeAnnotator
 import org.checkerframework.framework.type.typeannotator.ListTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.PropagationTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
+import org.checkerframework.framework.type.visitor.DoubleAnnotatedTypeScanner;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.Contract;
 import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.DefaultContractsFromMethod;
@@ -123,6 +127,7 @@ import java.util.regex.Pattern;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -467,6 +472,163 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     public QualifierDefaults getQualifierDefaults() {
         return defaults;
+    }
+
+    /**
+     * Returns the type of {@code overridden} as it constrains the overriding method, if the
+     * overridden method is in unchecked code that gets the permissive defaults (see {@link
+     * QualifierDefaults#applyPermissiveDefaults}): with the qualifiers of the overriding method at
+     * the locations of its signature that have no written qualifier. Then a qualifier that only a
+     * permissive default would supply, the top qualifier for a parameter or an upper bound and the
+     * bottom qualifier for a return type or a lower bound, does not constrain the overrider. A
+     * qualifier written at any location, such as {@code @Nullable} in {@code List<@Nullable
+     * Object>}, still does. Returns {@code overridden} otherwise. For a method reference, the
+     * overridden method is the method of the functional interface.
+     *
+     * <p>The type is computed as {@code overridden} is, but from the declaration of the method with
+     * only its written qualifiers, those of the overrider filled in (see {@link
+     * #fillUnwrittenLocations(Tree, AnnotatedExecutableType, AnnotatedExecutableType)}): as a
+     * member of {@code overriddenType}, which substitutes the type arguments that the overrider's
+     * class gives the type variables of the overridden class, with their qualifiers, and applies
+     * the defaults to the locations that are still unwritten. The types of unchecked code are not
+     * stored into its elements (see {@code TypesIntoElements}), so {@link #fromElement} gives the
+     * written qualifiers whether or not the class of the overridden method has been type-checked
+     * already.
+     *
+     * @param overriderTree the declaration of the overriding method, or a method reference
+     * @param overrider the type of the overriding method
+     * @param overriderType the type of the class that declares the overriding method, or null for a
+     *     method reference
+     * @param overridden the type of the overridden method, as a member of {@code overriddenType}
+     * @param overriddenType the supertype or functional interface that declares the overridden
+     *     method
+     * @return the type of the overridden method in which its unwritten locations do not constrain
+     *     the overrider, or {@code overridden}
+     */
+    public AnnotatedExecutableType permissiveOverriddenType(
+            Tree overriderTree,
+            AnnotatedExecutableType overrider,
+            @Nullable AnnotatedDeclaredType overriderType,
+            AnnotatedExecutableType overridden,
+            AnnotatedDeclaredType overriddenType) {
+        ExecutableElement element = overridden.getElement();
+        if (!defaults.applyPermissiveDefaults(element)) {
+            return overridden;
+        }
+        AnnotatedExecutableType written = fromElement(element);
+        fillUnwrittenLocations(overriderTree, overrider, written);
+        if (overriderType == null) {
+            return AnnotatedTypes.asMemberOf(types, this, overriddenType, element, written);
+        }
+        return overriddenMethodType(overriddenType, element, overriderType, written);
+    }
+
+    /**
+     * Gives each location of the signature of {@code written} that has no qualifier in a hierarchy
+     * the qualifier of the overriding method at that location: the parameter types, the return
+     * type, and the bounds of the type parameters, and for an unbound method reference the
+     * receiver.
+     *
+     * @param overriderTree the declaration of the overriding method, or a method reference
+     * @param overrider the type of the overriding method
+     * @param written the type of the declaration of the overridden method, with only its written
+     *     qualifiers; side effected by this method
+     */
+    private void fillUnwrittenLocations(
+            Tree overriderTree,
+            AnnotatedExecutableType overrider,
+            AnnotatedExecutableType written) {
+        UnwrittenLocationFiller filler = new UnwrittenLocationFiller();
+        List<AnnotatedTypeMirror> writtenParams = written.getParameterTypes();
+        List<AnnotatedTypeMirror> params =
+                AnnotatedTypes.overriddenParameters(overriderTree, written);
+        if (params.size() < writtenParams.size()) {
+            // The first parameter is the receiver of an unbound method reference.
+            AnnotatedTypeMirror overriderReceiver = overrider.getReceiverType();
+            if (overriderReceiver != null) {
+                filler.visit(writtenParams.get(0), overriderReceiver);
+            }
+        }
+        List<AnnotatedTypeMirror> overriderParams =
+                AnnotatedTypes.overriderParameters(overriderTree, overrider, params, written);
+        if (params.size() == overriderParams.size()) {
+            for (int i = 0; i < params.size(); i++) {
+                filler.visit(params.get(i), overriderParams.get(i));
+            }
+        }
+        filler.visit(written.getReturnType(), overrider.getReturnType());
+        if (!(overriderTree instanceof MemberReferenceTree)) {
+            List<AnnotatedTypeVariable> writtenTypeVars = written.getTypeVariables();
+            List<AnnotatedTypeVariable> overriderTypeVars = overrider.getTypeVariables();
+            if (writtenTypeVars.size() == overriderTypeVars.size()) {
+                for (int i = 0; i < writtenTypeVars.size(); i++) {
+                    filler.visit(
+                            writtenTypeVars.get(i).getUpperBound(),
+                            overriderTypeVars.get(i).getUpperBound());
+                    filler.visit(
+                            writtenTypeVars.get(i).getLowerBound(),
+                            overriderTypeVars.get(i).getLowerBound());
+                }
+            }
+        }
+    }
+
+    /**
+     * Gives each location of a type in the signature of the declaration of an overridden method
+     * that has no qualifier in a hierarchy the qualifier of the corresponding type of the
+     * overriding method at that location. Nothing is filled in at a use of a type variable of a
+     * class or interface, which {@link AnnotatedTypes#asMemberOf} replaces by the type argument
+     * that the overrider's class gives it, with its qualifiers, nor where the two types do not have
+     * the same structure, for example where the overrider's type is a raw type; the defaults apply
+     * there. The first type is side effected; the second is the overrider's.
+     */
+    private static class UnwrittenLocationFiller extends DoubleAnnotatedTypeScanner<Void> {
+
+        /** Creates an UnwrittenLocationFiller. */
+        UnwrittenLocationFiller() {}
+
+        @Override
+        protected Void scan(AnnotatedTypeMirror writtenPart, AnnotatedTypeMirror overriderPart) {
+            if (overriderPart == null) {
+                return null;
+            }
+            if (writtenPart.getKind() == TypeKind.TYPEVAR) {
+                if (!(((TypeVariable) writtenPart.getUnderlyingType())
+                                .asElement()
+                                .getEnclosingElement()
+                        instanceof ExecutableElement)) {
+                    return null;
+                }
+                if (overriderPart.getKind() != TypeKind.TYPEVAR) {
+                    // An override by the erasure of the method, which replaces the type variable
+                    // by its upper bound.
+                    return scan(
+                            ((AnnotatedTypeVariable) writtenPart).getUpperBound(), overriderPart);
+                }
+            }
+            if (overriderPart.getKind() != writtenPart.getKind()) {
+                return null;
+            }
+            return super.scan(writtenPart, overriderPart);
+        }
+
+        @Override
+        protected Void defaultAction(
+                AnnotatedTypeMirror writtenPart, AnnotatedTypeMirror overriderPart) {
+            // The qualifiers of a wildcard are those of its bounds, which are scanned.
+            if (writtenPart.getKind() != TypeKind.WILDCARD) {
+                writtenPart.addMissingAnnotations(overriderPart.getAnnotations());
+            }
+            return null;
+        }
+
+        @Override
+        public Void visitTypeVariable(
+                AnnotatedTypeVariable writtenPart, AnnotatedTypeMirror overriderPart) {
+            // A type variable's own qualifier is its primary qualifier; its bounds are those of
+            // its declaration.
+            return null;
+        }
     }
 
     /**
