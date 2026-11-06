@@ -346,6 +346,10 @@ or a local variable of an enclosing method used in a local or anonymous class (e
 New `SystemUtil.splitPaths(String)` splits a list of paths on the platform's path separator.
 Deprecated `SystemUtil.COLON_SPLITTER`.
 
+New `DefaultTypeHierarchy.visitEnclosingTypeArgs` compares the type arguments of the enclosing types
+of two inner class types. `visitTypeArgs` calls it, so a type hierarchy that compares those type
+arguments differently from a type's own overrides it.
+
 Removed methods that have been deprecated for more than two years:
 `TreeUtils.constructor(NewClassTree)` (use `elementFromUse`), `TreeUtils.yieldTreeGetValue`,
 `TreeUtils.isVarArgs` (both overloads), `TreeUtils.isVarArgMethodCall`,

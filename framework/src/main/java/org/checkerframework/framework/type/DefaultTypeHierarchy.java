@@ -634,6 +634,24 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
         if (subtypeEnclosing == null || supertypeEnclosing == null) {
             return true;
         }
+        return visitEnclosingTypeArgs(subtypeEnclosing, supertypeEnclosing);
+    }
+
+    /**
+     * Returns true if the type arguments of {@code supertypeEnclosing} contain those of {@code
+     * subtypeEnclosing}, the enclosing types of two inner class types whose own type arguments
+     * {@link #visitTypeArgs} has already compared. By default this is {@link #visitTypeArgs} on the
+     * enclosing types; a subclass that compares the type arguments of enclosing types differently
+     * from a type's own overrides this method.
+     *
+     * @param subtypeEnclosing the enclosing type of a possible subtype
+     * @param supertypeEnclosing the enclosing type of a possible supertype, of the same class as
+     *     {@code subtypeEnclosing}
+     * @return true if the type arguments of {@code supertypeEnclosing} contain those of {@code
+     *     subtypeEnclosing}
+     */
+    protected boolean visitEnclosingTypeArgs(
+            AnnotatedDeclaredType subtypeEnclosing, AnnotatedDeclaredType supertypeEnclosing) {
         return visitTypeArgs(
                 subtypeEnclosing,
                 supertypeEnclosing,
