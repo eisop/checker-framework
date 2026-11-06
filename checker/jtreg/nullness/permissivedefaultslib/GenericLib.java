@@ -12,6 +12,10 @@ public class GenericLib<T> {
 
     public void consumeAll(List<T> values) {}
 
+    public T apply(T value) {
+        return value;
+    }
+
     public void unannotated(String value) {}
 
     /** An interface with a type variable. */

@@ -18,6 +18,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import permissivedefaultslib.MethodRefLib;
+import permissivedefaultslib.MethodRefLib.ArrayMaker;
 import permissivedefaultslib.MethodRefLib.Callback;
 import permissivedefaultslib.MethodRefLib.Item;
 import permissivedefaultslib.MethodRefLib.ItemHandler;
@@ -46,6 +47,7 @@ public class PermissiveMethodReference {
     Namer namer = PermissiveMethodReference::nullableReturn;
     NullableCallback nullableCallback = PermissiveMethodReference::nonNullParameter;
     ItemHandler unbound = Item::use;
+    ArrayMaker arrayMaker = String[]::new;
 
     // The type argument of the functional interface is written @Nullable.
     Sink<@Nullable String> nullableSink = PermissiveMethodReference::nonNullParameter;

@@ -118,4 +118,23 @@ public class PermissiveOverride extends OverrideLib {
     public Swapped<@Nullable Object, String> nonNullElementSubclassReturn() {
         return new Swapped<>();
     }
+
+    // A return type that is a type variable, which is checked against the qualifiers of its bound.
+    static class TypeVariableReturn<T> extends OverrideLib {
+        T value;
+
+        TypeVariableReturn(T value) {
+            this.value = value;
+        }
+
+        @Override
+        public T unannotatedReturn() {
+            return value;
+        }
+
+        @Override
+        public T nonNullReturn() {
+            return value;
+        }
+    }
 }

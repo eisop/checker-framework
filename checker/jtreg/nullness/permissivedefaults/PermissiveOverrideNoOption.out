@@ -89,4 +89,18 @@ Consequence: method in @NonNull PermissiveOverride
   @NonNull Swapped<@Nullable Object, @NonNull String> nonNullElementSubclassReturn(@NonNull PermissiveOverride this)
 cannot override method in @NonNull OverrideLib
   @NonNull Map<@NonNull String, @NonNull Object> nonNullElementSubclassReturn(@NonNull OverrideLib this)
-13 errors
+PermissiveOverride.java:131:16: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
+found   : T extends @Nullable Object
+required: @NonNull Object
+Consequence: method in @NonNull TypeVariableReturn<T extends @Nullable Object>
+  T extends @Nullable Object unannotatedReturn(@NonNull TypeVariableReturn<T extends @Nullable Object> this)
+cannot override method in @NonNull OverrideLib
+  @NonNull Object unannotatedReturn(@NonNull OverrideLib this)
+PermissiveOverride.java:136:16: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
+found   : T extends @Nullable Object
+required: @NonNull Object
+Consequence: method in @NonNull TypeVariableReturn<T extends @Nullable Object>
+  T extends @Nullable Object nonNullReturn(@NonNull TypeVariableReturn<T extends @Nullable Object> this)
+cannot override method in @NonNull OverrideLib
+  @NonNull Object nonNullReturn(@NonNull OverrideLib this)
+15 errors

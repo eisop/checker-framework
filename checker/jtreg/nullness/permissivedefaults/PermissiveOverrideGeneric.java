@@ -77,4 +77,21 @@ public class PermissiveOverrideGeneric {
             public void consumeAll(List<@Nullable String> values) {}
         }
     }
+
+    // A raw supertype, which replaces T by its bound, gives no qualifier for T.
+    @SuppressWarnings("rawtypes")
+    static class RawSupertype extends GenericLib {
+        @Override
+        public void consume(Object value) {}
+
+        @Override
+        public @Nullable Object produce() {
+            return null;
+        }
+
+        @Override
+        public @Nullable Object apply(Object value) {
+            return null;
+        }
+    }
 }

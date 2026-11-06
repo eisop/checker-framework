@@ -487,16 +487,18 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * <p>The type is computed as {@code overridden} is, but from the declaration of the method with
      * only its written qualifiers, those of the overrider filled in (see {@link
-     * #fillUnwrittenLocations(Tree, AnnotatedExecutableType, AnnotatedExecutableType)}): as a
-     * member of {@code overriddenType}, which substitutes the type arguments that the overrider's
-     * class gives the type variables of the overridden class, with their qualifiers, and applies
-     * the defaults to the locations that are still unwritten. The types of unchecked code are not
-     * stored into its elements (see {@code TypesIntoElements}), so {@link #fromElement} gives the
-     * written qualifiers whether or not the class of the overridden method has been type-checked
-     * already.
+     * #fillUnwrittenLocations(Tree, AnnotatedExecutableType, AnnotatedTypeMirror,
+     * AnnotatedExecutableType)}): as a member of {@code overriddenType}, which substitutes the type
+     * arguments that the overrider's class gives the type variables of the overridden class, with
+     * their qualifiers, and applies the defaults to the locations that are still unwritten. The
+     * types of unchecked code are not stored into its elements (see {@code TypesIntoElements}), so
+     * {@link #fromElement} gives the written qualifiers whether or not the class of the overridden
+     * method has been type-checked already.
      *
      * @param overriderTree the declaration of the overriding method, or a method reference
      * @param overrider the type of the overriding method
+     * @param overriderReturnType the return type of the overriding method; for a constructor
+     *     reference, the type of the result
      * @param overriderType the type of the class that declares the overriding method, or null for a
      *     method reference
      * @param overridden the type of the overridden method, as a member of {@code overriddenType}
@@ -508,6 +510,7 @@ public abstract class GenericAnnotatedTypeFactory<
     public AnnotatedExecutableType permissiveOverriddenType(
             Tree overriderTree,
             AnnotatedExecutableType overrider,
+            AnnotatedTypeMirror overriderReturnType,
             @Nullable AnnotatedDeclaredType overriderType,
             AnnotatedExecutableType overridden,
             AnnotatedDeclaredType overriddenType) {
@@ -516,7 +519,7 @@ public abstract class GenericAnnotatedTypeFactory<
             return overridden;
         }
         AnnotatedExecutableType written = fromElement(element);
-        fillUnwrittenLocations(overriderTree, overrider, written);
+        fillUnwrittenLocations(overriderTree, overrider, overriderReturnType, written);
         if (overriderType == null) {
             return AnnotatedTypes.asMemberOf(types, this, overriddenType, element, written);
         }
@@ -531,12 +534,15 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * @param overriderTree the declaration of the overriding method, or a method reference
      * @param overrider the type of the overriding method
+     * @param overriderReturnType the return type of the overriding method; for a constructor
+     *     reference, the type of the result
      * @param written the type of the declaration of the overridden method, with only its written
      *     qualifiers; side effected by this method
      */
     private void fillUnwrittenLocations(
             Tree overriderTree,
             AnnotatedExecutableType overrider,
+            AnnotatedTypeMirror overriderReturnType,
             AnnotatedExecutableType written) {
         UnwrittenLocationFiller filler = new UnwrittenLocationFiller();
         List<AnnotatedTypeMirror> writtenParams = written.getParameterTypes();
@@ -556,7 +562,7 @@ public abstract class GenericAnnotatedTypeFactory<
                 filler.visit(params.get(i), overriderParams.get(i));
             }
         }
-        filler.visit(written.getReturnType(), overrider.getReturnType());
+        filler.visit(written.getReturnType(), overriderReturnType);
         if (!(overriderTree instanceof MemberReferenceTree)) {
             List<AnnotatedTypeVariable> writtenTypeVars = written.getTypeVariables();
             List<AnnotatedTypeVariable> overriderTypeVars = overrider.getTypeVariables();
@@ -576,13 +582,16 @@ public abstract class GenericAnnotatedTypeFactory<
     /**
      * Gives each location of a type in the signature of the declaration of an overridden method
      * that has no qualifier in a hierarchy the qualifier of the corresponding type of the
-     * overriding method at that location. Nothing is filled in at a use of a type variable of a
+     * overriding method at that location. A use of a type variable corresponds to its upper bound
+     * if the other type is not a type variable: in the overridden method's type, for an override by
+     * the erasure of the method or of a method of a raw supertype, and in the overrider's type, for
+     * a covariant return type. Otherwise nothing is filled in at a use of a type variable of a
      * class or interface, which {@link AnnotatedTypes#asMemberOf} replaces by the type argument
-     * that the overrider's class gives it, with its qualifiers, nor where the two types do not have
-     * the same structure, for example where the overrider's type is a raw type; the defaults apply
-     * there. An overrider's type whose class is a subclass of the other's, as for a covariant
-     * return type, is first viewed as that superclass. The first type is side effected; the second
-     * is the overrider's.
+     * that the overrider's class gives it, with its qualifiers. An overrider's type whose class is
+     * a subclass of the other's, as for a covariant return type, is first viewed as that
+     * superclass. Nothing is filled in where the two types do not have the same structure, for
+     * example where the overrider's type is a raw type; the defaults apply there. The first type is
+     * side effected; the second is the overrider's.
      */
     private class UnwrittenLocationFiller extends DoubleAnnotatedTypeScanner<Void> {
 
@@ -595,18 +604,26 @@ public abstract class GenericAnnotatedTypeFactory<
                 return null;
             }
             if (writtenPart.getKind() == TypeKind.TYPEVAR) {
+                if (overriderPart.getKind() != TypeKind.TYPEVAR) {
+                    // An override by the erasure of the method, or of a method of a raw
+                    // supertype, which replaces the type variable by its upper bound.
+                    return scan(
+                            ((AnnotatedTypeVariable) writtenPart).getUpperBound(), overriderPart);
+                }
                 if (!(((TypeVariable) writtenPart.getUnderlyingType())
                                 .asElement()
                                 .getEnclosingElement()
                         instanceof ExecutableElement)) {
                     return null;
                 }
-                if (overriderPart.getKind() != TypeKind.TYPEVAR) {
-                    // An override by the erasure of the method, which replaces the type variable
-                    // by its upper bound.
-                    return scan(
-                            ((AnnotatedTypeVariable) writtenPart).getUpperBound(), overriderPart);
-                }
+            }
+            if (overriderPart.getKind() == TypeKind.TYPEVAR
+                    && writtenPart.getKind() != TypeKind.TYPEVAR
+                    && writtenPart.getKind() != TypeKind.WILDCARD) {
+                // A covariant return type that is a type variable, which is checked against the
+                // qualifiers of its upper bound.
+                writtenPart.addMissingAnnotations(overriderPart.getEffectiveAnnotations());
+                return scan(writtenPart, ((AnnotatedTypeVariable) overriderPart).getUpperBound());
             }
             if (overriderPart.getKind() != writtenPart.getKind()) {
                 return null;

@@ -39,6 +39,11 @@ public class MethodRefLib {
         void accept(T value);
     }
 
+    /** A functional interface for an array constructor reference. */
+    public interface ArrayMaker {
+        String[] make(int size);
+    }
+
     /** A class with an instance method, for an unbound method reference. */
     public static class Item {
         public void use() {}

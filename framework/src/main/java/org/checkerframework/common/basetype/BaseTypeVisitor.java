@@ -4989,6 +4989,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 atypeFactory.permissiveOverriddenType(
                         overriderTree,
                         overriderMethodType,
+                        overriderMethodType.getReturnType(),
                         overriderType,
                         overriddenMethodType,
                         overriddenType);
@@ -5106,11 +5107,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                                 memberReferenceTree, compileTimeDeclaration, enclosingType)
                         .executableType;
 
+        // The result of an array constructor reference is the array type.
+        boolean isArrayConstructor =
+                compileTimeDeclaration.getKind() == ElementKind.CONSTRUCTOR
+                        && enclosingType.getKind() == TypeKind.ARRAY;
+
         if (functionalInterface.getKind() == TypeKind.DECLARED) {
             functionType =
                     atypeFactory.permissiveOverriddenType(
                             memberReferenceTree,
                             invocationType,
+                            isArrayConstructor ? enclosingType : invocationType.getReturnType(),
                             null,
                             functionType,
                             (AnnotatedDeclaredType) functionalInterface);
@@ -5128,15 +5135,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         poly.resolve(functionType, invocationType);
 
         AnnotatedTypeMirror invocationReturnType;
-        if (compileTimeDeclaration.getKind() == ElementKind.CONSTRUCTOR) {
-            if (enclosingType.getKind() == TypeKind.ARRAY) {
-                // Special casing for the return of array constructor
-                invocationReturnType = enclosingType;
-            } else {
-                invocationReturnType =
-                        atypeFactory.getResultingTypeOfConstructorMemberReference(
-                                memberReferenceTree, invocationType);
-            }
+        if (isArrayConstructor) {
+            invocationReturnType = enclosingType;
+        } else if (compileTimeDeclaration.getKind() == ElementKind.CONSTRUCTOR) {
+            invocationReturnType =
+                    atypeFactory.getResultingTypeOfConstructorMemberReference(
+                            memberReferenceTree, invocationType);
         } else {
             invocationReturnType = invocationType.getReturnType();
         }
