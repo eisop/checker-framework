@@ -11,5 +11,9 @@ public class EqualToTypeVariable {
             // :: error: (argument.type.incompatible)
             requireClose(b);
         }
+        if (b == a) {
+            // :: error: (argument.type.incompatible)
+            requireClose(b);
+        }
     }
 }

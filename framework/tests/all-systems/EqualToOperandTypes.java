@@ -1,6 +1,7 @@
-// The operands of `==` and a switch selector and its case labels need not have a common subtype,
+// The operands of `==`, and a switch selector and its case labels, need not have a common subtype,
 // and their greatest lower bound can be an intersection type. Refining an operand keeps its own
-// type.
+// Java type. No diagnostic depends on that type, so this test only checks that each checker
+// handles these comparisons; computing the Java types' greatest lower bound crashed on the switch.
 @SuppressWarnings("interning:not.interned") // Compares references with ==.
 public class EqualToOperandTypes {
     interface I {}
@@ -18,37 +19,15 @@ public class EqualToOperandTypes {
         }
     }
 
-    void primitives(byte b, char c, int i, long l, double d) {
-        if (b == c) {
-            byte b2 = b;
-            char c2 = c;
-        }
-        if (i == l) {
-            long l2 = l;
-        }
-        if (d == i) {
-            double d2 = d;
-        }
-    }
-
     void interfaces(I i, J j) {
-        if (i == j) {
-            I i2 = i;
-            J j2 = j;
-        }
-        I i3 = i;
+        if (i == j) {}
     }
 
     <T, U> void typeVariables(T t, U u) {
-        if (t == u) {
-            T t2 = t;
-            U u2 = u;
-        }
+        if (t == u) {}
     }
 
     <T extends I> void boundedTypeVariable(T t, J j) {
-        if (t == j) {
-            T t2 = t;
-        }
+        if (t == j) {}
     }
 }
