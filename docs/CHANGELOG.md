@@ -341,6 +341,13 @@ variable named in a lock expression, except where the variable's declaration is 
 source: for a variable declared in an earlier `case` of an old-style `switch`, a pattern variable,
 or a local variable of an enclosing method used in a local or anonymous class (eisop#2375).
 
+Where a comparison `a == b` or `a != b` shows the operands are equal, both are refined to the
+greatest lower bound of the two operands' values. Previously an operand with a value in the store
+kept its own qualifier where the two were incomparable, and an operand without one got the other
+operand's qualifiers even where they were less specific, which could make a postcondition about it
+fail. The Lock Checker, whose qualifiers describe references rather than objects, no longer refines
+the operands of a comparison.
+
 ### Implementation details
 
 New `SystemUtil.splitPaths(String)` splits a list of paths on the platform's path separator.

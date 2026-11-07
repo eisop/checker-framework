@@ -992,19 +992,21 @@ public abstract class CFAbstractTransfer<
     }
 
     /**
-     * Refine the annotation of {@code secondNode} if the annotation {@code secondValue} is less
-     * precise than {@code firstValue}. This is possible, if {@code secondNode} is an expression
-     * that is tracked by the store (e.g., a local variable or a field). Clients usually call this
-     * twice with {@code firstNode} and {@code secondNode} reversed, to refine each of them.
+     * Refine the annotation of {@code secondNode} to the greatest lower bound of {@code firstValue}
+     * and {@code secondValue}, if that is more precise than {@code secondValue}. Its underlying
+     * type stays that of {@code secondValue}. This is possible, if {@code secondNode} is an
+     * expression that is tracked by the store (e.g., a local variable or a field). Clients usually
+     * call this twice with {@code firstNode} and {@code secondNode} reversed, to refine each of
+     * them.
      *
      * <p>Note that when overriding this method, when a new type is inserted into the store, {@link
      * #splitAssignments} should be called, and the new type should be inserted into the store for
      * each of the resulting nodes.
      *
-     * @param firstNode the node that might be more precise
+     * @param firstNode the node that {@code secondNode} is compared with
      * @param secondNode the node whose type to possibly refine
-     * @param firstValue the abstract value that might be more precise
-     * @param secondValue the abstract value that might be less precise
+     * @param firstValue the abstract value of {@code firstNode}
+     * @param secondValue the abstract value of {@code secondNode}
      * @param res the previous result
      * @param notEqualTo if true, indicates that the logic is flipped (i.e., the information is
      *     added to the {@code elseStore} instead of the {@code thenStore}) for a not-equal
@@ -1018,9 +1020,12 @@ public abstract class CFAbstractTransfer<
             V firstValue,
             V secondValue,
             boolean notEqualTo) {
-        if (firstValue != null) {
-            // Only need to insert if the second value is actually different.
-            if (!firstValue.equals(secondValue)) {
+        // Only need to insert if the second value is actually different.
+        if (firstValue != null && !firstValue.equals(secondValue)) {
+            // The second node has both values, so it gets their greatest lower bound.
+            V refinedValue =
+                    secondValue == null ? firstValue : secondValue.refineToEqualValue(firstValue);
+            if (refinedValue != null && !refinedValue.equals(secondValue)) {
                 List<Node> secondParts = splitAssignments(secondNode);
                 for (Node secondPart : secondParts) {
                     JavaExpression secondInternal = JavaExpression.fromNode(secondPart);
@@ -1031,9 +1036,9 @@ public abstract class CFAbstractTransfer<
                         S thenStore = res.getThenStore();
                         S elseStore = res.getElseStore();
                         if (notEqualTo) {
-                            elseStore.insertValue(secondInternal, firstValue);
+                            elseStore.insertValue(secondInternal, refinedValue);
                         } else {
-                            thenStore.insertValue(secondInternal, firstValue);
+                            thenStore.insertValue(secondInternal, refinedValue);
                         }
                         // To handle `(a = b = c) == x`, repeat for all insertable receivers of
                         // splitted assignments instead of returning.
