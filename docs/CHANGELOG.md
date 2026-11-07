@@ -345,7 +345,8 @@ Where a comparison `a == b` or `a != b` shows the operands are equal, both are r
 greatest lower bound of the two operands' values. Previously an operand with a value in the store
 kept its own qualifier where the two were incomparable, and an operand without one got the other
 operand's qualifiers even where they were less specific, which could make a postcondition about it
-fail.
+fail. The Lock Checker, whose qualifiers describe references rather than objects, no longer refines
+the operands of a comparison.
 
 ### Implementation details
 
