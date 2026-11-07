@@ -698,7 +698,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
     public @Nullable V refineToEqualValue(V other) {
         TypeMirror thisType = this.getUnderlyingType();
         AnnotationMirrorSet glb =
-                new ValueGlb()
+                new EqualValueGlb()
                         .combineSets(
                                 thisType,
                                 this.getAnnotations(),
@@ -706,6 +706,55 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
                                 other.getAnnotations(),
                                 canBeMissingAnnotations(thisType));
         return analysis.createAbstractValue(glb, thisType);
+    }
+
+    /**
+     * Computes the qualifiers for {@link #refineToEqualValue}. It differs from {@link ValueGlb}
+     * when one value is a type variable without a primary annotation in a hierarchy. As the value
+     * of an expression, such a type variable stands for the qualifier of its instantiation, which
+     * is only known to be below the type variable's upper bound. So the expression's qualifier is
+     * below the other value's qualifier and below that upper bound, and this class returns their
+     * greatest lower bound. {@link ValueGlb} returns the greatest lower bound with the type
+     * variable's lower bound, which is below any instantiation and therefore claims too much.
+     */
+    private class EqualValueGlb extends ValueGlb {
+        @Override
+        protected @Nullable AnnotationMirror combineAnnotationWithTypeVar(
+                AnnotationMirror annotation,
+                AnnotatedTypeVariable typeVar,
+                AnnotationMirror top,
+                boolean canCombinedSetBeMissingAnnos) {
+            QualifierHierarchy qualHierarchy = analysis.getTypeFactory().getQualifierHierarchy();
+            AnnotationMirror upperBound = typeVar.getEffectiveAnnotationInHierarchy(top);
+            if (canCombinedSetBeMissingAnnos
+                    && isUseOf(typeVar)
+                    && qualHierarchy.isSubtypeQualifiersOnly(upperBound, annotation)) {
+                // The type variable itself, without a primary annotation, is at least as precise
+                // as the annotation, and the result is a use of that type variable.
+                return null;
+            }
+            TypeMirror typeVarTM = typeVar.getUnderlyingType();
+            return combineTwoAnnotations(annotation, typeVarTM, upperBound, typeVarTM, top);
+        }
+    }
+
+    /**
+     * Returns true if the underlying type of this value is a use of the given type variable, or a
+     * wildcard whose extends bound is.
+     *
+     * @param typeVar a type variable
+     * @return true if the underlying type of this value is a use of {@code typeVar}
+     */
+    private boolean isUseOf(AnnotatedTypeVariable typeVar) {
+        TypeMirror type = underlyingType;
+        if (type.getKind() == TypeKind.WILDCARD) {
+            type = ((WildcardType) type).getExtendsBound();
+        }
+        return type != null
+                && type.getKind() == TypeKind.TYPEVAR
+                && ((TypeVariable) type)
+                        .asElement()
+                        .equals(typeVar.getUnderlyingType().asElement());
     }
 
     /**
