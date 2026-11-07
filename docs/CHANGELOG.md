@@ -341,9 +341,11 @@ variable named in a lock expression, except where the variable's declaration is 
 source: for a variable declared in an earlier `case` of an old-style `switch`, a pattern variable,
 or a local variable of an enclosing method used in a local or anonymous class (eisop#2375).
 
-A comparison `a == b` or `a != b` refines `b` to the more specific of the two operands' qualifiers
-in each type hierarchy. Previously it stored `a`'s qualifiers for `b` even where they were less
-specific, which could make a postcondition about `b` in another type hierarchy fail.
+Where a comparison `a == b` or `a != b` shows the operands are equal, both are refined to the
+greatest lower bound of the two operands' values. Previously an operand with a value in the store
+kept its own qualifier where the two were incomparable, and an operand without one got the other
+operand's qualifiers even where they were less specific, which could make a postcondition about it
+fail.
 
 ### Implementation details
 

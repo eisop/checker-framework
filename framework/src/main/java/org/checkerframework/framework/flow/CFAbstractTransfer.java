@@ -992,10 +992,11 @@ public abstract class CFAbstractTransfer<
     }
 
     /**
-     * Refine the annotation of {@code secondNode} if the annotation {@code secondValue} is less
-     * precise than {@code firstValue}. This is possible, if {@code secondNode} is an expression
-     * that is tracked by the store (e.g., a local variable or a field). Clients usually call this
-     * twice with {@code firstNode} and {@code secondNode} reversed, to refine each of them.
+     * Refine the annotation of {@code secondNode} to the greatest lower bound of {@code firstValue}
+     * and {@code secondValue}, if that is more precise than {@code secondValue}. This is possible,
+     * if {@code secondNode} is an expression that is tracked by the store (e.g., a local variable
+     * or a field). Clients usually call this twice with {@code firstNode} and {@code secondNode}
+     * reversed, to refine each of them.
      *
      * <p>Note that when overriding this method, when a new type is inserted into the store, {@link
      * #splitAssignments} should be called, and the new type should be inserted into the store for
@@ -1020,11 +1021,10 @@ public abstract class CFAbstractTransfer<
             boolean notEqualTo) {
         // Only need to insert if the second value is actually different.
         if (firstValue != null && !firstValue.equals(secondValue)) {
-            // The second node has both values, so it gets the more specific one in each
-            // hierarchy. If the store has no value for the second node, inserting firstValue
-            // alone would store a value less specific than secondValue.
-            V refinedValue = firstValue.mostSpecific(secondValue, firstValue);
-            if (!refinedValue.equals(secondValue)) {
+            // The second node has both values, so it gets their greatest lower bound.
+            V refinedValue =
+                    secondValue == null ? firstValue : secondValue.greatestLowerBound(firstValue);
+            if (refinedValue != null && !refinedValue.equals(secondValue)) {
                 List<Node> secondParts = splitAssignments(secondNode);
                 for (Node secondPart : secondParts) {
                     JavaExpression secondInternal = JavaExpression.fromNode(secondPart);

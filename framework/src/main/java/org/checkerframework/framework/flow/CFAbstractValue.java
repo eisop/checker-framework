@@ -695,7 +695,8 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
      *   <li>Returns a fresh object which is not aliased yet.
      *   <li>Returns an object of the same (dynamic) type as {@code this}, even if the signature is
      *       more permissive.
-     *   <li>Is commutative.
+     *   <li>Is commutative, except that the underlying type is that of {@code this} if the two
+     *       underlying types have no greatest lower bound.
      * </ul>
      *
      * @param other another value
@@ -719,6 +720,12 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
         } else {
             ProcessingEnvironment processingEnv = analysis.getTypeFactory().getProcessingEnv();
             glbTypeMirror = TypesUtils.greatestLowerBound(thisType, otherType, processingEnv);
+            // The two types have no greatest lower bound, for example `byte` and `char`, which
+            // are compared in a switch on a byte with char case labels.
+            if (glbTypeMirror.getKind() == TypeKind.NONE
+                    || glbTypeMirror.getKind() == TypeKind.ERROR) {
+                glbTypeMirror = thisType;
+            }
         }
 
         ValueGlb valueGlb = new ValueGlb();
