@@ -26,7 +26,7 @@ io-github-andygoossens-modernizer = { id = "io.github.andygoossens.modernizer", 
 
 me-champeau-jmh = { id = "me.champeau.jmh", version = "0.7.4" }
 
-net-ltgt-errorprone = { id = "net.ltgt.errorprone", version = "5.1.1" }
+net-ltgt-errorprone = { id = "net.ltgt.errorprone", version = "5.2.0" }
 
 [libraries]
 
