@@ -718,6 +718,10 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
      * variable's lower bound, which is below any instantiation and therefore claims too much.
      */
     private class EqualValueGlb extends ValueGlb {
+
+        /** Creates a new EqualValueGlb. */
+        private EqualValueGlb() {}
+
         @Override
         protected @Nullable AnnotationMirror combineAnnotationWithTypeVar(
                 AnnotationMirror annotation,
