@@ -993,10 +993,11 @@ public abstract class CFAbstractTransfer<
 
     /**
      * Refine the annotation of {@code secondNode} to the greatest lower bound of {@code firstValue}
-     * and {@code secondValue}, if that is more precise than {@code secondValue}. This is possible,
-     * if {@code secondNode} is an expression that is tracked by the store (e.g., a local variable
-     * or a field). Clients usually call this twice with {@code firstNode} and {@code secondNode}
-     * reversed, to refine each of them.
+     * and {@code secondValue}, if that is more precise than {@code secondValue}. Its underlying
+     * type stays that of {@code secondValue}. This is possible, if {@code secondNode} is an
+     * expression that is tracked by the store (e.g., a local variable or a field). Clients usually
+     * call this twice with {@code firstNode} and {@code secondNode} reversed, to refine each of
+     * them.
      *
      * <p>Note that when overriding this method, when a new type is inserted into the store, {@link
      * #splitAssignments} should be called, and the new type should be inserted into the store for
@@ -1023,7 +1024,7 @@ public abstract class CFAbstractTransfer<
         if (firstValue != null && !firstValue.equals(secondValue)) {
             // The second node has both values, so it gets their greatest lower bound.
             V refinedValue =
-                    secondValue == null ? firstValue : secondValue.greatestLowerBound(firstValue);
+                    secondValue == null ? firstValue : secondValue.refineToEqualValue(firstValue);
             if (refinedValue != null && !refinedValue.equals(secondValue)) {
                 List<Node> secondParts = splitAssignments(secondNode);
                 for (Node secondPart : secondParts) {

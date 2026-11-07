@@ -685,6 +685,30 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
     }
 
     /**
+     * Returns the value of an expression that is described both by this value and by {@code other},
+     * such as an operand of {@code a == b} where the comparison is true. In each hierarchy, its
+     * qualifier is the greatest lower bound of the two values' qualifiers. Its underlying type is
+     * that of this value: the operands of a comparison need not have a common subtype, for example
+     * a {@code byte} compared with a {@code char}.
+     *
+     * @param other another value that describes the same expression
+     * @return the value of an expression that is described by both values, or null if it has
+     *     missing annotations
+     */
+    public @Nullable V refineToEqualValue(V other) {
+        TypeMirror thisType = this.getUnderlyingType();
+        AnnotationMirrorSet glb =
+                new ValueGlb()
+                        .combineSets(
+                                thisType,
+                                this.getAnnotations(),
+                                other.getUnderlyingType(),
+                                other.getAnnotations(),
+                                canBeMissingAnnotations(thisType));
+        return analysis.createAbstractValue(glb, thisType);
+    }
+
+    /**
      * Compute the greatest lower bound of two values.
      *
      * <p><em>Important</em>: This method must fulfill the following contract:
@@ -695,8 +719,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
      *   <li>Returns a fresh object which is not aliased yet.
      *   <li>Returns an object of the same (dynamic) type as {@code this}, even if the signature is
      *       more permissive.
-     *   <li>Is commutative, except that the underlying type is that of {@code this} if the two
-     *       underlying types have no greatest lower bound.
+     *   <li>Is commutative.
      * </ul>
      *
      * @param other another value
@@ -720,12 +743,6 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
         } else {
             ProcessingEnvironment processingEnv = analysis.getTypeFactory().getProcessingEnv();
             glbTypeMirror = TypesUtils.greatestLowerBound(thisType, otherType, processingEnv);
-            // The two types have no greatest lower bound, for example `byte` and `char`, which
-            // are compared in a switch on a byte with char case labels.
-            if (glbTypeMirror.getKind() == TypeKind.NONE
-                    || glbTypeMirror.getKind() == TypeKind.ERROR) {
-                glbTypeMirror = thisType;
-            }
         }
 
         ValueGlb valueGlb = new ValueGlb();
