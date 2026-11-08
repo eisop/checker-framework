@@ -1156,11 +1156,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @see #checkExtendsOrImplements(Tree, AnnotationMirrorSet, TypeMirror, boolean)
      */
     protected void checkAnnotationOnSupertype(Tree boundClause) {
-        if (!(boundClause instanceof AnnotatedTypeTree)) {
+        // In `@A C<T>`, the annotation is on `C`, inside the parameterized type.
+        Tree supertype =
+                boundClause instanceof ParameterizedTypeTree
+                        ? ((ParameterizedTypeTree) boundClause).getType()
+                        : boundClause;
+        if (!(supertype instanceof AnnotatedTypeTree)) {
             return;
         }
-        List<? extends AnnotationTree> annoTrees =
-                ((AnnotatedTypeTree) boundClause).getAnnotations();
+        List<? extends AnnotationTree> annoTrees = ((AnnotatedTypeTree) supertype).getAnnotations();
         for (AnnotationTree annoTree : annoTrees) {
             // The annotation is as written, so it may need alias resolution before this checker
             // recognizes it as supported.
