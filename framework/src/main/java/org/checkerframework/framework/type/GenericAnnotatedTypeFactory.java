@@ -2103,9 +2103,10 @@ public abstract class GenericAnnotatedTypeFactory<
             // path, so the getPath(root, code) lookups below (in CFCFGBuilder.build, and when the
             // visitor path is set before performAnalysis) are cache hits rather than an O(members)
             // scan from the compilation-unit root -- which, once per body, is quadratic over a
-            // class with many methods. Only done for methods, whose body path is an unambiguous
-            // two-step extension of the class path (class -> method -> body); lambdas and
-            // initializers (rarer / nested) fall through to the normal lookup.
+            // class with many methods. A method body path is an unambiguous two-step extension of
+            // the class path (class -> method -> body). A lambda body path is a one-step extension
+            // of the lambda's path, which was recorded when the lambda was queued (below).
+            // Initializers (rarer) fall through to the normal lookup.
             if (ast.getKind() == UnderlyingAST.Kind.METHOD) {
                 UnderlyingAST.CFGMethod cfgMethod = (UnderlyingAST.CFGMethod) ast;
                 TreePath classPath = getVisitorTreePath();
@@ -2118,6 +2119,16 @@ public abstract class GenericAnnotatedTypeFactory<
                                     body,
                                     new TreePath(
                                             new TreePath(classPath, cfgMethod.getMethod()), body));
+                }
+            } else if (ast.getKind() == UnderlyingAST.Kind.LAMBDA) {
+                CFGLambda cfgLambda = (CFGLambda) ast;
+                TreePath lambdaPath =
+                        checker.getTreePathCacher().getCachedPath(cfgLambda.getLambdaTree());
+                Tree body = cfgLambda.getCode();
+                if (lambdaPath != null
+                        && body != null
+                        && checker.getTreePathCacher().getCachedPath(body) == null) {
+                    checker.getTreePathCacher().addPath(body, new TreePath(lambdaPath, body));
                 }
             }
             cfg = CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
@@ -2219,25 +2230,30 @@ public abstract class GenericAnnotatedTypeFactory<
             }
         }
 
-        // add classes declared in CFG
         List<ClassTree> declaredClasses = cfg.getDeclaredClasses();
-        if (!declaredClasses.isEmpty()) {
-            // Record the path of each class declared in this body, by a search that starts at the
-            // body, so that performFlowAnalysisForClassImpl finds it in the cache instead of
-            // searching the compilation unit for it: that search costs O(file) per class, which
-            // is quadratic over a file with many anonymous or local classes.
+        List<LambdaExpressionTree> declaredLambdas = cfg.getDeclaredLambdas();
+        if (!declaredClasses.isEmpty() || !declaredLambdas.isEmpty()) {
+            // Record the path of each class and lambda declared in this body, by a search that
+            // starts at the body, so that their analysis (performFlowAnalysisForClassImpl, and
+            // the lambda body lookup above) finds the paths in the cache instead of searching the
+            // compilation unit for them: that search costs O(file) per class or lambda, which is
+            // quadratic over a file with many anonymous classes, local classes, or lambdas.
             TreePath bodyPath = checker.getTreePathCacher().getPath(this.getRoot(), ast.getCode());
             if (bodyPath != null) {
                 for (ClassTree cls : declaredClasses) {
                     checker.getTreePathCacher().getPath(bodyPath, cls);
                 }
+                for (LambdaExpressionTree lambda : declaredLambdas) {
+                    checker.getTreePathCacher().getPath(bodyPath, lambda);
+                }
             }
         }
+        // add classes declared in CFG
         for (ClassTree cls : declaredClasses) {
             classQueue.add(Pair.of(cls, getStoreBefore(cls)));
         }
         // add lambdas declared in CFG
-        for (LambdaExpressionTree lambda : cfg.getDeclaredLambdas()) {
+        for (LambdaExpressionTree lambda : declaredLambdas) {
             lambdaQueue.add(Pair.of(lambda, getStoreBefore(lambda)));
         }
         return cfg;

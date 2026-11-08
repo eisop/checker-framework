@@ -1157,6 +1157,47 @@ so small per-call wins paid back substantially.
   search *hints* — `getPath` always returns the correct path (guarded by
   `framework/util/TreePathCacherTest`'s JDK-equivalence check). Validated with `alltests`.
 
+- **Class and lambda paths: reuse known paths instead of searching the compilation unit (November
+  2026).** After PRs #1786/#1788/#1789 made the *method body* lookups linear, two class-path sites
+  still used the uncached JDK `TreePath.getPath(root, classTree)` — a `PathFinder` scan from the
+  compilation-unit root that allocates a `TreePath` per node visited — once per class:
+  `BaseTypeVisitor.visitClass` (to set `visitorTreePath`) and the class queue loop in
+  `GenericAnnotatedTypeFactory.performFlowAnalysisForClassImpl`. Top-level classes are few per
+  file, so this was invisible on real code; anonymous and local classes are also classes, so a
+  file with many of them paid O(file) per class. A `gen-shapes.py`-style sweep (60 methods × D
+  anonymous classes, deterministic allocation) exposed it: marginal allocation per anonymous class
+  doubled per doubling of D (JSpecify reference checker 78 → 127 → 230 MB/unit; Nullness 253 → 426 →
+  785 MB/unit), 6.4 GB / 21.4 GB at D=40. JFR at D=40: 65% of TLAB samples were `TreePath`, 43% of
+  CPU samples in `TreePath.<init>`/`PathFinder.scan`, split evenly between the two sites. Same
+  total with 240 methods × 10 confirmed the dimension is classes *per file*, not per method.
+  Fix: the visitor is a `TreePathScanner`, so `visitClass` uses `getCurrentPath()` and records it
+  in the `TreePathCacher`; member classes are recorded as a one-step extension of the class path;
+  classes declared in an analyzed body are recorded when queued, by a `getPath(bodyPath, cls)`
+  search that starts at the body. The queue loop then queries the cacher (`getPath(root, ct)`),
+  which hits. The lambda analog: `CFCFGBuilder.build`'s `getPath(root, lambdaBody)` fell through
+  to a root scan per lambda (17% of CPU samples on 60 methods × 40 lambdas, Nullness); lambdas are
+  now recorded when queued and the body path built in one step from the lambda path.
+  Results (median of 3 interleaved runs, JDK 21, no JFR; allocation deterministic):
+
+  | workload | master | after |
+  | --- | --- | --- |
+  | 60 × 40 anonymous classes, Nullness | 21,433 MB, 34.7 s | 2,876 MB, 13.2 s |
+  | 60 × 40 anonymous classes, reference checker | 6,385 MB, 13.6 s | 1,086 MB, 7.4 s |
+  | 60 × 40 lambdas, Nullness | 3,655 MB, 12.5 s | 3,460 MB, 11.1 s |
+  | 60 × 40 lambdas, reference checker | 1,580 MB, 7.5 s | 1,386 MB, 6.0 s |
+  | Guava (610 files), reference checker | 28.0 s | 28.1 s (flat; diagnostics identical) |
+
+  The marginal per anonymous class is now flat (linear). **Trap found on the way:** priming the
+  cacher from `CFGTranslationPhaseOne.getCurrentPath()` (an override of its `visitClass`) is
+  *unsound* — the CFG builder's path is not a faithful AST path (it scans a method invocation's
+  receiver without passing through the `MemberSelect` node), and `AnnotatedTypeFactory.getPath`'s
+  climbing heuristic then cached those unfaithful ancestor paths, so type-argument inference saw a
+  `NewClassTree` whose parent was the `MethodInvocation` and crashed (`Index: -1` in
+  `InferenceFactory.assignedToExecutable`; `all-systems/AnonymousDiamondNoTarget.java`, 14 framework
+  tests, 5 inference crashes on Guava). Only record paths obtained from a `TreePathScanner` or from
+  the cacher's own search. Validated with `:framework:test`, `:checker:test`, and the
+  JSpecify reference checker's tests, conformance tests, and samples.
+
 ### Value Checker
 
 - **PR #1647** — *Cache a frequent conversion in the Value Checker.*
