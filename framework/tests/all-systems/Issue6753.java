@@ -11,13 +11,12 @@ public abstract class Issue6753 {
 
     void method(int length) {
         Set<String> resources =
-                call(
-                        () -> {
-                            if (length > 1) {
-                                return list();
-                            } else {
-                                return list();
-                            }
-                        });
+                call(() -> {
+                    if (length > 1) {
+                        return list();
+                    } else {
+                        return list();
+                    }
+                });
     }
 }

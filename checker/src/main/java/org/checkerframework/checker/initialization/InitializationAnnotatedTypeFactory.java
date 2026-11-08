@@ -223,13 +223,9 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
         List<VariableTree> uninitializedFields =
                 super.getUninitializedFields(initStore, path, isStatic, receiverAnnotations);
 
-        uninitializedFields.removeIf(
-                var ->
-                        isFieldInitialized(
-                                initStore,
-                                targetStore,
-                                var,
-                                TreeUtils.elementFromDeclaration(var)));
+        uninitializedFields.removeIf(var ->
+                isFieldInitialized(
+                        initStore, targetStore, var, TreeUtils.elementFromDeclaration(var)));
 
         return uninitializedFields;
     }
@@ -337,9 +333,8 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
             boolean hasInvariantInStore =
                     value != null
                             && value.getAnnotations().stream()
-                                    .anyMatch(
-                                            annotation ->
-                                                    factory.areSameByClass(annotation, invariant));
+                                    .anyMatch(annotation ->
+                                            factory.areSameByClass(annotation, invariant));
             boolean hasInvariantAtDeclaration =
                     AnnotatedTypes.findEffectiveLowerBoundAnnotations(
                                     factory.getQualifierHierarchy(), declType)

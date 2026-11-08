@@ -104,10 +104,8 @@ public final class AnnotationDef extends AElement {
 
         Map<String, AnnotationFieldType> fieldTypes = new LinkedHashMap<>();
         getDeclaredMethods(name)
-                .forEach(
-                        m ->
-                                fieldTypes.put(
-                                        m, null)); // dummy initialization sets order for the map
+                .forEach(m ->
+                        fieldTypes.put(m, null)); // dummy initialization sets order for the map
 
         for (Method m : annoType.getDeclaredMethods()) {
             AnnotationFieldType aft = AnnotationFieldType.fromClass(m.getReturnType(), adefs);

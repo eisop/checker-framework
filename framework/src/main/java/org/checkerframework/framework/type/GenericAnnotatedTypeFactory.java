@@ -2111,12 +2111,11 @@ public abstract class GenericAnnotatedTypeFactory<
             cfg = CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
             if (ignoreDeadCode) {
                 cfg.getAllNodes(this::isIgnoredExceptionType)
-                        .forEach(
-                                node -> {
-                                    if (node.getTree() != null) {
-                                        reachableNodes.add(node.getTree());
-                                    }
-                                });
+                        .forEach(node -> {
+                            if (node.getTree() != null) {
+                                reachableNodes.add(node.getTree());
+                            }
+                        });
             }
         }
         if (isInitializationCode) {

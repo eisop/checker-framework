@@ -84,7 +84,7 @@ public class LambdaNullness {
                 return x + "";
             };
     // Single inferred-type parameter
-    FunctionNull<@NonNull Integer, Integer> f10 = (x) -> x + 1;
+    FunctionNull<@NonNull Integer, Integer> f10 = x -> x + 1;
     // Parentheses optional for single
     FunctionNull<@Nullable Integer, Integer> f11 = x -> 1;
 
@@ -101,7 +101,7 @@ public class LambdaNullness {
 
     // Infer based on context.
     FunctionNull<@Nullable String, String> fn =
-            (s) -> {
+            s -> {
                 // :: error: (dereference.of.nullable)
                 s.toString();
                 return "";

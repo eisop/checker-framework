@@ -311,16 +311,14 @@ public class JavaParserUtil {
     private static Optional<RecordDeclaration> getRecordByName(
             CompilationUnit cu, String recordName) {
         return cu.getTypes().stream()
-                .filter(
-                        (type) -> {
-                            return type.getNameAsString().equals(recordName)
-                                    && type instanceof RecordDeclaration;
-                        })
+                .filter(type -> {
+                    return type.getNameAsString().equals(recordName)
+                            && type instanceof RecordDeclaration;
+                })
                 .findFirst()
-                .map(
-                        (t) -> {
-                            return (RecordDeclaration) t;
-                        });
+                .map(t -> {
+                    return (RecordDeclaration) t;
+                });
     }
 
     /**

@@ -24,10 +24,9 @@ public class InLambdaAnnotated {
     class Infer {
         // The nested Mine.some() needs to infer the right type.
         Box<Mine<@Nullable Integer>> g =
-                Boxes.transform(
-                        el -> {
-                            return Mine.some();
-                        });
+                Boxes.transform(el -> {
+                    return Mine.some();
+                });
 
         void bar(Function<String, Mine<@Nullable Integer>> fun) {
             Box<Mine<@Nullable Integer>> h = Boxes.transform(fun);

@@ -9,17 +9,16 @@ public class DiamondMethodRef {
     @SuppressWarnings("lock:methodref.receiver") // True positive.
     void method(CharacterDisplay display) {
         display.getClassSet().stream()
-                .map(
-                        pcClass ->
-                                IntStream.range(0, display.getLevel(pcClass))
-                                        .map(i -> 0)
-                                        .boxed()
-                                        .collect(
-                                                Collectors.toMap(
-                                                        Function.identity(),
-                                                        hitDie -> 1,
-                                                        DiamondMethodRef::sum,
-                                                        LinkedHashMap::new)))
+                .map(pcClass ->
+                        IntStream.range(0, display.getLevel(pcClass))
+                                .map(i -> 0)
+                                .boxed()
+                                .collect(
+                                        Collectors.toMap(
+                                                Function.identity(),
+                                                hitDie -> 1,
+                                                DiamondMethodRef::sum,
+                                                LinkedHashMap::new)))
                 .mapToInt(hdMap -> hdMap.entrySet().stream().mapToInt(Map.Entry::getValue).sum());
     }
 

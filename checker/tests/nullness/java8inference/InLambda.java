@@ -21,9 +21,8 @@ public class InLambda {
 
     class Infer {
         Box<Mine<Integer>> f =
-                Boxes.transform(
-                        el -> {
-                            return Mine.some();
-                        });
+                Boxes.transform(el -> {
+                    return Mine.some();
+                });
     }
 }

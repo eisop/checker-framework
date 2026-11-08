@@ -1398,24 +1398,22 @@ public class BinaryStubWriter {
     private void processTypes(CompilationUnit cu) {
 
         cu.getPackageDeclaration()
-                .ifPresent(
-                        pkg ->
-                                collectDeclAnnos(
-                                        pkg.getNameAsString(),
-                                        pkg.getAnnotations(),
-                                        packages,
-                                        "package",
-                                        cu));
+                .ifPresent(pkg ->
+                        collectDeclAnnos(
+                                pkg.getNameAsString(),
+                                pkg.getAnnotations(),
+                                packages,
+                                "package",
+                                cu));
 
         cu.getModule()
-                .ifPresent(
-                        mod ->
-                                collectDeclAnnos(
-                                        mod.getNameAsString(),
-                                        mod.getAnnotations(),
-                                        modules,
-                                        "module",
-                                        cu));
+                .ifPresent(mod ->
+                        collectDeclAnnos(
+                                mod.getNameAsString(),
+                                mod.getAnnotations(),
+                                modules,
+                                "module",
+                                cu));
 
         String pkg =
                 cu.getPackageDeclaration().isPresent()

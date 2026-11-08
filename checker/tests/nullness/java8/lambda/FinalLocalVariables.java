@@ -78,7 +78,7 @@ class LambdaEnclosing {
 
                     new Object() {
 
-                        @Override()
+                        @Override
                         public String toString() {
                             String local3 = "";
                             String local4 = null;

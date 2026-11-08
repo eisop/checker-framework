@@ -656,14 +656,13 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
         }
         String fieldName = field.getSimpleName().toString();
         return mustCallVal.stream()
-                .map(
-                        o ->
-                                postconditionAnnotationFor(o.exitKind)
-                                        + "(value = \""
-                                        + fieldName
-                                        + "\", methods = \""
-                                        + o.mustCallMethod
-                                        + "\")")
+                .map(o ->
+                        postconditionAnnotationFor(o.exitKind)
+                                + "(value = \""
+                                + fieldName
+                                + "\", methods = \""
+                                + o.mustCallMethod
+                                + "\")")
                 .collect(Collectors.joining(", "));
     }
 

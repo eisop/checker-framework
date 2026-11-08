@@ -8,7 +8,7 @@ import java.net.Socket;
 @SuppressWarnings("all") // only check for crashes
 public class Issue6576 {
 
-    @MustCall() class NoMustCall {}
+    @MustCall class NoMustCall {}
 
     @MustCall("close") class ExtendsMustCallEmpty extends NoMustCall {
         @Owning Socket socket;

@@ -313,12 +313,11 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         }
         List<Variable> instantiated = new ArrayList<>();
         m.values()
-                .forEach(
-                        var -> {
-                            if (var.getInstantiation() != null) {
-                                instantiated.add(var);
-                            }
-                        });
+                .forEach(var -> {
+                    if (var.getInstantiation() != null) {
+                        instantiated.add(var);
+                    }
+                });
         if (instantiated.isEmpty()) {
             return InferenceResult.emptyResult();
         }

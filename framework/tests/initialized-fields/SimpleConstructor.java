@@ -9,7 +9,7 @@ public class SimpleConstructor {
     SimpleConstructor() {
         // :: error: (assignment.type.incompatible)
         @InitializedFields({"x", "y", "z"}) SimpleConstructor sc1 = this;
-        @InitializedFields() SimpleConstructor sc2 = this;
+        @InitializedFields SimpleConstructor sc2 = this;
 
         x = 1;
 

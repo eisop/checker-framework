@@ -10,9 +10,8 @@ public class PCGen {
     void method(String prefix) {
         final Set<String> keys =
                 activeBonusMap.keySet().stream()
-                        .filter(
-                                fullyQualifiedBonusType ->
-                                        fullyQualifiedBonusType.startsWith(prefix))
+                        .filter(fullyQualifiedBonusType ->
+                                fullyQualifiedBonusType.startsWith(prefix))
                         .collect(Collectors.toCollection(() -> new TreeSet<>()));
     }
 }

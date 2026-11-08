@@ -34,11 +34,10 @@ public class Issue3036Tainting {
 
         List<Map<String, ?>> dsData =
                 getDsData().stream()
-                        .map(
-                                dsData1 ->
-                                        ImmutableMap.<@Tainted String, Object>of(
-                                                "keyTag", dsData1.getKeyTag(),
-                                                "digest", dsData1.getDigest()))
+                        .map(dsData1 ->
+                                ImmutableMap.<@Tainted String, Object>of(
+                                        "keyTag", dsData1.getKeyTag(),
+                                        "digest", dsData1.getDigest()))
                         .collect(Collectors.toList());
     }
 

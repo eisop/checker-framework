@@ -66,22 +66,21 @@ public class ExecUtil {
             exception = null;
 
             this.thread =
-                    new Thread(
-                            () -> {
-                                try (InputStreamReader in =
-                                        new InputStreamReader(inStream, StandardCharsets.UTF_8)) {
-                                    int read = 0;
-                                    while (read > -1) {
-                                        read = in.read(buffer);
-                                        if (read > 0) {
-                                            out.write(buffer, 0, read);
-                                        }
-                                    }
-                                    out.flush();
-                                } catch (IOException exc) {
-                                    exception = exc;
+                    new Thread(() -> {
+                        try (InputStreamReader in =
+                                new InputStreamReader(inStream, StandardCharsets.UTF_8)) {
+                            int read = 0;
+                            while (read > -1) {
+                                read = in.read(buffer);
+                                if (read > 0) {
+                                    out.write(buffer, 0, read);
                                 }
-                            });
+                            }
+                            out.flush();
+                        } catch (IOException exc) {
+                            exception = exc;
+                        }
+                    });
             thread.start();
         }
 

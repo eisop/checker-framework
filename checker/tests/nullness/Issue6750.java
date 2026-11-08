@@ -33,18 +33,16 @@ public record Issue6750(String type) {
 
     void method(List<Issue6750> externals) {
         externals.stream().collect(Collectors.groupingBy(Issue6750::type)).entrySet().stream()
-                .forEach(
-                        values -> {
-                            // :: error: (assignment.type.incompatible)
-                            @KeyFor({}) String b = values.getKey();
-                        });
+                .forEach(values -> {
+                    // :: error: (assignment.type.incompatible)
+                    @KeyFor({}) String b = values.getKey();
+                });
     }
 
     void test(List<Issue6750> externals) {
         externals.stream().collect(Collectors.groupingBy(Issue6750::type)).entrySet().stream()
-                .forEach(
-                        values -> {
-                            throw new RuntimeException("");
-                        });
+                .forEach(values -> {
+                    throw new RuntimeException("");
+                });
     }
 }

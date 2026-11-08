@@ -27,7 +27,7 @@ public class ParametersInBodyGenerics {
                     i.get(0).toString();
                 };
         NullableConsumer fn3b =
-                (i) -> {
+                i -> {
                     // :: error: (dereference.of.nullable)
                     i.get(0).toString();
                 };
@@ -37,7 +37,7 @@ public class ParametersInBodyGenerics {
                     i.get(0).toString();
                 };
         NonNullConsumer fn4b =
-                (i) -> {
+                i -> {
                     i.get(0).toString();
                 };
     }

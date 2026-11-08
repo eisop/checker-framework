@@ -7,6 +7,6 @@ import java.io.OutputStream;
 class NullOutputStreamTest {
 
     void m() {
-        @MustCall() OutputStream nullOS = OutputStream.nullOutputStream();
+        @MustCall OutputStream nullOS = OutputStream.nullOutputStream();
     }
 }

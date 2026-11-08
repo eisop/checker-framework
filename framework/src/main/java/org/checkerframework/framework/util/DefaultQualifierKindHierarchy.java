@@ -354,12 +354,11 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
             @UnderInitialization DefaultQualifierKindHierarchy this,
             Map<DefaultQualifierKind, Set<DefaultQualifierKind>> directSuperMap) {
         Set<DefaultQualifierKind> tops = new TreeSet<>();
-        directSuperMap.forEach(
-                (qualifierKind, superQuals) -> {
-                    if (superQuals.isEmpty()) {
-                        tops.add(qualifierKind);
-                    }
-                });
+        directSuperMap.forEach((qualifierKind, superQuals) -> {
+            if (superQuals.isEmpty()) {
+                tops.add(qualifierKind);
+            }
+        });
         return tops;
     }
 

@@ -59,12 +59,11 @@ public class Theta extends LinkedHashMap<TypeVariable, Variable> {
      */
     public Collection<? extends TypeVariable> getNotInstantiated() {
         List<TypeVariable> list = new ArrayList<>();
-        forEach(
-                (typevar, var) -> {
-                    if (var.getInstantiation() == null) {
-                        list.add(typevar);
-                    }
-                });
+        forEach((typevar, var) -> {
+            if (var.getInstantiation() == null) {
+                list.add(typevar);
+            }
+        });
         return list;
     }
 }

@@ -116,32 +116,29 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
         this.topQuals = new AnnotationMirrorSet(qualHierarchy.getTopAnnotations());
 
         this.completer =
-                new SimpleAnnotatedTypeScanner<>(
-                        (type, p) -> {
-                            for (Map.Entry<AnnotationMirror, AnnotationMirror> entry :
-                                    polyQuals.entrySet()) {
-                                AnnotationMirror poly = entry.getKey();
-                                AnnotationMirror top = entry.getValue();
-                                if (type.hasAnnotation(poly)) {
-                                    type.removeAnnotation(poly);
-                                    if (type.getKind() != TypeKind.TYPEVAR
-                                            && type.getKind() != TypeKind.WILDCARD) {
-                                        // Do not add qualifiers to type variables and
-                                        // wildcards
-                                        type.addAnnotation(
-                                                this.qualHierarchy.getBottomAnnotation(top));
-                                    }
-                                }
+                new SimpleAnnotatedTypeScanner<>((type, p) -> {
+                    for (Map.Entry<AnnotationMirror, AnnotationMirror> entry :
+                            polyQuals.entrySet()) {
+                        AnnotationMirror poly = entry.getKey();
+                        AnnotationMirror top = entry.getValue();
+                        if (type.hasAnnotation(poly)) {
+                            type.removeAnnotation(poly);
+                            if (type.getKind() != TypeKind.TYPEVAR
+                                    && type.getKind() != TypeKind.WILDCARD) {
+                                // Do not add qualifiers to type variables and
+                                // wildcards
+                                type.addAnnotation(this.qualHierarchy.getBottomAnnotation(top));
                             }
-                            return null;
-                        });
+                        }
+                    }
+                    return null;
+                });
 
         this.replacer =
-                new SimpleAnnotatedTypeScanner<>(
-                        (type, map) -> {
-                            replace(type, map);
-                            return null;
-                        });
+                new SimpleAnnotatedTypeScanner<>((type, map) -> {
+                    replace(type, map);
+                    return null;
+                });
 
         this.hasPolyScanner =
                 new SimpleAnnotatedTypeScanner<>(
@@ -309,13 +306,12 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
             return;
         }
         AnnotationMirrorMap<AnnotationMirror> matchingMapping = new AnnotationMirrorMap<>();
-        polyQuals.forEach(
-                (polyAnnotation, topAnno) -> {
-                    AnnotationMirror annoOnOwner = owner.getAnnotationInHierarchy(topAnno);
-                    if (annoOnOwner != null) {
-                        matchingMapping.put(polyAnnotation, annoOnOwner);
-                    }
-                });
+        polyQuals.forEach((polyAnnotation, topAnno) -> {
+            AnnotationMirror annoOnOwner = owner.getAnnotationInHierarchy(topAnno);
+            if (annoOnOwner != null) {
+                matchingMapping.put(polyAnnotation, annoOnOwner);
+            }
+        });
         if (!matchingMapping.isEmpty()) {
             replacer.visit(type, matchingMapping);
         } else {
