@@ -5107,17 +5107,19 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                                 memberReferenceTree, compileTimeDeclaration, enclosingType)
                         .executableType;
 
-        // The result of an array constructor reference is the array type.
-        boolean isArrayConstructor =
-                compileTimeDeclaration.getKind() == ElementKind.CONSTRUCTOR
-                        && enclosingType.getKind() == TypeKind.ARRAY;
-
         if (functionalInterface.getKind() == TypeKind.DECLARED) {
+            // The result of an array constructor reference is the array type, not the type that
+            // javac's constructor for arrays returns.
+            AnnotatedTypeMirror overriderReturnType =
+                    compileTimeDeclaration.getKind() == ElementKind.CONSTRUCTOR
+                                    && enclosingType.getKind() == TypeKind.ARRAY
+                            ? enclosingType
+                            : invocationType.getReturnType();
             functionType =
                     atypeFactory.permissiveOverriddenType(
                             memberReferenceTree,
                             invocationType,
-                            isArrayConstructor ? enclosingType : invocationType.getReturnType(),
+                            overriderReturnType,
                             null,
                             functionType,
                             (AnnotatedDeclaredType) functionalInterface);
@@ -5135,9 +5137,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         poly.resolve(functionType, invocationType);
 
         AnnotatedTypeMirror invocationReturnType;
-        if (isArrayConstructor) {
-            invocationReturnType = enclosingType;
-        } else if (compileTimeDeclaration.getKind() == ElementKind.CONSTRUCTOR) {
+        if (compileTimeDeclaration.getKind() == ElementKind.CONSTRUCTOR) {
             invocationReturnType =
                     atypeFactory.getResultingTypeOfConstructorMemberReference(
                             memberReferenceTree, invocationType);

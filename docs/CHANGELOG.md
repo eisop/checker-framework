@@ -351,7 +351,9 @@ the operands of a comparison.
 A constructor reference, such as `Foo::new`, has the qualifiers of the constructor's result, as
 `new Foo()` does, where the reference does not write one. Previously only qualifiers written on the
 constructor were used, and the others were defaulted as for a use of `Foo`, which ignored a
-default for constructor results.
+default for constructor results. Likewise, an array constructor reference, such as `Object[]::new`,
+has the qualifiers of a constructor result where it does not write one, not those of a use of the
+array type.
 
 ### Implementation details
 

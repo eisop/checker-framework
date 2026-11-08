@@ -761,7 +761,9 @@ warning that it cannot verify that the cast is correct.  The programmer may
 suppress the warning if the code is correct.
 
 A constructor reference \<MyClass::new> has the same type as \<new MyClass()>,
-and \<@Anno MyClass::new> as \<new @Anno MyClass()>.
+and \<@Anno MyClass::new> as \<new @Anno MyClass()>.  An array constructor
+reference, such as \<Object[]::new>, has the qualifiers of a constructor result
+where it does not write one.
 
 
 \sectionAndLabel{Type refinement (flow-sensitive type qualifier inference)}{type-refinement}
