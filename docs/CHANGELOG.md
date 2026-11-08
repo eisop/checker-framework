@@ -40,6 +40,10 @@ the value of one node is computed, so the array created for the variable argumen
 call no longer infers it once per argument either, and the value of a diamond argument whose own
 arguments are not poly expressions is computed without inferring the call at all.
 `Arrays.asList` with 24 diamond arguments under the Nullness Checker: 4.1 to 2.2 seconds.
+Type-checking a file with many anonymous classes, local classes, or lambdas is no longer quadratic
+in their number: the path to each class or lambda is taken from the visitor or from the analysis
+of the enclosing body instead of searching the compilation unit for it. A file with 2400 anonymous
+classes under the Nullness Checker: 35 to 13 seconds.
 
 The annotated JDK and built-in stub files are now distributed as pre-parsed
 binary files, removing JavaParser from checker startup. A missing or stale
