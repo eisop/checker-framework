@@ -1799,7 +1799,11 @@ public class AnnotatedTypes {
      * @param atypeFactory type factory
      * @param returnType return type to copy annotations to
      * @param constructorType the ATM for the constructor
+     * @deprecated the framework no longer uses this method: {@link
+     *     AnnotatedTypeFactory#getResultingTypeOfConstructorMemberReference} gives a constructor
+     *     reference all qualifiers of the constructor's result, as {@code new} does
      */
+    @Deprecated // 2026-11-08
     public static void copyOnlyExplicitConstructorAnnotations(
             AnnotatedTypeFactory atypeFactory,
             AnnotatedDeclaredType returnType,
