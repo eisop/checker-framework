@@ -4706,12 +4706,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             MemberReferenceTree memberReferenceTree, AnnotatedExecutableType constructorType) {
         assert memberReferenceTree.getMode() == MemberReferenceTree.ReferenceMode.NEW;
 
-        // The return type for constructors should only have explicit annotations from the
-        // constructor. The code below recreates some of the logic from TypeFromTree.visitNewClass
-        // to do this.
-
-        // The return type of the constructor will be the type of the expression of the member
-        // reference tree.
+        // As for a `new` expression (see TypeFromExpressionVisitor.visitNewClass), the result has
+        // the annotations written on the expression of the member reference tree and, in every
+        // other hierarchy, those of the constructor's result.
         AnnotatedTypeMirror constructorReturnType =
                 fromTypeTree(memberReferenceTree.getQualifierExpression());
         if (TreeUtils.needsTypeArgInference(memberReferenceTree)) {
@@ -4724,15 +4721,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             constructorReturnType = re;
         }
 
-        if (constructorReturnType.getKind() == TypeKind.DECLARED) {
-            // Keep only explicit annotations and those from @Poly
-            AnnotatedTypes.copyOnlyExplicitConstructorAnnotations(
-                    this, (AnnotatedDeclaredType) constructorReturnType, constructorType);
-        }
-
-        // Now add back defaulting.
+        AnnotationMirrorSet written =
+                new AnnotationMirrorSet(constructorReturnType.getAnnotations());
         addComputedTypeAnnotations(
                 memberReferenceTree.getQualifierExpression(), constructorReturnType);
+        if (constructorReturnType.getKind() == TypeKind.DECLARED) {
+            for (AnnotationMirror fromConstructor :
+                    constructorType.getReturnType().getAnnotations()) {
+                AnnotationMirror writtenAnno =
+                        qualHierarchy.findAnnotationInSameHierarchy(written, fromConstructor);
+                // A polymorphic qualifier was resolved in the constructor type.
+                if (writtenAnno == null || qualHierarchy.isPolymorphicQualifier(writtenAnno)) {
+                    constructorReturnType.replaceAnnotation(fromConstructor);
+                }
+            }
+        }
         return constructorReturnType;
     }
 

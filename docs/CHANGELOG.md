@@ -348,10 +348,18 @@ operand's qualifiers even where they were less specific, which could make a post
 fail. The Lock Checker, whose qualifiers describe references rather than objects, no longer refines
 the operands of a comparison.
 
+A constructor reference, such as `Foo::new`, has the qualifiers of the constructor's result, as
+`new Foo()` does, where the reference does not write one. Previously only qualifiers written on the
+constructor were used, and the others were defaulted as for a use of `Foo`, which ignored a
+default for constructor results.
+
 ### Implementation details
 
 New `SystemUtil.splitPaths(String)` splits a list of paths on the platform's path separator.
 Deprecated `SystemUtil.COLON_SPLITTER`.
+
+Deprecated `AnnotatedTypes.copyOnlyExplicitConstructorAnnotations`, which the framework no longer
+uses.
 
 New `DefaultTypeHierarchy.visitEnclosingTypeArgs` compares the type arguments of the enclosing types
 of two inner class types. `visitTypeArgs` calls it, so a type hierarchy that compares those type
