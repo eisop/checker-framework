@@ -5135,9 +5135,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         poly.resolve(functionType, invocationType);
 
         AnnotatedTypeMirror invocationReturnType;
-        if (isArrayConstructor) {
-            invocationReturnType = enclosingType;
-        } else if (compileTimeDeclaration.getKind() == ElementKind.CONSTRUCTOR) {
+        if (compileTimeDeclaration.getKind() == ElementKind.CONSTRUCTOR) {
             invocationReturnType =
                     atypeFactory.getResultingTypeOfConstructorMemberReference(
                             memberReferenceTree, invocationType);

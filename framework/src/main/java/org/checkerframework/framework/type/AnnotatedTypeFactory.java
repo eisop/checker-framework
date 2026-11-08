@@ -4708,7 +4708,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         // As for a `new` expression (see TypeFromExpressionVisitor.visitNewClass), the result has
         // the annotations written on the expression of the member reference tree and, in every
-        // other hierarchy, those of the constructor's result.
+        // other hierarchy, those of the constructor's result. For an array constructor reference,
+        // such as `Object[]::new`, the constructor is javac's constructor for arrays.
         AnnotatedTypeMirror constructorReturnType =
                 fromTypeTree(memberReferenceTree.getQualifierExpression());
         if (TreeUtils.needsTypeArgInference(memberReferenceTree)) {
@@ -4725,15 +4726,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 new AnnotationMirrorSet(constructorReturnType.getAnnotations());
         addComputedTypeAnnotations(
                 memberReferenceTree.getQualifierExpression(), constructorReturnType);
-        if (constructorReturnType.getKind() == TypeKind.DECLARED) {
-            for (AnnotationMirror fromConstructor :
-                    constructorType.getReturnType().getAnnotations()) {
-                AnnotationMirror writtenAnno =
-                        qualHierarchy.findAnnotationInSameHierarchy(written, fromConstructor);
-                // A polymorphic qualifier was resolved in the constructor type.
-                if (writtenAnno == null || qualHierarchy.isPolymorphicQualifier(writtenAnno)) {
-                    constructorReturnType.replaceAnnotation(fromConstructor);
-                }
+        for (AnnotationMirror fromConstructor : constructorType.getReturnType().getAnnotations()) {
+            AnnotationMirror writtenAnno =
+                    qualHierarchy.findAnnotationInSameHierarchy(written, fromConstructor);
+            // A polymorphic qualifier was resolved in the constructor type.
+            if (writtenAnno == null || qualHierarchy.isPolymorphicQualifier(writtenAnno)) {
+                constructorReturnType.replaceAnnotation(fromConstructor);
             }
         }
         return constructorReturnType;
