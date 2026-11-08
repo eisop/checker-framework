@@ -2,10 +2,9 @@
 public class Quarkus1 {
     void method(ModifiableModelEx libraryModel) {
         ApplicationManager.getApplication()
-                .invokeAndWait(
-                        () -> {
-                            WriteAction.run(libraryModel::commit);
-                        });
+                .invokeAndWait(() -> {
+                    WriteAction.run(libraryModel::commit);
+                });
     }
 
     public static class ApplicationManager {

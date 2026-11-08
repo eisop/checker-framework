@@ -80,15 +80,14 @@ public class InvocationType {
         this.typeFactory = context.typeFactory;
 
         SimpleAnnotatedTypeScanner<Void, Set<AnnotationMirror>> s =
-                new SimpleAnnotatedTypeScanner<>(
-                        (type, polys) -> {
-                            for (AnnotationMirror a : type.getAnnotations()) {
-                                if (typeFactory.getQualifierHierarchy().isPolymorphicQualifier(a)) {
-                                    polys.add(a);
-                                }
-                            }
-                            return null;
-                        });
+                new SimpleAnnotatedTypeScanner<>((type, polys) -> {
+                    for (AnnotationMirror a : type.getAnnotations()) {
+                        if (typeFactory.getQualifierHierarchy().isPolymorphicQualifier(a)) {
+                            polys.add(a);
+                        }
+                    }
+                    return null;
+                });
         Set<AnnotationMirror> polys = new AnnotationMirrorSet();
         s.visit(annotatedExecutableType, polys);
         AnnotationMirrorMap<QualifierVar> qualifierVars = new AnnotationMirrorMap<>();

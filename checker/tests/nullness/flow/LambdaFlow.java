@@ -26,14 +26,13 @@ public class LambdaFlow {
 
     void flowOutOfLambda2(@Nullable String param) {
         @NonNull String f =
-                foo(
-                        s -> {
-                            if (param != null) {
-                                return param;
-                            } else {
-                                return "";
-                            }
-                        });
+                foo(s -> {
+                    if (param != null) {
+                        return param;
+                    } else {
+                        return "";
+                    }
+                });
     }
 
     void flowIntoThenOutOfLambda(@Nullable String param) {
@@ -67,14 +66,13 @@ public class LambdaFlow {
 
     void flowOutOfLambda2() {
         @NonNull String e =
-                foo(
-                        s -> {
-                            if (field != null) {
-                                return field;
-                            } else {
-                                return "";
-                            }
-                        });
+                foo(s -> {
+                    if (field != null) {
+                        return field;
+                    } else {
+                        return "";
+                    }
+                });
     }
 
     void flowIntoThenOutOfLambda() {

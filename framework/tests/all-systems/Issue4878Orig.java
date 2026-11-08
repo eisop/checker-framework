@@ -14,11 +14,10 @@ class Issue4878Orig {
 
     @SuppressWarnings("unchecked")
     <T extends M4878Orig> void f(S<?> s, T v) {
-        s.p().forEach(
-                        field -> {
-                            Object o = field;
-                            A4878Orig<T, ?> typedField = (A4878Orig<T, ?>) field;
-                            typedField.p(v);
-                        });
+        s.p().forEach(field -> {
+            Object o = field;
+            A4878Orig<T, ?> typedField = (A4878Orig<T, ?>) field;
+            typedField.p(v);
+        });
     }
 }

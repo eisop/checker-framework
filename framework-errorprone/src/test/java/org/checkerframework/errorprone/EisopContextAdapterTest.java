@@ -118,30 +118,28 @@ public class EisopContextAdapterTest {
      */
     @Test
     public void producesUsableProcessingEnvironment() throws Throwable {
-        duringAnalyze(
-                context -> {
-                    ProcessingEnvironment env =
-                            EisopContextAdapter.getProcessingEnvironment(context);
-                    Assert.assertNotNull("processing environment", env);
+        duringAnalyze(context -> {
+            ProcessingEnvironment env = EisopContextAdapter.getProcessingEnvironment(context);
+            Assert.assertNotNull("processing environment", env);
 
-                    // The utilities SourceChecker.setProcessingEnvironment / initChecker rely on.
-                    Elements elements = env.getElementUtils();
-                    Types types = env.getTypeUtils();
-                    Assert.assertNotNull("Elements", elements);
-                    Assert.assertNotNull("Types", types);
-                    Assert.assertNotNull("Messager", env.getMessager());
-                    Assert.assertNotNull("options map", env.getOptions());
+            // The utilities SourceChecker.setProcessingEnvironment / initChecker rely on.
+            Elements elements = env.getElementUtils();
+            Types types = env.getTypeUtils();
+            Assert.assertNotNull("Elements", elements);
+            Assert.assertNotNull("Types", types);
+            Assert.assertNotNull("Messager", env.getMessager());
+            Assert.assertNotNull("options map", env.getOptions());
 
-                    Trees trees = Trees.instance(env);
-                    Assert.assertNotNull("Trees", trees);
+            Trees trees = Trees.instance(env);
+            Assert.assertNotNull("Trees", trees);
 
-                    // The environment is actually wired to the compilation: the compiled type is
-                    // resolvable through the Elements utility (only valid while the compiler is
-                    // live, hence running inside the ANALYZE callback).
-                    Assert.assertNotNull(
-                            "compiled type element should be resolvable via the env",
-                            elements.getTypeElement("Hello"));
-                });
+            // The environment is actually wired to the compilation: the compiled type is
+            // resolvable through the Elements utility (only valid while the compiler is
+            // live, hence running inside the ANALYZE callback).
+            Assert.assertNotNull(
+                    "compiled type element should be resolvable via the env",
+                    elements.getTypeElement("Hello"));
+        });
     }
 
     /**

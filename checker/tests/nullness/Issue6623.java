@@ -6,18 +6,16 @@ public class Issue6623 {
 
     public List<TargetOuter> getUserData(List<SrcOuter> input) {
         return input.stream()
-                .map(
-                        c ->
-                                new TargetOuter(
-                                        c.data().stream()
-                                                .map(
-                                                        inner ->
-                                                                new TargetInner(
-                                                                        inner.data(),
-                                                                        inner.data(),
-                                                                        inner.data(),
-                                                                        inner.data()))
-                                                .toList()))
+                .map(c ->
+                        new TargetOuter(
+                                c.data().stream()
+                                        .map(inner ->
+                                                new TargetInner(
+                                                        inner.data(),
+                                                        inner.data(),
+                                                        inner.data(),
+                                                        inner.data()))
+                                        .toList()))
                 .toList();
     }
 

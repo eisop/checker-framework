@@ -434,24 +434,22 @@ public abstract class CFAbstractTransfer<
             // refinement still holds. Update values in place; keys are unchanged.
             // `store` is reassigned in this method, so the lambda below captures a copy.
             S lambdaStore = store;
-            store.fieldValues.replaceAll(
-                    (fieldAccess, currentValue) -> {
-                        AnnotatedTypeMirror declaredType =
-                                atypeFactory.getAnnotatedType(fieldAccess.getField());
-                        V newValue =
-                                analysis.createAbstractValue(declaredType)
-                                        .leastUpperBound(currentValue);
-                        if (!fieldAccess.getReceiver().isAssignableByOtherCode()) {
-                            V monotonicValue =
-                                    lambdaStore.newMonotonicFieldValueAfterMethodCall(
-                                            fieldAccess, analysis.getTypeFactory(), currentValue);
-                            if (monotonicValue != null) {
-                                // The monotonic target, where comparable, else the declared type.
-                                newValue = monotonicValue.mostSpecific(newValue, newValue);
-                            }
-                        }
-                        return newValue;
-                    });
+            store.fieldValues.replaceAll((fieldAccess, currentValue) -> {
+                AnnotatedTypeMirror declaredType =
+                        atypeFactory.getAnnotatedType(fieldAccess.getField());
+                V newValue =
+                        analysis.createAbstractValue(declaredType).leastUpperBound(currentValue);
+                if (!fieldAccess.getReceiver().isAssignableByOtherCode()) {
+                    V monotonicValue =
+                            lambdaStore.newMonotonicFieldValueAfterMethodCall(
+                                    fieldAccess, analysis.getTypeFactory(), currentValue);
+                    if (monotonicValue != null) {
+                        // The monotonic target, where comparable, else the declared type.
+                        newValue = monotonicValue.mostSpecific(newValue, newValue);
+                    }
+                }
+                return newValue;
+            });
         } else {
             assert false : "Unexpected tree: " + underlyingAST;
             store = null;

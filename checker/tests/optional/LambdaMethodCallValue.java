@@ -23,32 +23,29 @@ class Main {
 
     void test3(OptContainer container, List<String> strs) {
         if (container.getOpt().isPresent()) {
-            strs.forEach(
-                    s -> {
-                        container.getOpt().get(); // OK
-                    });
+            strs.forEach(s -> {
+                container.getOpt().get(); // OK
+            });
         }
     }
 
     void test4(OptContainer container, List<String> strs) {
         if (container.getOpt().isPresent()) {
-            strs.forEach(
-                    s -> {
-                        container.sideEffect();
-                        // :: error: (method.invocation.invalid)
-                        container.getOpt().get(); // Not ok
-                    });
+            strs.forEach(s -> {
+                container.sideEffect();
+                // :: error: (method.invocation.invalid)
+                container.getOpt().get(); // Not ok
+            });
         }
     }
 
     void test5(OptContainer container, List<String> strs) {
         if (container.getOpt().isPresent()) {
-            strs.forEach(
-                    s -> {
-                        container.getOpt();
-                        container.name();
-                        container.getOpt().get(); // OK
-                    });
+            strs.forEach(s -> {
+                container.getOpt();
+                container.name();
+                container.getOpt().get(); // OK
+            });
         }
     }
 

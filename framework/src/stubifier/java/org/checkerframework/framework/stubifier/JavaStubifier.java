@@ -147,14 +147,13 @@ public class JavaStubifier {
 
         projectRoot
                 .getSourceRoots()
-                .forEach(
-                        sourceRoot -> {
-                            try {
-                                sourceRoot.parse("", mc);
-                            } catch (IOException e) {
-                                System.err.println("IOException: " + e);
-                            }
-                        });
+                .forEach(sourceRoot -> {
+                    try {
+                        sourceRoot.parse("", mc);
+                    } catch (IOException e) {
+                        System.err.println("IOException: " + e);
+                    }
+                });
 
         File outputFile = new File(dir, BinaryStubWriter.OUTPUT_FILENAME);
         try {

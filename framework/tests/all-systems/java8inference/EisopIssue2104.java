@@ -20,10 +20,9 @@ public class EisopIssue2104 {
     }
 
     void nestedBlock() throws Exception {
-        call(
-                () -> {
-                    call(() -> {});
-                });
+        call(() -> {
+            call(() -> {});
+        });
     }
 
     void nestedChecked() throws Exception {

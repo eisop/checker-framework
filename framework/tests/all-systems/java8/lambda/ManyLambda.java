@@ -70,7 +70,7 @@ public class ManyLambda {
                 return (Integer) x + 1;
             };
     // Single inferred-type parameter
-    Function<Integer, Integer> f10 = (x) -> x + 1;
+    Function<Integer, Integer> f10 = x -> x + 1;
     // Parentheses optional for single inferred-type parameter
     Function<Integer, Integer> f11 = x -> x + 1;
 

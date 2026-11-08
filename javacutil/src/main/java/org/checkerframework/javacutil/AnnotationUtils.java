@@ -1674,13 +1674,12 @@ public class AnnotationUtils {
             Map<? extends ExecutableElement, ? extends AnnotationValue> elementValues) {
         // Most annotations have no elements.
         Map<ExecutableElement, AnnotationValue> nonDefaults = new ArrayMap<>(0);
-        elementValues.forEach(
-                (element, value) -> {
-                    AnnotationValue dflt = element.getDefaultValue();
-                    if (dflt == null || !Objects.equals(value.getValue(), dflt.getValue())) {
-                        nonDefaults.put(element, value);
-                    }
-                });
+        elementValues.forEach((element, value) -> {
+            AnnotationValue dflt = element.getDefaultValue();
+            if (dflt == null || !Objects.equals(value.getValue(), dflt.getValue())) {
+                nonDefaults.put(element, value);
+            }
+        });
         return nonDefaults;
     }
 

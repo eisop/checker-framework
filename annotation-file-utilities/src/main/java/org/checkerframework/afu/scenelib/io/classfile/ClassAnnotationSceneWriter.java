@@ -966,7 +966,6 @@ public class ClassAnnotationSceneWriter extends CodeOffsetAdapter {
                 for (Map.Entry<List<TypePathEntry>, ATypeElement> e :
                         aLocation.type.innerTypes.entrySet()) {
                     TypePath localVariableLocation = TypePathEntry.listToTypePath(e.getKey());
-                    ;
                     ATypeElement aInnerType = e.getValue();
                     for (Annotation tla : aInnerType.tlAnnotationsHere) {
                         if (shouldSkip(tla)) {
@@ -1057,7 +1056,6 @@ public class ClassAnnotationSceneWriter extends CodeOffsetAdapter {
                     for (Map.Entry<List<TypePathEntry>, ATypeElement> e1 :
                             aParameter.type.innerTypes.entrySet()) {
                         TypePath aParameterLocation = TypePathEntry.listToTypePath(e1.getKey());
-                        ;
                         ATypeElement aInnerType = e1.getValue();
                         for (Annotation tla : aInnerType.tlAnnotationsHere) {
                             if (shouldSkip(tla)) {
@@ -1186,19 +1184,17 @@ public class ClassAnnotationSceneWriter extends CodeOffsetAdapter {
             }
 
             // Now do generic/array information on return type
-            aTypeElement.innerTypes.forEach(
-                    (location, innerType) -> {
-                        TypePath typePath = TypePathEntry.listToTypePath(location);
-                        for (Annotation tla : innerType.tlAnnotationsHere) {
-                            if (maybeSkip && shouldSkip(tla)) {
-                                continue;
-                            }
-                            AnnotationVisitor xav =
-                                    visitTypeAnnotation(tla, typeReference, typePath);
-                            visitFields(xav, tla);
-                            xav.visitEnd();
-                        }
-                    });
+            aTypeElement.innerTypes.forEach((location, innerType) -> {
+                TypePath typePath = TypePathEntry.listToTypePath(location);
+                for (Annotation tla : innerType.tlAnnotationsHere) {
+                    if (maybeSkip && shouldSkip(tla)) {
+                        continue;
+                    }
+                    AnnotationVisitor xav = visitTypeAnnotation(tla, typeReference, typePath);
+                    visitFields(xav, tla);
+                    xav.visitEnd();
+                }
+            });
         }
 
         /**
@@ -1228,26 +1224,25 @@ public class ClassAnnotationSceneWriter extends CodeOffsetAdapter {
             }
 
             // now do inner annotations of call
-            aTypeElement.innerTypes.forEach(
-                    (location, aInnerType) -> {
-                        TypePath typePath = TypePathEntry.listToTypePath(location);
-                        for (Annotation tla : aInnerType.tlAnnotationsHere) {
-                            if (maybeSkip && shouldSkip(tla)) {
-                                continue;
-                            }
+            aTypeElement.innerTypes.forEach((location, aInnerType) -> {
+                TypePath typePath = TypePathEntry.listToTypePath(location);
+                for (Annotation tla : aInnerType.tlAnnotationsHere) {
+                    if (maybeSkip && shouldSkip(tla)) {
+                        continue;
+                    }
 
-                            AnnotationVisitor xav =
-                                    super.visitInsnAnnotation(
-                                            typeReference.getValue(),
-                                            typePath,
-                                            classNameToDesc(name(tla)),
-                                            isRuntimeRetention(tla));
-                            // TODO: We have offset. Do we need to use it anywhere?
-                            //            visitOffset(xav, offset);
-                            visitFields(xav, tla);
-                            xav.visitEnd();
-                        }
-                    });
+                    AnnotationVisitor xav =
+                            super.visitInsnAnnotation(
+                                    typeReference.getValue(),
+                                    typePath,
+                                    classNameToDesc(name(tla)),
+                                    isRuntimeRetention(tla));
+                    // TODO: We have offset. Do we need to use it anywhere?
+                    //            visitOffset(xav, offset);
+                    visitFields(xav, tla);
+                    xav.visitEnd();
+                }
+            });
         }
     }
 

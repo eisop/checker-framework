@@ -9,12 +9,11 @@ import java.util.function.BiConsumer;
 public class LambdaParamCrash {
 
     void groupAndSend() {
-        addListener(
-                (r, e1) -> {
-                    if (e1 == null) {
-                        e1 = badResponse();
-                    }
-                });
+        addListener((r, e1) -> {
+            if (e1 == null) {
+                e1 = badResponse();
+            }
+        });
     }
 
     private IOException badResponse() {
