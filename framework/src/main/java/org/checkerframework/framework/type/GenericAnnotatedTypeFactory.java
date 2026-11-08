@@ -1770,8 +1770,15 @@ public abstract class GenericAnnotatedTypeFactory<
 
             TreePath preTreePath = getVisitorTreePath();
 
-            // Don't call AnnotatedTypeFactory#getPath, because it uses visitorTreePath.
-            setVisitorTreePath(TreePath.getPath(this.getRoot(), ct));
+            // Query the TreePathCacher directly, not AnnotatedTypeFactory#getPath, so that this
+            // does not depend on visitorTreePath. The lookup is a cache hit when the class was
+            // reached through the visitor (BaseTypeVisitor.visitClass records its path), is a
+            // member of a class analyzed earlier in this loop (recorded below), or is declared in
+            // a body analyzed earlier in this loop (the CFG builder records it). Searching the
+            // compilation unit instead would cost O(file) per class, which is quadratic over a
+            // file with many anonymous or local classes.
+            TreePath classPath = checker.getTreePathCacher().getPath(this.getRoot(), ct);
+            setVisitorTreePath(classPath);
 
             // start with the captured store as initialization store
             initializationStaticStore = capturedStore;
@@ -1800,6 +1807,11 @@ public abstract class GenericAnnotatedTypeFactory<
                         case ENUM:
                             // Visit inner and nested class trees.
                             // TODO: Use no store for them? What can be captured?
+                            if (classPath != null
+                                    && checker.getTreePathCacher().getCachedPath(m) == null) {
+                                // A member's path extends the class path by one step.
+                                checker.getTreePathCacher().addPath(m, new TreePath(classPath, m));
+                            }
                             classQueue.add(Pair.of((ClassTree) m, capturedStore));
                             break;
                         case METHOD:
@@ -2208,7 +2220,20 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         // add classes declared in CFG
-        for (ClassTree cls : cfg.getDeclaredClasses()) {
+        List<ClassTree> declaredClasses = cfg.getDeclaredClasses();
+        if (!declaredClasses.isEmpty()) {
+            // Record the path of each class declared in this body, by a search that starts at the
+            // body, so that performFlowAnalysisForClassImpl finds it in the cache instead of
+            // searching the compilation unit for it: that search costs O(file) per class, which
+            // is quadratic over a file with many anonymous or local classes.
+            TreePath bodyPath = checker.getTreePathCacher().getPath(this.getRoot(), ast.getCode());
+            if (bodyPath != null) {
+                for (ClassTree cls : declaredClasses) {
+                    checker.getTreePathCacher().getPath(bodyPath, cls);
+                }
+            }
+        }
+        for (ClassTree cls : declaredClasses) {
             classQueue.add(Pair.of(cls, getStoreBefore(cls)));
         }
         // add lambdas declared in CFG

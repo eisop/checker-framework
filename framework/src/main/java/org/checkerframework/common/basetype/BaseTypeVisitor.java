@@ -652,13 +652,25 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         long startMillis = System.currentTimeMillis();
         Tree startSlowTypeCheckingTree = slowTypecheckingTree;
 
+        // The scanner's current path is the path to this class. Record it in the shared
+        // TreePathCacher before the flow analysis below looks the class path up, and use it as the
+        // visitor path, instead of searching the compilation unit for it: that search costs
+        // O(file) per class, which is quadratic over a file with many anonymous or local classes.
+        TreePath classPath = getCurrentPath();
+        @SuppressWarnings("interning:not.interned") // reference equality of trees
+        boolean currentPathIsClassPath = classPath != null && classPath.getLeaf() == tree;
+        if (currentPathIsClassPath) {
+            checker.getTreePathCacher().addPath(tree, classPath);
+        } else {
+            classPath = checker.getTreePathCacher().getPath(root, tree);
+        }
+
         atypeFactory.preProcessClassTree(tree);
 
         TreePath preTreePath = atypeFactory.getVisitorTreePath();
         MethodTree preMT = methodTree;
 
-        // Don't use atypeFactory.getPath, because that depends on the visitor path.
-        atypeFactory.setVisitorTreePath(TreePath.getPath(root, tree));
+        atypeFactory.setVisitorTreePath(classPath);
         methodTree = null;
 
         try {
