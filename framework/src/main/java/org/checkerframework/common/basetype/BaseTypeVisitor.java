@@ -56,6 +56,7 @@ import org.checkerframework.dataflow.cfg.node.BooleanLiteralNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
+import org.checkerframework.dataflow.cfg.node.TypeCastNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.JavaExpressionScanner;
@@ -3267,10 +3268,38 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         // Don't call TypeHierarchy#isSubtype(exprType, castType) because the underlying Java types
         // will not be in the correct subtyping relationship if this is a downcast.
-        if (!reported && !isTypeCastSafe(castType, exprType)) {
+        if (!reported
+                && !isTypeCastSafe(castType, exprType)
+                && !isBoxingCastSafeForBoxedValue(typeCastTree, castType, exprType)) {
             checker.reportWarning(
                     typeCastTree, "cast.unsafe", exprType.toString(true), castType.toString(true));
         }
+    }
+
+    /**
+     * Returns true if {@code typeCastTree} casts a primitive value to a reference type and the cast
+     * is safe for the boxed value. Such a cast boxes the value (JLS 5.5): the CFG translates it to
+     * a synthetic {@code valueOf} call, the operand of the cast's {@code TypeCastNode}, and the
+     * cast can take its qualifiers from that call's result, which may differ from the primitive's.
+     *
+     * @param typeCastTree a type cast
+     * @param castType the annotated type of the cast
+     * @param exprType the annotated type of the cast expression
+     * @return true if the cast boxes a primitive value and is safe for the boxed value
+     */
+    private boolean isBoxingCastSafeForBoxedValue(
+            TypeCastTree typeCastTree, AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+        if (!exprType.getKind().isPrimitive() || castType.getKind().isPrimitive()) {
+            return false;
+        }
+        TypeCastNode castNode =
+                atypeFactory.getFirstNodeOfKindForTree(typeCastTree, TypeCastNode.class);
+        if (castNode == null) {
+            return false;
+        }
+        AnnotatedTypeMirror boxedType =
+                atypeFactory.getAnnotatedType(castNode.getOperand().getTree());
+        return isTypeCastSafe(castType, boxedType);
     }
 
     /**
