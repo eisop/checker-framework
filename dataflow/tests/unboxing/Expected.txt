@@ -30,28 +30,54 @@
 21 -> 22 EACH_TO_EACH
 22 -> 24 EACH_TO_EACH
 22 -> 1 NullPointerException
-24 -> 26 EACH_TO_EACH
+24 -> 25 EACH_TO_EACH
 24 -> 1 RuntimeException
 24 -> 1 Error
-26 -> 30 THEN_TO_BOTH
-26 -> 31 ELSE_TO_ELSE
+25 -> 26 EACH_TO_EACH
+26 -> 28 EACH_TO_EACH
+26 -> 1 ClassCastException
+28 -> 30 EACH_TO_EACH
+28 -> 1 NullPointerException
 30 -> 31 EACH_TO_EACH
+30 -> 1 RuntimeException
+30 -> 1 Error
 31 -> 32 EACH_TO_EACH
-32 -> 41 THEN_TO_THEN
-32 -> 36 ELSE_TO_BOTH
-41 -> 42 EACH_TO_EACH
+32 -> 34 EACH_TO_EACH
+32 -> 1 ClassCastException
+34 -> 36 EACH_TO_EACH
+34 -> 1 NullPointerException
 36 -> 37 EACH_TO_EACH
+36 -> 1 RuntimeException
+36 -> 1 Error
+37 -> 38 EACH_TO_EACH
+38 -> 39 EACH_TO_EACH
+38 -> 1 RuntimeException
+38 -> 1 Error
+39 -> 40 EACH_TO_EACH
+40 -> 42 EACH_TO_EACH
+40 -> 1 NullPointerException
 42 -> 44 EACH_TO_EACH
-42 -> 1 NullPointerException
-37 -> 39 EACH_TO_EACH
-37 -> 1 NullPointerException
-44 -> 45 EACH_TO_EACH
-44 -> 1 RuntimeException
-44 -> 1 Error
-39 -> 41 EACH_TO_EACH
-39 -> 1 RuntimeException
-39 -> 1 Error
-45 -> 0 EACH_TO_EACH
+42 -> 1 RuntimeException
+42 -> 1 Error
+44 -> 48 THEN_TO_BOTH
+44 -> 49 ELSE_TO_ELSE
+48 -> 49 EACH_TO_EACH
+49 -> 50 EACH_TO_EACH
+50 -> 59 THEN_TO_THEN
+50 -> 54 ELSE_TO_BOTH
+59 -> 60 EACH_TO_EACH
+54 -> 55 EACH_TO_EACH
+60 -> 62 EACH_TO_EACH
+60 -> 1 NullPointerException
+55 -> 57 EACH_TO_EACH
+55 -> 1 NullPointerException
+62 -> 63 EACH_TO_EACH
+62 -> 1 RuntimeException
+62 -> 1 Error
+57 -> 59 EACH_TO_EACH
+57 -> 1 RuntimeException
+57 -> 1 Error
+63 -> 0 EACH_TO_EACH
 
 2:
 Process order: 1
@@ -92,9 +118,9 @@ AnalysisResult#0
 After:   reaching definitions = none
 
 1:
-Process order: 32
-TransferInput#108
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+Process order: 45
+TransferInput#163
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 ~~~~~~~~~
 <exceptional-exit>
 
@@ -229,8 +255,8 @@ Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = Wid
 ~~~~~~~~~
 (java.lang.Object)Integer.valueOf(6)   [ TypeCast ]
 objBox = (java.lang.Object)Integer.valueOf(6)   [ Assignment ]
-and   [ VariableDeclaration ]
-b   [ LocalVariable ]
+unboxWidenDouble   [ VariableDeclaration ]
+boxed   [ LocalVariable ]
 ~~~~~~~~~
 AnalysisResult#0
 After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6) }
@@ -240,7 +266,7 @@ Process order: 17
 TransferInput#69
 Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6) }
 ~~~~~~~~~
-b.booleanValue   [ MethodAccess ]
+boxed.intValue   [ MethodAccess ]
 ~~~~~~~~~
 AnalysisResult#0
 After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6) }
@@ -250,33 +276,175 @@ Process order: 18
 TransferInput#72
 Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6) }
 ~~~~~~~~~
-b.booleanValue()   [ MethodInvocation ]
+boxed.intValue()   [ MethodInvocation ]
 ~~~~~~~~~
 AnalysisResult#0
 After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6) }
 
-26:
+25:
 Process order: 19
 TransferInput#76
 Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6) }
 ~~~~~~~~~
-ConditionalBlock: then: 30, else: 31
+WideningConversion(boxed.intValue(), double)   [ WideningConversion ]
+unboxWidenDouble = WideningConversion(boxed.intValue(), double)   [ Assignment ]
+objCastDouble   [ VariableDeclaration ]
+obj   [ LocalVariable ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double) }
+
+26:
+Process order: 20
+TransferInput#82
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double) }
+~~~~~~~~~
+(java.lang.Double)obj   [ TypeCast ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double) }
+
+28:
+Process order: 21
+TransferInput#85
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double) }
+~~~~~~~~~
+(java.lang.Double)obj.doubleValue   [ MethodAccess ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double) }
 
 30:
-Process order: 20
-TransferInput#78
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6) }
+Process order: 22
+TransferInput#89
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double) }
+~~~~~~~~~
+(java.lang.Double)obj.doubleValue()   [ MethodInvocation ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double) }
+
+31:
+Process order: 23
+TransferInput#92
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double) }
+~~~~~~~~~
+objCastDouble = (java.lang.Double)obj.doubleValue()   [ Assignment ]
+objCastChar   [ VariableDeclaration ]
+obj   [ LocalVariable ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue() }
+
+32:
+Process order: 24
+TransferInput#97
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue() }
+~~~~~~~~~
+(java.lang.Character)obj   [ TypeCast ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue() }
+
+34:
+Process order: 25
+TransferInput#100
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue() }
+~~~~~~~~~
+(java.lang.Character)obj.charValue   [ MethodAccess ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue() }
+
+36:
+Process order: 26
+TransferInput#104
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue() }
+~~~~~~~~~
+(java.lang.Character)obj.charValue()   [ MethodInvocation ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue() }
+
+37:
+Process order: 27
+TransferInput#107
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue() }
+~~~~~~~~~
+objCastChar = (java.lang.Character)obj.charValue()   [ Assignment ]
+boxLong   [ VariableDeclaration ]
+7   [ LongLiteral ]
+Long   [ ClassName ]
+Long.valueOf   [ MethodAccess ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue() }
+
+38:
+Process order: 28
+TransferInput#114
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue() }
+~~~~~~~~~
+Long.valueOf(7)   [ MethodInvocation ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue() }
+
+39:
+Process order: 29
+TransferInput#117
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue() }
+~~~~~~~~~
+(java.lang.Long)Long.valueOf(7)   [ TypeCast ]
+boxLong = (java.lang.Long)Long.valueOf(7)   [ Assignment ]
+and   [ VariableDeclaration ]
+b   [ LocalVariable ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7) }
+
+40:
+Process order: 30
+TransferInput#124
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7) }
+~~~~~~~~~
+b.booleanValue   [ MethodAccess ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7) }
+
+42:
+Process order: 31
+TransferInput#127
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7) }
+~~~~~~~~~
+b.booleanValue()   [ MethodInvocation ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7) }
+
+44:
+Process order: 32
+TransferInput#131
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7) }
+~~~~~~~~~
+ConditionalBlock: then: 48, else: 49
+
+48:
+Process order: 33
+TransferInput#133
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7) }
 ~~~~~~~~~
 c   [ LocalVariable ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6) }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7) }
 
-31:
-Process order: 21
-TransferInput#81
-Before: then=  reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6) },
-else=  reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6) }
+49:
+Process order: 34
+TransferInput#136
+Before: then=  reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7) },
+else=  reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7) }
 ~~~~~~~~~
 (b.booleanValue() && c)   [ ConditionalAnd ]
 and = (b.booleanValue() && c)   [ Assignment ]
@@ -284,92 +452,92 @@ or   [ VariableDeclaration ]
 c   [ LocalVariable ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c) }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c) }
 
-32:
-Process order: 22
-TransferInput#87
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c) }
+50:
+Process order: 35
+TransferInput#142
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c) }
 ~~~~~~~~~
-ConditionalBlock: then: 41, else: 36
+ConditionalBlock: then: 59, else: 54
 
-41:
-Process order: 23,27
-TransferInput#99
-Before: then=  reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c) },
-else=  reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c) }
+59:
+Process order: 36,40
+TransferInput#154
+Before: then=  reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c) },
+else=  reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c) }
 ~~~~~~~~~
 (c || b.booleanValue())   [ ConditionalOr ]
 or = (c || b.booleanValue())   [ Assignment ]
 boxed   [ LocalVariable ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 
-36:
-Process order: 24
-TransferInput#89
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c) }
+54:
+Process order: 37
+TransferInput#144
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c) }
 ~~~~~~~~~
 b   [ LocalVariable ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c) }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c) }
 
-42:
-Process order: 28
-TransferInput#104
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+60:
+Process order: 41
+TransferInput#159
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 ~~~~~~~~~
 boxed.intValue   [ MethodAccess ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 
-37:
-Process order: 25
-TransferInput#92
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c) }
+55:
+Process order: 38
+TransferInput#147
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c) }
 ~~~~~~~~~
 b.booleanValue   [ MethodAccess ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c) }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c) }
 
-44:
-Process order: 29
-TransferInput#107
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+62:
+Process order: 42
+TransferInput#162
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 ~~~~~~~~~
 boxed.intValue()   [ MethodInvocation ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 
-39:
-Process order: 26
-TransferInput#95
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c) }
+57:
+Process order: 39
+TransferInput#150
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c) }
 ~~~~~~~~~
 b.booleanValue()   [ MethodInvocation ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c) }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c) }
 
-45:
-Process order: 30
-TransferInput#111
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+63:
+Process order: 43
+TransferInput#166
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 ~~~~~~~~~
 WideningConversion(boxed.intValue(), long)   [ WideningConversion ]
 return WideningConversion(boxed.intValue(), long)   [ Return ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 
 0:
-Process order: 31
-TransferInput#115
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+Process order: 44
+TransferInput#170
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 ~~~~~~~~~
 <exit>

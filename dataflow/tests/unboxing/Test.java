@@ -8,6 +8,10 @@ public class Test {
         int objCast = (int) obj;
         Integer boxCast = (Integer) 5;
         Object objBox = (Object) 6;
+        double unboxWidenDouble = (double) boxed;
+        double objCastDouble = (double) obj;
+        char objCastChar = (char) obj;
+        Long boxLong = (Long) 7L;
         boolean and = b && c;
         boolean or = c || b;
         return boxed;

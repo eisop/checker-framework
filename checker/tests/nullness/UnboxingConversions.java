@@ -2,6 +2,8 @@ import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.function.IntSupplier;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 // The CFG models every unboxing conversion as a call of intValue() (and the like) on the boxed
 // value, so the value is non-null afterwards, as after any other dereference. Each method below
@@ -20,6 +22,29 @@ public class UnboxingConversions {
         // :: error: (unboxing.of.nullable)
         long x = (long) i;
         i.toString();
+    }
+
+    void castOtherBoxedTypes(
+            @Nullable Long l, @Nullable Double d, @Nullable Character c, @Nullable Byte b) {
+        // :: error: (unboxing.of.nullable)
+        long xl = (long) l;
+        // :: error: (unboxing.of.nullable)
+        float xd = (float) (double) d;
+        // :: error: (unboxing.of.nullable)
+        int xc = (int) c;
+        // :: error: (unboxing.of.nullable)
+        double xb = (double) b;
+        l.toString();
+        d.toString();
+        c.toString();
+        b.toString();
+    }
+
+    long returnUnboxesAndWidens(@Nullable Integer i, @Nullable Integer j, boolean c) {
+        // The value of the conditional is unboxed: both operands are Integer, so its type is
+        // Integer, and the return converts it to long.
+        // :: error: (unboxing.of.nullable)
+        return c ? i : j;
     }
 
     void castObject(@Nullable Object o) {
@@ -69,6 +94,20 @@ public class UnboxingConversions {
             // :: error: (unboxing.of.nullable)
             int x = (int) i;
             // No error: i is non-null after the cast unboxed it.
+            return i;
+        };
+    }
+
+    Supplier<Integer> lambdaBoxes() {
+        Supplier<Integer> s = () -> 5;
+        return s;
+    }
+
+    LongSupplier lambdaUnboxesAndWidens(@Nullable Integer i) {
+        return () -> {
+            // :: error: (unboxing.of.nullable)
+            long x = i;
+            // No error: i is non-null after it was unboxed.
             return i;
         };
     }

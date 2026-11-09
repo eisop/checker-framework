@@ -30,6 +30,16 @@ public class UnboxingSwitchExpression {
         i.toString();
     }
 
+    void unboxedAndWidenedResult(@Nullable Integer i, int k) {
+        // The switch expression has type long, so i is unboxed and widened.
+        long x =
+                switch (k) {
+                    // :: error: (unboxing.of.nullable)
+                    case 0 -> i;
+                    default -> 1L;
+                };
+    }
+
     void boxedResult(int k) {
         Integer x =
                 switch (k) {
