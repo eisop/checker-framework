@@ -2308,11 +2308,16 @@ public abstract class GenericAnnotatedTypeFactory<
      * to initialize additional state or to perform any analyzes that are easier to perform on the
      * CFG instead of the AST.
      *
+     * <p>This implementation type-checks the method invocations that the CFG synthesized for
+     * conversions, see {@link BaseTypeVisitor#checkSyntheticMethodInvocations}, and visualizes the
+     * CFG if requested.
+     *
      * @param cfg the CFG
      * @see #analyze(Queue, Queue, UnderlyingAST, List, ControlFlowGraph, boolean, boolean, boolean,
      *     CFAbstractStore)
      */
     protected void postAnalyze(ControlFlowGraph cfg) {
+        checker.getVisitor().checkSyntheticMethodInvocations(cfg);
         handleCFGViz(cfg);
     }
 

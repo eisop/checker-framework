@@ -116,8 +116,9 @@ Type-checking and subtyping improvements:
   arguments, as for `new C<>(args)`. They were defaulted, which caused false
   positives and checked the arguments against the defaulted type.
 - CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
-  try-with-resources) are now type-checked, with diagnostics pointing at the
-  source construct.
+  try-with-resources) are now type-checked by every checker, with diagnostics
+  pointing at the source construct. `GenericAnnotatedTypeFactory#postAnalyze`
+  checks them, so a type factory that overrides it calls `super.postAnalyze`.
 - The CFG models every boxing and unboxing conversion: the operands of `&&`
   and `||`, the value of a `return` statement, the result of a lambda body and
   of a switch expression, and a cast to or from a primitive type (JLS 5.5) are
@@ -363,7 +364,10 @@ elements individually, as in `many(map, k)`. Previously such a call reported a f
 
 The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
 `@GuardedBy` expression whose lock is not held, as it does for an explicit
-dereference of that expression.
+dereference of that expression. The loop's `iterator()` call is checked like an
+explicit call: `Iterable.iterator()` and its overrides in the annotated JDK take
+a `@GuardSatisfied` receiver, and an `iterator()` without one, such as that of an
+`Iterable` the user declares, reports `method.invocation.invalid`.
 
 The Lock Checker no longer reports `lock.expression.not.final` for an effectively final local
 variable named in a lock expression, except where the variable's declaration is not found in the

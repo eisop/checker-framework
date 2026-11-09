@@ -526,18 +526,20 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
     }
 
     /**
-     * Checks the lock of the expression of an enhanced for loop, which the loop dereferences: it
-     * calls {@code iterator()} on an {@code Iterable} or reads the length and the elements of an
-     * array.
+     * Checks the lock of an array that an enhanced for loop iterates over, which the loop
+     * dereferences to read its length and its elements. For an {@code Iterable}, the CFG
+     * synthesizes the {@code iterator()} call, which is checked like an explicit call.
      */
     @Override
     public Void visitEnhancedForLoop(EnhancedForLoopTree tree, Void p) {
         ExpressionTree iterated = tree.getExpression();
-        AnnotationMirror gb =
-                atypeFactory
-                        .getAnnotatedType(iterated)
-                        .getEffectiveAnnotationInHierarchy(atypeFactory.GUARDEDBYUNKNOWN);
-        checkLock(iterated, gb);
+        if (TreeUtils.typeOf(iterated).getKind() == TypeKind.ARRAY) {
+            AnnotationMirror gb =
+                    atypeFactory
+                            .getAnnotatedType(iterated)
+                            .getEffectiveAnnotationInHierarchy(atypeFactory.GUARDEDBYUNKNOWN);
+            checkLock(iterated, gb);
+        }
         return super.visitEnhancedForLoop(tree, p);
     }
 
