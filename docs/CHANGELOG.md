@@ -126,6 +126,10 @@ Type-checking and subtyping improvements:
   to non-null) after it is implicitly unboxed, and a conditional postcondition
   on a method that returns `Boolean` holds across the boxing of its condition
   and the unboxing at a call.
+- In the CFG of an enhanced `for` loop over an `Iterable`, the synthetic
+  `iterator()` and `next()` calls have the iterable's element type instead of
+  the declared type variable of `Iterable`. A primitive loop variable is
+  therefore assigned the unboxed element, `next().intValue()` for instance.
 - Repeated `@RequiresNonEmpty` annotations on one method are now enforced:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
