@@ -80,7 +80,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeKind;
 
 /** The visitor for the nullness type-system. */
 public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotatedTypeFactory> {
@@ -114,9 +114,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     /** Annotation mirrors for nullness annotations. */
     private final AnnotationMirror NONNULL, NULLABLE, MONOTONIC_NONNULL, POLYNULL;
-
-    /** The erasure of java.lang.Iterable. */
-    private final TypeMirror iterableType;
 
     /** The element for java.util.Collection.size(). */
     private final ExecutableElement collectionSize;
@@ -168,8 +165,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         NULLABLE = atypeFactory.NULLABLE;
         MONOTONIC_NONNULL = atypeFactory.MONOTONIC_NONNULL;
         POLYNULL = atypeFactory.POLYNULL;
-        iterableType =
-                types.erasure(elements.getTypeElement(Iterable.class.getCanonicalName()).asType());
 
         ProcessingEnvironment env = checker.getProcessingEnvironment();
         this.collectionSize = TreeUtils.getMethod("java.util.Collection", "size", 0, env);
@@ -568,7 +563,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      */
     @Override
     public Void visitEnhancedForLoop(EnhancedForLoopTree tree, Void p) {
-        if (!types.isSubtype(TreeUtils.typeOf(tree.getExpression()), iterableType)) {
+        if (TreeUtils.typeOf(tree.getExpression()).getKind() == TypeKind.ARRAY) {
             checkForNullability(tree.getExpression(), ITERATING_NULLABLE);
         }
         return super.visitEnhancedForLoop(tree, p);
@@ -1164,17 +1159,18 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         Node receiver = node.getTarget().getReceiver();
         if (receiver != null && receiver.getTree() instanceof ExpressionTree) {
             ExpressionTree receiverTree = (ExpressionTree) receiver.getTree();
-            @CompilerMessageKey String errMsg = null;
-            // The tree at which the error is reported.
-            ExpressionTree errTree = receiverTree;
-            if (method.getSimpleName().contentEquals("iterator")) {
-                // The CFG synthesizes iterator() only for an enhanced for loop.
-                errMsg = ITERATING_NULLABLE;
-            } else if (TypesUtils.isBoxedPrimitive(
-                    TypesUtils.boxedPrimitiveBound(receiver.getType()))) {
-                errMsg = unboxingMessageKey(receiverTree);
+            // The CFG synthesizes iterator() only for an enhanced for loop.
+            boolean isIterator = method.getSimpleName().contentEquals("iterator");
+            if ((isIterator
+                            || TypesUtils.isBoxedPrimitive(
+                                    TypesUtils.boxedPrimitiveBound(receiver.getType())))
+                    && !atypeFactory
+                            .getAnnotatedType(receiverTree)
+                            .hasEffectiveAnnotation(NONNULL)) {
+                @CompilerMessageKey String errMsg = isIterator ? ITERATING_NULLABLE : unboxingMessageKey(receiverTree);
                 // The element of an enhanced for loop is the result of a synthetic next() call or
                 // array access; report its unboxing at the loop's expression.
+                ExpressionTree errTree = receiverTree;
                 if (receiver instanceof MethodInvocationNode
                         && ((MethodInvocationNode) receiver).getIterableExpression() != null) {
                     errTree = ((MethodInvocationNode) receiver).getIterableExpression();
@@ -1182,12 +1178,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                         && ((ArrayAccessNode) receiver).getArrayExpression() != null) {
                     errTree = ((ArrayAccessNode) receiver).getArrayExpression();
                 }
-            }
-            if (errMsg != null) {
-                AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(receiverTree);
-                if (!checkForNullability(type, errTree, errMsg)) {
-                    return;
-                }
+                checker.reportError(errTree, errMsg, errTree);
+                return;
             }
         }
         super.checkSyntheticMethodInvocation(node, tree);
