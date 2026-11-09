@@ -17,7 +17,8 @@ public class Test {
         Long boxLong = (Long) 7L;
         boolean and = b && c;
         boolean or = c || b;
-        boolean conditional = c ? b : c;
+        boolean conditionalTrue = c ? b : c;
+        boolean conditionalFalse = c ? c : b;
         for (int element : list) {}
         return boxed;
     }
