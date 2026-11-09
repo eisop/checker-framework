@@ -1,9 +1,9 @@
 import java.util.List;
 
 // The CFG models the boxing and unboxing conversions of casts (JLS 5.5), of the operands of && and
-// || (JLS 15.23, 15.24), of a return statement (JLS 14.17), and of the element of an enhanced for
-// loop (JLS 14.14.2). Each is a synthetic call of valueOf, or of intValue and the like, on the
-// converted value.
+// || (JLS 15.23, 15.24), of the operands of a conditional expression (JLS 15.25), of a return
+// statement (JLS 14.17), and of the element of an enhanced for loop (JLS 14.14.2). Each is a
+// synthetic call of valueOf, or of intValue and the like, on the converted value.
 public class Test {
     public long test(Integer boxed, Object obj, Boolean b, boolean c, List<Integer> list) {
         int unboxCast = (int) boxed;
@@ -17,6 +17,8 @@ public class Test {
         Long boxLong = (Long) 7L;
         boolean and = b && c;
         boolean or = c || b;
+        boolean conditionalTrue = c ? b : c;
+        boolean conditionalFalse = c ? c : b;
         for (int element : list) {}
         return boxed;
     }
