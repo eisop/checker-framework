@@ -1202,6 +1202,22 @@ public abstract class CFAbstractTransfer<
     public TransferResult<V, S> visitMethodInvocation(
             MethodInvocationNode n, TransferInput<V, S> in) {
 
+        if (in.containsTwoStores() && isSyntheticBooleanConversion(n)) {
+            // The CFG boxes a boolean with Boolean.valueOf and unboxes a Boolean with booleanValue
+            // (see CFGTranslationPhaseOne.box and unbox). The conversion keeps the truth of the
+            // value, so the stores for the operand being true and false are the stores for the
+            // result being true and false. Keeping them makes a conditional postcondition on a
+            // method that returns Boolean work: at its `return cond;`, which boxes cond, and at a
+            // call `if (m())`, which unboxes the result. Both methods are side-effect-free, so the
+            // stores need no update.
+            ExpressionTree invocationTree = n.getTree();
+            V resValue = invocationTree == null ? null : getValueFromFactory(invocationTree, n);
+            S thenStore = in.getThenStore();
+            S elseStore = in.getElseStore();
+            return new ConditionalTransferResult<>(
+                    finishValue(resValue, thenStore, elseStore), thenStore, elseStore);
+        }
+
         S store = in.getRegularStore();
         ExecutableElement method = n.getTarget().getMethod();
 
@@ -1241,6 +1257,24 @@ public abstract class CFAbstractTransfer<
         } else {
             return new RegularTransferResult<>(finishValue(resValue, store), store);
         }
+    }
+
+    /**
+     * Returns true if {@code n} is a call that the CFG synthesized to box a {@code boolean} or to
+     * unbox a {@code Boolean}: {@code Boolean.valueOf(boolean)} or {@code Boolean.booleanValue()}.
+     *
+     * @param n a method invocation node
+     * @return true if {@code n} boxes a {@code boolean} or unboxes a {@code Boolean}
+     */
+    private boolean isSyntheticBooleanConversion(MethodInvocationNode n) {
+        if (n.getInSource()) {
+            return false;
+        }
+        ExecutableElement method = n.getTarget().getMethod();
+        TypeElement owner = ElementUtils.enclosingTypeElement(method);
+        return owner != null
+                && owner.getQualifiedName().contentEquals("java.lang.Boolean")
+                && TypesUtils.isBooleanType(method.getReturnType());
     }
 
     @Override

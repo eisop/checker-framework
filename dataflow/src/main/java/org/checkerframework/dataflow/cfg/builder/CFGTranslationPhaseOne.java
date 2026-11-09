@@ -58,6 +58,9 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.Types.FunctionDescriptorLookupError;
+import com.sun.tools.javac.processing.JavacProcessingEnvironment;
+import com.sun.tools.javac.util.Context;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -293,6 +296,14 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     private SwitchBuilder switchBuilder;
 
     /**
+     * The type to which the value of a {@code return} statement, or the body of an expression
+     * lambda, is converted (JLS 14.17, 15.27.3): the return type of the method or of the lambda's
+     * function type. Null if the body being translated returns no value: a constructor, a {@code
+     * void} method or lambda, or an initializer.
+     */
+    private @Nullable TypeMirror returnType;
+
+    /**
      * Maps from AST {@link Tree}s to sets of {@link Node}s. Every Tree that produces a value will
      * have at least one corresponding Node. Trees that undergo conversions, such as boxing or
      * unboxing, can map to two distinct Nodes. The Node for the pre-conversion value is stored in
@@ -480,6 +491,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
         // Set class variables
         this.path = bodyPath;
+        this.returnType = returnTypeOf(underlyingAST);
 
         // Traverse AST of the method body.
         try { // "finally" clause is "this.path = null"
@@ -491,6 +503,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 LambdaExpressionTree lambdaTree =
                         ((UnderlyingAST.CFGLambda) underlyingAST).getLambdaTree();
                 if (lambdaTree.getBodyKind() == LambdaExpressionTree.BodyKind.EXPRESSION) {
+                    if (returnType != null) {
+                        // The body is converted to the function type's return type as in an
+                        // assignment (JLS 15.27.3), for example unboxed in `IntSupplier s = () ->
+                        // boxed`.
+                        finalNode = assignConvert(finalNode, returnType);
+                    }
                     Node resultNode =
                             new LambdaResultExpressionNode(
                                     (ExpressionTree) lambdaTree.getBody(), finalNode);
@@ -543,6 +561,43 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         TreePath bodyPath = trees.getPath(root, underlyingAST.getCode());
         assert bodyPath != null;
         return process(bodyPath, underlyingAST);
+    }
+
+    /**
+     * Returns the type to which a value returned from {@code underlyingAST} is converted: the
+     * declared return type of a method, or the return type of a lambda's function type (JLS
+     * 15.27.3). Returns null if no value is returned: for a constructor, a {@code void} method or
+     * lambda, or an initializer.
+     *
+     * @param underlyingAST the AST for which the CFG is built
+     * @return the type that a returned value is converted to, or null
+     */
+    private @Nullable TypeMirror returnTypeOf(UnderlyingAST underlyingAST) {
+        TypeMirror type;
+        switch (underlyingAST.getKind()) {
+            case METHOD:
+                MethodTree method = ((UnderlyingAST.CFGMethod) underlyingAST).getMethod();
+                type = TreeUtils.elementFromDeclaration(method).getReturnType();
+                break;
+            case LAMBDA:
+                LambdaExpressionTree lambda =
+                        ((UnderlyingAST.CFGLambda) underlyingAST).getLambdaTree();
+                Context context = ((JavacProcessingEnvironment) env).getContext();
+                try {
+                    // The function type of the lambda's target type, with the target type's type
+                    // arguments substituted: `Integer` for `Supplier<Integer>`.
+                    type =
+                            com.sun.tools.javac.code.Types.instance(context)
+                                    .findDescriptorType((Type) TreeUtils.typeOf(lambda))
+                                    .getReturnType();
+                } catch (FunctionDescriptorLookupError e) {
+                    return null;
+                }
+                break;
+            default:
+                return null;
+        }
+        return type.getKind() == TypeKind.VOID ? null : type;
     }
 
     /**
@@ -710,6 +765,19 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         if (tree == null) {
             return;
         }
+        addToLookupMap(tree, node);
+    }
+
+    /**
+     * Add a node to the lookup map as a node for {@code tree}, which need not be the node's own
+     * tree. For example, a cast to a primitive type is translated to the nodes of an unboxing
+     * conversion, whose trees are artificial; the node of the converted value is the node for the
+     * cast tree.
+     *
+     * @param tree the tree
+     * @param node a node whose value is the value of {@code tree}
+     */
+    protected void addToLookupMap(Tree tree, Node node) {
         Set<Node> existing = treeToCfgNodes.get(tree);
         if (existing == null) {
             Set<Node> newSet = new IdentityArraySet<Node>(1);
@@ -1311,7 +1379,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
         boolean isRightNumeric = TypesUtils.isNumeric(nodeType);
         boolean isRightPrimitive = TypesUtils.isPrimitive(nodeType);
-        boolean isRightBoxed = TypesUtils.isBoxedPrimitive(nodeType);
+        // A type variable with a boxed bound is unboxed through the bound, as `unbox` does.
+        boolean isRightBoxed =
+                TypesUtils.isBoxedPrimitive(TypesUtils.boxedPrimitiveBound(nodeType));
         boolean isRightReference = nodeType instanceof ReferenceType;
         boolean isLeftNumeric = TypesUtils.isNumeric(varType);
         boolean isLeftPrimitive = TypesUtils.isPrimitive(varType);
@@ -1586,8 +1656,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
         // If the operand is byte or Byte and the whole expression is
         // short, then convert to short.
-        boolean isBoxedPrimitive = TypesUtils.isBoxedPrimitive(nodeType);
-        TypeMirror unboxedNodeType = isBoxedPrimitive ? types.unboxedType(nodeType) : nodeType;
+        TypeMirror boxedNodeType = TypesUtils.boxedPrimitiveBound(nodeType);
+        boolean isBoxedPrimitive = TypesUtils.isBoxedPrimitive(boxedNodeType);
+        TypeMirror unboxedNodeType = isBoxedPrimitive ? types.unboxedType(boxedNodeType) : nodeType;
         TypeMirror unboxedDestType =
                 TypesUtils.isBoxedPrimitive(destType) ? types.unboxedType(destType) : destType;
         if (TypesUtils.isNumeric(unboxedNodeType) && TypesUtils.isNumeric(unboxedDestType)) {
@@ -2452,7 +2523,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     Label shortCircuitLabel = new Label();
 
                     // left-hand side
-                    Node left = scan(leftTree, p);
+                    // Both operands have type boolean or Boolean (JLS 15.23, 15.24), and a Boolean
+                    // operand is unboxed.
+                    Node left = unbox(scan(leftTree, p));
 
                     ConditionalJump cjump;
                     if (kind == Tree.Kind.CONDITIONAL_AND) {
@@ -2466,7 +2539,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
                     // right-hand side
                     addLabelForNextNode(rightStartLabel);
-                    Node right = scan(rightTree, p);
+                    Node right = unbox(scan(rightTree, p));
 
                     // conditional expression itself
                     addLabelForNextNode(shortCircuitLabel);
@@ -2832,7 +2905,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             switchExprVarUseNode.setInSource(false);
             extendWithNode(switchExprVarUseNode);
 
-            Node resultExprNode = scan(resultExpression, null);
+            // The result is converted to the type of the switch expression as in an assignment
+            // (JLS 15.28.1), for example unboxed in `int x = switch (k) { default -> boxed; }`.
+            Node resultExprNode =
+                    assignConvert(scan(resultExpression, null), TreeUtils.typeOf(switchTree));
 
             AssignmentTree assign =
                     treeBuilder.buildAssignment(switchExprVarUseTree, resultExpression);
@@ -3702,6 +3778,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         ReturnNode result = null;
         if (ret != null) {
             Node node = scan(ret, p);
+            if (returnType != null) {
+                // The value is converted to the return type as in an assignment (JLS 14.17), for
+                // example unboxed in `int m() { return boxed; }`.
+                node = assignConvert(node, returnType);
+            }
             result = new ReturnNode(tree, node, env.getTypeUtils());
             returnNodes.add(result);
             extendWithNode(result);
@@ -4281,10 +4362,44 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     @Override
     public Node visitTypeCast(TypeCastTree tree, Void p) {
+        // see JLS 5.5
         Node operand = scan(tree.getExpression(), p);
         TypeMirror type = TreeUtils.typeOf(tree.getType());
-        Node node = new TypeCastNode(tree, operand, type, types);
+        TypeMirror operandType = operand.getType();
+        boolean toPrimitive = TypesUtils.isPrimitive(type);
+        boolean fromPrimitive = TypesUtils.isPrimitive(operandType);
 
+        if (toPrimitive && !fromPrimitive) {
+            // A cast from a reference type to a primitive type is an unboxing conversion. It is
+            // preceded by a narrowing reference conversion to the boxed type if the operand is not
+            // already of that type, as in `(int) obj`, and followed by a widening primitive
+            // conversion if the primitive types differ, as in `(long) integer`.
+            Node toUnbox = operand;
+            if (!TypesUtils.isBoxedPrimitive(TypesUtils.boxedPrimitiveBound(operandType))) {
+                PrimitiveType primitive = types.getPrimitiveType(type.getKind());
+                TypeMirror boxedType = types.getDeclaredType(types.boxedClass(primitive));
+                TypeCastTree castToBoxed =
+                        treeBuilder.buildTypeCast(boxedType, tree.getExpression());
+                handleArtificialTree(castToBoxed);
+                toUnbox = new TypeCastNode(castToBoxed, operand, boxedType, types);
+                toUnbox.setInSource(false);
+                extendWithNodeWithException(toUnbox, classCastExceptionType);
+            }
+            Node result = widen(unbox(toUnbox), type);
+            // The cast has the value of the conversion.
+            addToLookupMap(tree, result);
+            return result;
+        }
+
+        if (fromPrimitive && !toPrimitive) {
+            // A cast from a primitive type to a reference type is a boxing conversion, followed by
+            // a widening reference conversion, as in `(Object) 5`. It cannot fail.
+            Node node = new TypeCastNode(tree, box(operand), type, types);
+            extendWithNode(node);
+            return node;
+        }
+
+        Node node = new TypeCastNode(tree, operand, type, types);
         extendWithNodeWithException(node, classCastExceptionType);
         return node;
     }

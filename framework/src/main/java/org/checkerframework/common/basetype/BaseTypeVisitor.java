@@ -1899,6 +1899,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             ReturnNode returnStmt = pair.first;
 
             Node retValNode = returnStmt.getResult();
+            if (retValNode instanceof MethodInvocationNode && !retValNode.getInSource()) {
+                // A method that returns Boolean boxes the returned value with a synthetic
+                // Boolean.valueOf call; look through it to a literal `true` or `false`.
+                List<Node> arguments = ((MethodInvocationNode) retValNode).getArguments();
+                if (arguments.size() == 1) {
+                    retValNode = arguments.get(0);
+                }
+            }
             Boolean retVal =
                     retValNode instanceof BooleanLiteralNode
                             ? ((BooleanLiteralNode) retValNode).getValue()

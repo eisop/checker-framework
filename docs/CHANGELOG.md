@@ -118,6 +118,14 @@ Type-checking and subtyping improvements:
 - CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
   try-with-resources) are now type-checked, with diagnostics pointing at the
   source construct.
+- The CFG models every boxing and unboxing conversion: the operands of `&&`
+  and `||`, the value of a `return` statement, the result of a lambda body and
+  of a switch expression, and a cast to or from a primitive type (JLS 5.5) are
+  converted as in an assignment, also when the operand's type is a type
+  variable with a boxed bound. A boxed value is therefore refined (for example
+  to non-null) after it is implicitly unboxed, and a conditional postcondition
+  on a method that returns `Boolean` holds across the boxing of its condition
+  and the unboxing at a call.
 - Repeated `@RequiresNonEmpty` annotations on one method are now enforced:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
