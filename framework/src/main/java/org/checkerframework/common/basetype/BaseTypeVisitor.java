@@ -4737,7 +4737,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @return a copy of methodReceiver with adjustments made, or the original methodReceiver if no
      *     changes were made
      */
-    protected AnnotatedDeclaredType adjustMethodReceiver(
+    private AnnotatedDeclaredType adjustMethodReceiver(
             MethodInvocationTree tree,
             AnnotatedDeclaredType methodReceiver,
             AnnotatedTypeMirror treeReceiver) {

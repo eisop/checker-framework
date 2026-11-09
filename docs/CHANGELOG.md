@@ -540,8 +540,7 @@ Other improvements and bug fixes:
 - `AnnotationFileParser` fixes: wildcard imports, nested declarations, `--release 8`
   wildcards, type-parameter mismatches, fake override scoping.
 - Extracted overridable hooks: `checkCapturedWildcardBounds`,
-  `shouldCheckTypeArgument`, `reportTypeArgumentInferenceFailure`,
-  `shouldStripInvalidLocationQualifiers`.
+  `shouldCheckTypeArgument`, `reportTypeArgumentInferenceFailure`.
 - Type argument inference:
   - No longer adds an upper bound as an extra lower bound (JLS 18.2.3),
     instantiates to requalified copies, and displays captured type variables
