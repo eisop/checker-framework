@@ -126,6 +126,9 @@ Type-checking and subtyping improvements:
   to non-null) after it is implicitly unboxed, and a conditional postcondition
   on a method that returns `Boolean` holds across the boxing of its condition
   and the unboxing at a call.
+- The CFG no longer unboxes the selector of a switch with a `case null` label,
+  which does not unbox a null selector. The Nullness Checker therefore no longer
+  refines a boxed selector to non-null inside `case null`.
 - In the CFG of an enhanced `for` loop over an `Iterable`, the synthetic
   `iterator()` and `next()` calls have the iterable's element type instead of
   the declared type variable of `Iterable`. A primitive loop variable is
