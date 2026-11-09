@@ -677,7 +677,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      *     {@link NewClassTree} (the instantiated type), matching what {@link
      *     #extractParameterizedTypeTree} accepts
      */
-    protected void validateEnclosingTypeArgs(AnnotatedDeclaredType type, Tree tree) {
+    private void validateEnclosingTypeArgs(AnnotatedDeclaredType type, Tree tree) {
         if (type.getEnclosingType() == null) {
             return;
         }
@@ -911,7 +911,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @param capturedType {@code type} after capture conversion
      * @param tree the tree for {@code type}
      */
-    protected void checkExplicitSuperBoundWildcards(
+    private void checkExplicitSuperBoundWildcards(
             AnnotatedDeclaredType type,
             AnnotatedDeclaredType capturedType,
             ParameterizedTypeTree tree) {
