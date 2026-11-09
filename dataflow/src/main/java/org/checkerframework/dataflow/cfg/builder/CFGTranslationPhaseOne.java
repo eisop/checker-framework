@@ -3266,7 +3266,19 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             nextCallNode.setInSource(false);
             extendWithMethodInvocationNode(TreeUtils.elementFromUse(nextCall), nextCallNode);
 
-            translateAssignment(variable, new LocalVariableNode(variable), nextCallNode);
+            AssignmentNode assignNode =
+                    translateAssignment(variable, new LocalVariableNode(variable), nextCallNode);
+            // If the loop variable is a primitive, the element is unboxed and possibly widened.
+            // The unboxing gets its value from the iterable expression, as next() does.
+            Node assignedExpr = assignNode.getExpression();
+            if (assignedExpr instanceof WideningConversionNode) {
+                assignedExpr = ((WideningConversionNode) assignedExpr).getOperand();
+            }
+            if (assignedExpr instanceof MethodInvocationNode) {
+                MethodInvocationNode unboxingNode = (MethodInvocationNode) assignedExpr;
+                unboxingNode.setIterableExpression(expression);
+                unboxingNode.setEnhancedForLoop(tree);
+            }
 
             assert statement != null;
             scan(statement, p);
@@ -3368,12 +3380,16 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // translateAssignment() scans variable and creates new nodes, so set the expression
             // there, too.
             Node arrayAccessAssignNodeExpr = arrayAccessAssignNode.getExpression();
+            if (arrayAccessAssignNodeExpr instanceof WideningConversionNode) {
+                arrayAccessAssignNodeExpr =
+                        ((WideningConversionNode) arrayAccessAssignNodeExpr).getOperand();
+            }
             if (arrayAccessAssignNodeExpr instanceof ArrayAccessNode) {
                 ((ArrayAccessNode) arrayAccessAssignNodeExpr).setArrayExpression(expression);
                 ((ArrayAccessNode) arrayAccessAssignNodeExpr).setEnhancedForLoop(tree);
             } else if (arrayAccessAssignNodeExpr instanceof MethodInvocationNode) {
                 // If the array component type is a primitive, there may be a boxing or unboxing
-                // conversion. Treat that as an iterator.
+                // conversion, possibly widened. Treat that as an iterator.
                 MethodInvocationNode boxingNode = (MethodInvocationNode) arrayAccessAssignNodeExpr;
                 boxingNode.setIterableExpression(expression);
                 boxingNode.setEnhancedForLoop(tree);
