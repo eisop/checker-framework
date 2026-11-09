@@ -137,6 +137,12 @@ Type-checking and subtyping improvements:
   its qualifiers when it is unboxed and widened, as in `for (long x : array)`.
 - The CFG unboxes a `Boolean` operand of a conditional expression whose type
   is `boolean`, as in `c ? b : false`.
+- The Nullness Checker reports the unboxing of a possibly-null value, and the
+  iteration over a possibly-null `Iterable`, by checking the synthetic method
+  invocations of the CFG instead of a list of syntactic contexts. The error
+  keys are unchanged. The message for a condition or a switch selector names
+  the expression without the parentheses of the statement, `b` instead of
+  `(b)`.
 - Repeated `@RequiresNonEmpty` annotations on one method are now enforced:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
