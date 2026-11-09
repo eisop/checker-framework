@@ -2772,7 +2772,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             selectorVarUseNode.setInSource(false);
             extendWithNode(selectorVarUseNode);
 
-            Node selectorExprNode = unbox(scan(selectorExprTree, null));
+            Node selectorExprNode = scan(selectorExprTree, null);
+            // A boxed selector is unboxed (JLS 14.11.1), but not if the switch has a `case null`:
+            // then a null selector matches that case, and only a non-null one is unboxed.
+            if (!TreeUtils.hasNullCaseLabel(switchTree)) {
+                selectorExprNode = unbox(selectorExprNode);
+            }
 
             AssignmentTree assign =
                     treeBuilder.buildAssignment(selectorVarUseTree, selectorExprTree);
