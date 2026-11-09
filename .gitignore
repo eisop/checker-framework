@@ -220,6 +220,8 @@ dataflow/tests/live-variable/Out.txt
 dataflow/tests/live-variable/*.class
 dataflow/tests/reachingdef/Out.txt
 dataflow/tests/reachingdef/*.class
+dataflow/tests/unboxing/Out.txt
+dataflow/tests/unboxing/*.class
 dataflow/tests/java22/unnamed-pattern/Out.txt
 dataflow/tests/java22/unnamed-pattern/*.class
 

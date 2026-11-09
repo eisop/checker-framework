@@ -56,6 +56,7 @@ import org.checkerframework.dataflow.cfg.node.BooleanLiteralNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
+import org.checkerframework.dataflow.cfg.node.TypeCastNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.JavaExpressionScanner;
@@ -1899,6 +1900,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             ReturnNode returnStmt = pair.first;
 
             Node retValNode = returnStmt.getResult();
+            if (retValNode instanceof MethodInvocationNode && !retValNode.getInSource()) {
+                // A method that returns Boolean boxes the returned value with a synthetic
+                // Boolean.valueOf call; look through it to a literal `true` or `false`.
+                List<Node> arguments = ((MethodInvocationNode) retValNode).getArguments();
+                if (arguments.size() == 1) {
+                    retValNode = arguments.get(0);
+                }
+            }
             Boolean retVal =
                     retValNode instanceof BooleanLiteralNode
                             ? ((BooleanLiteralNode) retValNode).getValue()
@@ -2278,12 +2287,21 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedExecutableType invokedMethod = atypeFactory.methodFromUse(tree).executableType;
         ExecutableElement method = invokedMethod.getElement();
         // The argument trees of a synthetic invocation are the source expressions being
-        // converted, so their types are already the refined ones.
-        checkArguments(
-                invokedMethod.getParameterTypes(),
-                tree.getArguments(),
-                ElementUtils.getSimpleDescription(method),
-                method.getParameters());
+        // converted, so their types are already the refined ones.  Unlike checkArguments, do not
+        // scan the arguments: the visitor scans them as part of the AST, and here it is not
+        // positioned inside the method, so a visit from here would see a tree path without the
+        // argument's enclosing statements (InterningVisitor's heuristics walk that path).
+        List<AnnotatedTypeMirror> parameterTypes = invokedMethod.getParameterTypes();
+        List<? extends ExpressionTree> arguments = tree.getArguments();
+        int numArguments = Math.min(parameterTypes.size(), arguments.size());
+        for (int i = 0; i < numArguments; i++) {
+            commonAssignmentCheck(
+                    parameterTypes.get(i),
+                    arguments.get(i),
+                    "argument.type.incompatible",
+                    method.getParameters().get(i),
+                    ElementUtils.getSimpleDescription(method));
+        }
 
         // Report a receiver error only if the call is rejected under both the type that the tree
         // gives and the type that dataflow gives.  For a local or a resource variable the tree
@@ -3250,10 +3268,38 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         // Don't call TypeHierarchy#isSubtype(exprType, castType) because the underlying Java types
         // will not be in the correct subtyping relationship if this is a downcast.
-        if (!reported && !isTypeCastSafe(castType, exprType)) {
+        if (!reported
+                && !isTypeCastSafe(castType, exprType)
+                && !isBoxingCastSafeForBoxedValue(typeCastTree, castType, exprType)) {
             checker.reportWarning(
                     typeCastTree, "cast.unsafe", exprType.toString(true), castType.toString(true));
         }
+    }
+
+    /**
+     * Returns true if {@code typeCastTree} casts a primitive value to a reference type and the cast
+     * is safe for the boxed value. Such a cast boxes the value (JLS 5.5): the CFG translates it to
+     * a synthetic {@code valueOf} call, the operand of the cast's {@code TypeCastNode}, and the
+     * cast can take its qualifiers from that call's result, which may differ from the primitive's.
+     *
+     * @param typeCastTree a type cast
+     * @param castType the annotated type of the cast
+     * @param exprType the annotated type of the cast expression
+     * @return true if the cast boxes a primitive value and is safe for the boxed value
+     */
+    private boolean isBoxingCastSafeForBoxedValue(
+            TypeCastTree typeCastTree, AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+        if (!exprType.getKind().isPrimitive() || castType.getKind().isPrimitive()) {
+            return false;
+        }
+        TypeCastNode castNode =
+                atypeFactory.getFirstNodeOfKindForTree(typeCastTree, TypeCastNode.class);
+        if (castNode == null) {
+            return false;
+        }
+        AnnotatedTypeMirror boxedType =
+                atypeFactory.getAnnotatedType(castNode.getOperand().getTree());
+        return isTypeCastSafe(castType, boxedType);
     }
 
     /**
