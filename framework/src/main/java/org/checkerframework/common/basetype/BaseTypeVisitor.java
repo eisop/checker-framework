@@ -2278,12 +2278,21 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedExecutableType invokedMethod = atypeFactory.methodFromUse(tree).executableType;
         ExecutableElement method = invokedMethod.getElement();
         // The argument trees of a synthetic invocation are the source expressions being
-        // converted, so their types are already the refined ones.
-        checkArguments(
-                invokedMethod.getParameterTypes(),
-                tree.getArguments(),
-                ElementUtils.getSimpleDescription(method),
-                method.getParameters());
+        // converted, so their types are already the refined ones.  Unlike checkArguments, do not
+        // scan the arguments: the visitor scans them as part of the AST, and here it is not
+        // positioned inside the method, so a visit from here would see a tree path without the
+        // argument's enclosing statements (InterningVisitor's heuristics walk that path).
+        List<AnnotatedTypeMirror> parameterTypes = invokedMethod.getParameterTypes();
+        List<? extends ExpressionTree> arguments = tree.getArguments();
+        int numArguments = Math.min(parameterTypes.size(), arguments.size());
+        for (int i = 0; i < numArguments; i++) {
+            commonAssignmentCheck(
+                    parameterTypes.get(i),
+                    arguments.get(i),
+                    "argument.type.incompatible",
+                    method.getParameters().get(i),
+                    ElementUtils.getSimpleDescription(method));
+        }
 
         // Report a receiver error only if the call is rejected under both the type that the tree
         // gives and the type that dataflow gives.  For a local or a resource variable the tree
