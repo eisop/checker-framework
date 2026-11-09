@@ -125,7 +125,10 @@ public class TreeBuilder {
         // Find the iterator() method of the Iterable type.
         Symbol.MethodSymbol iteratorMethod = findMethodByName(exprElement, iteratorName);
 
-        Type.MethodType methodType = (Type.MethodType) iteratorMethod.asType();
+        // The type of iterator() as a member of the expression's type, so that the iterator's type
+        // argument is the expression's element type rather than the declared type variable.
+        Type.MethodType methodType =
+                (Type.MethodType) javacTypes.memberType((Type) exprType, iteratorMethod);
         Symbol.TypeSymbol methodClass = methodType.asElement();
         DeclaredType iteratorType = (DeclaredType) methodType.getReturnType();
         iteratorType =
