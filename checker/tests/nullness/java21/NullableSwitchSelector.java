@@ -39,4 +39,40 @@ public class NullableSwitchSelector {
             case null, default -> obj.toString();
         };
     }
+
+    // A switch with `case null` does not unbox a null selector, so the selector is not refined to
+    // non-null by an unboxing.
+
+    static String boxedSelectorCaseNull(@Nullable Integer i) {
+        switch (i) {
+            case null -> {
+                // :: error: (dereference.of.nullable)
+                return i.toString();
+            }
+            default -> {
+                return "x";
+            }
+        }
+    }
+
+    static int boxedSelectorCaseNullConstants(@Nullable Integer i) {
+        return switch (i) {
+            // :: error: (dereference.of.nullable)
+            case null -> i.hashCode();
+            case 1 -> i.hashCode();
+            default -> 2;
+        };
+    }
+
+    static String boxedSelectorWithoutCaseNull(@Nullable Integer i) {
+        // :: error: (switching.nullable)
+        switch (i) {
+            case 1 -> {
+                return i.toString();
+            }
+            default -> {
+                return "x";
+            }
+        }
+    }
 }
