@@ -380,6 +380,14 @@ array type.
 
 ### Implementation details
 
+The validation of qualifier target locations moved from `BaseTypeVisitor` to `BaseTypeValidator`.
+`BaseTypeVisitor#validateTargetLocation` and `#validateVariablesTargetLocation` are now
+`BaseTypeValidator#validateTargetLocation` and `#validateVariableTargetLocation`, with the type
+before the tree; `BaseTypeValidator#validateWildCardTargetLocation` is renamed
+`validateWildcardTargetLocations`; and the fields `qualAllowedLocations` and
+`ignoreTargetLocations` moved to `BaseTypeValidator`. `BaseTypeVisitor#createQualAllowedLocations`
+is removed.
+
 New `SystemUtil.splitPaths(String)` splits a list of paths on the platform's path separator.
 Deprecated `SystemUtil.COLON_SPLITTER`.
 
