@@ -67,31 +67,53 @@
 50 -> 54 ELSE_TO_BOTH
 59 -> 60 EACH_TO_EACH
 54 -> 55 EACH_TO_EACH
-60 -> 61 EACH_TO_EACH
+60 -> 64 THEN_TO_BOTH
+60 -> 70 ELSE_TO_BOTH
 55 -> 57 EACH_TO_EACH
 55 -> 1 NullPointerException
-61 -> 65 THEN_TO_BOTH
-61 -> 74 ELSE_TO_BOTH
+64 -> 65 EACH_TO_EACH
+70 -> 72 EACH_TO_EACH
 57 -> 59 EACH_TO_EACH
 57 -> 1 RuntimeException
 57 -> 1 Error
-65 -> 66 EACH_TO_EACH
-74 -> 75 EACH_TO_EACH
-66 -> 68 EACH_TO_EACH
-66 -> 1 RuntimeException
-66 -> 1 Error
-75 -> 77 EACH_TO_EACH
-75 -> 1 NullPointerException
-68 -> 70 EACH_TO_EACH
-68 -> 1 NullPointerException
-77 -> 78 EACH_TO_EACH
-77 -> 1 RuntimeException
-77 -> 1 Error
-70 -> 71 EACH_TO_EACH
-70 -> 1 RuntimeException
-70 -> 1 Error
-78 -> 0 EACH_TO_EACH
-71 -> 60 EACH_TO_EACH
+65 -> 67 EACH_TO_EACH
+65 -> 1 NullPointerException
+72 -> 73 EACH_TO_EACH
+67 -> 68 EACH_TO_EACH
+67 -> 1 RuntimeException
+67 -> 1 Error
+73 -> 77 THEN_TO_BOTH
+73 -> 79 ELSE_TO_BOTH
+68 -> 72 EACH_TO_EACH
+77 -> 85 EACH_TO_EACH
+79 -> 80 EACH_TO_EACH
+85 -> 86 EACH_TO_EACH
+80 -> 82 EACH_TO_EACH
+80 -> 1 NullPointerException
+86 -> 87 EACH_TO_EACH
+82 -> 83 EACH_TO_EACH
+82 -> 1 RuntimeException
+82 -> 1 Error
+87 -> 91 THEN_TO_BOTH
+87 -> 100 ELSE_TO_BOTH
+83 -> 85 EACH_TO_EACH
+91 -> 92 EACH_TO_EACH
+100 -> 101 EACH_TO_EACH
+92 -> 94 EACH_TO_EACH
+92 -> 1 RuntimeException
+92 -> 1 Error
+101 -> 103 EACH_TO_EACH
+101 -> 1 NullPointerException
+94 -> 96 EACH_TO_EACH
+94 -> 1 NullPointerException
+103 -> 104 EACH_TO_EACH
+103 -> 1 RuntimeException
+103 -> 1 Error
+96 -> 97 EACH_TO_EACH
+96 -> 1 RuntimeException
+96 -> 1 Error
+104 -> 0 EACH_TO_EACH
+97 -> 86 EACH_TO_EACH
 
 2:
 Process order: 1
@@ -132,9 +154,9 @@ AnalysisResult#0
 After:   reaching definitions = none
 
 1:
-Process order: 53
-TransferInput#206
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+Process order: 67
+TransferInput#260
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 ~~~~~~~~~
 <exceptional-exit>
 
@@ -483,14 +505,12 @@ else=  reaching definitions = { unboxCast = boxed.intValue(), widenCast = Wideni
 ~~~~~~~~~
 (c || b.booleanValue())   [ ConditionalOr ]
 or = (c || b.booleanValue())   [ Assignment ]
-iter#num0   [ VariableDeclaration ]
-list   [ LocalVariable ]
-list.iterator   [ MethodAccess ]
-list.iterator()   [ MethodInvocation ]
-iter#num0 = list.iterator()   [ Assignment ]
+conditionalTrue   [ VariableDeclaration ]
+condExpr#num0   [ VariableDeclaration ]
+c   [ LocalVariable ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator() }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 
 54:
 Process order: 37
@@ -504,15 +524,10 @@ After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = Wide
 
 60:
 Process order: 41
-TransferInput#189
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+TransferInput#161
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 ~~~~~~~~~
-iter#num0   [ LocalVariable ]
-iter#num0.hasNext   [ MethodAccess ]
-iter#num0.hasNext()   [ MethodInvocation ]
-~~~~~~~~~
-AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+ConditionalBlock: then: 64, else: 70
 
 55:
 Process order: 38
@@ -524,12 +539,26 @@ b.booleanValue   [ MethodAccess ]
 AnalysisResult#0
 After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c) }
 
-61:
+64:
 Process order: 42
-TransferInput#194
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+TransferInput#163
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 ~~~~~~~~~
-ConditionalBlock: then: 65, else: 74
+b   [ LocalVariable ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+
+70:
+Process order: 46
+TransferInput#164
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+~~~~~~~~~
+c   [ LocalVariable ]
+condExpr#num0 = c (synthetic)   [ Assignment ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic) }
 
 57:
 Process order: 39
@@ -543,100 +572,237 @@ After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = Wide
 
 65:
 Process order: 43
-TransferInput#196
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+TransferInput#167
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 ~~~~~~~~~
-element   [ VariableDeclaration ]
-iter#num0   [ LocalVariable ]
-iter#num0.next   [ MethodAccess ]
+b.booleanValue   [ MethodAccess ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
 
-74:
+72:
+Process order: 47
+TransferInput#181
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic) }
+~~~~~~~~~
+(c ? b.booleanValue() : c)   [ TernaryExpression ]
+conditionalTrue = (c ? b.booleanValue() : c)   [ Assignment ]
+conditionalFalse   [ VariableDeclaration ]
+condExpr#num1   [ VariableDeclaration ]
+c   [ LocalVariable ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c) }
+
+67:
+Process order: 44
+TransferInput#170
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+~~~~~~~~~
+b.booleanValue()   [ MethodInvocation ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+
+73:
 Process order: 48
-TransferInput#197
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+TransferInput#188
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c) }
+~~~~~~~~~
+ConditionalBlock: then: 77, else: 79
+
+68:
+Process order: 45
+TransferInput#174
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()) }
+~~~~~~~~~
+condExpr#num0 = b.booleanValue() (synthetic)   [ Assignment ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = b.booleanValue() (synthetic) }
+
+77:
+Process order: 49
+TransferInput#190
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c) }
+~~~~~~~~~
+c   [ LocalVariable ]
+condExpr#num1 = c (synthetic)   [ Assignment ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = c (synthetic) }
+
+79:
+Process order: 50
+TransferInput#191
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c) }
+~~~~~~~~~
+b   [ LocalVariable ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c) }
+
+85:
+Process order: 54
+TransferInput#208
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic) }
+~~~~~~~~~
+(c ? c : b.booleanValue())   [ TernaryExpression ]
+conditionalFalse = (c ? c : b.booleanValue())   [ Assignment ]
+iter#num2   [ VariableDeclaration ]
+list   [ LocalVariable ]
+list.iterator   [ MethodAccess ]
+list.iterator()   [ MethodInvocation ]
+iter#num2 = list.iterator()   [ Assignment ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator() }
+
+80:
+Process order: 51
+TransferInput#198
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c) }
+~~~~~~~~~
+b.booleanValue   [ MethodAccess ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c) }
+
+86:
+Process order: 55
+TransferInput#243
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
+~~~~~~~~~
+iter#num2   [ LocalVariable ]
+iter#num2.hasNext   [ MethodAccess ]
+iter#num2.hasNext()   [ MethodInvocation ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
+
+82:
+Process order: 52
+TransferInput#201
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c) }
+~~~~~~~~~
+b.booleanValue()   [ MethodInvocation ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c) }
+
+87:
+Process order: 56
+TransferInput#248
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
+~~~~~~~~~
+ConditionalBlock: then: 91, else: 100
+
+83:
+Process order: 53
+TransferInput#205
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c) }
+~~~~~~~~~
+condExpr#num1 = b.booleanValue() (synthetic)   [ Assignment ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic) }
+
+91:
+Process order: 57
+TransferInput#250
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
+~~~~~~~~~
+element   [ VariableDeclaration ]
+iter#num2   [ LocalVariable ]
+iter#num2.next   [ MethodAccess ]
+~~~~~~~~~
+AnalysisResult#0
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
+
+100:
+Process order: 62
+TransferInput#251
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 ~~~~~~~~~
 boxed   [ LocalVariable ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 
-66:
-Process order: 44
-TransferInput#202
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+92:
+Process order: 58
+TransferInput#256
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 ~~~~~~~~~
-iter#num0.next()   [ MethodInvocation ]
+iter#num2.next()   [ MethodInvocation ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 
-75:
-Process order: 49
-TransferInput#217
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+101:
+Process order: 63
+TransferInput#271
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 ~~~~~~~~~
 boxed.intValue   [ MethodAccess ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 
-68:
-Process order: 45
-TransferInput#205
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+94:
+Process order: 59
+TransferInput#259
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 ~~~~~~~~~
-iter#num0.next().intValue   [ MethodAccess ]
+iter#num2.next().intValue   [ MethodAccess ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 
-77:
-Process order: 50
-TransferInput#220
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+103:
+Process order: 64
+TransferInput#274
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 ~~~~~~~~~
 boxed.intValue()   [ MethodInvocation ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 
-70:
-Process order: 46
-TransferInput#209
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+96:
+Process order: 60
+TransferInput#263
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 ~~~~~~~~~
-iter#num0.next().intValue()   [ MethodInvocation ]
+iter#num2.next().intValue()   [ MethodInvocation ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 
-78:
-Process order: 51
-TransferInput#223
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+104:
+Process order: 65
+TransferInput#277
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 ~~~~~~~~~
 WideningConversion(boxed.intValue(), long)   [ WideningConversion ]
 return WideningConversion(boxed.intValue(), long)   [ Return ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 
-71:
-Process order: 47
-TransferInput#212
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+97:
+Process order: 61
+TransferInput#266
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 ~~~~~~~~~
-element = iter#num0.next().intValue()   [ Assignment ]
+element = iter#num2.next().intValue()   [ Assignment ]
 ~~~~~~~~~
 AnalysisResult#0
-After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+After:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 
 0:
-Process order: 52
-TransferInput#227
-Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), iter#num0 = list.iterator(), element = iter#num0.next().intValue() }
+Process order: 66
+TransferInput#281
+Before:   reaching definitions = { unboxCast = boxed.intValue(), widenCast = WideningConversion(boxed.intValue(), long), objCast = (java.lang.Integer)obj.intValue(), boxCast = (java.lang.Integer)Integer.valueOf(5), objBox = (java.lang.Object)Integer.valueOf(6), unboxWidenDouble = WideningConversion(boxed.intValue(), double), objCastDouble = (java.lang.Double)obj.doubleValue(), objCastChar = (java.lang.Character)obj.charValue(), boxLong = (java.lang.Long)Long.valueOf(7), and = (b.booleanValue() && c), or = (c || b.booleanValue()), condExpr#num0 = c (synthetic), condExpr#num0 = b.booleanValue() (synthetic), conditionalTrue = (c ? b.booleanValue() : c), condExpr#num1 = b.booleanValue() (synthetic), condExpr#num1 = c (synthetic), conditionalFalse = (c ? c : b.booleanValue()), iter#num2 = list.iterator(), element = iter#num2.next().intValue() }
 ~~~~~~~~~
 <exit>
