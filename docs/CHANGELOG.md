@@ -135,6 +135,8 @@ Type-checking and subtyping improvements:
   therefore assigned the unboxed element, `next().intValue()` for instance,
   which keeps the qualifiers of the element. The element of an array also keeps
   its qualifiers when it is unboxed and widened, as in `for (long x : array)`.
+- The CFG unboxes a `Boolean` operand of a conditional expression whose type
+  is `boolean`, as in `c ? b : false`.
 - Repeated `@RequiresNonEmpty` annotations on one method are now enforced:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.

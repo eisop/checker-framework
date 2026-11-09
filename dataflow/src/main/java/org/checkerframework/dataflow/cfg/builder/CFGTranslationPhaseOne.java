@@ -1686,6 +1686,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             return binaryNumericPromotion(node, destType);
         }
 
+        // If the operand is Boolean and the whole expression is boolean, then apply unboxing.
+        if (isBoxedPrimitive && TypesUtils.isPrimitive(destType)) {
+            return unbox(node);
+        }
+
         // For the final case in JLS 15.25, apply boxing but not lub.
         if (TypesUtils.isPrimitive(nodeType)
                 && (destType.getKind() == TypeKind.DECLARED
