@@ -393,7 +393,8 @@ The validation of qualifier target locations moved from `BaseTypeVisitor` to `Ba
 before the tree; `BaseTypeValidator#validateWildCardTargetLocation` is renamed
 `validateWildcardTargetLocations`; and the fields `qualAllowedLocations` and
 `ignoreTargetLocations` moved to `BaseTypeValidator`. `BaseTypeVisitor#createQualAllowedLocations`
-is removed.
+is removed. The `TypeValidator` interface declares the two validation methods, so an implementation
+that does not extend `BaseTypeValidator` must implement them.
 
 New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
 reachable from the entry block, too.
