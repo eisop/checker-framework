@@ -140,9 +140,10 @@ Type-checking and subtyping improvements:
 - The Nullness Checker reports the unboxing of a possibly-null value, and the
   iteration over a possibly-null `Iterable`, by checking the synthetic method
   invocations of the CFG instead of a list of syntactic contexts. The error
-  keys are unchanged. The message for a condition or a switch selector names
-  the expression without the parentheses of the statement, `b` instead of
-  `(b)`.
+  keys are unchanged. An error names the possibly-null expression without its
+  parentheses, as `b` for `if ((b))`. The unboxing of a conditional expression,
+  as in `(c ? i : k) + 1`, is reported at each possibly-null operand, as it
+  already was for the assignment of a conditional expression.
 - Repeated `@RequiresNonEmpty` annotations on one method are now enforced:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.

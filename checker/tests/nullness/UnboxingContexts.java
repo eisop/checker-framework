@@ -4,7 +4,7 @@ import java.util.Iterator;
 import java.util.List;
 
 // The error key for the unboxing, or the iteration, of a possibly-null value depends on its
-// context. Each method has one error, because dataflow refines the value to non-null after it.
+// context. Each method has one unboxing, because dataflow refines the value to non-null after it.
 public class UnboxingContexts {
     void ifCondition(@Nullable Boolean b) {
         // :: error: (condition.nullable)
@@ -98,6 +98,17 @@ public class UnboxingContexts {
     void castObject(@Nullable Object o) {
         // :: error: (unboxing.of.nullable)
         int j = (int) o;
+    }
+
+    void conditionalOperand(boolean c, @Nullable Integer i, Integer k) {
+        // :: error: (unboxing.of.nullable)
+        int x = c ? k : i;
+    }
+
+    void conditionalOperands(boolean c, @Nullable Integer i, @Nullable Integer k) {
+        // The unboxing of a conditional expression is reported at each possibly-null operand.
+        // :: error: (unboxing.of.nullable) :: error: (unboxing.of.nullable)
+        int x = c ? i : k;
     }
 
     void index(@Nullable Integer i, int[] a, boolean c) {

@@ -1154,7 +1154,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 @CompilerMessageKey String errMsg = isIterator ? ITERATING_NULLABLE : unboxingMessageKey(receiverTree);
                 // The element of an enhanced for loop is the result of a synthetic next() call or
                 // array access; report its unboxing at the loop's expression.
-                ExpressionTree errTree = receiverTree;
+                ExpressionTree errTree = null;
                 if (receiver instanceof MethodInvocationNode
                         && ((MethodInvocationNode) receiver).getIterableExpression() != null) {
                     errTree = ((MethodInvocationNode) receiver).getIterableExpression();
@@ -1166,11 +1166,51 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                     // boxed type; report the operand.
                     errTree = ((TypeCastNode) receiver).getTree().getExpression();
                 }
-                checker.reportError(errTree, errMsg, errTree);
+                if (errTree != null) {
+                    checker.reportError(errTree, errMsg, errTree);
+                } else {
+                    reportPossiblyNull(receiverTree, errMsg);
+                }
                 return;
             }
         }
         super.checkSyntheticMethodInvocation(node, tree);
+    }
+
+    /**
+     * Reports {@code errMsg} for the possibly-null {@code tree}. If {@code tree} is a conditional
+     * expression, reports it at each operand that may be null instead, so that the error points at
+     * the null value.
+     *
+     * @param tree a possibly-null expression
+     * @param errMsg the error key
+     */
+    private void reportPossiblyNull(ExpressionTree tree, @CompilerMessageKey String errMsg) {
+        if (tree instanceof ConditionalExpressionTree) {
+            ConditionalExpressionTree conditional = (ConditionalExpressionTree) tree;
+            boolean reported = reportPossiblyNullOperand(conditional.getTrueExpression(), errMsg);
+            reported |= reportPossiblyNullOperand(conditional.getFalseExpression(), errMsg);
+            if (reported) {
+                return;
+            }
+        }
+        checker.reportError(tree, errMsg, tree);
+    }
+
+    /**
+     * Reports {@code errMsg} for an operand of a conditional expression if the operand may be null.
+     *
+     * @param operand an operand of a conditional expression
+     * @param errMsg the error key
+     * @return true if an error was reported
+     */
+    private boolean reportPossiblyNullOperand(
+            ExpressionTree operand, @CompilerMessageKey String errMsg) {
+        if (atypeFactory.getAnnotatedType(operand).hasEffectiveAnnotation(NONNULL)) {
+            return false;
+        }
+        reportPossiblyNull(TreeUtils.withoutParens(operand), errMsg);
+        return true;
     }
 
     /**
