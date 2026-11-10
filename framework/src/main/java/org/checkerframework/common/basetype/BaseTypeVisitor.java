@@ -139,6 +139,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -2263,8 +2264,31 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 ignoreDeadCode
                         ? cfg.getAllNodes(atypeFactory::isIgnoredExceptionType)
                         : cfg.getAllNodesIncludingUnreachable();
+        // The CFG copies the close() call of a resource for every exit of a try-with-resources,
+        // including an exit that cannot be taken, and the copies share their receiver node.  A
+        // copy in unreachable code has no dataflow store, so its receiver would get the declared
+        // type of the resource variable; skip it if a reachable copy is checked.
+        Set<Node> reachableInvocations = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<Node> reachableReceivers = Collections.newSetFromMap(new IdentityHashMap<>());
+        if (!ignoreDeadCode) {
+            for (Node node : cfg.getAllNodes()) {
+                if (!node.getInSource() && node instanceof MethodInvocationNode) {
+                    reachableInvocations.add(node);
+                    Node receiver = ((MethodInvocationNode) node).getTarget().getReceiver();
+                    if (receiver != null) {
+                        reachableReceivers.add(receiver);
+                    }
+                }
+            }
+        }
         for (Node node : nodes) {
             if (node.getInSource() || !(node instanceof MethodInvocationNode)) {
+                continue;
+            }
+            if (!ignoreDeadCode
+                    && !reachableInvocations.contains(node)
+                    && reachableReceivers.contains(
+                            ((MethodInvocationNode) node).getTarget().getReceiver())) {
                 continue;
             }
             MethodInvocationTree tree = ((MethodInvocationNode) node).getTree();
