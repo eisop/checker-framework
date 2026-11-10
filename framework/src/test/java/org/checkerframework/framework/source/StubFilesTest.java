@@ -71,21 +71,18 @@ public class StubFilesTest {
     /** Parent compound checker. */
     @StubFiles({"parent.astub"})
     public static class ParentStubChecker extends SourceChecker {
-        /** The subcheckers of this checker. */
-        private final List<SourceChecker> subcheckerList;
-
         /**
          * Creates a ParentStubChecker with given subcheckers.
          *
          * @param subcheckers the subcheckers
          */
         public ParentStubChecker(List<SourceChecker> subcheckers) {
-            this.subcheckerList = subcheckers;
+            this.subcheckers = subcheckers;
         }
 
         @Override
         public List<SourceChecker> getSubcheckers() {
-            return subcheckerList;
+            return subcheckers;
         }
 
         @Override
@@ -120,21 +117,18 @@ public class StubFilesTest {
 
     /** Unannotated parent checker extending GrandparentStubChecker. */
     public static class UnannotatedParentStubChecker extends GrandparentStubChecker {
-        /** The subcheckers of this checker. */
-        private final List<SourceChecker> subcheckerList;
-
         /**
          * Creates an UnannotatedParentStubChecker with given subcheckers.
          *
          * @param subcheckers the subcheckers
          */
         public UnannotatedParentStubChecker(List<SourceChecker> subcheckers) {
-            this.subcheckerList = subcheckers;
+            this.subcheckers = subcheckers;
         }
 
         @Override
         public List<SourceChecker> getSubcheckers() {
-            return subcheckerList;
+            return subcheckers;
         }
     }
 

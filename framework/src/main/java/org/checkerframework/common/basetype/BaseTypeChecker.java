@@ -247,7 +247,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
     }
 
     /** A cache for {@link #getUltimateParentChecker}. */
-    private @MonotonicNonNull BaseTypeChecker ultimateParentChecker;
+    protected @MonotonicNonNull BaseTypeChecker ultimateParentChecker;
 
     /**
      * Finds the ultimate parent checker of this checker. The ultimate parent checker is the checker

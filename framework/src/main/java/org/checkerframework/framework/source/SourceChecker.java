@@ -572,7 +572,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Maps error keys to localized/custom error messages. Do not use directly; call {@link
      * #fullMessageOf} or {@link #processErrorMessageArg}. Is set in {@link #initChecker}.
      */
-    private Properties messagesProperties;
+    protected Properties messagesProperties;
 
     /**
      * Used to report error messages and warnings via the compiler. Is set in {@link
@@ -603,7 +603,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * (including indirect subcheckers). Do not access this field directly; instead, use {@link
      * #getSuppressWarningsPrefixesOfSubcheckers}.
      */
-    private @MonotonicNonNull Collection<String> suppressWarningsPrefixesOfSubcheckers = null;
+    protected @MonotonicNonNull Collection<String> suppressWarningsPrefixesOfSubcheckers = null;
 
     /**
      * Stores all messages issued by this checker and its subcheckers for the current compilation
@@ -727,7 +727,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>Both the simple and the canonical name of the checker can be used. Superclasses of the
      * current checker are also considered.
      */
-    private @MonotonicNonNull Map<String, String> activeOptions;
+    protected @MonotonicNonNull Map<String, String> activeOptions;
 
     /**
      * Options supplied by a host that embeds the Checker Framework, which {@link
@@ -742,7 +742,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * passed to this checker. By contrast, {@link #activeOptions} is a map for options that were
      * passed for this run of the checker.
      */
-    private @MonotonicNonNull Set<String> supportedOptions = null;
+    protected @MonotonicNonNull Set<String> supportedOptions = null;
 
     /**
      * The class hierarchy from this checker's runtime class up to {@link AbstractTypeProcessor}.
@@ -855,20 +855,20 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * getSubcheckers} sets this field to an immutable list which is empty for all but the ultimate
      * parent checker.
      */
-    private @MonotonicNonNull List<SourceChecker> subcheckers = null;
+    protected @MonotonicNonNull List<SourceChecker> subcheckers = null;
 
     /**
      * The list of subcheckers that are direct dependencies of this checker. This list will be
      * non-empty for any checker that has at least one subchecker.
      */
     // This field is set to non-null when `subcheckers` is.
-    private @MonotonicNonNull List<SourceChecker> immediateSubcheckers = null;
+    protected @MonotonicNonNull List<SourceChecker> immediateSubcheckers = null;
 
     /**
      * TreePathCacher to share between subcheckers. Initialized either in {@link
      * #getTreePathCacher()} or {@link #instantiateSubcheckers(Map)}.
      */
-    private TreePathCacher treePathCacher = null;
+    protected TreePathCacher treePathCacher = null;
 
     /** Creates a source checker. */
     protected SourceChecker() {}

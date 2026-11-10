@@ -161,9 +161,7 @@ Type-checking and subtyping improvements:
   the type variable: `(T) o` for a `@Nullable Object o` is `@Nullable T`, so
   returning it as a `T` is an error. It was typed as `T` and accepted. Code with
   such unchecked casts, such as `(T) this` or `(T) map.get(k)`, may need
-  additional warning suppressions. Likewise, a cast to an unannotated type
-  variable, such as `(T) p` for a `@Nullable T p`, keeps the qualifier of the
-  expression instead of taking the type variable's upper bound.
+  additional warning suppressions.
 - A use of a type variable created from a javac type, such as in a supertype of
   a class whose tree is no longer available, now has the annotations written on
   the bounds of its declaration, in source, bytecode, or a stub file. Its bounds
@@ -353,6 +351,10 @@ method no longer applies to it, which let a constructor dereference a nullable
 field of `Outer.this`. A written constructor receiver, such as
 `Inner(Outer<@NonNull O> Outer.this)`, is now respected in the constructor body.
 
+A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
+keeps the qualifier of the expression instead of taking the type variable's
+upper bound, which hid errors such as returning `null` as a `T`.
+
 A lambda body keeps the refinement of a field with a monotonic qualifier to its
 target, such as a `@MonotonicNonNull` field that was checked to be non-null before
 the lambda.
@@ -386,22 +388,6 @@ has the qualifiers of a constructor result where it does not write one, not thos
 array type.
 
 ### Implementation details
-
-The validation of qualifier target locations moved from `BaseTypeVisitor` to `BaseTypeValidator`.
-`BaseTypeVisitor#validateTargetLocation` and `#validateVariablesTargetLocation` are now
-`BaseTypeValidator#validateTargetLocation` and `#validateVariableTargetLocation`, with the type
-before the tree; `BaseTypeValidator#validateWildCardTargetLocation` is renamed
-`validateWildcardTargetLocations`; and the fields `qualAllowedLocations` and
-`ignoreTargetLocations` moved to `BaseTypeValidator`. `BaseTypeVisitor#createQualAllowedLocations`
-is removed. The `TypeValidator` interface declares the two validation methods, so an implementation
-that does not extend `BaseTypeValidator` must implement them.
-
-The fields of `SourceChecker` and `BaseTypeChecker` that cache a computed value are private; use
-their getters instead: `messagesProperties` (`getMessagesProperties()`), `activeOptions`
-(`getOptions()`), `supportedOptions` (`getSupportedOptions()`), `subcheckers` (`getSubcheckers()`),
-`immediateSubcheckers` (`getSubchecker(Class)`), `suppressWarningsPrefixesOfSubcheckers`
-(`getSuppressWarningsPrefixesOfSubcheckers()`), `treePathCacher` (`getTreePathCacher()`), and
-`ultimateParentChecker` (`getUltimateParentChecker()`).
 
 New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
 reachable from the entry block, too.

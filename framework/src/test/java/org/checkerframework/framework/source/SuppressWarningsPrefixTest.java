@@ -68,21 +68,18 @@ public class SuppressWarningsPrefixTest {
     @SuppressWarningsPrefix({"parentprefix"})
     public static final class EnclosingParentChecker extends SourceChecker {
 
-        /** The subcheckers of this checker. */
-        private final List<SourceChecker> subcheckerList;
-
         /**
          * Creates an EnclosingParentChecker with given subcheckers.
          *
          * @param subcheckers the subcheckers
          */
         public EnclosingParentChecker(List<SourceChecker> subcheckers) {
-            this.subcheckerList = subcheckers;
+            this.subcheckers = subcheckers;
         }
 
         @Override
         public List<SourceChecker> getSubcheckers() {
-            return subcheckerList;
+            return subcheckers;
         }
 
         @Override
@@ -117,42 +114,36 @@ public class SuppressWarningsPrefixTest {
 
     /** Unannotated parent checker extending GrandparentPrefixChecker. */
     public static class UnannotatedParentChecker extends GrandparentPrefixChecker {
-        /** The subcheckers of this checker. */
-        private final List<SourceChecker> subcheckerList;
-
         /**
          * Creates an UnannotatedParentChecker with given subcheckers.
          *
          * @param subcheckers the subcheckers
          */
         public UnannotatedParentChecker(List<SourceChecker> subcheckers) {
-            this.subcheckerList = subcheckers;
+            this.subcheckers = subcheckers;
         }
 
         @Override
         public List<SourceChecker> getSubcheckers() {
-            return subcheckerList;
+            return subcheckers;
         }
     }
 
     /** Parent checker that explicitly overrides its superclass prefix. */
     @SuppressWarningsPrefix({"overriddenparent"})
     public static class OverridingParentChecker extends GrandparentPrefixChecker {
-        /** The subcheckers of this checker. */
-        private final List<SourceChecker> subcheckerList;
-
         /**
          * Creates an OverridingParentChecker with given subcheckers.
          *
          * @param subcheckers the subcheckers
          */
         public OverridingParentChecker(List<SourceChecker> subcheckers) {
-            this.subcheckerList = subcheckers;
+            this.subcheckers = subcheckers;
         }
 
         @Override
         public List<SourceChecker> getSubcheckers() {
-            return subcheckerList;
+            return subcheckers;
         }
     }
 
