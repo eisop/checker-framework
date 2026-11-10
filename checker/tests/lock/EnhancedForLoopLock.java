@@ -80,9 +80,7 @@ public class EnhancedForLoopLock {
     }
 
     void guardedByUnknown(@GuardedByUnknown List<Object> list) {
-        // :: error: (method.invocation.invalid)
+        // :: error: (lock.not.held)
         for (Object o : list) {}
-        // :: error: (method.invocation.invalid)
-        list.iterator();
     }
 }

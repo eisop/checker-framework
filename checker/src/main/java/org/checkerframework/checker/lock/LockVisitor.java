@@ -30,6 +30,7 @@ import org.checkerframework.checker.lock.qual.LockHeld;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
+import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.Unknown;
@@ -526,21 +527,34 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
     }
 
     /**
-     * Checks the lock of an array that an enhanced for loop iterates over, which the loop
-     * dereferences to read its length and its elements. For an {@code Iterable}, the CFG
-     * synthesizes the {@code iterator()} call, which is checked like an explicit call.
+     * Checks the lock of the expression of an enhanced for loop, which the loop dereferences: it
+     * calls {@code iterator()} on an {@code Iterable} or reads the length and the elements of an
+     * array.
      */
     @Override
     public Void visitEnhancedForLoop(EnhancedForLoopTree tree, Void p) {
         ExpressionTree iterated = tree.getExpression();
-        if (TreeUtils.typeOf(iterated).getKind() == TypeKind.ARRAY) {
-            AnnotationMirror gb =
-                    atypeFactory
-                            .getAnnotatedType(iterated)
-                            .getEffectiveAnnotationInHierarchy(atypeFactory.GUARDEDBYUNKNOWN);
-            checkLock(iterated, gb);
-        }
+        AnnotationMirror gb =
+                atypeFactory
+                        .getAnnotatedType(iterated)
+                        .getEffectiveAnnotationInHierarchy(atypeFactory.GUARDEDBYUNKNOWN);
+        checkLock(iterated, gb);
         return super.visitEnhancedForLoop(tree, p);
+    }
+
+    /**
+     * Does not check the synthetic {@code iterator()} call of an enhanced for loop: {@link
+     * #visitEnhancedForLoop} checks the lock of the loop's expression instead. Checking the call
+     * like an explicit call would require a {@code @GuardSatisfied} receiver on {@code
+     * Iterable.iterator()} and on every override of it.
+     */
+    @Override
+    protected void checkSyntheticMethodInvocation(
+            MethodInvocationNode node, MethodInvocationTree tree) {
+        if (node.getTarget().getMethod().getSimpleName().contentEquals("iterator")) {
+            return;
+        }
+        super.checkSyntheticMethodInvocation(node, tree);
     }
 
     /**

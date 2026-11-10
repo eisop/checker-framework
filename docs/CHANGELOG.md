@@ -121,7 +121,9 @@ Type-checking and subtyping improvements:
   checks them, so a type factory that overrides it calls `super.postAnalyze`.
   Like the rest of the code, those in code that the CFG cannot reach are
   checked, too, such as a catch block for an exception that the try block
-  cannot throw, unless `-AignoreDeadCode` is passed.
+  cannot throw, unless `-AignoreDeadCode` is passed. The Lock Checker does not
+  check the `iterator()` call of an enhanced `for` loop; it checks the lock of
+  the loop's expression instead.
 - The CFG models every boxing and unboxing conversion: the operands of `&&`
   and `||`, the value of a `return` statement, the result of a lambda body and
   of a switch expression, and a cast to or from a primitive type (JLS 5.5) are
@@ -368,10 +370,7 @@ elements individually, as in `many(map, k)`. Previously such a call reported a f
 
 The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
 `@GuardedBy` expression whose lock is not held, as it does for an explicit
-dereference of that expression. The loop's `iterator()` call is checked like an
-explicit call: `Iterable.iterator()` and its overrides in the annotated JDK take
-a `@GuardSatisfied` receiver, and an `iterator()` without one, such as that of an
-`Iterable` the user declares, reports `method.invocation.invalid`.
+dereference of that expression.
 
 The Lock Checker no longer reports `lock.expression.not.final` for an effectively final local
 variable named in a lock expression, except where the variable's declaration is not found in the
