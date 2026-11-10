@@ -139,6 +139,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -2257,22 +2258,62 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param cfg the CFG whose synthetic method invocations to check
      */
     public void checkSyntheticMethodInvocations(ControlFlowGraph cfg) {
-        // Unless -AignoreDeadCode is passed, the visitor checks unreachable code, too, so check
-        // its synthetic invocations as well.
-        List<Node> nodes =
-                ignoreDeadCode
-                        ? cfg.getAllNodes(atypeFactory::isIgnoredExceptionType)
-                        : cfg.getAllNodesIncludingUnreachable();
-        for (Node node : nodes) {
+        if (ignoreDeadCode) {
+            for (Node node : cfg.getAllNodes(atypeFactory::isIgnoredExceptionType)) {
+                checkIfSyntheticMethodInvocation(node);
+            }
+            return;
+        }
+        // The visitor checks unreachable code, too, so check its synthetic invocations as well.
+        // getAllNodesIncludingUnreachable returns the reachable nodes first.
+        List<Node> reachableNodes = cfg.getAllNodes();
+        List<Node> allNodes = cfg.getAllNodesIncludingUnreachable();
+        for (Node node : reachableNodes) {
+            checkIfSyntheticMethodInvocation(node);
+        }
+        // The CFG copies the close() call of a resource for every exit of a try-with-resources,
+        // including an exit that cannot be taken, and the copies share their receiver node.  A
+        // copy in unreachable code has no dataflow store, so its receiver would get the declared
+        // type of the resource variable; skip it, since a reachable copy is checked.
+        Set<Node> reachableReceivers = null;
+        for (Node node : allNodes.subList(reachableNodes.size(), allNodes.size())) {
             if (node.getInSource() || !(node instanceof MethodInvocationNode)) {
                 continue;
             }
-            MethodInvocationTree tree = ((MethodInvocationNode) node).getTree();
-            if (tree == null || TreeUtils.elementFromUse(tree) == null) {
-                continue;
+            if (reachableReceivers == null) {
+                reachableReceivers = Collections.newSetFromMap(new IdentityHashMap<>());
+                for (Node reachable : reachableNodes) {
+                    if (!reachable.getInSource() && reachable instanceof MethodInvocationNode) {
+                        Node receiver =
+                                ((MethodInvocationNode) reachable).getTarget().getReceiver();
+                        if (receiver != null) {
+                            reachableReceivers.add(receiver);
+                        }
+                    }
+                }
             }
-            checkSyntheticMethodInvocation((MethodInvocationNode) node, tree);
+            if (!reachableReceivers.contains(
+                    ((MethodInvocationNode) node).getTarget().getReceiver())) {
+                checkIfSyntheticMethodInvocation(node);
+            }
         }
+    }
+
+    /**
+     * Calls {@link #checkSyntheticMethodInvocation} if {@code node} is a synthetic method
+     * invocation of a method that has an element.
+     *
+     * @param node a node of a CFG
+     */
+    private void checkIfSyntheticMethodInvocation(Node node) {
+        if (node.getInSource() || !(node instanceof MethodInvocationNode)) {
+            return;
+        }
+        MethodInvocationTree tree = ((MethodInvocationNode) node).getTree();
+        if (tree == null || TreeUtils.elementFromUse(tree) == null) {
+            return;
+        }
+        checkSyntheticMethodInvocation((MethodInvocationNode) node, tree);
     }
 
     /**
