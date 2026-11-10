@@ -32,7 +32,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
-import org.checkerframework.dataflow.cfg.ControlFlowGraph;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
@@ -615,12 +614,6 @@ public class NullnessNoInitAnnotatedTypeFactory
     @Override
     protected NullnessNoInitAnalysis createFlowAnalysis() {
         return new NullnessNoInitAnalysis(checker, this);
-    }
-
-    @Override
-    protected void postAnalyze(ControlFlowGraph cfg) {
-        super.postAnalyze(cfg);
-        checker.getVisitor().checkSyntheticMethodInvocations(cfg);
     }
 
     @Override
