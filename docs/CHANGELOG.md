@@ -161,7 +161,9 @@ Type-checking and subtyping improvements:
   the type variable: `(T) o` for a `@Nullable Object o` is `@Nullable T`, so
   returning it as a `T` is an error. It was typed as `T` and accepted. Code with
   such unchecked casts, such as `(T) this` or `(T) map.get(k)`, may need
-  additional warning suppressions.
+  additional warning suppressions. Likewise, a cast to an unannotated type
+  variable, such as `(T) p` for a `@Nullable T p`, keeps the qualifier of the
+  expression instead of taking the type variable's upper bound.
 - A use of a type variable created from a javac type, such as in a supertype of
   a class whose tree is no longer available, now has the annotations written on
   the bounds of its declaration, in source, bytecode, or a stub file. Its bounds
@@ -350,10 +352,6 @@ has the type of `this` in the enclosing class: a default of the inner class or t
 method no longer applies to it, which let a constructor dereference a nullable
 field of `Outer.this`. A written constructor receiver, such as
 `Inner(Outer<@NonNull O> Outer.this)`, is now respected in the constructor body.
-
-A cast to an unannotated type variable, such as `(T) p` for a `@Nullable T p`,
-keeps the qualifier of the expression instead of taking the type variable's
-upper bound, which hid errors such as returning `null` as a `T`.
 
 A lambda body keeps the refinement of a field with a monotonic qualifier to its
 target, such as a `@MonotonicNonNull` field that was checked to be non-null before
