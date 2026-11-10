@@ -389,6 +389,14 @@ array type.
 
 ### Implementation details
 
+The following fields of `SourceChecker` and `BaseTypeChecker`, which cache a computed value, are now
+private; use their getters instead: `messagesProperties` (`getMessagesProperties()`),
+`activeOptions` (`getOptions()`), `supportedOptions` (`getSupportedOptions()`), `subcheckers`
+(`getSubcheckers()`), `suppressWarningsPrefixesOfSubcheckers`
+(`getSuppressWarningsPrefixesOfSubcheckers()`), `treePathCacher` (`getTreePathCacher()`), and
+`ultimateParentChecker` (`getUltimateParentChecker()`). `immediateSubcheckers` is private, too;
+`getSubchecker(Class)` returns the immediate subchecker of a class.
+
 New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
 reachable from the entry block, too.
 
