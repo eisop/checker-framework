@@ -306,9 +306,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             Object... extraArgs) {
         if (TypesUtils.isPrimitive(varType.getUnderlyingType())
                 && !TypesUtils.isPrimitive(valueType.getUnderlyingType())) {
-            // The CFG unboxes the value with a synthetic call, which
-            // checkSyntheticMethodInvocation checks.  A primitive is always non-null, so there is
-            // nothing else to check.
+            // The CFG unboxes the value with a synthetic call, and checkSyntheticMethodInvocation
+            // reports the unboxing of a possibly-null value.  A primitive is always non-null, so
+            // there is nothing else to check here, and this check succeeds.
             return true;
         }
         return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
@@ -1099,24 +1099,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      *
      * @param tree the tree where the error is to reported
      * @param errMsg the error message (must be {@link CompilerMessageKey})
-     * @return whether or not the check succeeded
      */
-    private boolean checkForNullability(ExpressionTree tree, @CompilerMessageKey String errMsg) {
+    private void checkForNullability(ExpressionTree tree, @CompilerMessageKey String errMsg) {
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
-        return checkForNullability(type, tree, errMsg);
-    }
-
-    /**
-     * Issues the error message if an expression with this type may be null.
-     *
-     * @param type annotated type
-     * @param tree the tree where the error is to reported
-     * @param errMsg the error message (must be {@link CompilerMessageKey})
-     * @return whether or not the check succeeded
-     */
-    private boolean checkForNullability(
-            AnnotatedTypeMirror type, Tree tree, @CompilerMessageKey String errMsg) {
-        return checkForNullability(type, tree, errMsg, tree);
+        checkForNullability(type, tree, errMsg, tree);
     }
 
     /**
@@ -1126,15 +1112,12 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * @param tree the tree where the error is to reported
      * @param errMsg the error message (must be {@link CompilerMessageKey})
      * @param errTree the tree to be used in the error message
-     * @return whether or not the check succeeded
      */
-    private boolean checkForNullability(
+    private void checkForNullability(
             AnnotatedTypeMirror type, Tree tree, @CompilerMessageKey String errMsg, Tree errTree) {
         if (!type.hasEffectiveAnnotation(NONNULL)) {
             checker.reportError(tree, errMsg, errTree);
-            return false;
         }
-        return true;
     }
 
     /**
