@@ -119,6 +119,9 @@ Type-checking and subtyping improvements:
   try-with-resources) are now type-checked by every checker, with diagnostics
   pointing at the source construct. `GenericAnnotatedTypeFactory#postAnalyze`
   checks them, so a type factory that overrides it calls `super.postAnalyze`.
+  Like the rest of the code, those in code that the CFG cannot reach are
+  checked, too, such as a catch block for an exception that the try block
+  cannot throw, unless `-AignoreDeadCode` is passed.
 - The CFG models every boxing and unboxing conversion: the operands of `&&`
   and `||`, the value of a `return` statement, the result of a lambda body and
   of a switch expression, and a cast to or from a primitive type (JLS 5.5) are
@@ -141,9 +144,10 @@ Type-checking and subtyping improvements:
 - The Nullness Checker reports the unboxing of a possibly-null value, and the
   iteration over a possibly-null `Iterable`, by checking the synthetic method
   invocations of the CFG instead of a list of syntactic contexts. The error
-  keys are unchanged. The message for a condition or a switch selector names
-  the expression without the parentheses of the statement, `b` instead of
-  `(b)`.
+  keys are unchanged. An error names the possibly-null expression without its
+  parentheses, as `b` for `if ((b))`. The unboxing of a conditional expression,
+  as in `(c ? i : k) + 1`, is reported at each possibly-null operand, as it
+  already was for the assignment of a conditional expression.
 - Repeated `@RequiresNonEmpty` annotations on one method are now enforced:
   the container annotation `RequiresNonEmpty.List` was missing
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
@@ -389,6 +393,9 @@ has the qualifiers of a constructor result where it does not write one, not thos
 array type.
 
 ### Implementation details
+
+New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
+reachable from the entry block, too.
 
 New `SystemUtil.splitPaths(String)` splits a list of paths on the platform's path separator.
 Deprecated `SystemUtil.COLON_SPLITTER`.

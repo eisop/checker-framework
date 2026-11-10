@@ -49,6 +49,7 @@ import org.checkerframework.common.basetype.TypeValidator;
 import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
+import org.checkerframework.dataflow.cfg.node.TypeCastNode;
 import org.checkerframework.framework.flow.CFCFGBuilder;
 import org.checkerframework.framework.source.AssumeAssertions;
 import org.checkerframework.framework.source.DiagMessage;
@@ -306,9 +307,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             Object... extraArgs) {
         if (TypesUtils.isPrimitive(varType.getUnderlyingType())
                 && !TypesUtils.isPrimitive(valueType.getUnderlyingType())) {
-            // The CFG unboxes the value with a synthetic call, which
-            // checkSyntheticMethodInvocation checks.  A primitive is always non-null, so there is
-            // nothing else to check.
+            // The CFG unboxes the value with a synthetic call, and checkSyntheticMethodInvocation
+            // reports the unboxing of a possibly-null value.  A primitive is always non-null, so
+            // there is nothing else to check here, and this check succeeds.
             return true;
         }
         return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
@@ -1099,24 +1100,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      *
      * @param tree the tree where the error is to reported
      * @param errMsg the error message (must be {@link CompilerMessageKey})
-     * @return whether or not the check succeeded
      */
-    private boolean checkForNullability(ExpressionTree tree, @CompilerMessageKey String errMsg) {
+    private void checkForNullability(ExpressionTree tree, @CompilerMessageKey String errMsg) {
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
-        return checkForNullability(type, tree, errMsg);
-    }
-
-    /**
-     * Issues the error message if an expression with this type may be null.
-     *
-     * @param type annotated type
-     * @param tree the tree where the error is to reported
-     * @param errMsg the error message (must be {@link CompilerMessageKey})
-     * @return whether or not the check succeeded
-     */
-    private boolean checkForNullability(
-            AnnotatedTypeMirror type, Tree tree, @CompilerMessageKey String errMsg) {
-        return checkForNullability(type, tree, errMsg, tree);
+        checkForNullability(type, tree, errMsg, tree);
     }
 
     /**
@@ -1126,15 +1113,12 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * @param tree the tree where the error is to reported
      * @param errMsg the error message (must be {@link CompilerMessageKey})
      * @param errTree the tree to be used in the error message
-     * @return whether or not the check succeeded
      */
-    private boolean checkForNullability(
+    private void checkForNullability(
             AnnotatedTypeMirror type, Tree tree, @CompilerMessageKey String errMsg, Tree errTree) {
         if (!type.hasEffectiveAnnotation(NONNULL)) {
             checker.reportError(tree, errMsg, errTree);
-            return false;
         }
-        return true;
     }
 
     /**
@@ -1170,19 +1154,63 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 @CompilerMessageKey String errMsg = isIterator ? ITERATING_NULLABLE : unboxingMessageKey(receiverTree);
                 // The element of an enhanced for loop is the result of a synthetic next() call or
                 // array access; report its unboxing at the loop's expression.
-                ExpressionTree errTree = receiverTree;
+                ExpressionTree errTree = null;
                 if (receiver instanceof MethodInvocationNode
                         && ((MethodInvocationNode) receiver).getIterableExpression() != null) {
                     errTree = ((MethodInvocationNode) receiver).getIterableExpression();
                 } else if (receiver instanceof ArrayAccessNode
                         && ((ArrayAccessNode) receiver).getArrayExpression() != null) {
                     errTree = ((ArrayAccessNode) receiver).getArrayExpression();
+                } else if (receiver instanceof TypeCastNode && !receiver.getInSource()) {
+                    // A cast to a primitive, as in `(int) obj`, first casts the operand to the
+                    // boxed type; report the operand.
+                    errTree = ((TypeCastNode) receiver).getTree().getExpression();
                 }
-                checker.reportError(errTree, errMsg, errTree);
+                if (errTree != null) {
+                    checker.reportError(errTree, errMsg, errTree);
+                } else {
+                    reportPossiblyNull(receiverTree, errMsg);
+                }
                 return;
             }
         }
         super.checkSyntheticMethodInvocation(node, tree);
+    }
+
+    /**
+     * Reports {@code errMsg} for the possibly-null {@code tree}. If {@code tree} is a conditional
+     * expression, reports it at each operand that may be null instead, so that the error points at
+     * the null value.
+     *
+     * @param tree a possibly-null expression
+     * @param errMsg the error key
+     */
+    private void reportPossiblyNull(ExpressionTree tree, @CompilerMessageKey String errMsg) {
+        if (tree instanceof ConditionalExpressionTree) {
+            ConditionalExpressionTree conditional = (ConditionalExpressionTree) tree;
+            boolean reported = reportPossiblyNullOperand(conditional.getTrueExpression(), errMsg);
+            reported |= reportPossiblyNullOperand(conditional.getFalseExpression(), errMsg);
+            if (reported) {
+                return;
+            }
+        }
+        checker.reportError(tree, errMsg, tree);
+    }
+
+    /**
+     * Reports {@code errMsg} for an operand of a conditional expression if the operand may be null.
+     *
+     * @param operand an operand of a conditional expression
+     * @param errMsg the error key
+     * @return true if an error was reported
+     */
+    private boolean reportPossiblyNullOperand(
+            ExpressionTree operand, @CompilerMessageKey String errMsg) {
+        if (atypeFactory.getAnnotatedType(operand).hasEffectiveAnnotation(NONNULL)) {
+            return false;
+        }
+        reportPossiblyNull(TreeUtils.withoutParens(operand), errMsg);
+        return true;
     }
 
     /**

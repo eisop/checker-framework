@@ -1,10 +1,11 @@
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.TerminatesExecution;
 
 import java.util.Iterator;
 import java.util.List;
 
 // The error key for the unboxing, or the iteration, of a possibly-null value depends on its
-// context. Each method has one error, because dataflow refines the value to non-null after it.
+// context. Each method has one unboxing, because dataflow refines the value to non-null after it.
 public class UnboxingContexts {
     void ifCondition(@Nullable Boolean b) {
         // :: error: (condition.nullable)
@@ -93,6 +94,22 @@ public class UnboxingContexts {
     void cast(@Nullable Integer i, int[] a, boolean c) {
         // :: error: (unboxing.of.nullable)
         int j = (int) i;
+    }
+
+    void castObject(@Nullable Object o) {
+        // :: error: (unboxing.of.nullable)
+        int j = (int) o;
+    }
+
+    void conditionalOperand(boolean c, @Nullable Integer i, Integer k) {
+        // :: error: (unboxing.of.nullable)
+        int x = c ? k : i;
+    }
+
+    void conditionalOperands(boolean c, @Nullable Integer i, @Nullable Integer k) {
+        // The unboxing of a conditional expression is reported at each possibly-null operand.
+        // :: error: (unboxing.of.nullable) :: error: (unboxing.of.nullable)
+        int x = c ? i : k;
     }
 
     void index(@Nullable Integer i, int[] a, boolean c) {
@@ -213,5 +230,33 @@ public class UnboxingContexts {
     void explicitIteratorCall(@Nullable List<Integer> list) {
         // :: error: (dereference.of.nullable)
         Iterator<Integer> it = list.iterator();
+    }
+
+    @TerminatesExecution
+    static void terminate() {
+        throw new Error();
+    }
+
+    // Code that the CFG cannot reach is checked, too.
+
+    void afterTermination(@Nullable Integer i) {
+        terminate();
+        // :: error: (unboxing.of.nullable)
+        int x = i;
+    }
+
+    void iterateAfterTermination(@Nullable List<Integer> list) {
+        terminate();
+        // :: error: (iterating.over.nullable)
+        for (Integer x : list) {}
+    }
+
+    void unreachableCatch(@Nullable Boolean b) {
+        try {
+            int y = 1;
+        } catch (RuntimeException e) {
+            // :: error: (condition.nullable)
+            if (b) {}
+        }
     }
 }
