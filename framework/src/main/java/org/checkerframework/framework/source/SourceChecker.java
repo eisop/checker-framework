@@ -890,7 +890,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @param sink the diagnostic sink, or {@code null} to print to javac
      */
-    public void setDiagnosticSink(@Nullable DiagnosticSink sink) {
+    public final void setDiagnosticSink(@Nullable DiagnosticSink sink) {
         this.diagnosticSink = sink;
     }
 
@@ -904,7 +904,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @param options the host's options, as unprefixed {@code -A} option names mapped to values
      */
-    public void setHostOptions(Map<String, String> options) {
+    public final void setHostOptions(Map<String, String> options) {
         if (processingEnv != null) {
             throw new BugInCF(
                     "setHostOptions must be called before init(ProcessingEnvironment), which"
@@ -1284,7 +1284,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the list of stub files for this checker
      */
-    public List<String> getStubFiles() {
+    public final List<String> getStubFiles() {
         if (stubFiles == null) {
             stubFiles = Collections.unmodifiableList(new ArrayList<>(createStubFiles()));
         }
@@ -2858,7 +2858,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return an unmodifiable set of supported mode names
      */
-    public Set<String> getSupportedModes() {
+    public final Set<String> getSupportedModes() {
         if (supportedModes == null) {
             supportedModes = Collections.unmodifiableSet(createSupportedModes());
         }
@@ -2892,7 +2892,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw modes declared on this checker's class hierarchy
      */
-    protected Set<String> getDeclaredModes() {
+    protected final Set<String> getDeclaredModes() {
         if (declaredModes == null) {
             Set<String> result = new HashSet<>();
             for (Class<?> clazz : getClassHierarchy()) {
@@ -3338,7 +3338,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the class hierarchy of this checker
      */
-    public List<Class<?>> getClassHierarchy() {
+    public final List<Class<?>> getClassHierarchy() {
         if (classHierarchy == null) {
             List<Class<?>> hierarchy = new ArrayList<>();
             Class<?> clazz = this.getClass();
@@ -3397,7 +3397,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the set of relevant Java classes, or null if unrestricted
      */
-    public @Nullable Set<Class<?>> getRelevantJavaTypes() {
+    public final @Nullable Set<Class<?>> getRelevantJavaTypes() {
         if (!relevantJavaTypesInitialized) {
             relevantJavaTypes = createRelevantJavaTypes();
             relevantJavaTypesInitialized = true;
