@@ -2257,12 +2257,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param cfg the CFG whose synthetic method invocations to check
      */
     public void checkSyntheticMethodInvocations(ControlFlowGraph cfg) {
-        for (Node node : cfg.getAllNodes()) {
+        // Unless -AignoreDeadCode is passed, the visitor checks unreachable code, too, so check
+        // its synthetic invocations as well.
+        List<Node> nodes =
+                ignoreDeadCode
+                        ? cfg.getAllNodes(atypeFactory::isIgnoredExceptionType)
+                        : cfg.getAllNodesIncludingUnreachable();
+        for (Node node : nodes) {
             if (node.getInSource() || !(node instanceof MethodInvocationNode)) {
                 continue;
             }
             MethodInvocationTree tree = ((MethodInvocationNode) node).getTree();
-            if (tree == null || TreeUtils.elementFromUse(tree) == null || shouldSkipUses(tree)) {
+            if (tree == null || TreeUtils.elementFromUse(tree) == null) {
                 continue;
             }
             checkSyntheticMethodInvocation((MethodInvocationNode) node, tree);
@@ -2279,11 +2285,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * type is whatever dataflow refined it to, so the declared type would report an error on almost
      * every conversion.
      *
+     * <p>As for an explicit call, nothing is checked if {@link #shouldSkipUses(ExpressionTree)}
+     * holds for the invocation.
+     *
      * @param node the synthetic invocation
      * @param tree the tree of {@code node}
      */
     protected void checkSyntheticMethodInvocation(
             MethodInvocationNode node, MethodInvocationTree tree) {
+        if (shouldSkipUses(tree)) {
+            return;
+        }
         AnnotatedExecutableType invokedMethod = atypeFactory.methodFromUse(tree).executableType;
         ExecutableElement method = invokedMethod.getElement();
         // The argument trees of a synthetic invocation are the source expressions being

@@ -9,7 +9,6 @@ import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.DoWhileLoopTree;
 import com.sun.source.tree.EnhancedForLoopTree;
@@ -33,7 +32,6 @@ import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
-import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
 import com.sun.source.util.TreePath;
@@ -41,12 +39,17 @@ import com.sun.source.util.TreeScanner;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.formatter.qual.FormatMethod;
+import org.checkerframework.checker.interning.qual.InternedDistinct;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.basetype.TypeValidator;
+import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
+import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
+import org.checkerframework.dataflow.cfg.node.Node;
+import org.checkerframework.dataflow.cfg.node.TypeCastNode;
 import org.checkerframework.framework.flow.CFCFGBuilder;
 import org.checkerframework.framework.source.AssumeAssertions;
 import org.checkerframework.framework.source.DiagMessage;
@@ -59,6 +62,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiv
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11;
@@ -77,7 +81,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeKind;
 
 /** The visitor for the nullness type-system. */
 public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotatedTypeFactory> {
@@ -111,9 +115,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     /** Annotation mirrors for nullness annotations. */
     private final AnnotationMirror NONNULL, NULLABLE, MONOTONIC_NONNULL, POLYNULL;
-
-    /** TypeMirror for java.lang.String. */
-    private final TypeMirror stringType;
 
     /** The element for java.util.Collection.size(). */
     private final ExecutableElement collectionSize;
@@ -165,7 +166,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         NULLABLE = atypeFactory.NULLABLE;
         MONOTONIC_NONNULL = atypeFactory.MONOTONIC_NONNULL;
         POLYNULL = atypeFactory.POLYNULL;
-        stringType = elements.getTypeElement(String.class.getCanonicalName()).asType();
 
         ProcessingEnvironment env = checker.getProcessingEnvironment();
         this.collectionSize = TreeUtils.getMethod("java.util.Collection", "size", 0, env);
@@ -307,11 +307,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             Object... extraArgs) {
         if (TypesUtils.isPrimitive(varType.getUnderlyingType())
                 && !TypesUtils.isPrimitive(valueType.getUnderlyingType())) {
-            boolean succeed = checkForNullability(valueType, valueTree, UNBOXING_OF_NULLABLE);
-            if (!succeed) {
-                // Only issue the unboxing of nullable error.
-                return false;
-            }
+            // The CFG unboxes the value with a synthetic call, and checkSyntheticMethodInvocation
+            // reports the unboxing of a possibly-null value.  A primitive is always non-null, so
+            // there is nothing else to check here, and this check succeeds.
+            return true;
         }
         return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
     }
@@ -559,10 +558,15 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         return super.visitMemberSelect(tree, p);
     }
 
-    /** Case 2: Check for implicit {@code .iterator} call. */
+    /**
+     * Case 2: Check for iteration over a null array. For an {@code Iterable}, the CFG synthesizes
+     * the {@code iterator()} call, which {@link #checkSyntheticMethodInvocation} checks.
+     */
     @Override
     public Void visitEnhancedForLoop(EnhancedForLoopTree tree, Void p) {
-        checkForNullability(tree.getExpression(), ITERATING_NULLABLE);
+        if (TreeUtils.typeOf(tree.getExpression()).getKind() == TypeKind.ARRAY) {
+            checkForNullability(tree.getExpression(), ITERATING_NULLABLE);
+        }
         return super.visitEnhancedForLoop(tree, p);
     }
 
@@ -570,7 +574,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     @Override
     public Void visitArrayAccess(ArrayAccessTree tree, Void p) {
         checkForNullability(tree.getExpression(), ACCESSING_NULLABLE);
-        checkForNullability(tree.getIndex(), UNBOXING_OF_NULLABLE);
         return super.visitArrayAccess(tree, p);
     }
 
@@ -595,10 +598,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 || type.hasEffectiveAnnotation(POLYNULL)) {
             checker.reportError(tree, "nullness.on.new.array");
         }
-        for (ExpressionTree dimension : tree.getDimensions()) {
-            checkForNullability(dimension, UNBOXING_OF_NULLABLE);
-        }
-
         return super.visitNewArray(tree, p);
     }
 
@@ -703,19 +702,14 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 assumeAssertions != AssumeAssertions.DISABLED || assumeAssertionActivated;
 
         if (doVisitAssert) {
+            // The CFG unboxes a Boolean condition with a synthetic call, which
+            // checkSyntheticMethodInvocation checks.
             // TODO: If assumeAssertionActivated and the condition is non-null, issue
             // "unneeded.suppression" instead.
-            checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
             return super.visitAssert(tree, p);
         }
 
         return null;
-    }
-
-    @Override
-    public Void visitIf(IfTree tree, Void p) {
-        checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
-        return super.visitIf(tree, p);
     }
 
     @Override
@@ -957,48 +951,26 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         }
     }
 
-    /** Case 6: Check for redundant nullness tests Case 7: unboxing case: primitive operations. */
+    /** Case 6: Check for redundant nullness tests. */
     @Override
     public Void visitBinary(BinaryTree tree, Void p) {
-        ExpressionTree leftOp = tree.getLeftOperand();
-        ExpressionTree rightOp = tree.getRightOperand();
-
-        if (isUnboxingOperation(tree)) {
-            checkForNullability(leftOp, UNBOXING_OF_NULLABLE);
-            checkForNullability(rightOp, UNBOXING_OF_NULLABLE);
-        }
-
         checkForRedundantTests(tree);
-
         return super.visitBinary(tree, p);
     }
 
-    /** Case 7: unboxing case: primitive operation. */
-    @Override
-    public Void visitUnary(UnaryTree tree, Void p) {
-        checkForNullability(tree.getExpression(), UNBOXING_OF_NULLABLE);
-        return super.visitUnary(tree, p);
-    }
-
-    /** Case 7: unboxing case: primitive operation. */
-    @Override
-    public Void visitCompoundAssignment(CompoundAssignmentTree tree, Void p) {
-        // ignore String concatenation
-        if (!isString(tree)) {
-            checkForNullability(tree.getVariable(), UNBOXING_OF_NULLABLE);
-            checkForNullability(tree.getExpression(), UNBOXING_OF_NULLABLE);
-        }
-        return super.visitCompoundAssignment(tree, p);
-    }
-
-    /** Case 7: unboxing case: casting to a primitive. */
+    /**
+     * Case 7: unboxing case: casting to a primitive. The CFG unboxes the expression with a
+     * synthetic call, which {@link #checkSyntheticMethodInvocation} checks.
+     */
     @Override
     public Void visitTypeCast(TypeCastTree tree, Void p) {
-        if (isPrimitive(tree) && !isPrimitive(tree.getExpression())) {
-            if (!checkForNullability(tree.getExpression(), UNBOXING_OF_NULLABLE)) {
-                // If unboxing of nullable is issued, don't issue any other errors.
-                return null;
-            }
+        if (isPrimitive(tree)
+                && !isPrimitive(tree.getExpression())
+                && !atypeFactory
+                        .getAnnotatedType(tree.getExpression())
+                        .hasEffectiveAnnotation(NONNULL)) {
+            // The unboxing of a nullable expression is reported; don't issue any other errors.
+            return null;
         }
         checkJSpecifyLocation(tree, null, tree.getType(), "jspecify.unrecognized.location.cast");
         return super.visitTypeCast(tree, p);
@@ -1128,24 +1100,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      *
      * @param tree the tree where the error is to reported
      * @param errMsg the error message (must be {@link CompilerMessageKey})
-     * @return whether or not the check succeeded
      */
-    private boolean checkForNullability(ExpressionTree tree, @CompilerMessageKey String errMsg) {
+    private void checkForNullability(ExpressionTree tree, @CompilerMessageKey String errMsg) {
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
-        return checkForNullability(type, tree, errMsg);
-    }
-
-    /**
-     * Issues the error message if an expression with this type may be null.
-     *
-     * @param type annotated type
-     * @param tree the tree where the error is to reported
-     * @param errMsg the error message (must be {@link CompilerMessageKey})
-     * @return whether or not the check succeeded
-     */
-    private boolean checkForNullability(
-            AnnotatedTypeMirror type, Tree tree, @CompilerMessageKey String errMsg) {
-        return checkForNullability(type, tree, errMsg, tree);
+        checkForNullability(type, tree, errMsg, tree);
     }
 
     /**
@@ -1155,15 +1113,150 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * @param tree the tree where the error is to reported
      * @param errMsg the error message (must be {@link CompilerMessageKey})
      * @param errTree the tree to be used in the error message
-     * @return whether or not the check succeeded
      */
-    private boolean checkForNullability(
+    private void checkForNullability(
             AnnotatedTypeMirror type, Tree tree, @CompilerMessageKey String errMsg, Tree errTree) {
         if (!type.hasEffectiveAnnotation(NONNULL)) {
             checker.reportError(tree, errMsg, errTree);
+        }
+    }
+
+    /**
+     * Checks that the receiver of a synthetic unboxing call, or of the synthetic {@code iterator()}
+     * call of an enhanced for loop, is non-null. The CFG synthesizes these calls for every implicit
+     * unboxing conversion and every enhanced for loop over an {@code Iterable}.
+     *
+     * <p>The error key depends on the context of the converted expression: {@code
+     * iterating.over.nullable} for the {@code Iterable} of an enhanced for loop, {@code
+     * condition.nullable} for a condition, {@code switching.nullable} for a switch selector, and
+     * {@code unboxing.of.nullable} otherwise.
+     */
+    @Override
+    protected void checkSyntheticMethodInvocation(
+            MethodInvocationNode node, MethodInvocationTree tree) {
+        ExecutableElement method = node.getTarget().getMethod();
+        if (ElementUtils.isStatic(method)) {
+            // A boxing conversion calls the static valueOf, whose argument is a primitive and
+            // therefore non-null.
+            return;
+        }
+        Node receiver = node.getTarget().getReceiver();
+        if (receiver != null && receiver.getTree() instanceof ExpressionTree) {
+            ExpressionTree receiverTree = (ExpressionTree) receiver.getTree();
+            // The CFG synthesizes iterator() only for an enhanced for loop.
+            boolean isIterator = method.getSimpleName().contentEquals("iterator");
+            if ((isIterator
+                            || TypesUtils.isBoxedPrimitive(
+                                    TypesUtils.boxedPrimitiveBound(receiver.getType())))
+                    && !atypeFactory
+                            .getAnnotatedType(receiverTree)
+                            .hasEffectiveAnnotation(NONNULL)) {
+                @CompilerMessageKey String errMsg = isIterator ? ITERATING_NULLABLE : unboxingMessageKey(receiverTree);
+                // The element of an enhanced for loop is the result of a synthetic next() call or
+                // array access; report its unboxing at the loop's expression.
+                ExpressionTree errTree = null;
+                if (receiver instanceof MethodInvocationNode
+                        && ((MethodInvocationNode) receiver).getIterableExpression() != null) {
+                    errTree = ((MethodInvocationNode) receiver).getIterableExpression();
+                } else if (receiver instanceof ArrayAccessNode
+                        && ((ArrayAccessNode) receiver).getArrayExpression() != null) {
+                    errTree = ((ArrayAccessNode) receiver).getArrayExpression();
+                } else if (receiver instanceof TypeCastNode && !receiver.getInSource()) {
+                    // A cast to a primitive, as in `(int) obj`, first casts the operand to the
+                    // boxed type; report the operand.
+                    errTree = ((TypeCastNode) receiver).getTree().getExpression();
+                }
+                if (errTree != null) {
+                    checker.reportError(errTree, errMsg, errTree);
+                } else {
+                    reportPossiblyNull(receiverTree, errMsg);
+                }
+                return;
+            }
+        }
+        super.checkSyntheticMethodInvocation(node, tree);
+    }
+
+    /**
+     * Reports {@code errMsg} for the possibly-null {@code tree}. If {@code tree} is a conditional
+     * expression, reports it at each operand that may be null instead, so that the error points at
+     * the null value.
+     *
+     * @param tree a possibly-null expression
+     * @param errMsg the error key
+     */
+    private void reportPossiblyNull(ExpressionTree tree, @CompilerMessageKey String errMsg) {
+        if (tree instanceof ConditionalExpressionTree) {
+            ConditionalExpressionTree conditional = (ConditionalExpressionTree) tree;
+            boolean reported = reportPossiblyNullOperand(conditional.getTrueExpression(), errMsg);
+            reported |= reportPossiblyNullOperand(conditional.getFalseExpression(), errMsg);
+            if (reported) {
+                return;
+            }
+        }
+        checker.reportError(tree, errMsg, tree);
+    }
+
+    /**
+     * Reports {@code errMsg} for an operand of a conditional expression if the operand may be null.
+     *
+     * @param operand an operand of a conditional expression
+     * @param errMsg the error key
+     * @return true if an error was reported
+     */
+    private boolean reportPossiblyNullOperand(
+            ExpressionTree operand, @CompilerMessageKey String errMsg) {
+        if (atypeFactory.getAnnotatedType(operand).hasEffectiveAnnotation(NONNULL)) {
             return false;
         }
+        reportPossiblyNull(TreeUtils.withoutParens(operand), errMsg);
         return true;
+    }
+
+    /**
+     * Returns the error key for the unboxing of a possibly-null {@code tree}: {@code
+     * condition.nullable} if {@code tree} is a condition, {@code switching.nullable} if it is a
+     * switch selector, and {@code unboxing.of.nullable} otherwise.
+     *
+     * @param tree an expression that is unboxed
+     * @return the error key for the unboxing of {@code tree}
+     */
+    private @CompilerMessageKey String unboxingMessageKey(ExpressionTree tree) {
+        TreePath path = atypeFactory.getPath(tree);
+        if (path == null || path.getParentPath() == null) {
+            return UNBOXING_OF_NULLABLE;
+        }
+        Pair<Tree, Tree> enclosingPair = TreePathUtil.enclosingNonParen(path);
+        Tree parent = enclosingPair.first;
+        // child is tree or a parenthesized version of it.
+        @SuppressWarnings("interning:assignment.type.incompatible") // comparing AST nodes
+        @InternedDistinct Tree child = enclosingPair.second;
+        Tree condition = null;
+        Tree selector = null;
+        if (parent instanceof IfTree) {
+            condition = ((IfTree) parent).getCondition();
+        } else if (parent instanceof WhileLoopTree) {
+            condition = ((WhileLoopTree) parent).getCondition();
+        } else if (parent instanceof DoWhileLoopTree) {
+            condition = ((DoWhileLoopTree) parent).getCondition();
+        } else if (parent instanceof ForLoopTree) {
+            condition = ((ForLoopTree) parent).getCondition();
+        } else if (parent instanceof AssertTree) {
+            condition = ((AssertTree) parent).getCondition();
+        } else if (parent instanceof ConditionalExpressionTree) {
+            condition = ((ConditionalExpressionTree) parent).getCondition();
+        } else if (parent instanceof SwitchTree) {
+            selector = ((SwitchTree) parent).getExpression();
+        } else if (TreeUtils.isSwitchExpression(parent)) {
+            selector = SwitchExpressionUtils.getExpression(parent);
+        }
+        if (condition == child) {
+            return CONDITION_NULLABLE;
+        } else if (selector == child) {
+            return SWITCHING_NULLABLE;
+        } else {
+            return UNBOXING_OF_NULLABLE;
+        }
     }
 
     @Override
@@ -1202,36 +1295,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     /**
-     * Returns true if the binary operation could cause an unboxing operation.
-     *
-     * @param tree a binary operation
-     * @return true if the binary operation could cause an unboxing operation
-     */
-    private boolean isUnboxingOperation(BinaryTree tree) {
-        if (tree.getKind() == Tree.Kind.EQUAL_TO || tree.getKind() == Tree.Kind.NOT_EQUAL_TO) {
-            // it is valid to check equality between two reference types, even
-            // if one (or both) of them is null
-            return isPrimitive(tree.getLeftOperand()) != isPrimitive(tree.getRightOperand());
-        } else {
-            // All BinaryTree's are of type String, a primitive type or the reference type
-            // equivalent of a primitive type. Furthermore, Strings don't have a primitive type, and
-            // therefore only BinaryTrees that aren't String can cause unboxing.
-            return !isString(tree);
-        }
-    }
-
-    /**
-     * Returns true if the type of the tree is a super of String.
-     *
-     * @param tree a tree
-     * @return true if the type of the tree is a super of String
-     */
-    private boolean isString(ExpressionTree tree) {
-        TypeMirror type = TreeUtils.typeOf(tree);
-        return types.isAssignable(stringType, type);
-    }
-
-    /**
      * Returns true if the type of the tree is a primitive.
      *
      * @param tree a tree
@@ -1243,9 +1306,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     @Override
     public Void visitSwitch(SwitchTree tree, Void p) {
-        if (!TreeUtils.hasNullCaseLabel(tree)) {
-            checkForNullability(tree.getExpression(), SWITCHING_NULLABLE);
-        }
+        checkSwitchSelector(tree, tree.getExpression());
         if (redundantNullComparison && TreeUtils.isEnhancedSwitchStatement(tree)) {
             ExpressionTree expression = tree.getExpression();
             List<? extends CaseTree> cases = tree.getCases();
@@ -1256,16 +1317,29 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     @Override
     public void visitSwitchExpression17(Tree switchExprTree) {
-        if (!TreeUtils.hasNullCaseLabel(switchExprTree)) {
-            checkForNullability(
-                    SwitchExpressionUtils.getExpression(switchExprTree), SWITCHING_NULLABLE);
-        }
+        checkSwitchSelector(switchExprTree, SwitchExpressionUtils.getExpression(switchExprTree));
         if (redundantNullComparison) {
             ExpressionTree expression = SwitchExpressionUtils.getExpression(switchExprTree);
             List<? extends CaseTree> cases = SwitchExpressionUtils.getCases(switchExprTree);
             checkSwitchNullRedundant(expression, cases);
         }
         super.visitSwitchExpression17(switchExprTree);
+    }
+
+    /**
+     * Checks that the selector of a switch statement or expression without a {@code case null} is
+     * non-null. The CFG unboxes a boxed selector with a synthetic call, which {@link
+     * #checkSyntheticMethodInvocation} checks; this checks any other selector.
+     *
+     * @param switchTree a switch statement or expression
+     * @param selector the selector of {@code switchTree}
+     */
+    private void checkSwitchSelector(Tree switchTree, ExpressionTree selector) {
+        if (!TreeUtils.hasNullCaseLabel(switchTree)
+                && !TypesUtils.isBoxedPrimitive(
+                        TypesUtils.boxedPrimitiveBound(TreeUtils.typeOf(selector)))) {
+            checkForNullability(selector, SWITCHING_NULLABLE);
+        }
     }
 
     /**
@@ -1294,15 +1368,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     @Override
-    public Void visitForLoop(ForLoopTree tree, Void p) {
-        if (tree.getCondition() != null) {
-            // Condition is null e.g. in "for (;;) {...}"
-            checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
-        }
-        return super.visitForLoop(tree, p);
-    }
-
-    @Override
     public Void visitNewClass(NewClassTree tree, Void p) {
         ExpressionTree enclosingExpr = tree.getEnclosingExpression();
         if (enclosingExpr != null) {
@@ -1320,20 +1385,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     @Override
-    public Void visitWhileLoop(WhileLoopTree tree, Void p) {
-        checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
-        return super.visitWhileLoop(tree, p);
-    }
-
-    @Override
-    public Void visitDoWhileLoop(DoWhileLoopTree tree, Void p) {
-        checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
-        return super.visitDoWhileLoop(tree, p);
-    }
-
-    @Override
     public Void visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
-        checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
         // Note: Because of the hack in NullnessVisitor#commonAssignmentCheck, this code needs to
         // use a copy of the types for the two invocations of #commonAssignmentCheck. These hacks
         // should be undone, by properly resolving polymorphic qualifiers in the ATF/transfer. As
