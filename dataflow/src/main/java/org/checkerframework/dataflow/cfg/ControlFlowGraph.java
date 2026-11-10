@@ -27,7 +27,9 @@ import org.plumelib.util.UnmodifiableIdentityHashMap;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
@@ -268,6 +270,50 @@ public class ControlFlowGraph implements UniqueId {
             @UnknownInitialization(ControlFlowGraph.class) ControlFlowGraph this) {
         List<Node> result = new ArrayList<>();
         for (Block b : getAllBlocks()) {
+            result.addAll(b.getNodes());
+        }
+        return result;
+    }
+
+    /**
+     * Returns all nodes in this control flow graph, including the nodes of blocks that are not
+     * reachable from the entry block, such as the statements after a call to a method that
+     * terminates execution, or a catch block for an exception that the try block cannot throw.
+     * Dataflow computes no abstract values for the unreachable nodes.
+     *
+     * @return all nodes in this control flow graph: the nodes of {@link #getAllNodes()}, followed
+     *     by the unreachable nodes in the order in which they were created
+     */
+    public List<Node> getAllNodesIncludingUnreachable() {
+        Set<Block> reachable = getAllBlocks();
+        List<Node> result = new ArrayList<>();
+        for (Block b : reachable) {
+            result.addAll(b.getNodes());
+        }
+        // Every unreachable block is reachable from the block of a node in a lookup map.
+        Set<Block> unreachable = new LinkedHashSet<>();
+        Queue<Block> worklist = new ArrayDeque<>();
+        for (Map<Tree, Set<Node>> lookup : Arrays.asList(treeLookup, convertedTreeLookup)) {
+            for (Set<Node> nodes : lookup.values()) {
+                for (Node n : nodes) {
+                    Block b = n.getBlock();
+                    if (b != null && !reachable.contains(b) && unreachable.add(b)) {
+                        worklist.add(b);
+                    }
+                }
+            }
+        }
+        while (!worklist.isEmpty()) {
+            for (Block b : worklist.remove().getSuccessors()) {
+                if (!reachable.contains(b) && unreachable.add(b)) {
+                    worklist.add(b);
+                }
+            }
+        }
+        // The lookup maps are identity maps, so sort for a deterministic order.
+        List<Block> sorted = new ArrayList<>(unreachable);
+        sorted.sort(Comparator.comparingLong(Block::getUid));
+        for (Block b : sorted) {
             result.addAll(b.getNodes());
         }
         return result;

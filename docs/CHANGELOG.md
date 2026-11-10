@@ -117,7 +117,9 @@ Type-checking and subtyping improvements:
   positives and checked the arguments against the defaulted type.
 - CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
   try-with-resources) are now type-checked, with diagnostics pointing at the
-  source construct.
+  source construct. Like the rest of the code, those in code that the CFG
+  cannot reach are checked, too, such as a catch block for an exception that
+  the try block cannot throw, unless `-AignoreDeadCode` is passed.
 - The CFG models every boxing and unboxing conversion: the operands of `&&`
   and `||`, the value of a `return` statement, the result of a lambda body and
   of a switch expression, and a cast to or from a primitive type (JLS 5.5) are
@@ -386,6 +388,9 @@ has the qualifiers of a constructor result where it does not write one, not thos
 array type.
 
 ### Implementation details
+
+New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
+reachable from the entry block, too.
 
 New `SystemUtil.splitPaths(String)` splits a list of paths on the platform's path separator.
 Deprecated `SystemUtil.COLON_SPLITTER`.

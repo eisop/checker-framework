@@ -2257,7 +2257,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param cfg the CFG whose synthetic method invocations to check
      */
     public void checkSyntheticMethodInvocations(ControlFlowGraph cfg) {
-        for (Node node : cfg.getAllNodes()) {
+        // Unless -AignoreDeadCode is passed, the visitor checks unreachable code, too, so check
+        // its synthetic invocations as well.
+        List<Node> nodes =
+                ignoreDeadCode
+                        ? cfg.getAllNodes(atypeFactory::isIgnoredExceptionType)
+                        : cfg.getAllNodesIncludingUnreachable();
+        for (Node node : nodes) {
             if (node.getInSource() || !(node instanceof MethodInvocationNode)) {
                 continue;
             }

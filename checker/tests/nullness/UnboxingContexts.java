@@ -1,4 +1,5 @@
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.TerminatesExecution;
 
 import java.util.Iterator;
 import java.util.List;
@@ -229,5 +230,33 @@ public class UnboxingContexts {
     void explicitIteratorCall(@Nullable List<Integer> list) {
         // :: error: (dereference.of.nullable)
         Iterator<Integer> it = list.iterator();
+    }
+
+    @TerminatesExecution
+    static void terminate() {
+        throw new Error();
+    }
+
+    // Code that the CFG cannot reach is checked, too.
+
+    void afterTermination(@Nullable Integer i) {
+        terminate();
+        // :: error: (unboxing.of.nullable)
+        int x = i;
+    }
+
+    void iterateAfterTermination(@Nullable List<Integer> list) {
+        terminate();
+        // :: error: (iterating.over.nullable)
+        for (Integer x : list) {}
+    }
+
+    void unreachableCatch(@Nullable Boolean b) {
+        try {
+            int y = 1;
+        } catch (RuntimeException e) {
+            // :: error: (condition.nullable)
+            if (b) {}
+        }
     }
 }
