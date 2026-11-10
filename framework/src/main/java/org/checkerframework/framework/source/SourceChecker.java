@@ -1296,7 +1296,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the collection of stub files for this checker
      */
-    protected Collection<String> createStubFiles() {
+    private Collection<String> createStubFiles() {
         Set<String> result = new LinkedHashSet<>(getDeclaredStubFiles());
         result.addAll(getExtraStubFiles());
 
@@ -1321,7 +1321,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw stub files declared on this checker's class hierarchy
      */
-    protected final List<String> getDeclaredStubFiles() {
+    private List<String> getDeclaredStubFiles() {
         if (declaredStubFiles == null) {
             List<String> list = new ArrayList<>();
             for (Class<?> clazz : getClassHierarchy()) {
@@ -3383,7 +3383,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return all declared options across this checker and its subcheckers
      */
-    protected final Set<String> getAllDeclaredOptions() {
+    private Set<String> getAllDeclaredOptions() {
         Set<String> all = new HashSet<>(getDeclaredOptions());
         for (SourceChecker sub : getSubcheckers()) {
             all.addAll(sub.getAllDeclaredOptions());
