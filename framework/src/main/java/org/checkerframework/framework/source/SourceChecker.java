@@ -747,36 +747,36 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * The class hierarchy from this checker's runtime class up to {@link AbstractTypeProcessor}.
      */
-    protected @MonotonicNonNull List<Class<?>> classHierarchy = null;
+    private @MonotonicNonNull List<Class<?>> classHierarchy = null;
 
     /**
      * The raw (unprefixed) options declared directly on this checker's class hierarchy via {@link
      * SupportedOptions} or {@link javax.annotation.processing.SupportedOptions}.
      */
-    protected @MonotonicNonNull Set<String> declaredOptions = null;
+    private @MonotonicNonNull Set<String> declaredOptions = null;
 
     /**
      * The raw stub files declared directly on this checker's class hierarchy via {@link StubFiles}.
      */
-    protected @MonotonicNonNull List<String> declaredStubFiles = null;
+    private @MonotonicNonNull List<String> declaredStubFiles = null;
 
     /** The list of all stub files supported by this checker and its compound checker hierarchy. */
-    protected @MonotonicNonNull List<String> stubFiles = null;
+    private @MonotonicNonNull List<String> stubFiles = null;
 
     /**
      * The raw SuppressWarnings prefixes declared directly on this checker's class hierarchy via
      * {@link SuppressWarningsPrefix}.
      */
-    protected @MonotonicNonNull Set<String> declaredSuppressWarningsPrefixes = null;
+    private @MonotonicNonNull Set<String> declaredSuppressWarningsPrefixes = null;
 
     /** The cached standard SuppressWarnings prefixes for this checker. */
-    protected @MonotonicNonNull NavigableSet<String> standardSuppressWarningsPrefixes = null;
+    private @MonotonicNonNull NavigableSet<String> standardSuppressWarningsPrefixes = null;
 
     /**
      * The raw lint options declared directly on this checker's class hierarchy via {@link
      * SupportedLintOptions}.
      */
-    protected @MonotonicNonNull Set<String> declaredLintOptions = null;
+    private @MonotonicNonNull Set<String> declaredLintOptions = null;
 
     /**
      * The raw mode names declared directly on this checker's class hierarchy via {@link
@@ -1321,7 +1321,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw stub files declared on this checker's class hierarchy
      */
-    protected List<String> getDeclaredStubFiles() {
+    protected final List<String> getDeclaredStubFiles() {
         if (declaredStubFiles == null) {
             List<String> list = new ArrayList<>();
             for (Class<?> clazz : getClassHierarchy()) {
@@ -2829,7 +2829,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw lint options declared on this checker's class hierarchy
      */
-    protected Set<String> getDeclaredLintOptions() {
+    protected final Set<String> getDeclaredLintOptions() {
         if (declaredLintOptions == null) {
             Set<String> lintSet = new HashSet<>();
             for (Class<?> clazz : getClassHierarchy()) {
@@ -3359,7 +3359,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw options declared on this checker's class hierarchy
      */
-    protected Set<String> getDeclaredOptions() {
+    protected final Set<String> getDeclaredOptions() {
         if (declaredOptions == null) {
             Set<String> declared = new HashSet<>();
             for (Class<?> clazz : getClassHierarchy()) {
@@ -3383,7 +3383,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return all declared options across this checker and its subcheckers
      */
-    protected Set<String> getAllDeclaredOptions() {
+    protected final Set<String> getAllDeclaredOptions() {
         Set<String> all = new HashSet<>(getDeclaredOptions());
         for (SourceChecker sub : getSubcheckers()) {
             all.addAll(sub.getAllDeclaredOptions());
@@ -4225,7 +4225,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw SuppressWarnings prefixes declared on this checker's class hierarchy
      */
-    private Set<String> getDeclaredSuppressWarningsPrefixes() {
+    protected final Set<String> getDeclaredSuppressWarningsPrefixes() {
         if (declaredSuppressWarningsPrefixes == null) {
             Set<String> declared = new TreeSet<>();
             for (Class<?> clazz : getClassHierarchy()) {
