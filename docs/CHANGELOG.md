@@ -396,6 +396,13 @@ before the tree; `BaseTypeValidator#validateWildCardTargetLocation` is renamed
 is removed. The `TypeValidator` interface declares the two validation methods, so an implementation
 that does not extend `BaseTypeValidator` must implement them.
 
+The fields of `SourceChecker` and `BaseTypeChecker` that cache a computed value are private; use
+their getters instead: `messagesProperties` (`getMessagesProperties()`), `activeOptions`
+(`getOptions()`), `supportedOptions` (`getSupportedOptions()`), `subcheckers` (`getSubcheckers()`),
+`immediateSubcheckers` (`getSubchecker(Class)`), `suppressWarningsPrefixesOfSubcheckers`
+(`getSuppressWarningsPrefixesOfSubcheckers()`), `treePathCacher` (`getTreePathCacher()`), and
+`ultimateParentChecker` (`getUltimateParentChecker()`).
+
 New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
 reachable from the entry block, too.
 
