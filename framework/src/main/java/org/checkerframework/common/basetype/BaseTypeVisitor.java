@@ -1093,7 +1093,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param boundTM the type of the extends or implements clause
      * @param isExtends true for an extends clause, false for an implements clause
      */
-    private void checkExtendsOrImplementsStartDiagnostic(
+    protected final void checkExtendsOrImplementsStartDiagnostic(
             Tree boundClause,
             AnnotationMirror classAnno,
             TypeMirror classType,
@@ -1129,7 +1129,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param boundTM the type of the extends or implements clause
      * @param isExtends true for an extends clause, false for an implements clause
      */
-    private void checkExtendsOrImplementsEndDiagnostic(
+    protected final void checkExtendsOrImplementsEndDiagnostic(
             boolean success,
             Tree boundClause,
             AnnotationMirror classAnno,
