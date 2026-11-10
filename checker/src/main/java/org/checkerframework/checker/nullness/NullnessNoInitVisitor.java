@@ -49,6 +49,7 @@ import org.checkerframework.common.basetype.TypeValidator;
 import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
+import org.checkerframework.dataflow.cfg.node.TypeCastNode;
 import org.checkerframework.framework.flow.CFCFGBuilder;
 import org.checkerframework.framework.source.AssumeAssertions;
 import org.checkerframework.framework.source.DiagMessage;
@@ -1160,6 +1161,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 } else if (receiver instanceof ArrayAccessNode
                         && ((ArrayAccessNode) receiver).getArrayExpression() != null) {
                     errTree = ((ArrayAccessNode) receiver).getArrayExpression();
+                } else if (receiver instanceof TypeCastNode && !receiver.getInSource()) {
+                    // A cast to a primitive, as in `(int) obj`, first casts the operand to the
+                    // boxed type; report the operand.
+                    errTree = ((TypeCastNode) receiver).getTree().getExpression();
                 }
                 checker.reportError(errTree, errMsg, errTree);
                 return;

@@ -95,6 +95,11 @@ public class UnboxingContexts {
         int j = (int) i;
     }
 
+    void castObject(@Nullable Object o) {
+        // :: error: (unboxing.of.nullable)
+        int j = (int) o;
+    }
+
     void index(@Nullable Integer i, int[] a, boolean c) {
         // :: error: (unboxing.of.nullable)
         int j = a[i];
