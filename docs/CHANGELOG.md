@@ -370,6 +370,10 @@ subchecker, `fullMessageOf` for a message, and the getter of the same name for t
 `getMessagesProperties()` is renamed `createMessagesProperties()` and is `protected`; `initChecker`
 calls it once.
 
+When assertions are enabled, `SourceChecker#report` asserts that the reported key has message text
+in a `messages.properties` file that the checker loads. Tests of a checker that reports a key
+without text now fail.
+
 New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
 reachable from the entry block, too.
 
