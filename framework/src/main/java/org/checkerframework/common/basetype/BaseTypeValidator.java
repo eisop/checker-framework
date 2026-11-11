@@ -143,7 +143,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @param atypeFactory the annotated type factory
      * @return a new mapping from strings of qualifier names to their declared type-use locations
      */
-    protected static Map<@CanonicalName String, List<TypeUseLocation>> createQualAllowedLocations(
+    private static Map<@CanonicalName String, List<TypeUseLocation>> createQualAllowedLocations(
             AnnotatedTypeFactory atypeFactory) {
         HashMap<@CanonicalName String, List<TypeUseLocation>> qualAllowedLocations =
                 new HashMap<>();
