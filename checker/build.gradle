@@ -20,6 +20,13 @@ sourceSets {
             exclude("**/org/checkerframework/checker/resourceleak/MustCallInference.java")
         }
     }
+    test {
+        resources {
+            // The messages.properties files of the test checkers.
+            srcDirs += ["src/test/java"]
+            include("**/messages.properties")
+        }
+    }
     testannotations {
         java {
             srcDirs = ["src/testannotations/java"]

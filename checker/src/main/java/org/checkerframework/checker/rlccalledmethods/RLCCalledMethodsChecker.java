@@ -13,6 +13,7 @@ import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 
+import java.util.Properties;
 import java.util.Set;
 
 /**
@@ -32,6 +33,17 @@ public class RLCCalledMethodsChecker extends CalledMethodsChecker {
     @Override
     protected BaseTypeVisitor<?> createSourceVisitor() {
         return new RLCCalledMethodsVisitor(this);
+    }
+
+    @Override
+    protected Properties createMessagesProperties() {
+        Properties result = super.createMessagesProperties();
+        // This checker parses @CreatesMustCallFor targets as the Must Call Checker does, and
+        // reports
+        // createsmustcallfor.target.unparseable, which the Must Call Checker's messages.properties
+        // defines.  The Must Call Checker is not in this checker's class hierarchy.
+        result.putAll(getProperties(MustCallChecker.class, MSGS_FILE, true));
+        return result;
     }
 
     /**

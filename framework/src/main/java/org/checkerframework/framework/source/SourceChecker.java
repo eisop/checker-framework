@@ -2079,6 +2079,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         String defaultFormat = "(" + messageKey + ")";
+        // The test framework passes -Anomsgtext, so check here that the key has message text.
+        assert !fullMessageOf(messageKey, defaultFormat).equals(defaultFormat)
+                : "No message text for key \"" + messageKey + "\" in " + getClass().getName();
         String prefix;
         String fmtString;
         if (hasOption("nomsgtext")) {

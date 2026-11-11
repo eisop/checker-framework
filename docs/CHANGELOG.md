@@ -556,8 +556,8 @@ Other improvements and bug fixes:
 - When a checker fails to initialize, for example with an `OutOfMemoryError`, it reports
   that failure instead of crashing with a `NullPointerException` in
   `SourceChecker.visitDeclaration`.
-- The Resource Leak Checker prints the text of each message instead of its key, such as
-  `owning.override.param`.
+- The Resource Leak Checker and the Report Checker print the text of each message instead
+  of its key, such as `owning.override.param` or `createsmustcallfor.target.unparseable`.
 - Error messages about the constructor of an anonymous class name its supertype,
   instead of printing an empty class name.
 - Viewpoint adaptation no longer crashes or overflows the stack on a field
