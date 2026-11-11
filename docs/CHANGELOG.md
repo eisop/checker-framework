@@ -14,8 +14,11 @@ Performance improvements over 3.49.5-eisop1:
 - `checkInterning`: 0m41s vs. 1m12s
 - `test`: 7m48s vs. 10m41s
 
-Several optimizations reduce GC pressure and superlinear behavior on large (e.g. generated) files:
+Several optimizations reduce GC pressure and superlinear behavior, especially on large (e.g.
+generated) files:
 
+- Type argument inference for a generic call runs once, shared by the check, the call's type, and
+  its poly expression arguments: on a large project, 7% less allocation and 6% less time.
 - A class with many fields under the Initialization Checker and the checkers built on it, such as
   the Nullness Checker (4000 fields: 26 s to 11 s), including merging dataflow stores after many
   calls.
@@ -28,11 +31,6 @@ Several optimizations reduce GC pressure and superlinear behavior on large (e.g.
   `type.argument.inference.budget` error.
 - Many anonymous classes, local classes, or lambdas in one file: their paths are taken from the
   visitor instead of searched for in the compilation unit (2400 anonymous classes: 35 s to 13 s).
-
-The result of type argument inference for a generic call is computed once and shared by the check,
-the call's type, and the call's poly expression arguments such as diamonds, instead of once per
-use: on a large project, 7% less allocation and 6% less time; `Arrays.asList` with 24 diamond
-arguments under the Nullness Checker, 4.1 to 2.2 seconds.
 
 The annotated JDK and built-in stub files are distributed as pre-parsed binary files, so checker
 startup no longer runs JavaParser. A missing or stale binary stub falls back to text parsing with a
