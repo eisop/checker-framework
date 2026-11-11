@@ -16,9 +16,9 @@ Performance improvements over 3.49.5-eisop1:
 
 Several optimizations reduce GC pressure and superlinear behavior on large (e.g. generated) files:
 
-- A class with many fields under the Initialization Checker, and any checker built on it such as
-  the Nullness Checker (4000 fields: 26 s to 11 s), and merging dataflow stores after many calls in
-  such a class.
+- A class with many fields under the Initialization Checker and the checkers built on it, such as
+  the Nullness Checker (4000 fields: 26 s to 11 s), including merging dataflow stores after many
+  calls.
 - Long method bodies and many calls to methods with contracts, such as `Map.put`.
 - An array initializer whose elements need type argument inference, such as
   `new Pair[] {new Pair<>(a, b), ...}` (28 elements: over 6 hours to 2 s).
@@ -136,6 +136,8 @@ Type-checking and subtyping improvements:
   `@Deterministic` and `@SideEffectFree`, except for a contract's facts about the next evaluation.
   A contract no longer refines an argument, receiver, or subexpression that is a call to an impure
   method, such as `nondet().f`; likewise the Value Checker's `startsWith`/`endsWith` receiver.
+  `-AassumeDeterministic` alone therefore no longer enables refinement of repeated calls; use
+  `-AassumePure` or both `-AassumeDeterministic` and `-AassumeSideEffectFree`.
 - A cast to a type variable from an operand that is not a type variable now has
   the qualifier of the operand, unless that qualifier is below the lower bound of
   the type variable: `(T) o` for a `@Nullable Object o` is `@Nullable T`, so
@@ -191,19 +193,20 @@ JSpecify support in the Nullness Checker:
   default supplies to a method signature of such code does not constrain an
   overriding method, or a method reference to a functional interface of such
   code. This is unsound for calls through the unchecked supertype.
+- `@AnnotatedFor` has an `applyToSubpackages` element and is `@Repeatable`, so different type
+  systems can be given different `applyToSubpackages` settings on one package.
 - New `@UnannotatedFor` excludes a package, class, method, or constructor from
   an enclosing `@AnnotatedFor`'s scope for the given checkers (a nested
   `@AnnotatedFor` takes effect again). Like `@AnnotatedFor`, it's repeatable
   and has `applyToSubpackages`. Writing both for the same checker on one
   declaration issues `conflicting.annotatedfor`.
-- `@AnnotatedFor`, `@HasQualifierParameter`, and `@ReportUse` have an
-  `applyToSubpackages` element, as `@DefaultQualifier` does.
-- `@AnnotatedFor` is now `@Repeatable`, so different type systems can be given
-  different `applyToSubpackages` settings on one package.
-- Both now have `RUNTIME` retention, so they're stored in class files and
-  respected under `-AuseConservativeDefaultsForUncheckedCode=bytecode`.
+- `@AnnotatedFor` and `@UnannotatedFor` have `RUNTIME` retention, so they're
+  stored in class files and respected under `-AuseConservativeDefaultsForUncheckedCode=bytecode`.
 - Package declarations (`package-info.java`) are now analyzed, so conflicting
   pairs and invalid `@HasQualifierParameter` uses are detected there.
+
+`@HasQualifierParameter` and `@ReportUse` have an `applyToSubpackages` element, as
+`@DefaultQualifier` does.
 
 Nullness Checker improvements:
 
@@ -241,8 +244,6 @@ The Fenum Checker preserves a fake enum across boxing/unboxing via
 
 Command-line option additions and changes:
 
-- `-AassumeDeterministic` alone no longer enables refinement of repeated calls; use `-AassumePure`
-  or both `-AassumeDeterministic` and `-AassumeSideEffectFree`.
 - `-AstoreInBytecode=false` writes only source annotations to the class file,
   not defaulted qualifiers or those read from ajava or merged stub files, which
   break Kotlin (a stored `@NonNull` on a class type parameter) and `javac` 25
@@ -304,12 +305,13 @@ An override whose receiver narrows the type arguments of the overridden receiver
 or of a type parameter the overridden class does not see, is reported as
 `override.receiver.invalid`; previously only primary annotations were compared. A receiver that is
 the type of `this` with its class's defaults is never reported; one that a default on the
-overriding method changes is checked like a written annotation. The type of `this` has its class's
-defaults everywhere, including field initializers and initializer blocks (no more false
-`method.invocation.invalid` there), and the enclosing instance of an inner class's method or
-constructor, unless its type is written, has the type of `this` in the enclosing class, so a
-default of the inner class no longer lets a constructor dereference a nullable field of
-`Outer.this`.
+overriding method changes is checked like a written annotation.
+
+The type of `this` has its class's defaults everywhere, including field initializers and
+initializer blocks (no more false `method.invocation.invalid` there), and the enclosing instance of
+an inner class's method or constructor, unless its type is written, has the type of `this` in the
+enclosing class, so a default of the inner class no longer lets a constructor dereference a
+nullable field of `Outer.this`.
 
 A lambda body keeps the refinement of a field with a monotonic qualifier to its
 target, such as a `@MonotonicNonNull` field that was checked to be non-null before
