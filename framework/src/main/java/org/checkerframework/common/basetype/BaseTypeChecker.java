@@ -106,7 +106,8 @@ public abstract class BaseTypeChecker extends SourceChecker {
             Collections.newSetFromMap(new IdentityHashMap<>());
 
     /** An array containing just {@code BaseTypeChecker.class}. */
-    protected static Class<?>[] baseTypeCheckerClassArray = new Class<?>[] {BaseTypeChecker.class};
+    private static final Class<?>[] baseTypeCheckerClassArray =
+            new Class<?>[] {BaseTypeChecker.class};
 
     /** Create a new BaseTypeChecker. */
     protected BaseTypeChecker() {}

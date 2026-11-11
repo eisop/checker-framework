@@ -615,7 +615,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>If this checker has no subcheckers and is not a subchecker for any other checker, then
      * messageStore is null and messages will be printed as they are issued by this checker.
      */
-    protected @MonotonicNonNull TreeSet<CheckerMessage> messageStore;
+    private @MonotonicNonNull TreeSet<CheckerMessage> messageStore;
 
     /**
      * An optional destination for this checker's diagnostics. When non-null, findings are reported
@@ -1609,7 +1609,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * If true, javac failed to compile the code or a previously-run annotation processor issued an
      * error.
      */
-    protected boolean javacErrored = false;
+    private boolean javacErrored = false;
 
     /** Output the warning about memory at most once. */
     private boolean warnedAboutGarbageCollection = false;
@@ -3931,7 +3931,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Elements with a {@code @SuppressWarnings} that actually suppressed a warning for this
      * checker.
      */
-    protected final Set<Element> elementsWithSuppressedWarnings = new HashSet<>();
+    private final Set<Element> elementsWithSuppressedWarnings = new HashSet<>();
 
     /**
      * Returns true if all the warnings pertaining to a given element should be suppressed. Returns
