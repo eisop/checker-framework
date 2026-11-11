@@ -137,6 +137,10 @@ Type-checking and subtyping improvements:
   contains one, such as `nondet().f`; likewise the Value Checker's `startsWith`/`endsWith` receiver.
   `-AassumeDeterministic` alone therefore no longer enables refinement of repeated calls; use
   `-AassumePure` or both `-AassumeDeterministic` and `-AassumeSideEffectFree`.
+  A refined method call, or a fact about a call from a contract such as
+  `@EnsuresNonNull("Foo.get()")`, is evicted from the store by any call to a method with side
+  effects, whatever its receiver and arguments. The Lock Checker requires a method called in a lock
+  expression, such as `@GuardedBy("lock()")` or `synchronized (lock())`, to be `@Pure`.
 - A cast to a type variable from an operand that is not a type variable now has
   the qualifier of the operand, unless that qualifier is below the lower bound of
   the type variable: `(T) o` for a `@Nullable Object o` is `@Nullable T`, so
@@ -290,6 +294,9 @@ Stub files:
   statically imported one, a qualified name starting with a `java.lang` class
   such as `Byte`, nested annotations (e.g. in `@EnsuresQualifier.List({...})`),
   and text blocks. Such annotations used to be ignored.
+- Parser fixes for wildcard imports, nested declarations, `--release 8`
+  wildcards, type-parameter mismatches, and fake override scoping.
+- The stubifier resolves nested annotations through enclosing classes.
 
 Checkers built on the Initialization Checker run, with a note, when the classpath's checker-qual
 lacks `@PolyInitialized`, instead of failing with "fromClass can't load class".
@@ -356,6 +363,9 @@ interface declares the two validation methods, so an implementation that does no
 
 New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
 reachable from the entry block, too.
+
+New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
+replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
 
 New `SystemUtil.splitPaths(String)` splits a list of paths on the platform's path separator.
 Deprecated `SystemUtil.COLON_SPLITTER`.
@@ -469,9 +479,7 @@ Performance optimizations:
 - `TreeUtils.sameTree()` uses a visitor instead of `toString()`.
 - Defaulting finds the declaration of a type parameter without searching the whole compilation
   unit, which made checking a file quadratic in its number of type parameters (1600 generic
-  methods in one class: 7.1 s, now 3.3 s).
-- New `TreeUtils.getStartPosition(Tree)` and `TreeUtils.getEndPosition(CompilationUnitTree, Tree)`
-  replace the framework's uses of the `SourcePositions` methods that JDK 27 deprecates for removal.
+  methods in one class: 7.1 s to 3.3 s).
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
 - The checkers of a compound checker keep the shared tree path cache for the same compilation unit,
   so they no longer scan the whole compilation unit for the trees that dataflow analysis creates
@@ -483,9 +491,9 @@ Performance optimizations:
   method each time.
 - The Index Checker no longer takes quadratic time in the number of statements of a method that
   contains compound assignments, local variable declarations, `if`, or `try` statements: a method
-  with 4000 pairs of compound assignments takes about 6 s instead of about a minute.
+  with 4000 pairs of compound assignments: about a minute to 6 s.
 - Finding the supertypes of a type with generic enclosing types is no longer exponential in
-  the nesting depth: 32 nested generic inner classes took more than 10 minutes, now 3 s.
+  the nesting depth: 32 nested generic inner classes, over 10 minutes to 3 s.
 - `GenericAnnotatedTypeFactory.isRelevant` finds declared types in its cache (now 2000 entries)
   by their class instead of missing for each new instance of the same type.
 - The types of method invocations, new class, conditional, and other flow-dependent expressions are
@@ -511,8 +519,6 @@ Other improvements and bug fixes:
   reference checker) now uses it, even when `checker.jar` is earlier on the processor path.
 - The Index Checker no longer crashes with a `NullPointerException` on an upper bound
   annotation, such as `@LTLengthOf`, whose `offset` is an expression with an error.
-- `AnnotationFileParser` fixes: wildcard imports, nested declarations, `--release 8`
-  wildcards, type-parameter mismatches, fake override scoping.
 - Type argument inference:
   - No longer adds an upper bound as a lower bound (JLS 18.2.3), resolves an
     inference variable after the capture variables in its bounds (JLS 18.4),
@@ -526,9 +532,9 @@ Other improvements and bug fixes:
     method references (implicitly typed, explicitly typed against a
     wildcard-parameterized interface, nested with a functional interface that
     throws a type variable, with a `throws E` instantiated with a class,
-    throwing `Error`, containing a `return` in
-    a method of a local class, inexact, chained as
-    `s.map(P::type).map(Class::getName)`, nested in a lambda passed to a generic
+    throwing `Error`, containing a `return` in a method of a local class,
+    inexact, chained as `s.map(P::type).map(Class::getName)`, nested in a
+    lambda passed to a generic
     method as `each(in, l -> each(l, Box::get))`, or returned by a lambda with a
     raw target such as `Supplier s = () -> never();`); a generic call nested in
     an argument of a method without type variables (`q.reduce(id(s))`);
@@ -540,8 +546,7 @@ Other improvements and bug fixes:
   `outer.new Inner("a", "b") {}` (varargs constructor).
 - When a checker fails to initialize, for example with an `OutOfMemoryError`, it reports
   that failure instead of crashing with a `NullPointerException` in
-  `SourceChecker.visitDeclaration`, which happened when the JVM also spent much of its
-  time in garbage collection.
+  `SourceChecker.visitDeclaration`.
 - Error messages about the constructor of an anonymous class name its supertype,
   instead of printing an empty class name.
 - Viewpoint adaptation no longer crashes or overflows the stack on a field
@@ -557,13 +562,10 @@ Other improvements and bug fixes:
 - Fixed format crash in Optional Checker's `prefer.map.and.orelse` warning.
 - Fixed crash in `AnnotatedTypeMirror#hasExplicitAnnotation(Class)`.
 - Fixed a crash of the Nullness Checker with `-AatfDoNotCache` on `this` in a constructor.
-  A subchecker's type factory kept the visitor tree path of the previous compilation unit;
-  `AnnotatedTypeFactory#setRoot` now clears it.
 - Fixed multi-catch dropping a type annotation on the first alternative.
 - Fixed `@DefaultQualifier` on a package lost for deeper subpackages.
-- Stubifier resolves nested annotations through enclosing classes.
-- Fixed `-AwarnUnneededSuppressions` for values matching a checker prefix.
-- `-AwarnUnneededSuppressions` now also works with `-AassumeInitialized`.
+- `-AwarnUnneededSuppressions` works for values matching a checker prefix and with
+  `-AassumeInitialized`.
 - Fixed missing `EnsuresNonNullIf` import in
   `permit-nullness-assertion-exception.astub`.
 - Fixed capture conversion dropping qualifiers from type-variable bounds.
@@ -579,21 +581,13 @@ Other improvements and bug fixes:
 - No longer crashes on an increment, decrement, comparison, or arithmetic
   operation on an expression whose type is a type variable, wildcard, or
   intersection type bounded by a boxed primitive type, such as `x++` for
-  `<N extends Integer> N x`.
-- The Index Checker no longer crashes on an expression whose type is a type
-  variable bounded by a boxed integral type, such as an array index `a[x]` for
-  `<N extends Integer> N x`, or such an argument of `Math.min`, `Math.max`, or
-  `Random.nextInt`.
+  `<N extends Integer> N x`, and the Index Checker no longer crashes on such an
+  expression as an array index `a[x]` or an argument of `Math.min`, `Math.max`,
+  or `Random.nextInt`.
 - A `checker-qual` jar of another Checker Framework that is earlier on the
   annotation processor path than `checker.jar`, as Error Prone's configuration
   can arrange, is now reported once, with the jar it was loaded from, instead
   of every compilation unit failing with a `NoSuchFieldError`.
-- A refined method call, or a fact about a call from a contract such as
-  `@EnsuresNonNull("Foo.get()")`, is now evicted from the store by any call to a
-  method with side effects, whatever the receiver and arguments of the call are.
-- The Lock Checker now requires a method called in a lock expression, such as
-  `@GuardedBy("lock()")` or `synchronized (lock())`, to be side-effect-free as
-  well as deterministic, that is, `@Pure`.
 
 ### Closed issues
 
