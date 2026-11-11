@@ -36,11 +36,11 @@ public class RLCCalledMethodsChecker extends CalledMethodsChecker {
     }
 
     @Override
-    public Properties getMessagesProperties() {
-        Properties result = super.getMessagesProperties();
+    protected Properties createMessagesProperties() {
+        Properties result = super.createMessagesProperties();
         // RLCCalledMethodsVisitor reports keys that only the Resource Leak Checker's
         // messages.properties defines -- required.method.not.called and owning.override.return
-        // among them.  getMessagesProperties walks this checker's *class* hierarchy
+        // among them.  createMessagesProperties walks this checker's *class* hierarchy
         // (RLCCalledMethodsChecker, CalledMethodsChecker, AccumulationChecker, ...), which does
         // not include ResourceLeakChecker, since this checker is its subchecker rather than its
         // subclass.  Without this, every such message is printed as its bare key.

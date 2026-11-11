@@ -571,7 +571,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Maps error keys to localized/custom error messages. Do not use directly; call {@link
      * #fullMessageOf} or {@link #processErrorMessageArg}. Is set in {@link #initChecker} to the
-     * result of {@link #getMessagesProperties}.
+     * result of {@link #createMessagesProperties}.
      */
     private Properties messagesProperties;
 
@@ -1357,7 +1357,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Provides a mapping of error keys to custom error messages.
+     * Creates the mapping of error keys to custom error messages.
      *
      * <p>As a default, this implementation builds a {@link Properties} out of file {@code
      * messages.properties}. It accumulates all the properties files in the Java class hierarchy
@@ -1368,7 +1368,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return a {@link Properties} that maps error keys to error message text
      */
-    public Properties getMessagesProperties() {
+    protected Properties createMessagesProperties() {
         Properties result = new Properties();
 
         ArrayDeque<Class<?>> checkers = new ArrayDeque<>();
@@ -1548,7 +1548,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         this.trees = trees;
 
         this.messager = processingEnv.getMessager();
-        this.messagesProperties = getMessagesProperties();
+        this.messagesProperties = createMessagesProperties();
 
         // Set the active options for this checker and all subcheckers.
         Map<String, String> options = getOptions();

@@ -365,8 +365,8 @@ The fields `messagesProperties`, `activeOptions`, `supportedOptions`, `subchecke
 `immediateSubcheckers`, `suppressWarningsPrefixesOfSubcheckers`, and `treePathCacher` of
 `SourceChecker` and `ultimateParentChecker` of `BaseTypeChecker` are now private; use their getters
 instead. The getter of `activeOptions` is `getOptions()`, `getSubchecker(Class)` returns an
-immediate subchecker, and `fullMessageOf` looks up a message. `getMessagesProperties()` no longer
-caches its result; `initChecker` calls it once.
+immediate subchecker, and `fullMessageOf` looks up a message. `getMessagesProperties()` is
+renamed `createMessagesProperties()` and is `protected`; `initChecker` calls it once.
 
 New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
 reachable from the entry block, too.
