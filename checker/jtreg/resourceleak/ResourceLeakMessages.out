@@ -1,0 +1,8 @@
+ResourceLeakMessages.java:18:21: compiler.err.proc.messager: [required.method.not.called] Required method close may not have been invoked on s or any of its aliases.
+The type of the object is: java.io.InputStream.
+Reason for going out of scope: possible exceptional exit before the required method call, if s.read() throws an exception of type java.io.IOException
+ResourceLeakMessages.java:30:14: compiler.err.proc.messager: [owning.override.param] Incompatible ownership for parameter s.
+found   : no ownership annotation or @NotOwning
+required: @Owning
+Consequence: method take in ResourceLeakMessages$Child cannot override method take in ResourceLeakMessages$Parent
+2 errors
