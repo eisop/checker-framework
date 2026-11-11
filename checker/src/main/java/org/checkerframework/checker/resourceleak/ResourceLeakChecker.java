@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NavigableSet;
+import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -159,6 +160,16 @@ public class ResourceLeakChecker extends AggregateChecker {
      * @see #getIgnoredExceptions()
      */
     private @MonotonicNonNull SetOfTypes ignoredExceptions = null;
+
+    @Override
+    public Properties getMessagesProperties() {
+        Properties result = super.getMessagesProperties();
+        // The consistency analysis reports its errors through this checker, but their messages
+        // are defined in the messages.properties of RLCCalledMethodsChecker, which is not in this
+        // checker's class hierarchy.  Without this, each such message is printed as its bare key.
+        result.putAll(getProperties(RLCCalledMethodsChecker.class, MSGS_FILE, true));
+        return result;
+    }
 
     @Override
     protected Set<Class<? extends SourceChecker>> getSupportedCheckers() {
