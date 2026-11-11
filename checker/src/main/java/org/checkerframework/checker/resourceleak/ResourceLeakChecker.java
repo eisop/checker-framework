@@ -162,8 +162,8 @@ public class ResourceLeakChecker extends AggregateChecker {
     private @MonotonicNonNull SetOfTypes ignoredExceptions = null;
 
     @Override
-    public Properties getMessagesProperties() {
-        Properties result = super.getMessagesProperties();
+    protected Properties createMessagesProperties() {
+        Properties result = super.createMessagesProperties();
         // The consistency analysis reports its errors through this checker, but their messages
         // are defined in the messages.properties of RLCCalledMethodsChecker, which is not in this
         // checker's class hierarchy.  Without this, each such message is printed as its bare key.
