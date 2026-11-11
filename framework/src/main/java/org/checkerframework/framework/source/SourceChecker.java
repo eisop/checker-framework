@@ -570,9 +570,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Maps error keys to localized/custom error messages. Do not use directly; call {@link
-     * #fullMessageOf} or {@link #processErrorMessageArg}. Is set in {@link #initChecker}.
+     * #fullMessageOf} or {@link #processErrorMessageArg}. Is set in {@link #initChecker} to the
+     * result of {@link #createMessagesProperties}.
      */
-    protected Properties messagesProperties;
+    private Properties messagesProperties;
 
     /**
      * Used to report error messages and warnings via the compiler. Is set in {@link
@@ -603,7 +604,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * (including indirect subcheckers). Do not access this field directly; instead, use {@link
      * #getSuppressWarningsPrefixesOfSubcheckers}.
      */
-    protected @MonotonicNonNull Collection<String> suppressWarningsPrefixesOfSubcheckers = null;
+    private @MonotonicNonNull Collection<String> suppressWarningsPrefixesOfSubcheckers = null;
 
     /**
      * Stores all messages issued by this checker and its subcheckers for the current compilation
@@ -614,7 +615,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>If this checker has no subcheckers and is not a subchecker for any other checker, then
      * messageStore is null and messages will be printed as they are issued by this checker.
      */
-    protected @MonotonicNonNull TreeSet<CheckerMessage> messageStore;
+    private @MonotonicNonNull TreeSet<CheckerMessage> messageStore;
 
     /**
      * An optional destination for this checker's diagnostics. When non-null, findings are reported
@@ -727,7 +728,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>Both the simple and the canonical name of the checker can be used. Superclasses of the
      * current checker are also considered.
      */
-    protected @MonotonicNonNull Map<String, String> activeOptions;
+    private @MonotonicNonNull Map<String, String> activeOptions;
 
     /**
      * Options supplied by a host that embeds the Checker Framework, which {@link
@@ -742,7 +743,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * passed to this checker. By contrast, {@link #activeOptions} is a map for options that were
      * passed for this run of the checker.
      */
-    protected @MonotonicNonNull Set<String> supportedOptions = null;
+    private @MonotonicNonNull Set<String> supportedOptions = null;
 
     /**
      * The class hierarchy from this checker's runtime class up to {@link AbstractTypeProcessor}.
@@ -855,20 +856,20 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * getSubcheckers} sets this field to an immutable list which is empty for all but the ultimate
      * parent checker.
      */
-    protected @MonotonicNonNull List<SourceChecker> subcheckers = null;
+    private @MonotonicNonNull List<SourceChecker> subcheckers = null;
 
     /**
      * The list of subcheckers that are direct dependencies of this checker. This list will be
      * non-empty for any checker that has at least one subchecker.
      */
     // This field is set to non-null when `subcheckers` is.
-    protected @MonotonicNonNull List<SourceChecker> immediateSubcheckers = null;
+    private @MonotonicNonNull List<SourceChecker> immediateSubcheckers = null;
 
     /**
      * TreePathCacher to share between subcheckers. Initialized either in {@link
      * #getTreePathCacher()} or {@link #instantiateSubcheckers(Map)}.
      */
-    protected TreePathCacher treePathCacher = null;
+    private TreePathCacher treePathCacher = null;
 
     /** Creates a source checker. */
     protected SourceChecker() {}
@@ -1356,21 +1357,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Provides a mapping of error keys to custom error messages.
+     * Creates the mapping of error keys to custom error messages.
      *
      * <p>As a default, this implementation builds a {@link Properties} out of file {@code
      * messages.properties}. It accumulates all the properties files in the Java class hierarchy
      * from the checker up to {@code SourceChecker}. This permits subclasses to inherit default
      * messages while being able to override them.
      *
+     * <p>{@link #initChecker} calls this method once and uses the result for every diagnostic.
+     *
      * @return a {@link Properties} that maps error keys to error message text
      */
-    public Properties getMessagesProperties() {
-        if (messagesProperties != null) {
-            return messagesProperties;
-        }
-
-        messagesProperties = new Properties();
+    protected Properties createMessagesProperties() {
+        Properties result = new Properties();
 
         ArrayDeque<Class<?>> checkers = new ArrayDeque<>();
         Class<?> currClass = this.getClass();
@@ -1381,9 +1380,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         for (Class<?> checker : checkers) {
-            messagesProperties.putAll(getProperties(checker, MSGS_FILE, true));
+            result.putAll(getProperties(checker, MSGS_FILE, true));
         }
-        return messagesProperties;
+        return result;
     }
 
     /**
@@ -1549,7 +1548,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         this.trees = trees;
 
         this.messager = processingEnv.getMessager();
-        this.messagesProperties = getMessagesProperties();
+        this.messagesProperties = createMessagesProperties();
 
         // Set the active options for this checker and all subcheckers.
         Map<String, String> options = getOptions();
@@ -1610,7 +1609,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * If true, javac failed to compile the code or a previously-run annotation processor issued an
      * error.
      */
-    protected boolean javacErrored = false;
+    private boolean javacErrored = false;
 
     /** Output the warning about memory at most once. */
     private boolean warnedAboutGarbageCollection = false;
@@ -3932,7 +3931,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Elements with a {@code @SuppressWarnings} that actually suppressed a warning for this
      * checker.
      */
-    protected final Set<Element> elementsWithSuppressedWarnings = new HashSet<>();
+    private final Set<Element> elementsWithSuppressedWarnings = new HashSet<>();
 
     /**
      * Returns true if all the warnings pertaining to a given element should be suppressed. Returns

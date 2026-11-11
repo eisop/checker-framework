@@ -361,6 +361,15 @@ type variable, as `validateWildcardTargetLocations` does for a wildcard. The `Ty
 interface declares the two validation methods, so an implementation that does not extend
 `BaseTypeValidator` must implement them.
 
+The fields `messagesProperties`, `activeOptions`, `supportedOptions`, `subcheckers`,
+`immediateSubcheckers`, `suppressWarningsPrefixesOfSubcheckers`, `treePathCacher`, `messageStore`,
+`elementsWithSuppressedWarnings`, and `javacErrored` of `SourceChecker` and `ultimateParentChecker`
+and `baseTypeCheckerClassArray` of `BaseTypeChecker` are now private. Use the getters of the cached
+values instead: `getOptions()` for `activeOptions`, `getSubchecker(Class)` for an immediate
+subchecker, `fullMessageOf` for a message, and the getter of the same name for the others.
+`getMessagesProperties()` is renamed `createMessagesProperties()` and is `protected`; `initChecker`
+calls it once.
+
 New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
 reachable from the entry block, too.
 
