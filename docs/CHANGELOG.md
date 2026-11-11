@@ -38,9 +38,10 @@ The annotated JDK and built-in stub files are distributed as pre-parsed binary f
 startup no longer runs JavaParser. A missing or stale binary stub falls back to text parsing with a
 warning (suppressible via `-AsuppressWarnings=text.parsing`); `-AmergeStubsWithSource`,
 `-AstubWarnIfNotFound`, and `-AstubDebug` use text parsing. `BinaryStubFileGenerator` pre-parses a
-custom `-Astubs` file, directory (`--bundle`), or jar; `JavaStubifier`, which generates the JDK's,
-names the source file on failure and has a new `--skipUnloadableAnnotations` flag. See the
-manual's "Using a binary (pre-parsed) stub file" section.
+custom `-Astubs` file, directory (`--bundle`), or jar; `JavaStubifier`, which generates the
+annotated JDK's stub files, names the source file on failure and has a new
+`--skipUnloadableAnnotations` flag. See the manual's "Using a binary (pre-parsed) stub file"
+section.
 
 Runs under JDK 27 and JDK 28 early-access builds.
 
@@ -77,8 +78,8 @@ Type-checking and subtyping improvements:
 - Subtyping, type equality, and type argument inference now compare the type
   arguments of enclosing types: `Outer<@Nullable String>.Inner` is no longer a
   subtype of `Outer<@NonNull String>.Inner`. The type arguments of an enclosing
-  type, as in `Outer<@NonNull String>.Inner`, are checked against their bounds,
-  once per chain of nested types.
+  type are checked against their bounds; an out-of-bound one is reported once
+  per chain of nested types.
 - `-AcheckCastElementType` now requires array components to be invariant in
   array casts and `instanceof` binding patterns, closing an unsoundness:
   array components are mutable and qualifiers are not reified. It no longer
@@ -121,9 +122,9 @@ Type-checking and subtyping improvements:
   which does not unbox a null selector. The Nullness Checker therefore no longer
   refines a boxed selector to non-null inside `case null`.
 - In an enhanced `for` over an `Iterable`, the synthetic `iterator()` and
-  `next()` calls have the iterable's element type, so a primitive loop variable,
-  and an unboxed and widened array element as in `for (long x : array)`, keep
-  the element's qualifiers.
+  `next()` calls have the iterable's element type, so a primitive loop variable
+  keeps the element's qualifiers. An array element also keeps them when it is
+  unboxed and widened, as in `for (long x : array)`.
 - The Nullness Checker reports unboxing of a possibly-null value and iteration
   over a possibly-null `Iterable` from the CFG's synthetic invocations; the
   error keys are unchanged, an expression is named without its parentheses, as
@@ -134,8 +135,8 @@ Type-checking and subtyping improvements:
   `@PreconditionAnnotation`, so the Non-Empty Checker ignored such contracts.
 - Flow-sensitive refinement of a method call's result requires the method to be
   `@Deterministic` and `@SideEffectFree`, except for a contract's facts about the next evaluation.
-  A contract no longer refines an argument, receiver, or subexpression that is a call to an impure
-  method, such as `nondet().f`; likewise the Value Checker's `startsWith`/`endsWith` receiver.
+  A contract no longer refines an argument or receiver that is a call to an impure method or that
+  contains one, such as `nondet().f`; likewise the Value Checker's `startsWith`/`endsWith` receiver.
   `-AassumeDeterministic` alone therefore no longer enables refinement of repeated calls; use
   `-AassumePure` or both `-AassumeDeterministic` and `-AassumeSideEffectFree`.
 - A cast to a type variable from an operand that is not a type variable now has
@@ -246,8 +247,9 @@ Command-line option additions and changes:
 
 - `-AstoreInBytecode=false` writes only source annotations to the class file,
   not defaulted qualifiers or those read from ajava or merged stub files, which
-  break Kotlin (a stored `@NonNull` on a class type parameter) and `javac` 25
-  ("cannot attach type annotations"). Implied by `-Amode=jspecify`.
+  can break Kotlin (a stored `@NonNull` on a class type parameter) and `javac` 25
+  ("cannot attach type annotations" if the annotation's type is off the
+  classpath). Implied by `-Amode=jspecify`.
 - The defaults that `-AuseConservativeDefaultsForUncheckedCode` and
   `-AusePermissiveDefaultsForUncheckedCode` give to unchecked code are no longer
   stored into its class files, where they looked like written qualifiers to the
@@ -310,8 +312,9 @@ overriding method changes is checked like a written annotation.
 The type of `this` has its class's defaults everywhere, including field initializers and
 initializer blocks (no more false `method.invocation.invalid` there), and the enclosing instance of
 an inner class's method or constructor, unless its type is written, has the type of `this` in the
-enclosing class, so a default of the inner class no longer lets a constructor dereference a
-nullable field of `Outer.this`.
+enclosing class, so a default of the inner class or the method no longer lets a constructor
+dereference a nullable field of `Outer.this`. A written constructor receiver, such as
+`Inner(Outer<@NonNull O> Outer.this)`, is respected in the constructor body.
 
 A lambda body keeps the refinement of a field with a monotonic qualifier to its
 target, such as a `@MonotonicNonNull` field that was checked to be non-null before
@@ -323,7 +326,8 @@ individually, as in `many(map, k)`, instead of reporting a false `argument.type.
 
 The Lock Checker reports `lock.not.held` for an enhanced `for` loop over a
 `@GuardedBy` expression whose lock is not held, as it does for an explicit
-dereference of that expression.
+dereference of that expression. It does not check the loop's synthetic
+`iterator()` call.
 
 The Lock Checker no longer reports `lock.expression.not.final` for an effectively final local
 variable named in a lock expression, except where the variable's declaration is not found in the
@@ -409,7 +413,9 @@ compound checker shares them with its subcheckers.
 
 New `@ProgrammaticDefaultLocations` permits a programmatic default at a location its
 `@TargetLocations` prohibits. `QualifierDefaults.addElementDefault` throws `TypeSystemError` after
-type checking begins, and registered defaults combine instead of replacing.
+type checking begins, and registered defaults combine instead of replacing. `QualifierDefaults`
+keeps permissive unchecked-code defaults alongside the conservative ones
+(`addPermissiveUncheckedCodeDefault` and `addConservativeUncheckedCodeDefault`).
 `AnnotatedTypeFactory.getRoot()` is now `public`. A checker declares custom `-Amode` values with
 `@SupportedModes` and `addOptionsForMode`. Diagnostics go through `DiagnosticSink`;
 `reportError`/`reportWarning` accept a null source for positionless messages.
@@ -444,6 +450,8 @@ Performance optimizations:
 - Reduced allocations by reusing `AnnotatedTypeScanner`s and lowering default
   map capacities.
 - Eliminated `Iterator` allocation in `AnnotationMirrorSet`; added `get(int)`.
+- The annotated JDK's binary stub data, and its stub AST when text parsing is
+  used, are loaded once per JVM and shared across compilations.
 - New `freeze()`/`isFrozen()` on `AnnotatedTypeMirror` avoids defensive deep
   copies; `getAnnotatedType(Tree)` and new `getElementAnnotations(Element)`
   return shared frozen types.
@@ -518,8 +526,9 @@ Other improvements and bug fixes:
   - No longer crashes on: wildcard interactions (`? super`/`? extends`,
     F-bounded, a nested `? extends` naming the inferred variable); lambdas and
     method references (implicitly typed, explicitly typed against a
-    wildcard-parameterized interface, nested, with a `throws E` instantiated
-    with a type variable or a class, throwing `Error`, containing a `return` in
+    wildcard-parameterized interface, nested with a functional interface that
+    throws a type variable, with a `throws E` instantiated with a class,
+    throwing `Error`, containing a `return` in
     a method of a local class, inexact, chained as
     `s.map(P::type).map(Class::getName)`, nested in a lambda passed to a generic
     method as `each(in, l -> each(l, Box::get))`, or returned by a lambda with a
