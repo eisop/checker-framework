@@ -234,6 +234,8 @@ Nullness Checker improvements:
   record component, such as `String b` or `var b` in `o instanceof P(String a,
   String b)`, matches null. Its variable now has the nullness of the record
   component, and `@Nullable` on it is no longer reported as `instanceof.nullable`.
+- `nullness.on.outer` is reported once, not twice, for an annotation within a
+  declaration's type, such as `Outer.@Nullable Inner.Deep f`.
 
 Initialization Checker improvements:
 
