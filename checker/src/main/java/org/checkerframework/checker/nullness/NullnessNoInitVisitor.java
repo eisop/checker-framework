@@ -81,7 +81,9 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Name;
 import javax.lang.model.type.TypeKind;
+import javax.tools.Diagnostic;
 
 /** The visitor for the nullness type-system. */
 public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotatedTypeFactory> {
@@ -545,7 +547,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         Element e = TreeUtils.elementFromUse(tree);
         if (e.getKind() == ElementKind.CLASS) {
             if (atypeFactory.containsNullnessAnnotation(null, tree.getExpression())) {
-                checker.reportError(tree, "nullness.on.outer");
+                reportNullnessOnOuter(tree, null, tree);
             }
         } else if (!(TreeUtils.isSelfAccess(tree)
                 || tree.getExpression() instanceof ParameterizedTypeTree
@@ -1435,9 +1437,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         while (t != null) {
             switch (t.getKind()) {
                 case MEMBER_SELECT:
-                    Tree expr = ((MemberSelectTree) t).getExpression();
+                    MemberSelectTree select = (MemberSelectTree) t;
+                    Tree expr = select.getExpression();
                     if (atypeFactory.containsNullnessAnnotation(annoTrees, expr)) {
-                        checker.reportError(expr, "nullness.on.outer");
+                        reportNullnessOnOuter(expr, annoTrees, select);
                     }
                     t = null;
                     break;
@@ -1501,20 +1504,147 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     private List<SuggestedFixData> removeNullnessAnnotationFixes(
             @Nullable List<? extends AnnotationTree> annoTrees, Tree typeTree) {
         List<SuggestedFixData> fixes = new ArrayList<>();
-        for (AnnotationTree annoTree : TreeUtils.getExplicitAnnotationTrees(annoTrees, typeTree)) {
-            AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
-            // This condition must match
-            // NullnessNoInitAnnotatedTypeFactory#containsNullnessAnnotation,
-            // which decides when the nullness.on.primitive error fires: offer a removal fix for
-            // exactly the annotations that triggered the error.
-            if (atypeFactory.isNullnessAnnotation(am) && AnnotationUtils.isTypeUseAnnotation(am)) {
-                SuggestedFixData fix = SuggestedFixData.deleteTree(root, annoTree);
-                if (fix != null) {
-                    fixes.add(fix);
-                }
+        for (AnnotationTree annoTree : nullnessAnnotationTrees(annoTrees, typeTree)) {
+            SuggestedFixData fix = SuggestedFixData.deleteTree(root, annoTree);
+            if (fix != null) {
+                fixes.add(fix);
             }
         }
         return fixes;
+    }
+
+    /**
+     * Returns the nullness type-use annotations among those written on {@code typeTree} or in
+     * {@code annoTrees}: exactly the annotations for which {@link
+     * NullnessNoInitAnnotatedTypeFactory#containsNullnessAnnotation(List, Tree)} reports a
+     * misplaced nullness annotation, so that a fix addresses the annotations that triggered the
+     * error.
+     *
+     * @param annoTrees extra annotation trees to consider (may be null), as passed to {@link
+     *     #visitAnnotatedType}
+     * @param typeTree the type tree
+     * @return the nullness type-use annotations written on {@code typeTree} or in {@code annoTrees}
+     */
+    private List<AnnotationTree> nullnessAnnotationTrees(
+            @Nullable List<? extends AnnotationTree> annoTrees, Tree typeTree) {
+        List<AnnotationTree> result = new ArrayList<>(1);
+        for (AnnotationTree annoTree : TreeUtils.getExplicitAnnotationTrees(annoTrees, typeTree)) {
+            AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
+            // This condition must match
+            // NullnessNoInitAnnotatedTypeFactory#containsNullnessAnnotation(List).
+            if (atypeFactory.isNullnessAnnotation(am) && AnnotationUtils.isTypeUseAnnotation(am)) {
+                result.add(annoTree);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Reports a {@code nullness.on.outer} error at {@code reportTree}, for the nullness annotations
+     * that {@code annoTrees} or {@code select}'s expression apply to an outer type of {@code
+     * select}. When the annotations can be moved onto the innermost type unambiguously, the error
+     * carries that fix; see {@link #moveNullnessAnnotationsFix}.
+     *
+     * @param reportTree the tree at which to report
+     * @param annoTrees extra annotation trees to consider (may be null), as passed to {@link
+     *     #visitAnnotatedType}
+     * @param select a member select naming a class, whose expression (together with {@code
+     *     annoTrees}) carries a nullness annotation
+     */
+    private void reportNullnessOnOuter(
+            Tree reportTree,
+            @Nullable List<? extends AnnotationTree> annoTrees,
+            MemberSelectTree select) {
+        DiagMessage message = DiagMessage.error("nullness.on.outer");
+        SuggestedFixData fix =
+                moveNullnessAnnotationsFix(
+                        nullnessAnnotationTrees(annoTrees, select.getExpression()), select);
+        checker.report(reportTree, fix == null ? message : message.withFix(fix));
+    }
+
+    /**
+     * Builds the suggested fix for a {@code nullness.on.outer} finding: move the nullness
+     * annotations {@code annos}, which are written on an outer type of the qualified type name
+     * containing {@code select}, onto its innermost type, so that {@code @Nullable Outer.Inner}
+     * becomes {@code Outer.@Nullable Inner}. The innermost type is the last name of the qualified
+     * name, which may extend beyond {@code select} (in {@code List<@Nullable Outer.Inner.Deep>},
+     * {@code select} is {@code @Nullable Outer.Inner}) and may be followed by type arguments or
+     * array brackets, which the fix leaves in place. The fix is expressed in the framework-agnostic
+     * {@link SuggestedFixData} representation, so a host such as the Error Prone plugin can offer
+     * it; standalone javac ignores it.
+     *
+     * <p>Returns null, so that no fix is offered, if the innermost type already carries a nullness
+     * annotation (as in {@code @Nullable Outer.@NonNull Inner}), because the intended qualifier is
+     * then unclear; or if the source text or a needed source position is unavailable.
+     *
+     * @param annos the nullness annotations written on an outer type; non-empty
+     * @param select the member select naming a class, whose expression carries {@code annos}
+     * @return a fix that moves {@code annos} onto the innermost type, or null
+     */
+    @SuppressWarnings("interning:not.interned") // reference equality of trees
+    private @Nullable SuggestedFixData moveNullnessAnnotationsFix(
+            List<AnnotationTree> annos, MemberSelectTree select) {
+        TreePath selectPath = TreePath.getPath(getCurrentPath(), select);
+        if (selectPath == null) {
+            return null;
+        }
+        // Find the outermost member select of the qualified name, climbing through enclosing
+        // member selects (Outer.Inner.Deep), parameterized types (Outer.Inner<T>.Deep), and
+        // annotated types (Outer.@Foo Inner.Deep).
+        TreePath targetPath = selectPath;
+        for (TreePath path = selectPath;
+                path.getParentPath() != null;
+                path = path.getParentPath()) {
+            Tree child = path.getLeaf();
+            Tree parent = path.getParentPath().getLeaf();
+            if (parent instanceof MemberSelectTree
+                    && ((MemberSelectTree) parent).getExpression() == child) {
+                targetPath = path.getParentPath();
+            } else if (!(parent instanceof ParameterizedTypeTree
+                            && ((ParameterizedTypeTree) parent).getType() == child)
+                    && !(parent instanceof AnnotatedTypeTree
+                            && ((AnnotatedTypeTree) parent).getUnderlyingType() == child)) {
+                break;
+            }
+        }
+        MemberSelectTree target = (MemberSelectTree) targetPath.getLeaf();
+        // Annotations on the innermost type are on an annotated type that wraps the target.
+        TreePath targetParentPath = targetPath.getParentPath();
+        if (targetParentPath != null
+                && targetParentPath.getLeaf() instanceof AnnotatedTypeTree
+                && atypeFactory.containsNullnessAnnotation(
+                        ((AnnotatedTypeTree) targetParentPath.getLeaf()).getAnnotations())) {
+            return null;
+        }
+
+        CharSequence source = SuggestedFixData.sourceText(root);
+        long targetEnd = TreeUtils.getEndPosition(root, target);
+        if (source == null || targetEnd == Diagnostic.NOPOS) {
+            return null;
+        }
+        // The innermost type's name ends the member select.  Check that the source spells the
+        // name as the Name does; a Unicode escape in the source would make it longer.
+        Name name = target.getIdentifier();
+        int nameStart = (int) targetEnd - name.length();
+        if (nameStart < 0 || !name.contentEquals(source.subSequence(nameStart, (int) targetEnd))) {
+            return null;
+        }
+
+        List<SuggestedFixData.Replacement> replacements = new ArrayList<>(annos.size() + 1);
+        StringBuilder moved = new StringBuilder();
+        for (AnnotationTree anno : annos) {
+            long annoStart = TreeUtils.getStartPosition(anno);
+            long annoEnd = TreeUtils.getEndPosition(root, anno);
+            // deleteTree returns null exactly when one of these positions is unavailable.
+            SuggestedFixData deletion = SuggestedFixData.deleteTree(root, anno);
+            if (deletion == null) {
+                return null;
+            }
+            replacements.addAll(deletion.getReplacements());
+            moved.append(source, (int) annoStart, (int) annoEnd).append(' ');
+        }
+        replacements.add(new SuggestedFixData.Replacement(nameStart, nameStart, moved.toString()));
+        return new SuggestedFixData(replacements);
     }
 
     @Override

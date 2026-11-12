@@ -102,4 +102,138 @@ public class EisopCheckerFrameworkPatchTest {
                         "}")
                 .doTest();
     }
+
+    /**
+     * The Nullness Checker reports {@code nullness.on.outer} for a nullness annotation written
+     * before a qualified inner class type, where Java applies it to the outer type, and attaches a
+     * fix that moves the annotation onto the inner type: {@code @Nullable Outer.Inner} becomes
+     * {@code Outer.@Nullable Inner}.
+     */
+    @Test
+    public void nullnessOnOuterMoveAnnotationFixIsApplied() {
+        refactoringHelper()
+                .setFixChooser(FixChoosers.FIRST)
+                .addInputLines(
+                        "test/Outer.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Outer {",
+                        "  class Inner {}",
+                        "  void m(@Nullable Outer.Inner p) {}",
+                        "}")
+                .addOutputLines(
+                        "test/Outer.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Outer {",
+                        "  class Inner {}",
+                        "  void m(Outer.@Nullable Inner p) {}",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * The {@code nullness.on.outer} fix moves the annotation onto the innermost type of the
+     * qualified name, also in a type argument, where javac attaches the annotation to the first
+     * name rather than to the declaration, and leaves type arguments in place.
+     */
+    @Test
+    public void nullnessOnOuterFixInTypeArgumentMovesToInnermostType() {
+        refactoringHelper()
+                .setFixChooser(FixChoosers.FIRST)
+                .addInputLines(
+                        "test/Outer.java",
+                        "package test;",
+                        "import java.util.List;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Outer {",
+                        "  class Inner {",
+                        "    class Deep<T> {}",
+                        "  }",
+                        "  void m(List<@Nullable Outer.Inner.Deep<String>> p) {}",
+                        "}")
+                .addOutputLines(
+                        "test/Outer.java",
+                        "package test;",
+                        "import java.util.List;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Outer {",
+                        "  class Inner {",
+                        "    class Deep<T> {}",
+                        "  }",
+                        "  void m(List<Outer.Inner.@Nullable Deep<String>> p) {}",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * The {@code nullness.on.outer} fix copies the annotation as written, here with a
+     * fully-qualified name, leaves other modifiers and array brackets in place, and also applies to
+     * an annotation written between the names of the qualified type.
+     */
+    @Test
+    public void nullnessOnOuterFixKeepsAnnotationSpellingModifiersAndArrayBrackets() {
+        refactoringHelper()
+                .setFixChooser(FixChoosers.FIRST)
+                .addInputLines(
+                        "test/Outer.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Outer {",
+                        "  class Inner {",
+                        "    class Deep {}",
+                        "  }",
+                        "  void m(final @org.checkerframework.checker.nullness.qual.Nullable"
+                                + " Outer.Inner[] p) {}",
+                        "  void n(Outer.@Nullable Inner.Deep p) {}",
+                        "}")
+                .addOutputLines(
+                        "test/Outer.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Outer {",
+                        "  class Inner {",
+                        "    class Deep {}",
+                        "  }",
+                        "  void m(final Outer.@org.checkerframework.checker.nullness.qual.Nullable"
+                                + " Inner[] p) {}",
+                        "  void n(Outer.Inner.@Nullable Deep p) {}",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * When the inner type already carries a nullness annotation, the intended qualifier is unclear,
+     * so {@code nullness.on.outer} carries no Checker Framework fix and the first fix is the
+     * suppression fix.
+     */
+    @Test
+    public void nullnessOnOuterOffersNoFixWhenInnerTypeIsAnnotated() {
+        refactoringHelper()
+                .setFixChooser(FixChoosers.FIRST)
+                .addInputLines(
+                        "test/Outer.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.NonNull;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Outer {",
+                        "  class Inner {}",
+                        "  @Nullable Outer.@NonNull Inner m() {",
+                        "    return new Inner();",
+                        "  }",
+                        "}")
+                .addOutputLines(
+                        "test/Outer.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.NonNull;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Outer {",
+                        "  class Inner {}",
+                        "  @SuppressWarnings(\"eisopcf\")",
+                        "  @Nullable Outer.@NonNull Inner m() {",
+                        "    return new Inner();",
+                        "  }",
+                        "}")
+                .doTest();
+    }
 }

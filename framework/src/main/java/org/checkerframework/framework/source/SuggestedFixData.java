@@ -137,20 +137,9 @@ public final class SuggestedFixData {
         if (start == Diagnostic.NOPOS || end == Diagnostic.NOPOS) {
             return null;
         }
-        // getSourceFile() and getCharContent() may each return null, and getCharContent() may
-        // throw if the file cannot be read.  In any of those cases, fall back to deleting only the
-        // tree's own source range.
-        JavaFileObject sourceFile = root.getSourceFile();
-        CharSequence source;
-        if (sourceFile == null) {
-            source = null;
-        } else {
-            try {
-                source = sourceFile.getCharContent(true);
-            } catch (IOException e) {
-                source = null;
-            }
-        }
+        // If the source text is unavailable, fall back to deleting only the tree's own source
+        // range.
+        CharSequence source = sourceText(root);
         int deleteEnd = (int) end;
         if (source != null) {
             while (deleteEnd < source.length()
@@ -159,5 +148,28 @@ public final class SuggestedFixData {
             }
         }
         return replace((int) start, deleteEnd, "");
+    }
+
+    /**
+     * Returns the source text of the given compilation unit, which javac source offsets index into.
+     * A fix that copies text from the source (for example, to move an annotation elsewhere) reads
+     * it from here.
+     *
+     * @param root a compilation unit
+     * @return its source text, or {@code null} if the source file or its content is unavailable or
+     *     cannot be read
+     */
+    public static @Nullable CharSequence sourceText(CompilationUnitTree root) {
+        // getSourceFile() and getCharContent() may each return null, and getCharContent() may
+        // throw if the file cannot be read.
+        JavaFileObject sourceFile = root.getSourceFile();
+        if (sourceFile == null) {
+            return null;
+        }
+        try {
+            return sourceFile.getCharContent(true);
+        } catch (IOException e) {
+            return null;
+        }
     }
 }
