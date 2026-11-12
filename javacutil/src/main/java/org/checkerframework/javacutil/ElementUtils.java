@@ -642,10 +642,10 @@ public class ElementUtils {
      * @return true if {@code element} is "com.sun.tools.javac.comp.Resolve$SymbolNotFoundError"
      */
     public static boolean isError(Element element) {
-        // TODO: Class.getName() is not documented to be interned. Either use equals() or find a
-        // better way to check this.
+        // The JVM interns class names, as the annotated JDK's @Interned on Class.getName() records,
+        // so == is correct; the Interning Checker reports equals() here as unnecessary.
         return element.getClass().getName()
-                == "com.sun.tools.javac.comp.Resolve$SymbolNotFoundError"; // interned
+                == "com.sun.tools.javac.comp.Resolve$SymbolNotFoundError";
     }
 
     /**
