@@ -4227,7 +4227,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw SuppressWarnings prefixes declared on this checker's class hierarchy
      */
-    protected final Set<String> getDeclaredSuppressWarningsPrefixes() {
+    private Set<String> getDeclaredSuppressWarningsPrefixes() {
         if (declaredSuppressWarningsPrefixes == null) {
             Set<String> declared = new TreeSet<>();
             for (Class<?> clazz : getClassHierarchy()) {
