@@ -6,6 +6,7 @@ import com.google.errorprone.scanner.ScannerSupplier;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -35,14 +36,17 @@ public class EisopCheckerFrameworkPatchTest {
     /**
      * Returns a refactoring helper that runs the {@code eisopcf} plugin with the Nullness Checker.
      *
+     * @param extraArgs additional javac or Error Prone flags, after {@link #ARGS}
      * @return the refactoring helper
      */
-    private static BugCheckerRefactoringTestHelper refactoringHelper() {
+    private static BugCheckerRefactoringTestHelper refactoringHelper(String... extraArgs) {
         ScannerSupplier scanner =
                 ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
+        List<String> args = new ArrayList<>(ARGS);
+        args.addAll(Arrays.asList(extraArgs));
         return BugCheckerRefactoringTestHelper.newInstance(
                         scanner, EisopCheckerFrameworkPatchTest.class)
-                .setArgs(ARGS.toArray(new String[0]));
+                .setArgs(args.toArray(new String[0]));
     }
 
     /**
@@ -234,6 +238,98 @@ public class EisopCheckerFrameworkPatchTest {
                         "    return new Inner();",
                         "  }",
                         "}")
+                .doTest();
+    }
+
+    /**
+     * Under {@code -AcheckPurityAnnotations}, a method annotated with both {@code @SideEffectFree}
+     * and {@code @Deterministic} gets a {@code purity.effectively.pure} warning (reported by every
+     * checker) with a fix that replaces the first of the two annotations by {@code @Pure} and
+     * deletes the other. {@code Pure} is written by its simple name when the file imports it.
+     */
+    @Test
+    public void purityEffectivelyPureFixReplacesBothAnnotationsByImportedPure() {
+        refactoringHelper("-XepOpt:eisopcf:checkPurityAnnotations")
+                .setFixChooser(FixChoosers.FIRST)
+                .addInputLines(
+                        "test/P.java",
+                        "package test;",
+                        "import org.checkerframework.dataflow.qual.Deterministic;",
+                        "import org.checkerframework.dataflow.qual.Pure;",
+                        "import org.checkerframework.dataflow.qual.SideEffectFree;",
+                        "class P {",
+                        "  @SideEffectFree",
+                        "  @Deterministic",
+                        "  int m() {",
+                        "    return 1;",
+                        "  }",
+                        "}")
+                .addOutputLines(
+                        "test/P.java",
+                        "package test;",
+                        "import org.checkerframework.dataflow.qual.Deterministic;",
+                        "import org.checkerframework.dataflow.qual.Pure;",
+                        "import org.checkerframework.dataflow.qual.SideEffectFree;",
+                        "class P {",
+                        "  @Pure",
+                        "  int m() {",
+                        "    return 1;",
+                        "  }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * Without an import of {@code Pure}, the {@code purity.effectively.pure} fix writes its
+     * fully-qualified name, so the result compiles; the annotations may be in either order and need
+     * not be adjacent.
+     */
+    @Test
+    public void purityEffectivelyPureFixUsesQualifiedNameWithoutImport() {
+        refactoringHelper("-XepOpt:eisopcf:checkPurityAnnotations")
+                .setFixChooser(FixChoosers.FIRST)
+                .addInputLines(
+                        "test/P.java",
+                        "package test;",
+                        "import org.checkerframework.dataflow.qual.Deterministic;",
+                        "import org.checkerframework.dataflow.qual.SideEffectFree;",
+                        "class P {",
+                        "  @Deterministic public @SideEffectFree int m() {",
+                        "    return 1;",
+                        "  }",
+                        "}")
+                .addOutputLines(
+                        "test/P.java",
+                        "package test;",
+                        "import org.checkerframework.dataflow.qual.Deterministic;",
+                        "import org.checkerframework.dataflow.qual.SideEffectFree;",
+                        "class P {",
+                        "  @org.checkerframework.dataflow.qual.Pure public int m() {",
+                        "    return 1;",
+                        "  }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * A method with only one of the two annotations is not effectively pure: no finding, so no fix
+     * and no change.
+     */
+    @Test
+    public void purityWithSingleAnnotationIsUnchanged() {
+        refactoringHelper("-XepOpt:eisopcf:checkPurityAnnotations")
+                .setFixChooser(FixChoosers.FIRST)
+                .addInputLines(
+                        "test/P.java",
+                        "package test;",
+                        "import org.checkerframework.dataflow.qual.SideEffectFree;",
+                        "class P {",
+                        "  @SideEffectFree",
+                        "  int m() {",
+                        "    return 1;",
+                        "  }",
+                        "}")
+                .expectUnchanged()
                 .doTest();
     }
 }

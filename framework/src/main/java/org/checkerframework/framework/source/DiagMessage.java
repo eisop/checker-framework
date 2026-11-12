@@ -120,6 +120,17 @@ public class DiagMessage {
     }
 
     /**
+     * Create a DiagMessage with kind MANDATORY_WARNING.
+     *
+     * @param messageKey the message key
+     * @param args the arguments that will be interpolated into the localized message
+     * @return a new DiagMessage
+     */
+    public static DiagMessage warning(@CompilerMessageKey String messageKey, Object... args) {
+        return new DiagMessage(Diagnostic.Kind.MANDATORY_WARNING, messageKey, args);
+    }
+
+    /**
      * Returns the kind of this DiagMessage.
      *
      * @return the kind of this DiagMessage
