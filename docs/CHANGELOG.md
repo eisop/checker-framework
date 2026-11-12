@@ -391,6 +391,13 @@ Deprecated `SystemUtil.COLON_SPLITTER`.
 Deprecated `AnnotatedTypes.copyOnlyExplicitConstructorAnnotations`, which the framework no longer
 uses.
 
+Deprecated `ElementUtils.isElementFromByteCode`, which is also true for an element compiled from
+source if a class file for it exists; use `!ElementUtils.isElementFromSourceCode(elt)`, or
+`AnnotatedTypeFactory#isFromByteCode` to account for stub files.
+
+Deprecated `QualifierDefaults.addUncheckedCodeDefault` and `addUncheckedCodeDefaults`; use the
+`addConservativeUncheckedCodeDefault(s)` or `addPermissiveUncheckedCodeDefault(s)` methods.
+
 New `DefaultTypeHierarchy.visitEnclosingTypeArgs` compares the type arguments of the enclosing types
 of two inner class types. `visitTypeArgs` calls it, so a type hierarchy that compares those type
 arguments differently from a type's own overrides it.
