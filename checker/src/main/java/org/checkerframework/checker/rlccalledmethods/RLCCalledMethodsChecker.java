@@ -38,10 +38,8 @@ public class RLCCalledMethodsChecker extends CalledMethodsChecker {
     @Override
     protected Properties createMessagesProperties() {
         Properties result = super.createMessagesProperties();
-        // This checker parses @CreatesMustCallFor targets as the Must Call Checker does, and
-        // reports
-        // createsmustcallfor.target.unparseable, which the Must Call Checker's messages.properties
-        // defines.  The Must Call Checker is not in this checker's class hierarchy.
+        // This checker reports createsmustcallfor.target.unparseable, whose text is in the
+        // messages.properties file of the Must Call Checker, which is not a superclass.
         result.putAll(getProperties(MustCallChecker.class, MSGS_FILE, true));
         return result;
     }
