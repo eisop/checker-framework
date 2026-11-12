@@ -38,4 +38,16 @@ public class ReportChecker extends BaseTypeChecker {
 
     /** Creates a ReportChecker. */
     public ReportChecker() {}
+
+    @Override
+    protected String fullMessageOf(String messageKey, String defaultValue) {
+        // ReportVisitor reports the computed keys "Tree.Kind.<kind>" and "Modifier.<modifier>".
+        if (messageKey.startsWith("Tree.Kind.")) {
+            return "tree of kind " + messageKey.substring("Tree.Kind.".length());
+        }
+        if (messageKey.startsWith("Modifier.")) {
+            return "modifier " + messageKey.substring("Modifier.".length());
+        }
+        return super.fullMessageOf(messageKey, defaultValue);
+    }
 }

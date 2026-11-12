@@ -39,8 +39,6 @@ public class H1H2Visitor extends BaseTypeVisitor<H1H2AnnotatedTypeFactory> {
             if (AnnotatedTypes.containsModifier(type, h1Invalid)) {
                 checker.reportError(
                         p,
-                        // An error specific to this type system, with no corresponding text
-                        // in a messages.properties file; this checker is just for testing.
                         "h1h2checker.h1invalid.forbidden",
                         type.getAnnotations(),
                         type.toString());

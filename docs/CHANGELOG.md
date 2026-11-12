@@ -370,6 +370,10 @@ subchecker, `fullMessageOf` for a message, and the getter of the same name for t
 `getMessagesProperties()` is renamed `createMessagesProperties()` and is `protected`; `initChecker`
 calls it once.
 
+When assertions are enabled, `SourceChecker#report` asserts that the reported key has message text
+in a `messages.properties` file that the checker loads. Tests of a checker that reports a key
+without text now fail.
+
 New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
 reachable from the entry block, too.
 
@@ -556,8 +560,8 @@ Other improvements and bug fixes:
 - When a checker fails to initialize, for example with an `OutOfMemoryError`, it reports
   that failure instead of crashing with a `NullPointerException` in
   `SourceChecker.visitDeclaration`.
-- The Resource Leak Checker prints the text of each message instead of its key, such as
-  `owning.override.param`.
+- The Resource Leak Checker and the Report Checker print the text of each message instead
+  of its key, such as `owning.override.param` or `createsmustcallfor.target.unparseable`.
 - Error messages about the constructor of an anonymous class name its supertype,
   instead of printing an empty class name.
 - Viewpoint adaptation no longer crashes or overflows the stack on a field
