@@ -1009,7 +1009,11 @@ Error Prone's own checks do.  In addition, a type system can supply its own fix 
 specific finding, which is offered ahead of the suppression fix.  For example, the Nullness
 Checker reports a nullness annotation on a primitive type (such as \<@Nullable int x>) and
 offers a fix that removes the annotation, so running Error Prone in patch mode rewrites
-\<@Nullable int x> to \<int x>.
+\<@Nullable int x> to \<int x>.  Likewise, for a nullness annotation on the outer type of a
+qualified inner class type, it offers a fix that moves the annotation onto the inner type,
+rewriting \<@Nullable Outer.Inner> to \<Outer.@Nullable Inner>.  Every checker, under
+\<-AcheckPurityAnnotations>, reports a method annotated with both \<@SideEffectFree> and
+\<@Deterministic> and offers a fix that replaces the two annotations by \<@Pure>.
 
 \subsectionAndLabel{Limitations}{error-prone-limitations}
 
