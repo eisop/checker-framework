@@ -547,7 +547,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         Element e = TreeUtils.elementFromUse(tree);
         if (e.getKind() == ElementKind.CLASS) {
             if (atypeFactory.containsNullnessAnnotation(null, tree.getExpression())) {
-                reportNullnessOnOuter(tree, null, tree);
+                reportNullnessOnOuter(
+                        tree, nullnessAnnotationTrees(null, tree.getExpression()), tree);
             }
         } else if (!(TreeUtils.isSelfAccess(tree)
                 || tree.getExpression() instanceof ParameterizedTypeTree
@@ -1439,8 +1440,11 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 case MEMBER_SELECT:
                     MemberSelectTree select = (MemberSelectTree) t;
                     Tree expr = select.getExpression();
-                    if (atypeFactory.containsNullnessAnnotation(annoTrees, expr)) {
-                        reportNullnessOnOuter(expr, annoTrees, select);
+                    // A declaration annotation applies to the leftmost name, which is an outer
+                    // type of the member select. visitMemberSelect reports the annotations
+                    // written within the type.
+                    if (annoTrees != null && atypeFactory.containsNullnessAnnotation(annoTrees)) {
+                        reportNullnessOnOuter(expr, nullnessAnnotationTrees(annoTrees), select);
                     }
                     t = null;
                     break;
@@ -1524,8 +1528,20 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      */
     private List<AnnotationTree> nullnessAnnotationTrees(
             @Nullable List<? extends AnnotationTree> annoTrees, Tree typeTree) {
+        return nullnessAnnotationTrees(TreeUtils.getExplicitAnnotationTrees(annoTrees, typeTree));
+    }
+
+    /**
+     * Returns the nullness type-use annotations among {@code annoTrees}: exactly the annotations
+     * for which {@link NullnessNoInitAnnotatedTypeFactory#containsNullnessAnnotation(List)} reports
+     * a misplaced nullness annotation.
+     *
+     * @param annoTrees annotation trees
+     * @return the nullness type-use annotations among {@code annoTrees}
+     */
+    private List<AnnotationTree> nullnessAnnotationTrees(List<? extends AnnotationTree> annoTrees) {
         List<AnnotationTree> result = new ArrayList<>(1);
-        for (AnnotationTree annoTree : TreeUtils.getExplicitAnnotationTrees(annoTrees, typeTree)) {
+        for (AnnotationTree annoTree : annoTrees) {
             AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
             // This condition must match
             // NullnessNoInitAnnotatedTypeFactory#containsNullnessAnnotation(List).
@@ -1538,27 +1554,20 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     /**
      * Reports a {@code nullness.on.outer} error at {@code reportTree}, for the nullness annotations
-     * that {@code annoTrees} or {@code select}'s expression apply to an outer type of {@code
-     * select}. When the annotations can be moved onto the innermost type unambiguously, the error
-     * carries that fix; see {@link #moveNullnessAnnotationsFix}.
+     * {@code annos}, which apply to an outer type of {@code select}. When the annotations can be
+     * moved onto the innermost type unambiguously, the error carries that fix; see {@link
+     * #moveNullnessAnnotationsFix}.
      *
      * @param reportTree the tree at which to report
-     * @param annoTrees extra annotation trees to consider (may be null), as passed to {@link
-     *     #visitAnnotatedType}
-     * @param select a member select naming a class, whose expression (together with {@code
-     *     annoTrees}) carries a nullness annotation
+     * @param annos the nullness annotations on an outer type of {@code select}; non-empty
+     * @param select a member select naming a class
      */
     private void reportNullnessOnOuter(
-            Tree reportTree,
-            @Nullable List<? extends AnnotationTree> annoTrees,
-            MemberSelectTree select) {
+            Tree reportTree, List<AnnotationTree> annos, MemberSelectTree select) {
         checker.report(
                 reportTree,
                 DiagMessage.error("nullness.on.outer")
-                        .withFix(
-                                moveNullnessAnnotationsFix(
-                                        nullnessAnnotationTrees(annoTrees, select.getExpression()),
-                                        select)));
+                        .withFix(moveNullnessAnnotationsFix(annos, select)));
     }
 
     /**
