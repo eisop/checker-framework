@@ -17,6 +17,7 @@ import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.IfTree;
+import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.InstanceOfTree;
 import com.sun.source.tree.IntersectionTypeTree;
 import com.sun.source.tree.LambdaExpressionTree;
@@ -80,6 +81,7 @@ import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.qual.Unused;
 import org.checkerframework.framework.source.DiagMessage;
 import org.checkerframework.framework.source.SourceVisitor;
+import org.checkerframework.framework.source.SuggestedFixData;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeFactory.ParameterizedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -1478,7 +1480,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         if (isExplicitlySideEffectFreeAndDeterministic(tree)) {
-            checker.reportWarning(tree, "purity.effectively.pure", tree.getName());
+            checker.report(
+                    tree,
+                    DiagMessage.warning("purity.effectively.pure", tree.getName())
+                            .withFix(replaceWithPureFix(tree)));
         }
 
         if (suggestPureMethods || hasPurityAnno) {
@@ -1568,6 +1573,56 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 TreeUtils.annotationsFromTypeAnnotationTrees(tree.getModifiers().getAnnotations());
         return AnnotationUtils.containsSame(annotationMirrors, SIDE_EFFECT_FREE)
                 && AnnotationUtils.containsSame(annotationMirrors, DETERMINISTIC);
+    }
+
+    /**
+     * Builds the suggested fix for a {@code purity.effectively.pure} finding on {@code tree}, a
+     * method explicitly annotated with both @{@link SideEffectFree} and @{@link Deterministic}:
+     * replace whichever of the two annotations comes first in the source with @{@link Pure} and
+     * delete the other. The two annotations together mean exactly @{@link Pure}, so the fix
+     * preserves the method's declared contract. The fix is expressed in the framework-agnostic
+     * {@link SuggestedFixData} representation, so a host such as the Error Prone plugin can offer
+     * it; standalone javac ignores it.
+     *
+     * <p>{@code Pure} is written by its simple name if the compilation unit imports {@code
+     * org.checkerframework.dataflow.qual.Pure} by a single-type import, and by its fully-qualified
+     * name otherwise, so the result compiles either way.
+     *
+     * @param tree a method explicitly annotated with both @{@link SideEffectFree} and @{@link
+     *     Deterministic}
+     * @return the fix, or null if a needed source position is unavailable
+     */
+    private @Nullable SuggestedFixData replaceWithPureFix(MethodTree tree) {
+        AnnotationTree sideEffectFreeTree = null;
+        AnnotationTree deterministicTree = null;
+        for (AnnotationTree annoTree : tree.getModifiers().getAnnotations()) {
+            AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
+            if (AnnotationUtils.areSame(am, SIDE_EFFECT_FREE)) {
+                sideEffectFreeTree = annoTree;
+            } else if (AnnotationUtils.areSame(am, DETERMINISTIC)) {
+                deterministicTree = annoTree;
+            }
+        }
+        if (sideEffectFreeTree == null || deterministicTree == null) {
+            return null;
+        }
+        AnnotationTree first = sideEffectFreeTree;
+        AnnotationTree second = deterministicTree;
+        if (TreeUtils.getStartPosition(second) < TreeUtils.getStartPosition(first)) {
+            first = deterministicTree;
+            second = sideEffectFreeTree;
+        }
+        String pureName = Pure.class.getCanonicalName();
+        for (ImportTree imp : root.getImports()) {
+            if (!imp.isStatic() && imp.getQualifiedIdentifier().toString().equals(pureName)) {
+                pureName = Pure.class.getSimpleName();
+                break;
+            }
+        }
+        return SuggestedFixData.merge(
+                Arrays.asList(
+                        SuggestedFixData.replaceTree(root, first, "@" + pureName),
+                        SuggestedFixData.deleteTree(root, second)));
     }
 
     /* NO-AFU

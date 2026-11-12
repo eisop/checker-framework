@@ -45,7 +45,12 @@ Runs under JDK 27 and JDK 28 early-access builds.
 
 Can now run as an Error Prone plugin (`eisopcf` check), published as
 `io.github.eisop:framework-errorprone` (requires JDK 21+). See the manual's
-"Error Prone" section.
+"Error Prone" section. Each finding offers a fix that adds
+`@SuppressWarnings("eisopcf")`, and some offer their own fix, which Error
+Prone's patch mode applies. The Nullness Checker removes a nullness annotation
+from a primitive type and moves one off an outer type (`@Nullable Outer.Inner`
+becomes `Outer.@Nullable Inner`). `purity.effectively.pure` replaces
+`@SideEffectFree @Deterministic` by `@Pure`.
 
 New Maven Central artifacts `io.github.eisop:framework` and
 `io.github.eisop:framework-all` (bundled and relocated) let you write a
