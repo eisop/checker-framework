@@ -1440,9 +1440,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 case MEMBER_SELECT:
                     MemberSelectTree select = (MemberSelectTree) t;
                     Tree expr = select.getExpression();
-                    // A declaration annotation applies to the leftmost name, which is an outer
-                    // type of the member select. visitMemberSelect reports the annotations
-                    // written within the type.
+                    // An annotation in the declaration's modifiers, before the type, applies to
+                    // the leftmost name, which is an outer type of the member select.
+                    // visitMemberSelect reports the annotations written within the type.
                     if (annoTrees != null && atypeFactory.containsNullnessAnnotation(annoTrees)) {
                         reportNullnessOnOuter(expr, nullnessAnnotationTrees(annoTrees), select);
                     }

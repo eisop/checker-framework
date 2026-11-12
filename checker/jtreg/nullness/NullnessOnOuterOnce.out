@@ -1,4 +1,4 @@
-NullnessOnOuterOnce.java:18:41: compiler.err.proc.messager: [nullness.on.outer] nullness annotations are not applicable to outer types
+NullnessOnOuterOnce.java:18:40: compiler.err.proc.messager: [nullness.on.outer] nullness annotations are not applicable to outer types
 NullnessOnOuterOnce.java:20:65: compiler.err.proc.messager: [nullness.on.outer] nullness annotations are not applicable to outer types
 NullnessOnOuterOnce.java:22:73: compiler.err.proc.messager: [nullness.on.outer] nullness annotations are not applicable to outer types
 NullnessOnOuterOnce.java:24:72: compiler.err.proc.messager: [nullness.on.outer] nullness annotations are not applicable to outer types

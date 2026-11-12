@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary Test that a nullness annotation on an outer type is reported exactly once, whether it
- * is a declaration annotation or written within the type.
+ * is written before the type, in the declaration's modifiers, or within the type.
  *
  * @compile/fail/ref=NullnessOnOuterOnce.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker NullnessOnOuterOnce.java
  */
@@ -15,7 +15,7 @@ abstract class NullnessOnOuterOnce {
         class Deep {}
     }
 
-    abstract void declaration(@Nullable NullnessOnOuterOnce.Inner p);
+    abstract void beforeType(@Nullable NullnessOnOuterOnce.Inner p);
 
     abstract void withinType(NullnessOnOuterOnce.@Nullable Inner.Deep p);
 
