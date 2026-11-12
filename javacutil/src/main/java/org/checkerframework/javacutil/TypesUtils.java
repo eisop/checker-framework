@@ -1340,7 +1340,7 @@ public final class TypesUtils {
 
     static {
         // Look for the method rather than branching on the JDK version: some builds of JDK 9 to
-        // 12 lack it, and every checker crashed on them (eisop#2366).
+        // 12 lack it.
         Method setUpperBound;
         try {
             setUpperBound = Type.TypeVar.class.getMethod("setUpperBound", Type.class);

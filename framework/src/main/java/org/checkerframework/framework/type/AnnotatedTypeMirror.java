@@ -159,7 +159,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             case DECLARED:
             // An ERROR type is a class whose class file is not on the classpath.  javac reported no
             // error, because it completes such a symbol lazily and never needs it, so treat the
-            // type like any other declared type.  See eisop issue 2094 and typetools issue 8055.
+            // type like any other declared type.
             case ERROR:
                 result =
                         new AnnotatedDeclaredType((DeclaredType) type, atypeFactory, isDeclaration);

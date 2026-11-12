@@ -1349,14 +1349,13 @@ public class QualifierDefaults {
      * defaults with {@code applyToSubpackages = true}, merged with what its parent package makes
      * available to it.
      *
-     * <p>This is not {@link #defaultsAt}({@code pkg}) filtered by {@code applyToSubpackages};
-     * computing it that way is <a
-     * href="https://github.com/eisop/checker-framework/issues/2037">eisop#2037</a>. Shadowing is a
-     * statement about one scope: a nearer default that does not itself apply to subpackages wins at
-     * {@code pkg} only, so it must not discard the farther default it shadowed there -- deeper
-     * packages, where nothing shadows it, still need it. So a default replaces a farther one here
-     * only if it too has {@code applyToSubpackages = true}. It still wins at {@code pkg} itself,
-     * via {@link #defaultsAt}, which merges {@code pkg}'s own defaults over this method's result.
+     * <p>This is not {@link #defaultsAt}({@code pkg}) filtered by {@code applyToSubpackages}, which
+     * would lose defaults. Shadowing is a statement about one scope: a nearer default that does not
+     * itself apply to subpackages wins at {@code pkg} only, so it must not discard the farther
+     * default it shadowed there -- deeper packages, where nothing shadows it, still need it. So a
+     * default replaces a farther one here only if it too has {@code applyToSubpackages = true}. It
+     * still wins at {@code pkg} itself, via {@link #defaultsAt}, which merges {@code pkg}'s own
+     * defaults over this method's result.
      *
      * @param pkg a package, or null for no package
      * @return the defaults {@code pkg} makes available to its own subpackages
