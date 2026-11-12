@@ -27,7 +27,7 @@ import javax.tools.JavaFileObject;
  * into a host-specific fix (e.g. an Error Prone {@code SuggestedFix}) is the host's responsibility.
  *
  * <p>Most Checker Framework findings do not carry a fix. A checker that can compute one attaches it
- * with {@link DiagMessage#withFixes}; see {@code NullnessNoInitVisitor} for an example.
+ * with {@link DiagMessage#withFix}; see {@code NullnessNoInitVisitor} for an example.
  */
 public final class SuggestedFixData {
 
@@ -148,6 +148,28 @@ public final class SuggestedFixData {
             }
         }
         return replace((int) start, deleteEnd, "");
+    }
+
+    /**
+     * Returns a fix that applies the replacements of all {@code parts} together, for a fix that is
+     * built from several edits, such as deleting an annotation in one place and inserting it in
+     * another. Applying only some of the parts could change the meaning of the code, so if any part
+     * is null (because a factory such as {@link #deleteTree} could not compute it), there is no
+     * fix.
+     *
+     * @param parts the fixes to combine
+     * @return a fix with the replacements of all {@code parts}, or {@code null} if any part is null
+     */
+    public static @Nullable SuggestedFixData merge(
+            List<? extends @Nullable SuggestedFixData> parts) {
+        List<Replacement> replacements = new ArrayList<>(parts.size());
+        for (SuggestedFixData part : parts) {
+            if (part == null) {
+                return null;
+            }
+            replacements.addAll(part.replacements);
+        }
+        return new SuggestedFixData(replacements);
     }
 
     /**

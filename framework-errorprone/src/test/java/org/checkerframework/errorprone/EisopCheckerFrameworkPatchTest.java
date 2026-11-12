@@ -108,6 +108,33 @@ public class EisopCheckerFrameworkPatchTest {
     }
 
     /**
+     * For a primitive type with two nullness annotations, the {@code nullness.on.primitive} fix
+     * removes both, so applying it resolves the finding.
+     */
+    @Test
+    public void nullnessOnPrimitiveFixRemovesAllNullnessAnnotations() {
+        refactoringHelper()
+                .setFixChooser(FixChoosers.FIRST)
+                .addInputLines(
+                        "test/Prim.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.MonotonicNonNull;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Prim {",
+                        "  @Nullable @MonotonicNonNull int x = 0;",
+                        "}")
+                .addOutputLines(
+                        "test/Prim.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.MonotonicNonNull;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Prim {",
+                        "  int x = 0;",
+                        "}")
+                .doTest();
+    }
+
+    /**
      * The Nullness Checker reports {@code nullness.on.outer} for a nullness annotation written
      * before a qualified inner class type, where Java applies it to the outer type, and attaches a
      * fix that moves the annotation onto the inner type: {@code @Nullable Outer.Inner} becomes

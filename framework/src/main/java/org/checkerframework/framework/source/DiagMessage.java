@@ -168,13 +168,17 @@ public class DiagMessage {
     }
 
     /**
-     * Returns a copy of this {@code DiagMessage} with the given suggested fix added. Does not
-     * modify this instance.
+     * Returns a copy of this {@code DiagMessage} with the given suggested fix added, or this
+     * instance if {@code fix} is null. Does not modify this instance.
      *
-     * @param fix a suggested fix for this diagnostic
-     * @return a copy of this DiagMessage with {@code fix} added
+     * @param fix a suggested fix for this diagnostic, or null if none could be computed
+     * @return a copy of this DiagMessage with {@code fix} added, or this instance if {@code fix} is
+     *     null
      */
-    public DiagMessage withFix(SuggestedFixData fix) {
+    public DiagMessage withFix(@Nullable SuggestedFixData fix) {
+        if (fix == null) {
+            return this;
+        }
         return withFixes(Collections.singletonList(fix));
     }
 

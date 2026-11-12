@@ -1480,9 +1480,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         if (isExplicitlySideEffectFreeAndDeterministic(tree)) {
-            DiagMessage message = DiagMessage.warning("purity.effectively.pure", tree.getName());
-            SuggestedFixData fix = replaceWithPureFix(tree);
-            checker.report(tree, fix == null ? message : message.withFix(fix));
+            checker.report(
+                    tree,
+                    DiagMessage.warning("purity.effectively.pure", tree.getName())
+                            .withFix(replaceWithPureFix(tree)));
         }
 
         if (suggestPureMethods || hasPurityAnno) {
@@ -1618,15 +1619,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 break;
             }
         }
-        SuggestedFixData replacement = SuggestedFixData.replaceTree(root, first, "@" + pureName);
-        SuggestedFixData deletion = SuggestedFixData.deleteTree(root, second);
-        if (replacement == null || deletion == null) {
-            return null;
-        }
-        List<SuggestedFixData.Replacement> replacements = new ArrayList<>(2);
-        replacements.addAll(replacement.getReplacements());
-        replacements.addAll(deletion.getReplacements());
-        return new SuggestedFixData(replacements);
+        return SuggestedFixData.merge(
+                Arrays.asList(
+                        SuggestedFixData.replaceTree(root, first, "@" + pureName),
+                        SuggestedFixData.deleteTree(root, second)));
     }
 
     /* NO-AFU

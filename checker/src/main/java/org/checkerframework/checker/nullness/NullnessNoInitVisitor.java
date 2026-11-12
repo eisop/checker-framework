@@ -1449,7 +1449,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                         checker.report(
                                 t,
                                 DiagMessage.error("nullness.on.primitive")
-                                        .withFixes(removeNullnessAnnotationFixes(annoTrees, t)));
+                                        .withFix(removeNullnessAnnotationsFix(annoTrees, t)));
                     }
                     t = null;
                     break;
@@ -1461,7 +1461,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                             checker.report(
                                     t,
                                     DiagMessage.error("nullness.on.primitive")
-                                            .withFixes(removeNullnessAnnotationFixes(null, at)));
+                                            .withFix(removeNullnessAnnotationsFix(null, at)));
                         }
                         t = null;
                     } else {
@@ -1484,33 +1484,30 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     /**
-     * Builds suggested fixes for a {@code nullness.on.primitive} finding: for each nullness
-     * annotation applied to the primitive type, a fix that removes just that annotation (so, e.g.,
-     * {@code @Nullable int x} becomes {@code int x}).
+     * Builds the suggested fix for a {@code nullness.on.primitive} finding: remove every nullness
+     * annotation applied to the primitive type, so that, e.g., {@code @Nullable int x} becomes
+     * {@code int x}. The fix is expressed in the framework-agnostic {@link SuggestedFixData}
+     * representation (source-offset edits), so a host such as the Error Prone plugin can offer it;
+     * standalone javac ignores it.
      *
-     * <p>The fixes are expressed in the framework-agnostic {@link SuggestedFixData} representation
-     * (source-offset edits), so a host such as the Error Prone plugin can offer them; standalone
-     * javac ignores them.
-     *
-     * <p>The returned fixes are alternatives, so in the rare case that a primitive type carries
-     * more than one nullness annotation, applying a single fix does not by itself resolve the
-     * finding.
+     * <p>Each removal stands on its own, so an annotation whose source position is unavailable is
+     * left in place and the others are still removed.
      *
      * @param annoTrees extra annotation trees to consider (may be null), as passed to {@link
      *     #visitAnnotatedType}
      * @param typeTree the primitive (or annotated primitive) type tree
-     * @return one removal fix per offending nullness annotation (possibly empty)
+     * @return a fix that removes the nullness annotations, or null if none can be removed
      */
-    private List<SuggestedFixData> removeNullnessAnnotationFixes(
+    private @Nullable SuggestedFixData removeNullnessAnnotationsFix(
             @Nullable List<? extends AnnotationTree> annoTrees, Tree typeTree) {
-        List<SuggestedFixData> fixes = new ArrayList<>();
+        List<SuggestedFixData> deletions = new ArrayList<>(1);
         for (AnnotationTree annoTree : nullnessAnnotationTrees(annoTrees, typeTree)) {
-            SuggestedFixData fix = SuggestedFixData.deleteTree(root, annoTree);
-            if (fix != null) {
-                fixes.add(fix);
+            SuggestedFixData deletion = SuggestedFixData.deleteTree(root, annoTree);
+            if (deletion != null) {
+                deletions.add(deletion);
             }
         }
-        return fixes;
+        return deletions.isEmpty() ? null : SuggestedFixData.merge(deletions);
     }
 
     /**
@@ -1555,11 +1552,13 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             Tree reportTree,
             @Nullable List<? extends AnnotationTree> annoTrees,
             MemberSelectTree select) {
-        DiagMessage message = DiagMessage.error("nullness.on.outer");
-        SuggestedFixData fix =
-                moveNullnessAnnotationsFix(
-                        nullnessAnnotationTrees(annoTrees, select.getExpression()), select);
-        checker.report(reportTree, fix == null ? message : message.withFix(fix));
+        checker.report(
+                reportTree,
+                DiagMessage.error("nullness.on.outer")
+                        .withFix(
+                                moveNullnessAnnotationsFix(
+                                        nullnessAnnotationTrees(annoTrees, select.getExpression()),
+                                        select)));
     }
 
     /**
@@ -1630,7 +1629,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             return null;
         }
 
-        List<SuggestedFixData.Replacement> replacements = new ArrayList<>(annos.size() + 1);
+        List<SuggestedFixData> parts = new ArrayList<>(annos.size() + 1);
         StringBuilder moved = new StringBuilder();
         for (AnnotationTree anno : annos) {
             long annoStart = TreeUtils.getStartPosition(anno);
@@ -1640,11 +1639,11 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             if (deletion == null) {
                 return null;
             }
-            replacements.addAll(deletion.getReplacements());
+            parts.add(deletion);
             moved.append(source, (int) annoStart, (int) annoEnd).append(' ');
         }
-        replacements.add(new SuggestedFixData.Replacement(nameStart, nameStart, moved.toString()));
-        return new SuggestedFixData(replacements);
+        parts.add(SuggestedFixData.replace(nameStart, nameStart, moved.toString()));
+        return SuggestedFixData.merge(parts);
     }
 
     @Override
