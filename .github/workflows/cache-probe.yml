@@ -1,0 +1,57 @@
+name: Cache probe
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Reads the cache that master's cftests-junit-part1 on JDK 21 writes.
+          - {name: 'master-cache', key: 'tests-jdk21', read-only: true, cleanup: 'on-success'}
+    env:
+      GRADLE_BUILD_ACTION_CACHE_KEY_JOB: ${{ matrix.key }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-java@v6.1.0
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.4.1
+        with:
+          cache-read-only: ${{ matrix.read-only }}
+          cache-cleanup: ${{ matrix.cleanup }}
+      - name: List buildSrc-only dependencies after the restore
+        run: |
+          for d in org.eclipse.jgit org.bouncycastle; do
+            echo "== files-2.1/$d"; ls -R "$HOME/.gradle/caches/modules-2/files-2.1/$d" 2>&1 | grep -E 'jgit|bcprov|No such' || true
+          done
+          echo "== metadata descriptors"; ls -d "$HOME"/.gradle/caches/modules-2/metadata-*/descriptors/org.eclipse.jgit/* "$HOME"/.gradle/caches/modules-2/metadata-*/descriptors/org.bouncycastle/* 2>&1 || true
+      - name: Clone related repositories without the prefetch
+        run: |
+          export NO_WRITE_VERIFICATION_METADATA=1
+          source checker/bin-devel/clone-related.sh
+      - name: Run the prefetch offline from the restored cache
+        run: |
+          ./gradlew --offline --write-verification-metadata sha256 help --dry-run 2>&1 | tail -30
+          rm -f gradle/verification-metadata*.xml
+      - name: Run the prefetch online and show downloads
+        run: |
+          ./gradlew --write-verification-metadata sha256 help --dry-run --info 2>&1 | grep -E 'Downloading|Could not' || echo "no downloads"
+          rm -f gradle/verification-metadata*.xml
+      - name: List buildSrc-only dependencies after the build
+        run: |
+          for d in org.eclipse.jgit org.bouncycastle; do
+            echo "== files-2.1/$d"; ls -R "$HOME/.gradle/caches/modules-2/files-2.1/$d" 2>&1 | grep -E 'jgit|bcprov|No such' || true
+          done
