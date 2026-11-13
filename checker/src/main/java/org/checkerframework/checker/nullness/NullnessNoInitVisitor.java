@@ -337,12 +337,12 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         Element varElt = TreeUtils.elementFromDeclaration(tree);
         if (varElt != null
                 && (varElt.getKind() == ElementKind.LOCAL_VARIABLE
-                        || varElt.getKind() == ElementKind.RESOURCE_VARIABLE)) {
+                        || ElementUtils.isResourceVariable(varElt))) {
             checkJSpecifyLocation(
                     tree,
                     tree.getModifiers().getAnnotations(),
                     tree.getType(),
-                    varElt.getKind() == ElementKind.RESOURCE_VARIABLE
+                    ElementUtils.isResourceVariable(varElt)
                             ? "jspecify.unrecognized.location.resource"
                             : "jspecify.unrecognized.location.local");
         }

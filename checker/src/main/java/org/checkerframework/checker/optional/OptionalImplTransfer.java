@@ -29,6 +29,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Arrays;
@@ -266,7 +267,7 @@ public class OptionalImplTransfer extends CFTransfer {
      */
     private @Nullable VariableTree getReceiverInMethodBody(Element receiverElement) {
         if (receiverElement.getKind() == ElementKind.LOCAL_VARIABLE
-                || receiverElement.getKind() == ElementKind.RESOURCE_VARIABLE
+                || ElementUtils.isResourceVariable(receiverElement)
                 || receiverElement.getKind() == ElementKind.PARAMETER) {
             return (VariableTree) optionalTypeFactory.declarationFromElement(receiverElement);
         }

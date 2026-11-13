@@ -1,9 +1,6 @@
 package org.checkerframework.checker.initialization;
 
 import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.ExpressionTree;
-import com.sun.source.tree.IdentifierTree;
-import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.tools.javac.code.Symbol;
 
@@ -80,11 +77,7 @@ public class InitializationTransfer
         Node receiver = node.getTarget().getReceiver();
 
         if (isConstructor && receiver instanceof ThisNode) {
-            ExpressionTree methodSelect = tree.getMethodSelect();
-            Name methodName =
-                    (methodSelect instanceof IdentifierTree)
-                            ? ((IdentifierTree) methodSelect).getName()
-                            : ((MemberSelectTree) methodSelect).getIdentifier();
+            Name methodName = TreeUtils.methodName(tree);
             if (InternalUtils.isThisName(methodName)) {
                 // Case 1: After a call to the constructor of the same class, all
                 // fields are guaranteed to be initialized.
