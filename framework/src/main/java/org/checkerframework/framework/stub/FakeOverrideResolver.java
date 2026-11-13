@@ -27,9 +27,8 @@ import javax.lang.model.type.TypeMirror;
  * declare that this fake override matches" -- via a {@link FakeOverrideMatcher}, because the two
  * loaders represent the fake-override declaration differently (the text parser matches against a
  * parsed {@code .astub} {@code MethodDeclaration}; the binary reader matches against a compact
- * signature string). Sharing the traversal is what keeps the two paths from drifting apart, as they
- * once did: the binary path searched supertypes before the class's own methods and silently dropped
- * 21 fake overrides in the annotated JDK (see commit db83617a4 and issue #1865).
+ * signature string). Sharing the traversal keeps the two paths from drifting apart, for example in
+ * whether they search the class's own methods before its supertypes.
  *
  * <p>The search is two passes over the class hierarchy. The first (exact) pass requires every
  * parameter to match; only if it finds nothing does the second (lenient) pass run, in which a
