@@ -1769,12 +1769,11 @@ public final class TreeUtils {
     public static VariableElement getField(
             @FullyQualifiedName String typeName, String fieldName, ProcessingEnvironment env) {
         TypeElement mapElt = env.getElementUtils().getTypeElement(typeName);
-        for (VariableElement var : ElementFilter.fieldsIn(mapElt.getEnclosedElements())) {
-            if (InternalUtils.sameName(var.getSimpleName(), fieldName)) {
-                return var;
-            }
+        VariableElement var = ElementUtils.findFieldInType(mapElt, fieldName);
+        if (var == null) {
+            throw new BugInCF("TreeUtils.getField: shouldn't be here");
         }
-        throw new BugInCF("TreeUtils.getField: shouldn't be here");
+        return var;
     }
 
     /**
