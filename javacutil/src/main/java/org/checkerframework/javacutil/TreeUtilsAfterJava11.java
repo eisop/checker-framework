@@ -119,7 +119,9 @@ public class TreeUtilsAfterJava11 {
          *
          * @param caseTree a case tree
          * @return true if {@code caseTree} is a case rule
+         * @deprecated This method is unused and will be removed.
          */
+        @Deprecated // 2026-11-12
         public static boolean isCaseRule(CaseTree caseTree) {
             if (sourceVersionNumber < 12) {
                 return false;

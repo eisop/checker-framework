@@ -390,6 +390,17 @@ replace the framework's uses of the `SourcePositions` methods that JDK 27 deprec
 New `SystemUtil.splitPaths(String)` splits a list of paths on the platform's path separator.
 Deprecated `SystemUtil.COLON_SPLITTER`.
 
+Deprecated these unused methods, which will be removed in a future release:
+`AnnotatedTypes.implementsAnnotation` and `isJavaLangAnnotation`;
+`AnnotationUtils.hasInheritedMeta` and `updateMappingToImmutableSet`;
+`ElementUtils.inSameClass` and `isError` (which is true only for a `SymbolNotFoundError`);
+`NodeUtils.isBooleanTypeNode`;
+`TreeUtils.containsThisConstructorInvocation`, `firstStatement`, and `isErroneousTree` (use
+`tree instanceof ErroneousTree`);
+`TreeUtilsAfterJava11.CaseUtils.isCaseRule`;
+`TypeAnnotationUtils.isSameTAPosition`; and
+`TypesUtils.isThrowable`.
+
 Deprecated `AnnotatedTypes.copyOnlyExplicitConstructorAnnotations`, which the framework no longer
 uses.
 
