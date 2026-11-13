@@ -36,9 +36,9 @@ import viewpointtest.quals.Top;
     void topWithoutRefinement() {
         // :: error: (new.class.type.invalid)
         TestGetAnnotatedLhs top = new @Top TestGetAnnotatedLhs();
-        // :: error: (assignment.type.incompatible)
+        // :: error: (assignment.type.incompatible) :: error: (viewpointtest.lost.lhs)
         top.f = new @B Object();
-        // :: error: (assignment.type.incompatible)
+        // :: error: (assignment.type.incompatible) :: error: (viewpointtest.lost.lhs)
         top.f = new @A Object();
     }
 }
