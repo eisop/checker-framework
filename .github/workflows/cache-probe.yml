@@ -17,9 +17,6 @@ jobs:
         include:
           # Reads the cache that master's cftests-junit-part1 on JDK 21 writes.
           - {name: 'master-cache', key: 'tests-jdk21', read-only: true, cleanup: 'on-success'}
-          # Write a pull-request-scoped cache; a rerun shows what the next job restores.
-          - {name: 'write-on-success', key: 'probe-on-success', read-only: false, cleanup: 'on-success'}
-          - {name: 'write-never', key: 'probe-never', read-only: false, cleanup: 'never'}
     env:
       GRADLE_BUILD_ACTION_CACHE_KEY_JOB: ${{ matrix.key }}
     steps:
@@ -41,10 +38,18 @@ jobs:
             echo "== files-2.1/$d"; ls -R "$HOME/.gradle/caches/modules-2/files-2.1/$d" 2>&1 | grep -E 'jgit|bcprov|No such' || true
           done
           echo "== metadata descriptors"; ls -d "$HOME"/.gradle/caches/modules-2/metadata-*/descriptors/org.eclipse.jgit/* "$HOME"/.gradle/caches/modules-2/metadata-*/descriptors/org.bouncycastle/* 2>&1 || true
-      - name: Clone related repositories and prefetch dependencies
+      - name: Clone related repositories without the prefetch
         run: |
+          export NO_WRITE_VERIFICATION_METADATA=1
           source checker/bin-devel/clone-related.sh
-          ./gradlew help --quiet
+      - name: Run the prefetch offline from the restored cache
+        run: |
+          ./gradlew --offline --write-verification-metadata sha256 help --dry-run 2>&1 | tail -30
+          rm -f gradle/verification-metadata*.xml
+      - name: Run the prefetch online and show downloads
+        run: |
+          ./gradlew --write-verification-metadata sha256 help --dry-run --info 2>&1 | grep -E 'Downloading|Could not' || echo "no downloads"
+          rm -f gradle/verification-metadata*.xml
       - name: List buildSrc-only dependencies after the build
         run: |
           for d in org.eclipse.jgit org.bouncycastle; do
