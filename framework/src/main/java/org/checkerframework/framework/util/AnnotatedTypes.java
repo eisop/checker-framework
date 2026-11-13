@@ -1405,8 +1405,11 @@ public class AnnotatedTypes {
     /**
      * Returns true if the underlying type of this atm is a java.lang.annotation.Annotation.
      *
+     * @param atm the type to check
      * @return true if the underlying type of this atm is a java.lang.annotation.Annotation
+     * @deprecated This method is unused and will be removed.
      */
+    @Deprecated // 2026-11-12
     public static boolean isJavaLangAnnotation(AnnotatedTypeMirror atm) {
         return TypesUtils.isDeclaredOfName(atm.getUnderlyingType(), annotationClassName);
     }
@@ -1417,8 +1420,11 @@ public class AnnotatedTypes {
      * implementsAnnotation} returns true when called on an AnnotatedDeclaredType representing a use
      * of MyAnno.
      *
+     * @param atm the type to check
      * @return true if atm is an Annotation interface
+     * @deprecated This method is unused and will be removed.
      */
+    @Deprecated // 2026-11-12
     public static boolean implementsAnnotation(AnnotatedTypeMirror atm) {
         if (atm.getKind() != TypeKind.DECLARED) {
             return false;

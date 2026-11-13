@@ -640,7 +640,10 @@ public class ElementUtils {
      *
      * @param element the element to test
      * @return true if {@code element} is "com.sun.tools.javac.comp.Resolve$SymbolNotFoundError"
+     * @deprecated This method is unused and will be removed. Its name is misleading: it returns
+     *     false for every erroneous element except a {@code SymbolNotFoundError}.
      */
+    @Deprecated // 2026-11-12
     public static boolean isError(Element element) {
         // The JVM interns class names, as the annotated JDK's @Interned on Class.getName() records,
         // so == is correct; the Interning Checker reports equals() here as unnecessary.
@@ -1152,7 +1155,9 @@ public class ElementUtils {
      * @param e1 an element
      * @param e2 an element
      * @return true if the two elements are in the same class
+     * @deprecated This method is unused and will be removed.
      */
+    @Deprecated // 2026-11-12
     public static boolean inSameClass(Element e1, Element e2) {
         return e1.getEnclosingElement().equals(e2.getEnclosingElement());
     }
