@@ -2662,7 +2662,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return "new " + typeArgs + elt.getEnclosingElement().getSimpleName() + "(...)";
         }
         String qualifier =
-                elt.getModifiers().contains(Modifier.STATIC)
+                ElementUtils.isStatic(elt)
                         ? elt.getEnclosingElement().getSimpleName().toString()
                         : "receiver";
         return qualifier + "." + typeArgs + elt.getSimpleName() + "(...)";
