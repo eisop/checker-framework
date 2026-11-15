@@ -33,9 +33,12 @@ public class NodeUtils {
      * Returns true iff {@code node} corresponds to a boolean typed expression (either the primitive
      * type {@code boolean}, or class type {@link java.lang.Boolean}).
      *
+     * @param node the node to check
      * @return true iff {@code node} corresponds to a boolean typed expression (either the primitive
      *     type {@code boolean}, or class type {@link java.lang.Boolean})
+     * @deprecated This method is unused and will be removed.
      */
+    @Deprecated // 2026-11-12
     public static boolean isBooleanTypeNode(Node node) {
 
         if (node instanceof ConditionalOrNode) {

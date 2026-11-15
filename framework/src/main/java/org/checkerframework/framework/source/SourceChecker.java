@@ -939,7 +939,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * {@code checker-qual} jar of another Checker Framework that is earlier on the annotation
      * processor path shadows them: {@code TypeUseLocation} is then the other jar's, which lacks the
      * constants this release uses, and every compilation unit fails with a {@code
-     * NoSuchFieldError}. Report that once, with the jar, instead (eisop#2372).
+     * NoSuchFieldError}. Report that once, with the jar, instead.
      *
      * @throws UserError if the qualifier classes are not the ones of this release
      */

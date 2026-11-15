@@ -253,7 +253,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         // an actual type argument, not a formal type parameter of one of the receiver's
         // supertypes, so it must not be looked up in the receiver's supertypes.  That lookup
         // would also compute the receiver's direct supertypes, whose post-processing calls this
-        // method again with the same receiver, recursing until the stack overflows (eisop#2036).
+        // method again with the same receiver, recursing until the stack overflows.
         return combineTypeWithType(receiverType, declaredType, false);
     }
 
@@ -360,8 +360,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      * the copy's only difference from its original.
      *
      * <p>Using a copier is what makes a self-referential type terminate: the original-to-copy map
-     * adapts each type once and points every later reference at that copy. The hand-rolled
-     * traversal this replaced recursed until it overflowed the stack (eisop#778).
+     * adapts each type once and points every later reference at that copy.
      */
     private final class ViewpointAdaptationCopier extends SummarizeIntersectionCopier {
 

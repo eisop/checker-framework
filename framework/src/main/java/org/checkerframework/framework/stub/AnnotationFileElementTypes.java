@@ -2199,8 +2199,7 @@ public class AnnotationFileElementTypes {
      * overridden}'s own declaring class has been fully processed -- e.g., when the class is
      * declared later in the same stub file, or is a not-yet-loaded binary JDK class -- in which
      * case everything in {@code storedCandidate} other than the return type (parameter types,
-     * receiver type, declaration annotations) may be stale (see
-     * https://github.com/eisop/checker-framework/issues/1862). Recomputing the base type here is
+     * receiver type, declaration annotations) may be stale. Recomputing the base type here is
      * always safe: {@link #getFakeOverride}, this method's only caller, runs only once parsing has
      * finished (see its {@code isParsing()} check), so {@code overridden}'s own type is guaranteed
      * complete by now. The return type is deliberately re-applied from {@code storedCandidate}
