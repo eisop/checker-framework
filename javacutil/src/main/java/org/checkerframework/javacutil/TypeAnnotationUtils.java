@@ -206,7 +206,9 @@ public class TypeAnnotationUtils {
      * @param p1 the first position
      * @param p2 the second position
      * @return true, iff the two positions are equal
+     * @deprecated This method is unused and will be removed.
      */
+    @Deprecated // 2026-11-12
     public static boolean isSameTAPosition(TypeAnnotationPosition p1, TypeAnnotationPosition p2) {
         return isSameTAPositionExceptTreePos(p1, p2) && p1.pos == p2.pos;
     }

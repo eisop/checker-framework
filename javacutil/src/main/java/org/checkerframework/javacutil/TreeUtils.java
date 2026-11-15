@@ -898,7 +898,9 @@ public final class TreeUtils {
      * @param tree the method declaration
      * @return true if the first statement in the body is a self constructor invocation within a
      *     constructor
+     * @deprecated This method is unused and will be removed.
      */
+    @Deprecated // 2026-11-12
     public static boolean containsThisConstructorInvocation(MethodTree tree) {
         if (!TreeUtils.isConstructor(tree) || tree.getBody().getStatements().isEmpty()) {
             return false;
@@ -924,7 +926,9 @@ public final class TreeUtils {
      * @param tree any kind of tree
      * @return the first statement of the tree if it is a block. If it is not a block or an empty
      *     block, tree is returned.
+     * @deprecated This method is unused and will be removed.
      */
+    @Deprecated // 2026-11-12
     public static Tree firstStatement(Tree tree) {
         Tree first;
         if (tree instanceof BlockTree) {
@@ -3326,7 +3330,10 @@ public final class TreeUtils {
      *
      * @param tree a tree to check
      * @return true if the given tree is an erroneous tree
+     * @deprecated This method is unused and will be removed; use {@code tree instanceof
+     *     ErroneousTree}.
      */
+    @Deprecated // 2026-11-12
     public static boolean isErroneousTree(Tree tree) {
         return tree instanceof ErroneousTree;
     }
