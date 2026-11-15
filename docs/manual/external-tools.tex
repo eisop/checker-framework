@@ -1041,12 +1041,15 @@ add the following configuration to your \<build.gradle> file.
 \begin{Verbatim}
 plugins {
     // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '0.6.44'
+    id 'org.checkerframework' version '1.0.2'
 }
 
 apply plugin: 'org.checkerframework'
 
 checkerFramework {
+  // Use the EISOP Checker Framework version from the dependencies below,
+  // not the version the plugin would add by default.
+  version = "dependencies"
   checkers = [
     'org.checkerframework.checker.nullness.NullnessChecker',
   ]
