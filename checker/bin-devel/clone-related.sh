@@ -57,11 +57,11 @@ if [ -z "$CIRCLECI" ]; then
   # echo "NO_WRITE_VERIFICATION_METADATA=$NO_WRITE_VERIFICATION_METADATA"
   if [ -z "${NO_WRITE_VERIFICATION_METADATA+x}" ]; then
     # Note that "timeout" is not compatible with shell functions.
-    TERM=dumb timeout 300 ./gradlew help --dry-run --quiet \
-      || { echo "./gradlew help --dry-run failed; sleeping before trying again." \
+    TERM=dumb timeout 300 ./gradlew resolveDependencies --quiet \
+      || { echo "./gradlew resolveDependencies failed; sleeping before trying again." \
         && sleep 1m \
-        && echo "Trying again: ./gradlew help --dry-run" \
-        && TERM=dumb timeout 300 ./gradlew help --dry-run --quiet; }
+        && echo "Trying again: ./gradlew resolveDependencies" \
+        && TERM=dumb timeout 300 ./gradlew resolveDependencies --quiet; }
   fi
 fi
 

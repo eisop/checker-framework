@@ -710,6 +710,26 @@ allprojects { currentProj ->
     } // end afterEvaluate
 } // end allProjects
 
+// CI runs this task before a build, with a retry, so that a dependency that fails to download, for
+// example because Maven Central rate-limits the runner, is retried instead of failing a test task.
+allprojects {
+    tasks.register("resolveDependencies") {
+        description = "Downloads the artifacts of every resolvable configuration."
+        // Only external modules. The files are not an input of this task, so that it does not
+        // depend on the tasks that build the artifacts of this build's projects and file
+        // dependencies.
+        FileCollection externalFiles =
+                files(configurations.matching { it.canBeResolved }.collect { conf ->
+                    conf.incoming.artifactView {
+                        componentFilter { it instanceof ModuleComponentIdentifier }
+                    }.files
+                })
+        doLast {
+            externalFiles.files
+        }
+    }
+}
+
 tasks.register("version") {
     group = "Documentation"
     description = "Print Checker Framework version"
