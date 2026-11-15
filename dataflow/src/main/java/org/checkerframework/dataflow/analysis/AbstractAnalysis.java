@@ -234,17 +234,10 @@ public abstract class AbstractAnalysis<
             assert !n.isLValue() : "Did not expect an lvalue, but got " + n;
             // TODO: these membership tests use Collection#contains (structural Node#equals), but
             // nodeValues (read below) is identity-keyed and equal Nodes can be distinct CFG nodes
-            // (see Node). The structural match only changes the GATE decision -- nodeValues.get(n)
-            // is by identity, so it always returns n's own value, never another node's. So the only
-            // risk is returning n's (possibly stale) value when n is not truly a subnode; this is
-            // empirically benign (every real divergence on the all-systems corpus is a
-            // constant-valued ClassNameNode, no diagnostic change). The whole check also allocates
-            // getOperands() per visited node: ~1.2% of allocation on realistic code but ~35% on
-            // deeply nested expressions. An identity test is more correct but regresses allocation
-            // (forces recomputation the structural match elided). The immediate-operands fast-path
-            // below is a measured no-op vs. a unified BFS (the one avoided ArrayDeque is in the
-            // noise) -- keep for clarity, not speed. See docs/developer/performance-notes.md
-            // (Tried and rejected).
+            // (see Node). The structural match only decides whether to return a value:
+            // nodeValues.get(n) is by identity, so it returns n's own value, which may be stale
+            // when n is not truly a subnode. An identity test would be more precise but allocates
+            // more; see docs/developer/performance-notes.md.
             Collection<Node> immediate = currentNode.getOperands();
             if (!immediate.contains(n)) {
                 java.util.ArrayDeque<Node> queue = new java.util.ArrayDeque<>(immediate);
@@ -503,11 +496,9 @@ public abstract class AbstractAnalysis<
         // the two values then agree.  One that changes it does: the Interning Checker makes the
         // unboxed primitive @Interned and leaves the boxed value @UnknownInterned, and across the
         // Signedness, Value and Interning tests the two values differ in their qualifiers often
-        // enough to matter.  No wrong answer has been produced from this, but it is the reason
-        // the value a query returns can depend on how much of the CFG has been analyzed.  See
-        // https://github.com/eisop/checker-framework/issues/2127 for the analysis, the
-        // measurements, and a fix that was rejected for costing 1.41x on boxing-heavy code.  The
-        // two nodes are created by CFGTranslationPhaseOne.addToConvertedLookupMap.
+        // enough to matter, so the value a query returns can depend on how much of the CFG has
+        // been analyzed; see https://github.com/eisop/checker-framework/issues/2127.  The two
+        // nodes are created by CFGTranslationPhaseOne.addToConvertedLookupMap.
         V result = getValue(getNodesForTree(t));
         if (result == null) {
             result = getValue(cfg.getTreeLookup().get(t));

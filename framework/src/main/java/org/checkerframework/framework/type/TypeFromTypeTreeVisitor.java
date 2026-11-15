@@ -387,15 +387,13 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
      *
      * <p>{@link AnnotatedTypeFactory#type(Tree)} derives the enclosing type from the underlying
      * javac type, whose enclosing type arguments carry defaulted annotations rather than the ones
-     * written in the source (see <a
-     * href="https://github.com/eisop/checker-framework/issues/737">issue #737</a>). For a field or
-     * method parameter, {@code ElementAnnotationApplier} later recovers the written annotations
-     * from the element, but a local-variable element does not retain them and an extends/implements
-     * clause has no element at all, so for those positions the written enclosing-argument
-     * annotation would otherwise be lost. This method rebuilds the enclosing type from its own
-     * subtree (a {@link ParameterizedTypeTree} or a nested {@link MemberSelectTree}), which visits
-     * the written type-argument trees and so preserves their annotations, and transplants it onto
-     * {@code type}.
+     * written in the source. For a field or method parameter, {@code ElementAnnotationApplier}
+     * later recovers the written annotations from the element, but a local-variable element does
+     * not retain them and an extends/implements clause has no element at all, so for those
+     * positions the written enclosing-argument annotation would otherwise be lost. This method
+     * rebuilds the enclosing type from its own subtree (a {@link ParameterizedTypeTree} or a nested
+     * {@link MemberSelectTree}), which visits the written type-argument trees and so preserves
+     * their annotations, and transplants it onto {@code type}.
      *
      * @param type the type produced for {@code tree}, side-effected in place
      * @param tree the member-select tree that {@code type} was produced from
@@ -430,8 +428,7 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
      *
      * <p>The type produced by {@link AnnotatedTypeFactory#type(Tree)} for a nested type derives its
      * enclosing types from the underlying javac type, whose type-variable type arguments carry
-     * defaulted bounds rather than the bounds written on the type-variable declaration (see <a
-     * href="https://github.com/eisop/checker-framework/issues/737">issue #737</a>). For a type
+     * defaulted bounds rather than the bounds written on the type-variable declaration. For a type
      * variable written directly (e.g., as a top-level type argument in a {@link
      * ParameterizedTypeTree}), {@link #getTypeVariableFromDeclaration} already restores the
      * declared bounds; this method does the same for type variables that appear only in an

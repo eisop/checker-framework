@@ -2501,18 +2501,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 return null;
             }
         }
-        // Only re-run methodFromUse with inference enabled if the method actually has type
-        // parameters and type arguments were not already supplied.  Otherwise the preInference
-        // result already contains everything methodFromUse(tree, true) would compute, so reuse
-        // it instead of redoing receiver computation, capture conversion, and substitution.
-        // TODO: it would be nicer to avoid calling methodFromUse if there are no type arguments to
-        // infer.
-        // However, currently vararg expansion is tied to type argument inference. Separate the two
-        // concepts cleanly.
-        //        ParameterizedExecutableType mType =
-        //                (hasTypeParams && preInference.typeArgs.isEmpty())
-        //                        ? atypeFactory.methodFromUse(tree)
-        //                        : preInference;
+        // TODO: Reuse preInference when there are no type arguments to infer. Currently only
+        // methodFromUse adapts the parameters to the arguments (vararg expansion), because that
+        // is tied to type argument inference; separate the two first.
         ParameterizedExecutableType mType = atypeFactory.methodFromUse(tree);
         AnnotatedExecutableType invokedMethod = mType.executableType;
         List<AnnotatedTypeMirror> typeargs = mType.typeArgs;
