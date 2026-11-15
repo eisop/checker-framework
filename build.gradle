@@ -1281,10 +1281,17 @@ subprojects {
     // ShadowJar would rewrite along with the package. It stays on the compile classpath, where
     // javac needs javax.annotation.meta.When to read Guava's annotations; without it `-Werror`
     // fails on "unknown enum constant When.UNKNOWN".
+    //
+    // The JSpecify annotations come in the same way: Guava's classes carry them, so minimize()
+    // keeps the few it finds referenced, unrelocated, as an incomplete copy of the
+    // `org.jspecify.annotations` package. No Checker Framework class references a JSpecify type
+    // either; the Nullness Checker recognizes the user's JSpecify annotations by name, from the
+    // user's classpath. Relocating them would rewrite those names.
     tasks.withType(com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configureEach {
         exclude("**/module-info.class")
         dependencies {
             exclude(dependency("com.google.code.findbugs:jsr305:.*"))
+            exclude(dependency("org.jspecify:jspecify:.*"))
         }
     }
 
