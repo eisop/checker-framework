@@ -1,0 +1,46 @@
+name: Cache probe
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: ${{ matrix.cleanup }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Each job writes a pull-request-scoped cache with its own key.  The first run restores
+        # master's cache; a rerun restores the job's own entry and shows what the cleanup kept.
+        cleanup: ['on-success', 'never']
+    env:
+      GRADLE_BUILD_ACTION_CACHE_KEY_JOB: probe-${{ matrix.cleanup }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-java@v6.1.0
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.4.1
+        with:
+          cache-read-only: false
+          cache-cleanup: ${{ matrix.cleanup }}
+      - name: Clone related repositories without the prefetch
+        run: |
+          export NO_WRITE_VERIFICATION_METADATA=1
+          source checker/bin-devel/clone-related.sh
+      - name: Build offline from the restored cache
+        continue-on-error: true
+        run: ./gradlew --offline help --dry-run --quiet 2>&1 | tail -8
+      - name: Build online and count downloads
+        run: |
+          ./gradlew --write-verification-metadata sha256 help --dry-run --info 2>&1 | grep -c Downloading || true
+          rm -f gradle/verification-metadata*.xml
+          ./gradlew help --quiet
