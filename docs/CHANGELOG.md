@@ -180,6 +180,11 @@ Type-checking and subtyping improvements:
   see `@Nullable`, and writes need `@NonNull`. Such types are no longer rejected
   with `type.invalid.super.wildcard`, unless the wildcard collapses to a type
   variable, as `Gen<F, ? super F>` for `Gen<T, S extends T>`.
+  As a type argument, such a wildcard equals the type it collapses to only if
+  both of its bounds have the same qualifier: under the Tainting Checker,
+  `B<A<? super Number>> x = b` for `b` of type `B<A<Number>>` and
+  `A<T extends Number>` is reported, because the bounds of `? super Number` are
+  `@Untainted Number` and `@Tainted Number`.
 - A method reference to `getClass`, such as `foo::getClass` or `Foo::getClass`,
   now returns `Class<? extends Foo>`, as `foo.getClass()` does, instead of
   `Class<?>`. Assigning one to a `Supplier<Class<? extends Foo>>` was rejected,
