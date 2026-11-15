@@ -14,11 +14,13 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
@@ -33,8 +35,20 @@ public class StructuralEqualityComparer extends AbstractAtmComboVisitor<Boolean,
     /** History saving the result of previous comparisons. */
     protected final StructuralEqualityVisitHistory visitHistory;
 
-    // See org.checkerframework.framework.type.DefaultTypeHierarchy.currentTop
+    /**
+     * The top of the hierarchy in which the types are compared, as for {@code
+     * DefaultTypeHierarchy.currentTop}.
+     */
     private AnnotationMirror currentTop = null;
+
+    /**
+     * The type parameters of the pairs of type variables whose bounds {@link #visitTypevar_Typevar}
+     * is comparing, as consecutive elements: the parameter of the first type variable of each pair
+     * is followed by that of the second. A pair that recurs while its bounds are compared, such as
+     * the inner {@code K} of {@code K extends Comparable<? super K>}, denotes the type variables
+     * themselves and is therefore equal.
+     */
+    private final List<Element> typeVarsBeingCompared = new ArrayList<>();
 
     /**
      * Create a StructuralEqualityComparer.
@@ -66,10 +80,9 @@ public class StructuralEqualityComparer extends AbstractAtmComboVisitor<Boolean,
     }
 
     /**
-     * Returns true if type1 and type2 are structurally equivalent. With one exception,
-     * type1.getClass().equals(type2.getClass()) must be true. However, because the Checker
-     * Framework sometimes "infers" Typevars to be Wildcards, we allow the combination
-     * Wildcard,Typevar. In this case, the two types are "equal" if their bounds are.
+     * Returns true if type1 and type2 are structurally equivalent. The two types must be of the
+     * same kind, except that a declared type may be compared with the primitive type it boxes and
+     * with a captured type variable; any other combination of kinds is a bug.
      *
      * @param type1 the first AnnotatedTypeMirror to compare
      * @param type2 the second AnnotatedTypeMirror to compare
@@ -258,9 +271,12 @@ public class StructuralEqualityComparer extends AbstractAtmComboVisitor<Boolean,
         List<AnnotatedTypeMirror> type1Args = type1.getTypeArguments();
         List<AnnotatedTypeMirror> type2Args = type2.getTypeArguments();
 
-        // Capture the types because the wildcards are only not equal if they are provably distinct.
-        // Provably distinct is computed using the captured and erased upper bounds of wildcards.
-        // See JLS 4.5.1. Type Arguments of Parameterized Types.
+        // Wildcard type arguments are compared through their captures (JLS 5.1.10): the upper
+        // bound of the capture of a wildcard is the greatest lower bound of the wildcard's extends
+        // bound and the declared bound of the type parameter, so `C<?>` and `C<? extends Bound>`
+        // are equal, as they are in Java.  The captured type variables are compared structurally,
+        // so the qualifiers of the super bound, of the extends bound, and of the type arguments of
+        // either bound all take part in the comparison.
         AnnotatedTypeFactory atypeFactory = type1.atypeFactory;
         AnnotatedDeclaredType capturedType1 =
                 (AnnotatedDeclaredType) atypeFactory.applyCaptureConversion(type1);
@@ -289,11 +305,7 @@ public class StructuralEqualityComparer extends AbstractAtmComboVisitor<Boolean,
                                     || wildcardType2.isTypeArgOfRawType())) {
                         result = true;
                     } else {
-                        AnnotatedTypeMirror capturedType1Arg = capturedType1Args.get(i);
-                        AnnotatedTypeMirror capturedType2Arg = capturedType2Args.get(i);
-                        result =
-                                areEqual(
-                                        capturedType1Arg.getErased(), capturedType2Arg.getErased());
+                        result = areEqual(capturedType1Args.get(i), capturedType2Args.get(i));
                     }
                 }
             }
@@ -363,6 +375,13 @@ public class StructuralEqualityComparer extends AbstractAtmComboVisitor<Boolean,
      * </ul>
      *
      * Note: Primary annotations will be taken into account when the bounds are retrieved
+     *
+     * <p>A reference to the same pair of type variables within their own bounds, such as the inner
+     * {@code K} of {@code K extends Comparable<? super K>}, is equal: it denotes the type variables
+     * whose bounds are being compared. Such a reference may be the very {@code
+     * AnnotatedTypeVariable} being compared or a separate copy of it, and only in the former case
+     * does it carry the primary annotations of the outer use in its bounds, so comparing its bounds
+     * would compare an artifact of the representation rather than the types.
      */
     @Override
     public Boolean visitTypevar_Typevar(
@@ -372,9 +391,27 @@ public class StructuralEqualityComparer extends AbstractAtmComboVisitor<Boolean,
             return pastResult;
         }
 
-        Boolean result =
-                areEqual(type1.getUpperBound(), type2.getUpperBound())
-                        && areEqual(type1.getLowerBound(), type2.getLowerBound());
+        Element typeParam1 = type1.getUnderlyingType().asElement();
+        Element typeParam2 = type2.getUnderlyingType().asElement();
+        for (int i = 0, n = typeVarsBeingCompared.size(); i < n; i += 2) {
+            if (typeVarsBeingCompared.get(i).equals(typeParam1)
+                    && typeVarsBeingCompared.get(i + 1).equals(typeParam2)) {
+                return true;
+            }
+        }
+
+        typeVarsBeingCompared.add(typeParam1);
+        typeVarsBeingCompared.add(typeParam2);
+        boolean result;
+        try {
+            result =
+                    areEqual(type1.getUpperBound(), type2.getUpperBound())
+                            && areEqual(type1.getLowerBound(), type2.getLowerBound());
+        } finally {
+            int size = typeVarsBeingCompared.size();
+            typeVarsBeingCompared.remove(size - 1);
+            typeVarsBeingCompared.remove(size - 2);
+        }
         visitHistory.put(type1, type2, currentTop, result);
         return result;
     }
