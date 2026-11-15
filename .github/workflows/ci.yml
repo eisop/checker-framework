@@ -169,8 +169,6 @@ jobs:
         with:
           # As for linux-tests, one job per operating system writes the cache.
           cache-read-only: ${{ github.ref != 'refs/heads/master' }}
-          # As in setup-test-env: the cleanup drops the buildSrc and plugin dependency metadata.
-          cache-cleanup: never
 
       - name: Install coreutils on macOS
         if: ${{ matrix.os == 'macos-latest' }}
