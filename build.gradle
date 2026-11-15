@@ -1515,8 +1515,12 @@ subprojects {
                         "-javacoptions:-ApermitMissingJdk"
                     ]
                 } else if (isChecker) {
+                    // The JSpecify annotations, which some tests use; the Checker Framework's own
+                    // jars do not contain them.
+                    String jspecifyJars = configurations.testRuntimeClasspath
+                            .filter { it.name.startsWith("jspecify-") }.asPath
                     args += [
-                        "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}",
+                        "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}:${jspecifyJars}",
                     ]
                 }
 
