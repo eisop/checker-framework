@@ -14,11 +14,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Each job writes a pull-request-scoped cache with its own key.  The first run restores
-        # master's cache; a rerun restores the job's own entry and shows what the cleanup kept.
-        cleanup: ['on-success', 'never']
+        # Reads master's tests-jdk21 cache, written with the default cleanup under Gradle 9.9.0.
+        cleanup: ['on-success']
     env:
-      GRADLE_BUILD_ACTION_CACHE_KEY_JOB: probe-${{ matrix.cleanup }}
+      GRADLE_BUILD_ACTION_CACHE_KEY_JOB: tests-jdk21
     steps:
       - uses: actions/checkout@v7
         with:
@@ -30,7 +29,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.4.1
         with:
-          cache-read-only: false
+          cache-read-only: true
           cache-cleanup: ${{ matrix.cleanup }}
       - name: Clone related repositories without the prefetch
         run: |
