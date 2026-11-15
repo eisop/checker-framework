@@ -88,12 +88,6 @@ Type-checking and subtyping improvements:
   bound, and the type arguments of either bound. Previously only the qualifier
   on the extends bound was compared, so `Box<List<? super String>>` accepted a
   `Box<List<? super @Nullable String>>`.
-- A declared type argument and a wildcard argument that javac collapses to it
-  (`A<Number>` and `A<? super Number>` for `A<T extends Number>`) are equal only
-  if the checker gives both bounds of the wildcard the same qualifier; the
-  assignment `B<A<? super Number>> x = b` for `b` of type `B<A<Number>>` is
-  reported under the Tainting Checker, for example. It was accepted because a
-  comparison that crashed left a stale "equal" entry in the subtyping cache.
 - `-AcheckCastElementType` now requires array components to be invariant in
   array casts and `instanceof` binding patterns, closing an unsoundness:
   array components are mutable and qualifiers are not reified. It no longer
@@ -186,6 +180,11 @@ Type-checking and subtyping improvements:
   see `@Nullable`, and writes need `@NonNull`. Such types are no longer rejected
   with `type.invalid.super.wildcard`, unless the wildcard collapses to a type
   variable, as `Gen<F, ? super F>` for `Gen<T, S extends T>`.
+  As a type argument, such a wildcard equals the type it collapses to only if
+  both of its bounds have the same qualifier: under the Tainting Checker,
+  `B<A<? super Number>> x = b` for `b` of type `B<A<Number>>` and
+  `A<T extends Number>` is reported, because the bounds of `? super Number` are
+  `@Untainted Number` and `@Tainted Number`.
 - A method reference to `getClass`, such as `foo::getClass` or `Foo::getClass`,
   now returns `Class<? extends Foo>`, as `foo.getClass()` does, instead of
   `Class<?>`. Assigning one to a `Supplier<Class<? extends Foo>>` was rejected,
