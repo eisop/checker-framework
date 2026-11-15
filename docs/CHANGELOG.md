@@ -88,6 +88,12 @@ Type-checking and subtyping improvements:
   bound, and the type arguments of either bound. Previously only the qualifier
   on the extends bound was compared, so `Box<List<? super String>>` accepted a
   `Box<List<? super @Nullable String>>`.
+- A declared type argument and a wildcard argument that javac collapses to it
+  (`A<Number>` and `A<? super Number>` for `A<T extends Number>`) are equal only
+  if the checker gives both bounds of the wildcard the same qualifier; the
+  assignment `B<A<? super Number>> x = b` for `b` of type `B<A<Number>>` is
+  reported under the Tainting Checker, for example. It was accepted because a
+  comparison that crashed left a stale "equal" entry in the subtyping cache.
 - `-AcheckCastElementType` now requires array components to be invariant in
   array casts and `instanceof` binding patterns, closing an unsoundness:
   array components are mutable and qualifiers are not reified. It no longer

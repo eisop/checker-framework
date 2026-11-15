@@ -438,19 +438,19 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
             return isSubtype(inside, outside, currentTop);
         }
 
-        try {
-            return areEqualInHierarchy(inside, outside);
-        } catch (Exception e) {
-            // Ignore exception and try capturing.
-            // See https://github.com/typetools/checker-framework/issues/6867.
-            // https://bugs.openjdk.org/browse/JDK-8054309
+        // "T <= T" holds only if inside and outside are the same type. A wildcard is not a type,
+        // and types of different kinds are not the same type, except that a captured type variable
+        // may stand for the declared type that javac collapsed it to, which
+        // StructuralEqualityComparer handles. A wildcard argument of a subtype that is not
+        // contained is handled by visitOwnTypeArgs, which then applies capture conversion to the
+        // subtype and checks containment again.
+        if (inside.getKind() == TypeKind.WILDCARD
+                || (inside.getKind() != outside.getKind()
+                        && !TypesUtils.isCapturedTypeVariable(inside.getUnderlyingType())
+                        && !TypesUtils.isCapturedTypeVariable(outside.getUnderlyingType()))) {
+            return false;
         }
-        AnnotatedTypeMirror capturedOutside = outside.atypeFactory.applyCaptureConversion(outside);
-        previousResult = areEqualVisitHistory.get(inside, capturedOutside, currentTop);
-        if (previousResult != null) {
-            return previousResult;
-        }
-        return areEqualInHierarchy(inside, capturedOutside);
+        return areEqualInHierarchy(inside, outside);
     }
 
     /**
@@ -692,16 +692,8 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
 
         // JLS 11: 4.10.2. Subtyping among Class and Interface Types
         // 4th paragraph, bullet 2
-        try {
-            if (isContainedMany(subtypeTypeArgs, supertypeTypeArgs, covariantArgIndexes)) {
-                return true;
-            }
-        } catch (Exception e) {
-            // Some types need to be captured first, so ignore crashes.
-            for (int i = 0; i < supertypeTypeArgs.size(); i++) {
-                areEqualVisitHistory.remove(
-                        subtypeTypeArgs.get(i), supertypeTypeArgs.get(i), currentTop);
-            }
+        if (isContainedMany(subtypeTypeArgs, supertypeTypeArgs, covariantArgIndexes)) {
+            return true;
         }
         // 5th paragraph:
         // Instead of calling isSubtype with the captured type, just check for containment.

@@ -9,6 +9,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiv
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.visitor.AbstractAtmComboVisitor;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.AtmCombo;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
@@ -293,21 +294,19 @@ public class StructuralEqualityComparer extends AbstractAtmComboVisitor<Boolean,
             Boolean pastResultTA = visitHistory.get(type1Arg, type2Arg, currentTop);
             if (pastResultTA != null) {
                 result = pastResultTA;
+            } else if (type1Arg.getKind() != TypeKind.WILDCARD
+                    && type2Arg.getKind() != TypeKind.WILDCARD) {
+                result = areEqual(type1Arg, type2Arg);
+            } else if (atypeFactory.ignoreRawTypeArguments
+                    && (AnnotatedTypes.isTypeArgOfRawType(type1Arg)
+                            || AnnotatedTypes.isTypeArgOfRawType(type2Arg))) {
+                result = true;
             } else {
-                if (type1Arg.getKind() != TypeKind.WILDCARD
-                        || type2Arg.getKind() != TypeKind.WILDCARD) {
-                    result = areEqual(type1Arg, type2Arg);
-                } else {
-                    AnnotatedWildcardType wildcardType1 = (AnnotatedWildcardType) type1Arg;
-                    AnnotatedWildcardType wildcardType2 = (AnnotatedWildcardType) type2Arg;
-                    if (type1.atypeFactory.ignoreRawTypeArguments
-                            && (wildcardType1.isTypeArgOfRawType()
-                                    || wildcardType2.isTypeArgOfRawType())) {
-                        result = true;
-                    } else {
-                        result = areEqual(capturedType1Args.get(i), capturedType2Args.get(i));
-                    }
-                }
+                // At least one argument is a wildcard: compare the captured arguments. A
+                // non-wildcard argument is unchanged by capture, and javac collapses a wildcard
+                // whose bounds coincide to a declared type, so a declared type may stand opposite
+                // a wildcard here.
+                result = areEqual(capturedType1Args.get(i), capturedType2Args.get(i));
             }
             if (!result) {
                 break;
