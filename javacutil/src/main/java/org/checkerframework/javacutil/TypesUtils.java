@@ -453,7 +453,9 @@ public final class TypesUtils {
      *
      * @param type the type to check
      * @return true iff type represents a Throwable type (e.g. Exception, Error)
+     * @deprecated This method is unused and will be removed.
      */
+    @Deprecated // 2026-11-12
     public static boolean isThrowable(TypeMirror type) {
         while (type != null && type.getKind() == TypeKind.DECLARED) {
             DeclaredType dt = (DeclaredType) type;
