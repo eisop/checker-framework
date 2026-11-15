@@ -83,6 +83,11 @@ Type-checking and subtyping improvements:
   subtype of `Outer<@NonNull String>.Inner`. The type arguments of an enclosing
   type are checked against their bounds; an out-of-bound one is reported once
   per chain of nested types.
+- Two wildcard type arguments of an invariant type are equal only if their
+  bounds are equal including every qualifier: the super bound, the extends
+  bound, and the type arguments of either bound. Previously only the qualifier
+  on the extends bound was compared, so `Box<List<? super String>>` accepted a
+  `Box<List<? super @Nullable String>>`.
 - `-AcheckCastElementType` now requires array components to be invariant in
   array casts and `instanceof` binding patterns, closing an unsoundness:
   array components are mutable and qualifiers are not reified. It no longer
@@ -778,6 +783,7 @@ eisop#2485,
 eisop#2490,
 eisop#2491,
 eisop#2499,
+eisop#2582,
 typetools#399,
 typetools#602,
 typetools#2816,
