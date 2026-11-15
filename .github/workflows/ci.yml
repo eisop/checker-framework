@@ -1,7 +1,11 @@
 name: CI tests
 
 on:  # yamllint disable-line rule:truthy
-  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * *'  # Runs daily at 07:00 UTC.
+  pull_request:
+  push:
+    branches: ["master"]
 
 # Cancel in-progress workflows on PR updates; never cancel master pushes.
 # https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
@@ -165,6 +169,8 @@ jobs:
         with:
           # As for linux-tests, one job per operating system writes the cache.
           cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+          # As in setup-test-env: the cleanup drops the buildSrc and plugin dependency metadata.
+          cache-cleanup: never
 
       - name: Install coreutils on macOS
         if: ${{ matrix.os == 'macos-latest' }}

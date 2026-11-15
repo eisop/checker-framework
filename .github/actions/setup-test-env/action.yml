@@ -130,6 +130,9 @@ runs:
       uses: gradle/actions/setup-gradle@v6.4.1
       with:
         cache-read-only: ${{ inputs.cache-read-only == 'true' }}
+        # The cleanup drops Gradle's metadata for the buildSrc and plugin dependencies, so every
+        # job that restores the cache downloads them again (about 270 files).
+        cache-cleanup: never
 
     - name: Cache Maven repository
       if: ${{ inputs.script == 'cftests-nonjunit' || inputs.script == 'guava' }}
