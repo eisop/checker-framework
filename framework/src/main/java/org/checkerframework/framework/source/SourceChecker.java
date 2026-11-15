@@ -2831,7 +2831,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw lint options declared on this checker's class hierarchy
      */
-    protected final Set<String> getDeclaredLintOptions() {
+    private Set<String> getDeclaredLintOptions() {
         if (declaredLintOptions == null) {
             Set<String> lintSet = new HashSet<>();
             for (Class<?> clazz : getClassHierarchy()) {
@@ -2894,7 +2894,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw modes declared on this checker's class hierarchy
      */
-    protected final Set<String> getDeclaredModes() {
+    private Set<String> getDeclaredModes() {
         if (declaredModes == null) {
             Set<String> result = new HashSet<>();
             for (Class<?> clazz : getClassHierarchy()) {
@@ -3361,7 +3361,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw options declared on this checker's class hierarchy
      */
-    protected final Set<String> getDeclaredOptions() {
+    private Set<String> getDeclaredOptions() {
         if (declaredOptions == null) {
             Set<String> declared = new HashSet<>();
             for (Class<?> clazz : getClassHierarchy()) {
