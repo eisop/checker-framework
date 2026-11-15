@@ -69,7 +69,8 @@ Packaging fixes: published artifacts no longer transitively pull in
 annotation names that ShadowJar had rewritten (breaking
 Lombok/codehaus `@NotNull`/`@Nullable` and `@org.plumelib.options.Option`)
 are fixed; and shaded jars are ~2 MB smaller, no longer bundling a stray
-`module-info.class` or jsr305 classes.
+`module-info.class`, jsr305 classes, or an incomplete copy of the JSpecify
+annotations.
 The shell scripts in `checker/bin`, such as `wpi.sh`, are executable in
 `checker-framework-VERSION.zip`.
 
