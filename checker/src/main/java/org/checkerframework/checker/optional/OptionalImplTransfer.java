@@ -29,6 +29,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Arrays;
@@ -258,15 +259,14 @@ public class OptionalImplTransfer extends CFTransfer {
 
     /**
      * Returns the {@link VariableTree} for a receiver element if it is declared in a method body
-     * (i.e., it is either a local variable, resource variable, or a formal parameter), otherwise
-     * return null.
+     * (i.e., it is either a local variable, resource variable, exception parameter, or a formal
+     * parameter), otherwise return null.
      *
      * @param receiverElement the receiver element
      * @return the {@link VariableTree} if the receiver is declared in a method body
      */
     private @Nullable VariableTree getReceiverInMethodBody(Element receiverElement) {
-        if (receiverElement.getKind() == ElementKind.LOCAL_VARIABLE
-                || receiverElement.getKind() == ElementKind.RESOURCE_VARIABLE
+        if (ElementUtils.isLocalVariable(receiverElement)
                 || receiverElement.getKind() == ElementKind.PARAMETER) {
             return (VariableTree) optionalTypeFactory.declarationFromElement(receiverElement);
         }

@@ -319,34 +319,30 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     @Override
     public Void visitVariable(VariableTree tree, Void p) {
+        Element varElt = TreeUtils.elementFromDeclaration(tree);
+        ElementKind kind = varElt.getKind();
         // Under -Alint=monotonicNonNullOnStatic, warn about @MonotonicNonNull on a static field,
         // which the manual documents as a code smell that may indicate poor design. This is an
         // opt-in style warning rather than default-on, because such a field functions correctly:
         // the pattern is discouraged, not erroneous.
-        if (monotonicNonNullOnStatic) {
-            Element elt = TreeUtils.elementFromDeclaration(tree);
-            if (elt != null
-                    && elt.getKind() == ElementKind.FIELD
-                    && ElementUtils.isStatic(elt)
-                    && atypeFactory
-                            .getAnnotatedTypeLhs(tree)
-                            .hasEffectiveAnnotation(MONOTONIC_NONNULL)) {
-                checker.reportWarning(tree, "monotonic.on.static");
-            }
+        if (monotonicNonNullOnStatic
+                && kind == ElementKind.FIELD
+                && ElementUtils.isStatic(varElt)
+                && atypeFactory
+                        .getAnnotatedTypeLhs(tree)
+                        .hasEffectiveAnnotation(MONOTONIC_NONNULL)) {
+            checker.reportWarning(tree, "monotonic.on.static");
         }
-        Element varElt = TreeUtils.elementFromDeclaration(tree);
-        if (varElt != null
-                && (varElt.getKind() == ElementKind.LOCAL_VARIABLE
-                        || varElt.getKind() == ElementKind.RESOURCE_VARIABLE)) {
+        if (kind == ElementKind.LOCAL_VARIABLE || kind == ElementKind.RESOURCE_VARIABLE) {
             checkJSpecifyLocation(
                     tree,
                     tree.getModifiers().getAnnotations(),
                     tree.getType(),
-                    varElt.getKind() == ElementKind.RESOURCE_VARIABLE
+                    kind == ElementKind.RESOURCE_VARIABLE
                             ? "jspecify.unrecognized.location.resource"
                             : "jspecify.unrecognized.location.local");
         }
-        if (varElt != null && ElementUtils.isBindingVariable(varElt)) {
+        if (ElementUtils.isBindingVariable(varElt)) {
             // The variable of a nested pattern that matches null is bound to the value of a record
             // component, which must be compatible with the nullness written on the pattern.
             AnnotatedTypeMirror componentType = atypeFactory.getNullMatchingComponentType(tree);
