@@ -562,6 +562,9 @@ Performance optimizations:
 - `BaseTypeVisitor.FoundRequired` stores `Object` instead of `String`, deferring
   `toString()`. **API change**: callers must call `.toString()` explicitly.
 - `AnnotatedTypeScanner.visitedNodes` lazily allocated.
+- `EquivalentAtmComboScanner` records the visited type pairs in one flat identity table
+  instead of an `IdentityHashMap` per visited type: 2.4% less allocation for the Index Checker on
+  plume-util and 8% less for the JSpecify reference checker on Guava.
 - `StructuralEqualityComparer.arePrimaryAnnosEqual` is non-mutating.
 - Optimized Value Checker: `AnnotationBuilder` gained a `TypeElement` constructor;
   final locals indexed by declaring element; `ValueQualifierHierarchy` caches
@@ -841,6 +844,7 @@ eisop#2592,
 eisop#2593,
 eisop#2594,
 eisop#2601,
+eisop#2602,
 typetools#399,
 typetools#602,
 typetools#2816,
