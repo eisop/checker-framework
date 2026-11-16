@@ -71,7 +71,8 @@ annotation names that ShadowJar had rewritten (breaking
 Lombok/codehaus `@NotNull`/`@Nullable` and `@org.plumelib.options.Option`)
 are fixed; and shaded jars are ~2 MB smaller, no longer bundling a stray
 `module-info.class`, jsr305 classes, or an incomplete copy of the JSpecify
-annotations.
+annotations, and no longer contain a stray `MANIFEST.MF`, `LICENSE.txt`, or
+`.keep` at their root.
 The shell scripts in `checker/bin`, such as `wpi.sh`, are executable in
 `checker-framework-VERSION.zip`.
 
@@ -230,6 +231,11 @@ JSpecify support in the Nullness Checker:
 `@HasQualifierParameter` and `@ReportUse` have an `applyToSubpackages` element, as
 `@DefaultQualifier` does.
 
+The `@SuppressWarnings` prefixes of a checker include those of every checker that runs it as a
+subchecker: their `@SuppressWarningsPrefix` values or, without that meta-annotation, the lower-case
+prefix derived from their class names. For example, `@SuppressWarnings("index")` also suppresses
+the Constant Value Checker's warnings when it runs under the Index Checker.
+
 Nullness Checker improvements:
 
 - Refines `Queue.poll()`/`peek()` and `Deque.pollFirst()`/`pollLast()`/`peekFirst()`/`peekLast()`
@@ -250,6 +256,10 @@ Nullness Checker improvements:
   component, and `@Nullable` on it is no longer reported as `instanceof.nullable`.
 - `nullness.on.outer` is reported once, not twice, for an annotation within a
   declaration's type, such as `Outer.@Nullable Inner.Deep f`.
+- `dereference.of.nullable` is reported at the member select or `new`
+  expression that dereferences the possibly-null value (the `.` of
+  `myList.add(elt)`), instead of at the start of the dereferenced expression.
+  The message is unchanged.
 
 Initialization Checker improvements:
 
@@ -302,6 +312,12 @@ Command-line option additions and changes:
 
 Stub files:
 
+- Declaration annotations and record component types in a stub file are no
+  longer merged into a class compiled from source unless
+  `-AmergeStubsWithSource` is given, as was already the case for type annotations.
+  Under `-AstubWarnIfNotFound` (the default for a stub file given on the
+  command line), text parsing warns when a stub file provides annotations for
+  a class compiled from source without `-AmergeStubsWithSource`.
 - A stub file that declares a record where the running JDK has a class (for
   example the JDK 21 annotated JDK on JDK 8 to 17) no longer loses the
   annotations of the members that follow the record.
@@ -819,7 +835,9 @@ eisop#2490,
 eisop#2491,
 eisop#2499,
 eisop#2582,
+eisop#2591,
 eisop#2592,
+eisop#2601,
 typetools#399,
 typetools#602,
 typetools#2816,
@@ -980,7 +998,10 @@ Moved the Annotation File Utilities code into the Checker Framework repository a
 Java expressions in annotations, such as in contracts and dependent types, are now parsed with
 javac's parser instead of JavaParser.
 (EISOP note: when running the Checker Framework without `checker/bin/javac`, export the package
-`jdk.compiler/com.sun.tools.javac.parser` to it.)
+`jdk.compiler/com.sun.tools.javac.parser` to it. `JavaExpressionParseUtil` moved from
+`org.checkerframework.framework.util` to `org.checkerframework.dataflow.expression`, and its nested
+`JavaExpressionParseException` is a top-level class of that package; neither is deprecated at the
+old location.)
 
 ## Version 3.49.5-eisop1 (April 26, 2026)
 
