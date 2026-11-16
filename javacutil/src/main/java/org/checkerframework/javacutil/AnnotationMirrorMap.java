@@ -177,8 +177,8 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
     public Set<@KeyFor("this") AnnotationMirror> keySet() {
         Set<@KeyFor("this") AnnotationMirror> r = keySetCache;
         if (r == null) {
-            r = new AnnotationMirrorSet(shadowMap.keySet());
-            keySetCache = Collections.unmodifiableSet(r);
+            r = Collections.unmodifiableSet(new AnnotationMirrorSet(shadowMap.keySet()));
+            keySetCache = r;
         }
         return r;
     }
