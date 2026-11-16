@@ -5,6 +5,11 @@ plugins {
     id("com.diffplug.spotless") // The version number is in buildSrc/build.gradle.
 }
 
+// The version catalog of settings.gradle.  A script plugin has no generated `libs` accessor: an
+// unqualified `libs` is a dynamic lookup, which in a subproject resolves the root project's
+// extension implicitly, and Gradle 9.9 deprecates that implicit lookup.
+def libs = project.rootProject.extensions.getByName("libs")
+
 // Spotless downloads google-java-format through a detached configuration, which the
 // resolveDependencies task does not see.  This configuration resolves the same artifacts, so that
 // resolveDependencies downloads them and the CI job that writes the Gradle cache keeps them.
