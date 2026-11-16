@@ -61,7 +61,8 @@ The Annotation File Utilities, which typetools moved into this repository, are b
 type-checked as the independent `annotation-file-utilities` subproject and released separately, as
 `io.github.eisop:annotation-file-utilities` and `annotation-file-utilities-VERSION.zip`, with the
 changes of `eisop/annotation-tools` merged in. The annotator works on Windows (an implicit class
-bound was inserted one character too far to the right).
+bound was inserted one character too far to the right). The artifact depends on plain Guava, as
+the other artifacts do, instead of on the Checker Framework's annotated Guava.
 
 Packaging fixes: published artifacts no longer transitively pull in
 `org.checkerframework:checker-qual`; Gradle consumers of
@@ -71,7 +72,7 @@ Lombok/codehaus `@NotNull`/`@Nullable` and `@org.plumelib.options.Option`)
 are fixed; and shaded jars are ~2 MB smaller, no longer bundling a stray
 `module-info.class`, jsr305 classes, or an incomplete copy of the JSpecify
 annotations, and no longer contain a stray `MANIFEST.MF`, `LICENSE.txt`, or
-`.keep` at their root.
+`.keep` at their root. The POMs of all artifacts give the license URL as `https://`.
 The shell scripts in `checker/bin`, such as `wpi.sh`, are executable in
 `checker-framework-VERSION.zip`.
 
@@ -561,6 +562,11 @@ Performance optimizations:
 - `BaseTypeVisitor.FoundRequired` stores `Object` instead of `String`, deferring
   `toString()`. **API change**: callers must call `.toString()` explicitly.
 - `AnnotatedTypeScanner.visitedNodes` lazily allocated.
+- `EquivalentAtmComboScanner` records the visited type pairs in one flat identity table
+  instead of an `IdentityHashMap` per visited type: 2.4% less allocation for the Index Checker on
+  plume-util and 8% less for the JSpecify reference checker on Guava.
+- `TreeUtils.isRecordTree`, `isSwitchExpression`, and `isYield`, and `ElementUtils.isRecordElement`
+  and `isBindingVariable`, compare the kind with a cached constant instead of comparing its name.
 - `StructuralEqualityComparer.arePrimaryAnnosEqual` is non-mutating.
 - Optimized Value Checker: `AnnotationBuilder` gained a `TypeElement` constructor;
   final locals indexed by declaring element; `ValueQualifierHierarchy` caches
@@ -834,8 +840,14 @@ eisop#2490,
 eisop#2491,
 eisop#2499,
 eisop#2582,
+eisop#2590,
 eisop#2591,
+eisop#2592,
+eisop#2593,
+eisop#2594,
 eisop#2601,
+eisop#2602,
+eisop#2603,
 eisop#2612,
 typetools#399,
 typetools#602,

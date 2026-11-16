@@ -154,6 +154,34 @@ public final class TreeUtils {
     /** The value of Flags.RECORD which does not exist in Java 9 or 11. */
     private static final long Flags_RECORD = 2305843009213693952L;
 
+    /** {@code Tree.Kind.RECORD}, or null on a JDK whose {@code Tree.Kind} has no such constant. */
+    private static final Tree.@Nullable Kind RECORD_KIND = treeKind("RECORD");
+
+    /**
+     * {@code Tree.Kind.SWITCH_EXPRESSION}, or null on a JDK whose {@code Tree.Kind} has no such
+     * constant.
+     */
+    private static final Tree.@Nullable Kind SWITCH_EXPRESSION_KIND = treeKind("SWITCH_EXPRESSION");
+
+    /** {@code Tree.Kind.YIELD}, or null on a JDK whose {@code Tree.Kind} has no such constant. */
+    private static final Tree.@Nullable Kind YIELD_KIND = treeKind("YIELD");
+
+    /**
+     * Returns the {@code Tree.Kind} constant with the given name, or null on a JDK whose {@code
+     * Tree.Kind} has no such constant. Constants added after JDK 8 cannot be named directly, since
+     * the code is compiled for JDK 8.
+     *
+     * @param name the name of the constant
+     * @return the constant, or null if it does not exist
+     */
+    private static Tree.@Nullable Kind treeKind(String name) {
+        try {
+            return Tree.Kind.valueOf(name);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     /** Tree kinds that represent a binary comparison. */
     private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS;
 
@@ -2919,7 +2947,7 @@ public final class TreeUtils {
      * @return true if the given tree is a switch expression
      */
     public static boolean isSwitchExpression(Tree tree) {
-        return tree.getKind().name().equals("SWITCH_EXPRESSION");
+        return tree.getKind() == SWITCH_EXPRESSION_KIND;
     }
 
     /**
@@ -2929,7 +2957,7 @@ public final class TreeUtils {
      * @return true if the given tree is a yield expression
      */
     public static boolean isYield(Tree tree) {
-        return tree.getKind().name().equals("YIELD");
+        return tree.getKind() == YIELD_KIND;
     }
 
     /**
@@ -3072,9 +3100,7 @@ public final class TreeUtils {
      * @return true if the tree is of the kind RECORD
      */
     public static boolean isRecordTree(Tree tree) {
-        Tree.Kind kind = tree.getKind();
-        // Must use String comparison because we may be on an older JDK:
-        return kind.name().equals("RECORD");
+        return tree.getKind() == RECORD_KIND;
     }
 
     /**

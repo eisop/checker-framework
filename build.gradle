@@ -1008,7 +1008,6 @@ tasks.register("zip", Zip) {
                 "docs/manual/manual.html",
                 "docs/manual/manual.pdf",
                 "docs/manual/*.svg",
-                "docs/manual/manual001.png",
                 "docs/examples/InterningExample.java",
                 "docs/examples/InterningExampleWithWarnings.java",
                 "docs/examples/NullnessExample.java",
@@ -1970,12 +1969,42 @@ final createCheckTaskClosureScopingTask(Project project) {
 createCheckTaskClosureScopingTask(rootProject)
 
 /**
- * Adds the shared pom information to the given publication.
+ * Adds the pom information that every published artifact shares, for a GPL-licensed artifact that
+ * also exists in typetools. See the two-argument overload.
+ *
  * @param publication the MavenPublication
  */
-final sharedPublicationConfiguration(publication) {
+final sharedPublicationConfiguration(MavenPublication publication) {
+    sharedPublicationConfiguration([:], publication)
+}
+
+/**
+ * Adds the pom information that every published artifact shares: the project URL, the license,
+ * the lead developers, and the SCM information. The name and description are per artifact.
+ *
+ * @param options named options: {@code mitLicensed}, true if the artifact is under the MIT License
+ *     (checker-qual, checker-util, annotation-file-utilities), otherwise it is under the GPL with
+ *     the Classpath Exception; {@code eisopOnly}, true if the artifact exists only in EISOP and
+ *     not in typetools, so that it lists only the EISOP lead developers
+ * @param publication the MavenPublication
+ */
+final sharedPublicationConfiguration(Map options, MavenPublication publication) {
+    boolean mitLicensed = options.mitLicensed ?: false
+    boolean eisopOnly = options.eisopOnly ?: false
     publication.pom {
         url = "https://eisop.github.io/"
+        licenses {
+            license {
+                if (mitLicensed) {
+                    name = "The MIT License"
+                    url = "https://opensource.org/licenses/MIT"
+                } else {
+                    name = "GNU General Public License, version 2 (GPL2), with the classpath exception"
+                    url = "https://www.gnu.org/software/classpath/license.html"
+                }
+                distribution = "repo"
+            }
+        }
         developers {
             // These are the lead developers/maintainers, not all the developers or contributors.
 
@@ -1989,21 +2018,23 @@ final sharedPublicationConfiguration(publication) {
                 organizationUrl = "https://uwaterloo.ca/"
             }
 
-            // For typetools
-            developer {
-                id = "mernst"
-                name = "Michael Ernst"
-                email = "mernst@cs.washington.edu"
-                url = "https://homes.cs.washington.edu/~mernst/"
-                organization = "University of Washington"
-                organizationUrl = "https://www.cs.washington.edu/"
-            }
-            developer {
-                id = "smillst"
-                name = "Suzanne Millstein"
-                email = "smillst@cs.washington.edu"
-                organization = "University of Washington"
-                organizationUrl = "https://www.cs.washington.edu/"
+            if (!eisopOnly) {
+                // For typetools
+                developer {
+                    id = "mernst"
+                    name = "Michael Ernst"
+                    email = "mernst@cs.washington.edu"
+                    url = "https://homes.cs.washington.edu/~mernst/"
+                    organization = "University of Washington"
+                    organizationUrl = "https://www.cs.washington.edu/"
+                }
+                developer {
+                    id = "smillst"
+                    name = "Suzanne Millstein"
+                    email = "smillst@cs.washington.edu"
+                    organization = "University of Washington"
+                    organizationUrl = "https://www.cs.washington.edu/"
+                }
             }
         }
 

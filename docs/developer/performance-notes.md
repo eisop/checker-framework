@@ -2810,6 +2810,83 @@ standalone underlying type fails it; removing the poly expression or anonymous c
 not, since their primary qualifiers agree there too: those exclusions keep other trees from being
 inferred without their enclosing inference, which the comparison did not cover.
 
+### Visited type pairs in `EquivalentAtmComboScanner` (November 2026, eisop#2602)
+
+`EquivalentAtmComboScanner.Visited`, the recursion guard of `EqualityAtmComparer` (and so of
+every `AnnotatedTypeMirror.equals`) and of the poly collector, was a map of maps,
+`IdentityHashMap<ATM, IdentityHashMap<ATM, R>>`, and `add` created an inner map (expected size 8,
+a 32-slot `Object[]`) for every distinct first type through `computeIfAbsent`. The scanner records
+the pair of two declared types before scanning their type arguments, so comparing two `String`
+types allocated an inner map, and the next `visit` then allocated a fresh outer map (`clear`
+re-instantiated it). JFR allocation events in the pre-release review: JSpecify reference checker on
+Guava, 14.0% of `Object[]` and 27.8% of `IdentityHashMap` events from `add` plus 10.4% and 8.5%
+from `clear`; Index Checker on plume-util, 4.8% and 5.1%.
+
+`Visited` is now one open-addressing table keyed on the identity of both types: three slots per
+entry (the two types and the result), linear probing, at most two thirds full, allocated on the
+first `add` with room for 8 entries (a 24-slot `Object[]`) and doubled when full. `clear` nulls a
+table of the initial size in place and drops a grown one, so clearing stays bounded. Deterministic
+allocation (`jdk.ThreadAllocationStatistics`, median of 5 interleaved runs per side, JDK 21):
+Index Checker on plume-util (45 files) 4978 MB to 4858 MB (-2.4%, per-side spread up to 0.7%);
+JSpecify reference checker on Guava (610 files) 9463 MB to 8681 MB (-8.3%, spread up to 0.4%).
+Diagnostics are identical (javac's `capture#N` numbering differs between any two runs, also of
+the same side). A JDK 25 `jdk.CPUTimeSample` profile of the Index Checker on plume-util attributes
+7.0% of the `Object[]` allocation samples to `Visited.add` and `Visited.clear` before the change
+and none after; the `Visited` methods take less than 0.5% of the CPU samples on either side.
+
+Wall clock (plain runs, base and change alternating within each rep, `-Xmx6g`, idle machine,
+JDK 21): plume-util, 8 reps per side, median 20.47 s to 20.70 s (+1.1%; base 20.21 to 20.83 s,
+change 20.17 to 20.93 s), user+sys CPU 78.5 s to 79.4 s; Guava, 10 reps per side, median 29.25 s
+to 29.45 s (+0.7%; base 28.95 to 29.95 s plus one 34.6 s run, change 29.02 to 30.06 s), CPU
+105.8 s to 106.9 s. The base was the faster side in 12 of the 18 rep pairs (sign test p = 0.24),
+and the medians differ by less than the per-side spread, so no wall-clock change is resolved in
+either direction: the data support neither the gain of about 1% that the issue anticipated for a
+change that only saves allocation nor a cost of that size. The change is justified by the
+allocation reduction alone; resolving a 1% wall-clock effect would take 20 to 30 reps per side.
+
+The home entry of a pair depends on the identity hash of its first type only, so a lookup hashes
+one type, not two. Pairs that share a first type then share a probe run, but probes do not get
+longer: hashing both types or only the first gives 0.17 and 0.17 extra probe steps per lookup on
+plume-util (longest probe 9 and 9) and 0.21 and 0.21 on Guava (longest 11 and 9), with the same
+table sizes. Against hashing both types (interleaved, 10 reps per side, JDK 21), allocation is
+unchanged (4858 MB and 4854 MB; 8687 MB and 8683 MB) and diagnostics are identical; the medians
+are 19.88 s to 19.73 s on plume-util and 28.62 s to 28.33 s on Guava (user+sys CPU 75.5 s to
+75.0 s and 103.6 s to 101.4 s), faster in 6 and 7 of 10 rep pairs, which is within the noise.
+
+### Index Checker small hotspots: `isRecordTree` and `qualifiedNameCache` (November 2026, eisop#2603)
+
+`TreeUtils.isRecordTree` compared `tree.getKind().name()` with `"RECORD"`, since `Tree.Kind.RECORD`
+cannot be named in code compiled for JDK 8. `getKindRecordAsClass` calls it for every tree that
+`enclosingOfKind` and the other path walks look at, and the pre-release review attributed 0.51% of
+the Index Checker's self-time on plume-util to it. `RECORD_KIND` is now looked up once with
+`Tree.Kind.valueOf("RECORD")` (null on a JDK without it, which no tree kind equals) and the check
+is a reference comparison. A pure-CPU change this small is below the wall-clock noise of a 20 s
+run; see the measurement in the commit.
+
+The other comparisons of a kind by name were counted with temporary counters (CF master, JDK 21;
+"Java 17+" is the Nullness Checker on the 41 test inputs in `checker/tests/nullness/java17`,
+`java21`, `checker/tests/all-systems/java21` and `framework/tests/all-systems/java17`, `java21`):
+
+| Comparison | Index, plume-util | Nullness, plume-util | JSpecify RC, Guava | Java 17+ |
+| --- | ---: | ---: | ---: | ---: |
+| `TreeUtils.isRecordTree` | 1,642,485 | 601,157 | 975,352 | 125,610 |
+| `TreeUtils.isSwitchExpression` | 504,510 | 178,509 | 339,536 | 28,321 |
+| `ElementUtils.isRecordElement` | 103,143 | 50,727 | 124,826 | 10,158 |
+| `ElementUtils.isBindingVariable` | 1,155 | 44,906 | 0 | 10,353 |
+| `TreeUtils.isYield` | 8,275 | 6,022 | 14,314 | 1,323 |
+| the 17 others, each | at most 3,467 | at most 615 | at most 3,467 | at most 3,362 |
+
+`isSwitchExpression` is the `default` case of `AnnotatedTypeFactory.isFlowDependent`, which runs
+for most trees, and `TreePathUtil` calls it and `isYield` in its path walk; `isRecordElement` runs
+for element lookups (`declarationFromElement`, `TypeFromExpressionVisitor`) and `isBindingVariable`
+for the Nullness Checker's variables. At the measured cost of `isRecordTree`, `isSwitchExpression`
+is roughly 0.15% of self-time and `isRecordElement` 0.03%, below what a profile or the wall clock
+resolves. These four also compare with constants looked up once (`TreeUtils.treeKind` and
+`ElementUtils.elementKind`; `BINDING_VARIABLE` only on JDK 16 or later, as before). The 17 others
+run for few trees, mostly in switch and pattern handling, and are left to eisop#2615.
+
+`ElementUtils.qualifiedNameCache` was audited and left as is; see the Short list entry.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a
@@ -3721,8 +3798,19 @@ harvested.
   `WeakHashMap.get` via `Collections$SynchronizedMap.get` appeared at 110/18,969
   execution samples (0.58%), with callers split across `annotationName`,
   `isSupportedQualifier`, `AnnotationFileElementTypes`, and
-  `normalizeAndCheck`. Still needs the thread-reachability audit and daemon/LSP
-  memory analysis before any change.
+  `normalizeAndCheck`. Index Checker on plume-util (pre-release review, November 2026):
+  `WeakHashMap.get` 1.07% and `ReferenceQueue.poll` 0.59% of self-time.
+  **Audited November 2026 (eisop#2603) and left as is.** The framework's own threads
+  (`ExecUtil`'s stream pumps, the `-AresourceStats` shutdown hook) never reach it, and
+  javac creates a new processor class loader per compilation, so a host that puts the
+  framework on `-processorpath` gives each compilation its own copy of the static. But
+  a host that loads the framework from its own class path (the in-process test
+  harness, an IDE, a language server) shares one copy across every compilation of a
+  long-lived JVM, possibly on several threads at once. So the lock cannot be shown
+  removable, and strong keys (`IdentityHashMap`, `ConcurrentHashMap`) would retain
+  every compilation's `Symbol`s in such a host. The JDK has no concurrent weak-keyed
+  map, and the ceiling (under 2% of self-time, which is about 1% of wall clock at
+  best) does not justify writing one.
 - **Maintained content hash on `CFAbstractStore` to make same-size `equals` O(1).** The only way to
   rescue the rejected equal-store merge short-circuit (see Tried and rejected): the residual cost is
   the same-size/different-value `supersetOf` walk, which a running content hash — updated incrementally
@@ -4514,7 +4602,7 @@ CF-controllable clusters and their state, highest-leverage first:
    the smaller-scope scan; residual is method-subtree scanning. The cheap levers are exhausted (scoping
    tighter than a method has no element; `trees.getTree` and the single-pass map were rejected).
 5. **Small / blocked:** `ElementUtils.qualifiedNameCache` (`synchronizedMap`+`WeakHashMap` lock/expunge,
-   ~0.58%, blocked on a thread-reachability + daemon-memory audit — see Short list above). Annotation
+   ~0.58%, audited November 2026 and left as is — see Short list above). Annotation
    formatting in the hot path is now **resolved** (PR #1797 lazy `FoundRequired`); remaining utf2*
    at 0.89% is cold-path / first-visit-miss only.
 

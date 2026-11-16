@@ -170,12 +170,11 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
 
     /**
      * The {@code IdentityHashMap} {@code expectedMaxSize} (expected entry count, not a table size)
-     * for the {@code visitedNodes} map and the per-visit maps in {@code AnnotatedTypeCopier} and
-     * {@code EquivalentAtmComboScanner}. A value of 8 makes the first {@link #markVisited} call
-     * allocate a 32-slot {@code Object[]} that holds 10 entries before its first resize. Most scans
-     * visit only 1 to 3 nodes, so the map rarely grows; these per-scan arrays are the framework's
-     * largest transient {@code Object[]} allocation source, so keeping them small reduces GC
-     * pressure.
+     * for the {@code visitedNodes} map and the per-visit map in {@code AnnotatedTypeCopier}. A
+     * value of 8 makes the first {@link #markVisited} call allocate a 32-slot {@code Object[]} that
+     * holds 10 entries before its first resize. Most scans visit only 1 to 3 nodes, so the map
+     * rarely grows; these per-scan arrays are the framework's largest transient {@code Object[]}
+     * allocation source, so keeping them small reduces GC pressure.
      */
     public static final int VISITED_NODES_INITIAL_CAPACITY = 8;
 
