@@ -24,10 +24,18 @@ import com.github.javaparser.utils.SourceRoot;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Rewrites Java source files, in place, into minimal stub files, and also generates the compressed
@@ -145,15 +153,21 @@ public class JavaStubifier {
         strategy.getParserConfiguration().setLanguageLevel(DEFAULT_LANGUAGE_LEVEL);
         ProjectRoot projectRoot = strategy.collect(root);
 
-        projectRoot
-                .getSourceRoots()
-                .forEach(sourceRoot -> {
-                    try {
-                        sourceRoot.parse("", mc);
-                    } catch (IOException e) {
-                        System.err.println("IOException: " + e);
-                    }
-                });
+        // The writer records classes in the order it sees them, so process the source roots and
+        // the files in each in sorted order, not in file-system order: otherwise the output
+        // differs between checkouts of the same sources.
+        List<SourceRoot> sourceRoots = new ArrayList<>(projectRoot.getSourceRoots());
+        sourceRoots.sort(Comparator.comparing(SourceRoot::getRoot));
+        for (SourceRoot sourceRoot : sourceRoots) {
+            try {
+                Path sourceRootPath = sourceRoot.getRoot();
+                for (Path file : javaFilesIn(sourceRootPath)) {
+                    sourceRoot.parse("", sourceRootPath.relativize(file).toString(), mc);
+                }
+            } catch (IOException e) {
+                System.err.println("IOException: " + e);
+            }
+        }
 
         File outputFile = new File(dir, BinaryStubWriter.OUTPUT_FILENAME);
         try {
@@ -173,6 +187,48 @@ public class JavaStubifier {
             }
             throw new RuntimeException("Failed to write binary stub " + outputFile, e);
         }
+    }
+
+    /** A Java identifier: the name of a directory that {@link #javaFilesIn} enters. */
+    private static final Pattern JAVA_IDENTIFIER =
+            Pattern.compile("\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*");
+
+    /**
+     * Returns the Java files under {@code root}, sorted. Like {@code SourceRoot.parse}, it does not
+     * enter a hidden directory or one whose name is not a Java identifier.
+     *
+     * @param root a source root
+     * @return the Java files under {@code root}, sorted
+     * @throws IOException if the directory tree cannot be read
+     */
+    private static List<Path> javaFilesIn(Path root) throws IOException {
+        List<Path> files = new ArrayList<>();
+        Files.walkFileTree(
+                root,
+                new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+                            throws IOException {
+                        if (!dir.equals(root)
+                                && (Files.isHidden(dir)
+                                        || !JAVA_IDENTIFIER
+                                                .matcher(dir.getFileName().toString())
+                                                .matches())) {
+                            return FileVisitResult.SKIP_SUBTREE;
+                        }
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        if (!attrs.isDirectory() && file.toString().endsWith(".java")) {
+                            files.add(file);
+                        }
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+        Collections.sort(files);
+        return files;
     }
 
     /**
