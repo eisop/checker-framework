@@ -2826,12 +2826,23 @@ from `clear`; Index Checker on plume-util, 4.8% and 5.1%.
 entry (the two types and the result), linear probing, at most two thirds full, allocated on the
 first `add` with room for 8 entries (a 24-slot `Object[]`) and doubled when full. `clear` nulls a
 table of the initial size in place and drops a grown one, so clearing stays bounded. Deterministic
-allocation (`jdk.ThreadAllocationStatistics`, median of 3 interleaved runs per side, JDK 21):
-Index Checker on plume-util (45 files) 4978 MB to 4859 MB (-2.4%); JSpecify reference checker on
-Guava (610 files) 9444 MB to 8683 MB (-8.1%); diagnostics identical. Wall clock (median of 5 and 3
-plain runs): plume-util 20.4 s to 20.5 s; Guava 29.7 s to 33.8 s, with both sides alternating
-between 29 s and 34 s runs. No wall-clock change is resolvable, as the issue expected (at most
-about 1%) for a change that only saves allocation.
+allocation (`jdk.ThreadAllocationStatistics`, median of 5 interleaved runs per side, JDK 21):
+Index Checker on plume-util (45 files) 4978 MB to 4858 MB (-2.4%, per-side spread up to 0.7%);
+JSpecify reference checker on Guava (610 files) 9463 MB to 8681 MB (-8.3%, spread up to 0.4%).
+Diagnostics are identical (javac's `capture#N` numbering differs between any two runs, also of
+the same side). A JDK 25 `jdk.CPUTimeSample` profile of the Index Checker on plume-util attributes
+7.0% of the `Object[]` allocation samples to `Visited.add` and `Visited.clear` before the change
+and none after; the `Visited` methods take less than 0.5% of the CPU samples on either side.
+
+Wall clock (plain runs, base and change alternating within each rep, `-Xmx6g`, idle machine,
+JDK 21): plume-util, 8 reps per side, median 20.47 s to 20.70 s (+1.1%; base 20.21 to 20.83 s,
+change 20.17 to 20.93 s), user+sys CPU 78.5 s to 79.4 s; Guava, 10 reps per side, median 29.25 s
+to 29.45 s (+0.7%; base 28.95 to 29.95 s plus one 34.6 s run, change 29.02 to 30.06 s), CPU
+105.8 s to 106.9 s. The base was the faster side in 12 of the 18 rep pairs (sign test p = 0.24),
+and the medians differ by less than the per-side spread, so no wall-clock change is resolved in
+either direction: the data support neither the gain of about 1% that the issue anticipated for a
+change that only saves allocation nor a cost of that size. The change is justified by the
+allocation reduction alone; resolving a 1% wall-clock effect would take 20 to 30 reps per side.
 
 ## Tried and rejected
 
