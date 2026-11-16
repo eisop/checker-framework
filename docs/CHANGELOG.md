@@ -61,7 +61,8 @@ The Annotation File Utilities, which typetools moved into this repository, are b
 type-checked as the independent `annotation-file-utilities` subproject and released separately, as
 `io.github.eisop:annotation-file-utilities` and `annotation-file-utilities-VERSION.zip`, with the
 changes of `eisop/annotation-tools` merged in. The annotator works on Windows (an implicit class
-bound was inserted one character too far to the right).
+bound was inserted one character too far to the right). The artifact depends on plain Guava, as
+the other artifacts do, instead of on the Checker Framework's annotated Guava.
 
 Packaging fixes: published artifacts no longer transitively pull in
 `org.checkerframework:checker-qual`; Gradle consumers of
@@ -835,6 +836,7 @@ eisop#2491,
 eisop#2499,
 eisop#2582,
 eisop#2591,
+eisop#2592,
 eisop#2601,
 typetools#399,
 typetools#602,
