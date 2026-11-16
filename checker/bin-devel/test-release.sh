@@ -222,7 +222,7 @@ fi
 ## No published POM depends on org.checkerframework:checker-qual, the typetools artifact: a
 ## consumer must get io.github.eisop:checker-qual only.  (Exclusions of it are fine.)
 for pom in "$MAVEN_LOCAL"/*/"${VERSION}"/*.pom; do
-  python3 - "$pom" <<'EOF' || fail "$pom depends on org.checkerframework:checker-qual."
+  python3 - "$pom" << 'EOF' || fail "$pom depends on org.checkerframework:checker-qual."
 import sys
 import xml.etree.ElementTree as ET
 ns = {"m": "http://maven.apache.org/POM/4.0.0"}
