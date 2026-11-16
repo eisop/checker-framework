@@ -2810,6 +2810,29 @@ standalone underlying type fails it; removing the poly expression or anonymous c
 not, since their primary qualifiers agree there too: those exclusions keep other trees from being
 inferred without their enclosing inference, which the comparison did not cover.
 
+### Visited type pairs in `EquivalentAtmComboScanner` (November 2026, eisop#2602)
+
+`EquivalentAtmComboScanner.Visited`, the recursion guard of `EqualityAtmComparer` (and so of
+every `AnnotatedTypeMirror.equals`) and of the poly collector, was a map of maps,
+`IdentityHashMap<ATM, IdentityHashMap<ATM, R>>`, and `add` created an inner map (expected size 8,
+a 32-slot `Object[]`) for every distinct first type through `computeIfAbsent`. The scanner records
+the pair of two declared types before scanning their type arguments, so comparing two `String`
+types allocated an inner map, and the next `visit` then allocated a fresh outer map (`clear`
+re-instantiated it). JFR allocation events in the pre-release review: JSpecify reference checker on
+Guava, 14.0% of `Object[]` and 27.8% of `IdentityHashMap` events from `add` plus 10.4% and 8.5%
+from `clear`; Index Checker on plume-util, 4.8% and 5.1%.
+
+`Visited` is now one open-addressing table keyed on the identity of both types: three slots per
+entry (the two types and the result), linear probing, at most two thirds full, allocated on the
+first `add` with room for 8 entries (a 24-slot `Object[]`) and doubled when full. `clear` nulls a
+table of the initial size in place and drops a grown one, so clearing stays bounded. Deterministic
+allocation (`jdk.ThreadAllocationStatistics`, median of 3 interleaved runs per side, JDK 21):
+Index Checker on plume-util (45 files) 4978 MB to 4859 MB (-2.4%); JSpecify reference checker on
+Guava (610 files) 9444 MB to 8683 MB (-8.1%); diagnostics identical. Wall clock (median of 5 and 3
+plain runs): plume-util 20.4 s to 20.5 s; Guava 29.7 s to 33.8 s, with both sides alternating
+between 29 s and 34 s runs. No wall-clock change is resolvable, as the issue expected (at most
+about 1%) for a change that only saves allocation.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a

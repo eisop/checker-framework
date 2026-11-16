@@ -14,7 +14,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.util.AtmCombo;
 
-import java.util.IdentityHashMap;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -24,6 +24,15 @@ import java.util.List;
  */
 public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
         extends AbstractAtmComboVisitor<RETURN_TYPE, PARAM> {
+
+    /**
+     * The number of entries that the table of {@code Visited} initially has room for; a power of
+     * two. Most scans visit only one to three pairs, so the table rarely grows.
+     */
+    private static final int INITIAL_CAPACITY = 8;
+
+    /** The number of slots that an entry of the table of {@code Visited} occupies. */
+    private static final int ENTRY_SLOTS = 3;
 
     /**
      * A history of type pairs that have already been visited and the return type of their visit.
@@ -233,14 +242,16 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
         Visited() {}
 
         /**
-         * The backing history of type pairs.
-         *
-         * <p>This map is re-instantiated in {@link #clear()} instead of cleared to avoid the O(N)
-         * cost of IdentityHashMap.clear().
+         * The backing history of type pairs: an open-addressing hash table keyed on the identity of
+         * both types of a pair, with {@link #ENTRY_SLOTS} consecutive slots per entry (the first
+         * type, the second type, the result). An entry whose first slot is null is empty. The table
+         * is allocated on the first {@link #add} and is at most two thirds full, so a probe always
+         * ends at an empty slot.
          */
-        private IdentityHashMap<
-                        AnnotatedTypeMirror, IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE>>
-                visits = new IdentityHashMap<>();
+        private @Nullable Object @Nullable [] table;
+
+        /** The number of pairs in {@link #table}. */
+        private int size;
 
         /**
          * Returns true if no pairs have been recorded.
@@ -248,27 +259,89 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
          * @return true if no pairs have been recorded
          */
         public boolean isEmpty() {
-            return visits.isEmpty();
+            return size == 0;
         }
 
-        /** Clears the history. */
+        /**
+         * Clears the history. A table of the initial size is cleared in place; a larger one is
+         * dropped, so that the cost of clearing stays bounded.
+         */
         public void clear() {
-            visits = new IdentityHashMap<>();
+            if (table != null && table.length == INITIAL_CAPACITY * ENTRY_SLOTS) {
+                Arrays.fill(table, null);
+            } else {
+                table = null;
+            }
+            size = 0;
         }
 
+        /**
+         * Returns the index of the entry for the given pair in {@code table}, or of the empty entry
+         * at which the pair would be inserted.
+         *
+         * @param table the table to probe
+         * @param type1 the first type
+         * @param type2 the second type
+         * @return the slot index of the entry for the pair, or of an empty entry
+         */
+        @SuppressWarnings("interning:not.interned") // the table is keyed on identity
+        private int slotFor(@Nullable Object[] table, Object type1, Object type2) {
+            int h = System.identityHashCode(type1) * 31 + System.identityHashCode(type2);
+            h ^= (h >>> 16);
+            int mask = table.length / ENTRY_SLOTS - 1;
+            int i = (h & mask) * ENTRY_SLOTS;
+            while (true) {
+                Object k1 = table[i];
+                if (k1 == null || (k1 == type1 && table[i + 1] == type2)) {
+                    return i;
+                }
+                i += ENTRY_SLOTS;
+                if (i == table.length) {
+                    i = 0;
+                }
+            }
+        }
+
+        /**
+         * Returns true if the given pair has been recorded.
+         *
+         * @param type1 the first type
+         * @param type2 the second type
+         * @return true if the given pair has been recorded
+         */
         public boolean contains(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
-            IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE> recordFor1 = visits.get(type1);
-            return recordFor1 != null && recordFor1.containsKey(type2);
+            @Nullable Object[] table = this.table;
+            return table != null && table[slotFor(table, type1, type2)] != null;
         }
 
+        /**
+         * Returns the result recorded for the given pair, or null if none was recorded.
+         *
+         * @param type1 the first type
+         * @param type2 the second type
+         * @return the result recorded for the given pair, or null if none was recorded
+         */
+        @SuppressWarnings({
+            "unchecked", // the result slot of an entry holds a RETURN_TYPE
+            // The cast type has the qualifiers of the operand, which RETURN_TYPE need not accept.
+            "compilermessages:return.type.incompatible",
+            "formatter:return.type.incompatible",
+            "interning:return.type.incompatible",
+            "optionalimpl:return.type.incompatible",
+            "rlccalledmethods:return.type.incompatible",
+            "signature:return.type.incompatible"
+        })
         public @Nullable RETURN_TYPE getResult(
                 AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
-            IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE> recordFor1 = visits.get(type1);
-            if (recordFor1 == null) {
+            @Nullable Object[] table = this.table;
+            if (table == null) {
                 return null;
             }
-
-            return recordFor1.get(type2);
+            int i = slotFor(table, type1, type2);
+            if (table[i] == null) {
+                return null;
+            }
+            return (RETURN_TYPE) table[i + 2];
         }
 
         /**
@@ -279,13 +352,46 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
          * @param ret the result
          */
         public void add(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, RETURN_TYPE ret) {
-            IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE> recordFor1 =
-                    visits.computeIfAbsent(
-                            type1,
-                            __ ->
-                                    new IdentityHashMap<>(
-                                            AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY));
-            recordFor1.put(type2, ret);
+            @Nullable Object[] table = this.table;
+            if (table == null) {
+                table = new @Nullable Object[INITIAL_CAPACITY * ENTRY_SLOTS];
+                this.table = table;
+            }
+            int i = slotFor(table, type1, type2);
+            if (table[i] == null) {
+                int capacity = table.length / ENTRY_SLOTS;
+                if (3 * (size + 1) > 2 * capacity) {
+                    table = grow(table);
+                    this.table = table;
+                    i = slotFor(table, type1, type2);
+                }
+                table[i] = type1;
+                table[i + 1] = type2;
+                size++;
+            }
+            table[i + 2] = ret;
+        }
+
+        /**
+         * Returns a table with twice the capacity of {@code old} that holds the same entries.
+         *
+         * @param old the table to grow
+         * @return a table with twice the capacity of {@code old} that holds the same entries
+         */
+        private @Nullable Object[] grow(@Nullable Object[] old) {
+            @Nullable Object[] table = new @Nullable Object[old.length * 2];
+            for (int j = 0; j < old.length; j += ENTRY_SLOTS) {
+                Object k1 = old[j];
+                if (k1 != null) {
+                    Object k2 = old[j + 1];
+                    assert k2 != null : "@AssumeAssertion(nullness): both keys of an entry are set";
+                    int i = slotFor(table, k1, k2);
+                    table[i] = k1;
+                    table[i + 1] = k2;
+                    table[i + 2] = old[j + 2];
+                }
+            }
+            return table;
         }
     }
 }
