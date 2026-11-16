@@ -26,6 +26,14 @@ manual.html: manual.pdf CFLogo.png favicon-checkerframework.png
 	sed -i -e "s%<style type=\"text/css\">%<style type=\"text/css\">\nimg { max-width: 100\%; max-height: 100\%; }%" manual.html
 # Add CSS styling for some links, since \ahrefloc doesn't permit styling
 	sed -i -e 's%\(<a href="#[^"]*"\)\(><span style="font-size:small">&\#X1F517;</span></a>\)%\1 style="color:inherit; text-decoration:none"\2%g' manual.html
+# Fail if the manual shows an image that does not exist, for example one that Hevea leaves to
+# imagen because it cannot typeset a figure itself.
+	@missing=$$(grep -o '<img [^>]*src="[^"]*"' manual.html | sed 's/.*src="//; s/"$$//' | sort -u \
+	    | while read -r img; do [ -f "$$img" ] || echo "$$img"; done); \
+	if [ -n "$$missing" ]; then \
+	  echo "manual.html shows images that do not exist:" $$missing; \
+	  rm -f manual.html; exit 1; \
+	fi
 
 ../../checker/bin-devel/.git-scripts:
 	cd ../.. && ./gradlew --stacktrace getGitScripts
