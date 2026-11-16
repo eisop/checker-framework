@@ -432,13 +432,6 @@ MavenPublication publication, String artifactName, List<String> extraDescription
                  "The ${artifactName} artifact contains the core type checking infrastructure",
                  "and permits you to write your own compiler plug-ins."]
                 + extraDescriptionLines)
-        licenses {
-            license {
-                name = "GNU General Public License, version 2 (GPL2), with the classpath exception"
-                url = "http://www.gnu.org/software/classpath/license.html"
-                distribution = "repo"
-            }
-        }
     }
 }
 

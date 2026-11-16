@@ -70,7 +70,7 @@ annotation names that ShadowJar had rewritten (breaking
 Lombok/codehaus `@NotNull`/`@Nullable` and `@org.plumelib.options.Option`)
 are fixed; and shaded jars are ~2 MB smaller, no longer bundling a stray
 `module-info.class`, jsr305 classes, or an incomplete copy of the JSpecify
-annotations.
+annotations. The POMs of all artifacts give the license URL as `https://`.
 The shell scripts in `checker/bin`, such as `wpi.sh`, are executable in
 `checker-framework-VERSION.zip`.
 
@@ -818,6 +818,7 @@ eisop#2490,
 eisop#2491,
 eisop#2499,
 eisop#2582,
+eisop#2594,
 typetools#399,
 typetools#602,
 typetools#2816,
