@@ -1,0 +1,37 @@
+// Installed in ~/.gradle/init.d by the setup-test-env action, so that it applies to every Gradle
+// build of a CI job, including the builds of other projects that the tests run.
+//
+// Maven Central rate-limits the runners: it answers "429 Too Many Requests", and the build fails.
+// Google's mirror of Maven Central serves the same artifacts, so every repository that points to
+// Maven Central points to the mirror instead.  Without a pluginManagement repository, Gradle uses
+// the Gradle Plugin Portal, which itself fetches many plugins' dependencies from Maven Central, so
+// the plugin repositories start with the mirror, followed by the portal.
+
+String mirror = "https://maven-central.storage-download.googleapis.com/maven2/"
+List<String> centralUrls = ["https://repo.maven.apache.org/maven2", "https://repo1.maven.org/maven2"]
+
+def useMirror = { RepositoryHandler repositories ->
+    repositories.withType(MavenArtifactRepository).configureEach { repository ->
+        String url = repository.url.toString()
+        if (centralUrls.any { url.startsWith(it) }) {
+            repository.url = mirror
+        }
+    }
+}
+
+beforeSettings { settings ->
+    RepositoryHandler pluginRepositories = settings.pluginManagement.repositories
+    // Repositories that the settings script declares come after these two.
+    pluginRepositories.maven {
+        name = "MavenCentralMirror"
+        url = mirror
+    }
+    pluginRepositories.gradlePluginPortal()
+    useMirror(pluginRepositories)
+    useMirror(settings.dependencyResolutionManagement.repositories)
+}
+
+allprojects {
+    useMirror(buildscript.repositories)
+    useMirror(repositories)
+}

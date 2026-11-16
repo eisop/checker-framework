@@ -78,6 +78,16 @@ runs:
         restore-keys: |
           pip-misc-v1-${{ steps.os-release.outputs.release }}-
 
+    # `make style-check` runs its tools through uv, which downloads them, and builds some of them,
+    # on every run unless its cache is restored.
+    - name: Restore uv cache
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/uv
+        key: uv-misc-v1-${{ steps.os-release.outputs.release }}-${{ hashFiles('uv.lock') }}
+        restore-keys: |
+          uv-misc-v1-${{ steps.os-release.outputs.release }}-
+
     - name: Install uv and html5validator
       shell: bash
       # PEP 668: Ubuntu 24.04's system Python is externally-managed.
