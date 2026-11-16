@@ -30,6 +30,12 @@ inputs:
 runs:
   using: composite
   steps:
+    # Restored caches keep the times of their files, so a file newer than this marker was
+    # downloaded by the job; the last step of the job lists those files.
+    - name: Mark the time before the caches are restored
+      shell: bash
+      run: touch "$RUNNER_TEMP/downloads-marker"
+
     # GitHub does not enforce "required" for the inputs of a composite action.
     - name: Check the early-access JDK inputs
       shell: bash
@@ -110,6 +116,14 @@ runs:
       run: |
         echo "::remove-matcher owner=javac::"
         echo "::remove-matcher owner=maven-javac::"
+
+    # After setup-java, which writes its own ~/.m2/settings.xml.
+    - name: Use Google's mirror of Maven Central
+      shell: bash
+      run: |
+        mkdir -p ~/.gradle/init.d ~/.m2
+        cp "${{ github.action_path }}/maven-central-mirror.gradle" ~/.gradle/init.d/
+        cp "${{ github.action_path }}/maven-settings.xml" ~/.m2/settings.xml
 
     - name: Pin Gradle to primary JDK via gradle.properties
       if: ${{ inputs.target-jdk != inputs.primary-jdk }}

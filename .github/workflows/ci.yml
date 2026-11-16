@@ -132,6 +132,11 @@ jobs:
           ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
           JAVA_VERSION: ${{ matrix.java.version }}
 
+      # What the job downloaded instead of restoring it from a cache.
+      - name: List the downloaded files
+        if: ${{ always() }}
+        run: ./checker/bin-devel/list-downloads.sh "$RUNNER_TEMP/downloads-marker"
+
   # Tests of the platform-dependent code on Windows and macOS; see test-otheros.sh.  One job per
   # operating system, as macOS runners are often not available.
   otheros:
