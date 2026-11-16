@@ -154,6 +154,23 @@ public final class TreeUtils {
     /** The value of Flags.RECORD which does not exist in Java 9 or 11. */
     private static final long Flags_RECORD = 2305843009213693952L;
 
+    /** {@code Tree.Kind.RECORD}, or null on a JDK whose {@code Tree.Kind} has no such constant. */
+    private static final Tree.@Nullable Kind RECORD_KIND = recordKind();
+
+    /**
+     * Returns {@code Tree.Kind.RECORD}, or null on a JDK whose {@code Tree.Kind} has no such
+     * constant. The constant cannot be named directly, since the code is compiled for JDK 8.
+     *
+     * @return {@code Tree.Kind.RECORD}, or null if it does not exist
+     */
+    private static Tree.@Nullable Kind recordKind() {
+        try {
+            return Tree.Kind.valueOf("RECORD");
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     /** Tree kinds that represent a binary comparison. */
     private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS;
 
@@ -3072,9 +3089,7 @@ public final class TreeUtils {
      * @return true if the tree is of the kind RECORD
      */
     public static boolean isRecordTree(Tree tree) {
-        Tree.Kind kind = tree.getKind();
-        // Must use String comparison because we may be on an older JDK:
-        return kind.name().equals("RECORD");
+        return tree.getKind() == RECORD_KIND;
     }
 
     /**

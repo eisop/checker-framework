@@ -545,6 +545,8 @@ Performance optimizations:
 - `BaseTypeVisitor.FoundRequired` stores `Object` instead of `String`, deferring
   `toString()`. **API change**: callers must call `.toString()` explicitly.
 - `AnnotatedTypeScanner.visitedNodes` lazily allocated.
+- `TreeUtils.isRecordTree` compares the tree kind with a cached `Tree.Kind` constant instead of
+  comparing its name.
 - `StructuralEqualityComparer.arePrimaryAnnosEqual` is non-mutating.
 - Optimized Value Checker: `AnnotationBuilder` gained a `TypeElement` constructor;
   final locals indexed by declaring element; `ValueQualifierHierarchy` caches
@@ -818,6 +820,7 @@ eisop#2490,
 eisop#2491,
 eisop#2499,
 eisop#2582,
+eisop#2603,
 typetools#399,
 typetools#602,
 typetools#2816,

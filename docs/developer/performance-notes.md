@@ -2810,6 +2810,18 @@ standalone underlying type fails it; removing the poly expression or anonymous c
 not, since their primary qualifiers agree there too: those exclusions keep other trees from being
 inferred without their enclosing inference, which the comparison did not cover.
 
+### Index Checker small hotspots: `isRecordTree` and `qualifiedNameCache` (November 2026, eisop#2603)
+
+`TreeUtils.isRecordTree` compared `tree.getKind().name()` with `"RECORD"`, since `Tree.Kind.RECORD`
+cannot be named in code compiled for JDK 8. `getKindRecordAsClass` calls it for every tree that
+`enclosingOfKind` and the other path walks look at, and the pre-release review attributed 0.51% of
+the Index Checker's self-time on plume-util to it. `RECORD_KIND` is now looked up once with
+`Tree.Kind.valueOf("RECORD")` (null on a JDK without it, which no tree kind equals) and the check
+is a reference comparison. A pure-CPU change this small is below the wall-clock noise of a 20 s
+run; see the measurement in the commit.
+
+`ElementUtils.qualifiedNameCache` was audited and left as is; see the Short list entry.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a
@@ -3721,8 +3733,19 @@ harvested.
   `WeakHashMap.get` via `Collections$SynchronizedMap.get` appeared at 110/18,969
   execution samples (0.58%), with callers split across `annotationName`,
   `isSupportedQualifier`, `AnnotationFileElementTypes`, and
-  `normalizeAndCheck`. Still needs the thread-reachability audit and daemon/LSP
-  memory analysis before any change.
+  `normalizeAndCheck`. Index Checker on plume-util (pre-release review, November 2026):
+  `WeakHashMap.get` 1.07% and `ReferenceQueue.poll` 0.59% of self-time.
+  **Audited November 2026 (eisop#2603) and left as is.** The framework's own threads
+  (`ExecUtil`'s stream pumps, the `-AresourceStats` shutdown hook) never reach it, and
+  javac creates a new processor class loader per compilation, so a host that puts the
+  framework on `-processorpath` gives each compilation its own copy of the static. But
+  a host that loads the framework from its own class path (the in-process test
+  harness, an IDE, a language server) shares one copy across every compilation of a
+  long-lived JVM, possibly on several threads at once. So the lock cannot be shown
+  removable, and strong keys (`IdentityHashMap`, `ConcurrentHashMap`) would retain
+  every compilation's `Symbol`s in such a host. The JDK has no concurrent weak-keyed
+  map, and the ceiling (under 2% of self-time, which is about 1% of wall clock at
+  best) does not justify writing one.
 - **Maintained content hash on `CFAbstractStore` to make same-size `equals` O(1).** The only way to
   rescue the rejected equal-store merge short-circuit (see Tried and rejected): the residual cost is
   the same-size/different-value `supersetOf` walk, which a running content hash — updated incrementally
@@ -4514,7 +4537,7 @@ CF-controllable clusters and their state, highest-leverage first:
    the smaller-scope scan; residual is method-subtree scanning. The cheap levers are exhausted (scoping
    tighter than a method has no element; `trees.getTree` and the single-pass map were rejected).
 5. **Small / blocked:** `ElementUtils.qualifiedNameCache` (`synchronizedMap`+`WeakHashMap` lock/expunge,
-   ~0.58%, blocked on a thread-reachability + daemon-memory audit — see Short list above). Annotation
+   ~0.58%, audited November 2026 and left as is — see Short list above). Annotation
    formatting in the hot path is now **resolved** (PR #1797 lazy `FoundRequired`); remaining utf2*
    at 0.89% is cold-path / first-visit-miss only.
 
