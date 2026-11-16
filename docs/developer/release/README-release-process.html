@@ -132,6 +132,9 @@ Answering 'no' to a prompt does not exit the script unless otherwise indicated.
       <li>
         <b>Update the Checker Framework change log</b>, which also covers the Annotation File Utilities, by following the instructions
         at <a href="#content_guidelines">content guidelines</a>.
+        Replace the placeholder date in the heading of the release's section,
+        <code>## Version VERSION (DATE)</code>, such as <code>June ?, 2026</code>, by the release date:
+        release_build stops while the date is a placeholder.
       </li>
       <li> <b>Update the Checker Framework version number</b>
         in <code>checker-framework/release.gradle</code>,
@@ -181,7 +184,8 @@ TreeAnnotator
       </li>
     </ul>
   <li>
-      <strong>Log into the <a href="#release_docker">Release Docker image</a></strong> and ensure you are using <b>JDK 8</b> (so that <code>javac.jar</code> is copied to the distribution)<br/>
+      <strong>Log into the <a href="#release_docker">Release Docker image</a></strong> and ensure you are using <b>JDK 21 or later</b>
+      (<code>release_vars.py</code> sets <code>JAVA_HOME</code> to <code>$JAVA_21_HOME</code>, by default <code>/usr/lib/jvm/java-21-openjdk/</code>)<br/>
       <code>TODO<br/></code>
   </li>
   <li>
@@ -203,6 +207,8 @@ TreeAnnotator
       <code>cd /tmp/$USER/cf-release<br/></code>
       <code>test -d checker-framework && (cd checker-framework && git pull --ff-only --quiet) || git clone --quiet https://github.com/eisop/checker-framework.git<br/></code>
       <code>cd checker-framework/docs/developer/release<br/></code>
+      To use another directory, set the environment variable <code>CF_RELEASE_DIR</code> to it
+      before running the release scripts.
   </li>
   <li><strong>Run release_build</strong> to create the release artifacts and place them in the development website<br/>
       <code>git pull && python3 release_build.py</code><br/><br/>

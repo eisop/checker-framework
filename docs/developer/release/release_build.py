@@ -6,11 +6,13 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
 import tempfile
 from pathlib import Path
 
+from release_errors import ReleaseError
 from release_utils import (
     check_repo,
     check_tools,
@@ -125,6 +127,26 @@ def get_new_version(project_name: str, curr_version: str) -> tuple[str, str]:
         print("Current version: " + curr_version)
 
     return (curr_version, new_version)
+
+
+def check_changelog_date(changelog: Path, version: str) -> None:
+    """Check that the date of the changelog's section for the given version is not a placeholder.
+
+    The section's heading is "## Version VERSION (DATE)".  Until release day, DATE may be a
+    placeholder such as "June ?, 2026"; a release must not ship it.
+
+    Raises:
+        ReleaseError: If the changelog has no section for the version, or its date is a placeholder.
+    """
+    heading = re.compile("^## Version " + re.escape(version) + r" \((.*)\)$", re.MULTILINE)
+    match = heading.search(changelog.read_text(encoding="utf-8"))
+    if match is None:
+        msg = f"{changelog} has no section for version {version}."
+        raise ReleaseError(msg)
+    date = match.group(1)
+    if "?" in date or "TODO" in date:
+        msg = f"The date of version {version} in {changelog} is a placeholder: {date}"
+        raise ReleaseError(msg)
 
 
 def create_dev_website_release_version_dir(project_name: str | None, version: str) -> Path:
@@ -332,6 +354,7 @@ def main(argv: list[str]) -> None:
     old_cf_version = current_distribution_by_website(LIVE_SITE_URL)
     cf_version = CF_VERSION
     print("Version: " + cf_version + "\n")
+    check_changelog_date(Path(CHECKER_FRAMEWORK) / "docs" / "CHANGELOG.md", cf_version)
 
     if old_cf_version == cf_version:
         print(

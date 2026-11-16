@@ -1,0 +1,14 @@
+% Typesets the reflection inference rules of ../reflection-inference-rules.tex on a page of their
+% own, from which the Makefile makes reflection-inference.svg for the HTML manual.  The PDF manual
+% typesets the rules itself.  The font families and the macros are those of the manual
+% (manual-style.tex); the size is larger, as the figure is shown at its natural size.
+\documentclass[12pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{pslatex}
+\usepackage{proof}
+\newcommand{\code}[1]{\texttt{#1}}
+\def\<#1>{\code{#1}}
+\pagestyle{empty}
+\begin{document}
+\input{../reflection-inference-rules}
+\end{document}
