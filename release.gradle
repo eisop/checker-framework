@@ -184,8 +184,7 @@ tasks.register("copyToWebsite", Copy) {
         into("manual")
         include("manual.html",
                 "manual.pdf",
-                "*.svg",
-                "manual001.png")
+                "*.svg")
     }
 
     // Copy developer docs

@@ -31,10 +31,7 @@ dependencies {
     implementation(libs.options)
     implementation(libs.plume.util)
     implementation(libs.reflection.util)
-    implementation(libs.guava) {
-        // So long as Guava only uses annotations from checker-qual, excluding it should not cause problems.
-        exclude group: "org.checkerframework"
-    }
+    implementation(libs.google.guava)
     implementation(libs.asm)
     testImplementation(libs.junit)
     testImplementation(project(":checker-qual"))
@@ -223,19 +220,12 @@ apply from: rootProject.file("gradle-mvn-push.gradle")
 
 /** Adds information to the publication for uploading to Maven repositories. */
 final annotationFileUtilitiesPom(publication) {
-    rootProject.sharedPublicationConfiguration(publication)
+    rootProject.sharedPublicationConfiguration(publication, mitLicensed: true)
     publication.from(components.java)
     publication.pom {
         name = "Annotation File Utilities"
         description = "The Annotation File Utilities read, write, and insert annotations in Java " +
                 "source and class files, and manipulate annotation files (\".jaif\" files)."
-        licenses {
-            license {
-                name = "The MIT License"
-                url = "https://opensource.org/licenses/MIT"
-                distribution = "repo"
-            }
-        }
     }
 }
 

@@ -37,13 +37,6 @@ final javacUtilPom(publication) {
     publication.pom {
         name = "Javacutil"
         description = "javacutil contains utility classes for the javac compiler."
-        licenses {
-            license {
-                name = "GNU General Public License, version 2 (GPL2), with the classpath exception"
-        url = "https://www.gnu.org/software/classpath/license.html"
-                distribution = "repo"
-            }
-        }
     }
 }
 

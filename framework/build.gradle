@@ -115,7 +115,10 @@ dependencies {
     // checker.jar's classpath (e.g. RemoveAnnotationsForInference's `main` method, run via
     // checker/dist/checker.jar, never via framework.jar). Never add a real (non-inlined) runtime
     // call from framework.jar-shipped code into a stubifier class.
-    implementation(sourceSets.stubifier.output)
+    //
+    // Only the class directories: the source set has no resources, so its resources directory
+    // never exists, and ShadowJar fails on a classpath entry that is neither file nor directory.
+    implementation(sourceSets.stubifier.output.classesDirs)
 
     /* NO-AFU
      // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
@@ -391,7 +394,9 @@ tasks.register("frameworkAllJar", ShadowJar) {
     archiveClassifier = ""
     destinationDirectory = layout.buildDirectory.dir("shadow/frameworkAll")
 
-    from(shadowJar.source)
+    // The same content as shadowJar's.  Not `shadowJar.source`: that flattens shadowJar's
+    // whole copy spec, including its manifest, into the root of this jar.
+    from(sourceSets.main.output)
     // runtimeClasspath, so every `implementation` dependency is bundled and relocated.
     // A dependency declared `compileOnly` would silently be left out; see the guava
     // comment in the dependencies block above.
@@ -432,13 +437,6 @@ MavenPublication publication, String artifactName, List<String> extraDescription
                  "The ${artifactName} artifact contains the core type checking infrastructure",
                  "and permits you to write your own compiler plug-ins."]
                 + extraDescriptionLines)
-        licenses {
-            license {
-                name = "GNU General Public License, version 2 (GPL2), with the classpath exception"
-                url = "http://www.gnu.org/software/classpath/license.html"
-                distribution = "repo"
-            }
-        }
     }
 }
 

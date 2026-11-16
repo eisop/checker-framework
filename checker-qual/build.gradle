@@ -64,20 +64,13 @@ apply from: rootProject.file("gradle-mvn-push.gradle")
 
 /** Adds information to the publication for uploading to Maven repositories. */
 final checkerQualPom(publication) {
-    rootProject.sharedPublicationConfiguration(publication)
+    rootProject.sharedPublicationConfiguration(publication, mitLicensed: true)
     publication.from(components.java)
     publication.pom {
         name = "Checker Qual"
         description = String.join(System.lineSeparator(),
                 "checker-qual contains annotations (type qualifiers) that a programmer",
                 "writes to specify Java code for type-checking by the Checker Framework.")
-        licenses {
-            license {
-                name = "The MIT License"
-        url = "https://opensource.org/licenses/MIT"
-                distribution = "repo"
-            }
-        }
     }
 }
 
