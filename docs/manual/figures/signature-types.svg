@@ -67,7 +67,7 @@
       <path
          transform="scale(0.7)"
          d="M -2,-4 9,0 -2,4 c 2,-2.33 2,-5.66 0,-8 z"
-         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         style="fill:#000000;fill-rule:evenodd;stroke:none"
          id="path3428" />
     </marker>
     <marker
@@ -86,7 +86,7 @@
       <path
          transform="scale(0.7)"
          d="M -2,-4 9,0 -2,4 c 2,-2.33 2,-5.66 0,-8 z"
-         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         style="fill:#000000;fill-rule:evenodd;stroke:none"
          id="path1331" />
     </marker>
     <marker
@@ -105,7 +105,7 @@
       <path
          transform="scale(0.7)"
          d="M -2,-4 9,0 -2,4 c 2,-2.33 2,-5.66 0,-8 z"
-         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         style="fill:#000000;fill-rule:evenodd;stroke:none"
          id="path1182" />
     </marker>
     <marker
@@ -124,7 +124,7 @@
       <path
          transform="scale(0.7)"
          d="M -2,-4 9,0 -2,4 c 2,-2.33 2,-5.66 0,-8 z"
-         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         style="fill:#000000;fill-rule:evenodd;stroke:none"
          id="arrow2L" />
     </marker>
   </defs>
