@@ -977,7 +977,35 @@ public class ElementUtils {
      * @return true if the element is a binding variable
      */
     public static boolean isBindingVariable(Element element) {
-        return SystemUtil.jreVersion >= 16 && "BINDING_VARIABLE".equals(element.getKind().name());
+        return element.getKind() == BINDING_VARIABLE_KIND;
+    }
+
+    /**
+     * {@code ElementKind.BINDING_VARIABLE} on JDK 16 or later, otherwise null. JDK 14 and 15 have
+     * the constant for a preview feature, which {@link #isBindingVariable} does not recognize.
+     */
+    private static final @Nullable ElementKind BINDING_VARIABLE_KIND =
+            SystemUtil.jreVersion >= 16 ? elementKind("BINDING_VARIABLE") : null;
+
+    /**
+     * {@code ElementKind.RECORD}, or null on a JDK whose {@code ElementKind} has no such constant.
+     */
+    private static final @Nullable ElementKind RECORD_KIND = elementKind("RECORD");
+
+    /**
+     * Returns the {@code ElementKind} constant with the given name, or null on a JDK whose {@code
+     * ElementKind} has no such constant. Constants added after JDK 8 cannot be named directly,
+     * since the code is compiled for JDK 8.
+     *
+     * @param name the name of the constant
+     * @return the constant, or null if it does not exist
+     */
+    private static @Nullable ElementKind elementKind(String name) {
+        try {
+            return ElementKind.valueOf(name);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /**
@@ -1170,8 +1198,7 @@ public class ElementUtils {
      * @return whether the element is of the kind RECORD
      */
     public static boolean isRecordElement(Element elt) {
-        ElementKind kind = elt.getKind();
-        return kind.name().equals("RECORD");
+        return elt.getKind() == RECORD_KIND;
     }
 
     /**

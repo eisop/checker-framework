@@ -2863,6 +2863,28 @@ the Index Checker's self-time on plume-util to it. `RECORD_KIND` is now looked u
 is a reference comparison. A pure-CPU change this small is below the wall-clock noise of a 20 s
 run; see the measurement in the commit.
 
+The other comparisons of a kind by name were counted with temporary counters (CF master, JDK 21;
+"Java 17+" is the Nullness Checker on the 41 test inputs in `checker/tests/nullness/java17`,
+`java21`, `checker/tests/all-systems/java21` and `framework/tests/all-systems/java17`, `java21`):
+
+| Comparison | Index, plume-util | Nullness, plume-util | JSpecify RC, Guava | Java 17+ |
+| --- | ---: | ---: | ---: | ---: |
+| `TreeUtils.isRecordTree` | 1,642,485 | 601,157 | 975,352 | 125,610 |
+| `TreeUtils.isSwitchExpression` | 504,510 | 178,509 | 339,536 | 28,321 |
+| `ElementUtils.isRecordElement` | 103,143 | 50,727 | 124,826 | 10,158 |
+| `ElementUtils.isBindingVariable` | 1,155 | 44,906 | 0 | 10,353 |
+| `TreeUtils.isYield` | 8,275 | 6,022 | 14,314 | 1,323 |
+| the 17 others, each | at most 3,467 | at most 615 | at most 3,467 | at most 3,362 |
+
+`isSwitchExpression` is the `default` case of `AnnotatedTypeFactory.isFlowDependent`, which runs
+for most trees, and `TreePathUtil` calls it and `isYield` in its path walk; `isRecordElement` runs
+for element lookups (`declarationFromElement`, `TypeFromExpressionVisitor`) and `isBindingVariable`
+for the Nullness Checker's variables. At the measured cost of `isRecordTree`, `isSwitchExpression`
+is roughly 0.15% of self-time and `isRecordElement` 0.03%, below what a profile or the wall clock
+resolves. These four also compare with constants looked up once (`TreeUtils.treeKind` and
+`ElementUtils.elementKind`; `BINDING_VARIABLE` only on JDK 16 or later, as before). The 17 others
+run for few trees, mostly in switch and pattern handling, and are left to eisop#2615.
+
 `ElementUtils.qualifiedNameCache` was audited and left as is; see the Short list entry.
 
 ## Tried and rejected

@@ -565,8 +565,8 @@ Performance optimizations:
 - `EquivalentAtmComboScanner` records the visited type pairs in one flat identity table
   instead of an `IdentityHashMap` per visited type: 2.4% less allocation for the Index Checker on
   plume-util and 8% less for the JSpecify reference checker on Guava.
-- `TreeUtils.isRecordTree` compares the tree kind with a cached `Tree.Kind` constant instead of
-  comparing its name.
+- `TreeUtils.isRecordTree`, `isSwitchExpression`, and `isYield`, and `ElementUtils.isRecordElement`
+  and `isBindingVariable`, compare the kind with a cached constant instead of comparing its name.
 - `StructuralEqualityComparer.arePrimaryAnnosEqual` is non-mutating.
 - Optimized Value Checker: `AnnotationBuilder` gained a `TypeElement` constructor;
   final locals indexed by declaring element; `ValueQualifierHierarchy` caches
