@@ -29,10 +29,10 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
      * The number of entries that the table of {@code Visited} initially has room for; a power of
      * two. Most scans visit only one to three pairs, so the table rarely grows.
      */
-    private static final int INITIAL_CAPACITY = 8;
+    static final int INITIAL_CAPACITY = 8;
 
     /** The number of slots that an entry of the table of {@code Visited} occupies. */
-    private static final int ENTRY_SLOTS = 3;
+    static final int ENTRY_SLOTS = 3;
 
     /**
      * A history of type pairs that have already been visited and the return type of their visit.
@@ -235,6 +235,9 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
 
     /**
      * A history of type pairs that have already been visited and the return type of their visit.
+     *
+     * <p>The table, {@link #slotFor}, {@link #INITIAL_CAPACITY} and {@link #ENTRY_SLOTS} are
+     * package-private so that the unit test of this class can inspect the table layout.
      */
     protected class Visited {
 
@@ -248,7 +251,7 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
          * is allocated on the first {@link #add} and is at most two thirds full, so a probe always
          * ends at an empty slot.
          */
-        private @Nullable Object @Nullable [] table;
+        @Nullable Object @Nullable [] table;
 
         /** The number of pairs in {@link #table}. */
         private int size;
@@ -285,7 +288,7 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
          * @return the slot index of the entry for the pair, or of an empty entry
          */
         @SuppressWarnings("interning:not.interned") // the table is keyed on identity
-        private int slotFor(@Nullable Object[] table, Object type1, Object type2) {
+        int slotFor(@Nullable Object[] table, Object type1, Object type2) {
             int h = System.identityHashCode(type1) * 31 + System.identityHashCode(type2);
             h ^= (h >>> 16);
             int mask = table.length / ENTRY_SLOTS - 1;
