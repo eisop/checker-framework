@@ -1230,13 +1230,6 @@ final checkerPom(publication) {
                 "The Checker Framework includes compiler plug-ins (\"checkers\")",
                 "that find bugs or verify their absence. It also permits you to",
                 "write your own compiler plug-ins.")
-        licenses {
-            license {
-                name = "GNU General Public License, version 2 (GPL2), with the classpath exception"
-        url = "https://www.gnu.org/software/classpath/license.html"
-                distribution = "repo"
-            }
-        }
     }
 }
 

@@ -62,13 +62,6 @@ final frameworkTest(publication) {
         description = String.join(System.lineSeparator(),
                 "framework-test contains utility classes for testing type-checkers",
                 "that are built on the Checker Framework.")
-        licenses {
-            license {
-                name = "GNU General Public License, version 2 (GPL2), with the classpath exception"
-        url = "https://www.gnu.org/software/classpath/license.html"
-                distribution = "repo"
-            }
-        }
     }
 }
 
