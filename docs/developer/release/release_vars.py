@@ -90,10 +90,13 @@ def execute_status(
 
 # ---------------------------------------------------------------------------------
 
-# Per-user directory for the temporary files created by the release process.
+# Per-user directory for the temporary files created by the release process, in which the
+# Checker Framework is cloned; the environment variable CF_RELEASE_DIR overrides it.
 # ("USER = os.getlogin()" does not work; see https://github.com/python/cpython/issues/36915.
 # Another alternative is: USER = os.getenv('USER').)
-TMP_DIR = Path("/tmp") / pwd.getpwuid(os.geteuid())[0] / "cf-release"
+TMP_DIR = Path(
+    os.environ.get("CF_RELEASE_DIR", Path("/tmp") / pwd.getpwuid(os.geteuid())[0] / "cf-release")
+)
 
 # Location this and other release scripts are contained in.
 SCRIPTS_DIR = TMP_DIR / "checker-framework" / "docs" / "developer" / "release"
@@ -160,7 +163,8 @@ os.environ["PLUME_SCRIPTS"] = str(PLUME_SCRIPTS)
 os.environ["CHECKLINK"] = str(CHECKLINK)
 os.environ["BIBINPUTS"] = ".:" + str(PLUME_BIB)
 os.environ["TEXINPUTS"] = ".:..:"
-os.environ["JAVA_21_HOME"] = "/usr/lib/jvm/java-21-openjdk/"
+# The JDK of the release build; the environment variable JAVA_21_HOME overrides the default.
+os.environ.setdefault("JAVA_21_HOME", "/usr/lib/jvm/java-21-openjdk/")
 os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
 
 EDITOR = os.getenv("EDITOR")
@@ -171,7 +175,7 @@ PATH = os.environ["JAVA_HOME"] + "/bin:" + os.environ["PATH"]
 PATH = PATH + ":/usr/bin"
 PATH = PATH + ":" + str(PLUME_SCRIPTS)
 PATH = PATH + ":" + str(CHECKLINK)
-PATH = PATH + ":/homes/gws/mernst/.local/bin"  # for uv
+PATH = PATH + ":" + str(Path.home() / ".local" / "bin")  # for uv
 PATH = PATH + ":."
 os.environ["PATH"] = PATH
 
