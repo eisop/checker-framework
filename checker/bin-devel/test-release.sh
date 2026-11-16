@@ -118,6 +118,15 @@ for f in checker/bin/javac checker/bin/wpi.sh checker/bin/wpi-many.sh checker/bi
 done
 unzip -Z "$AFU_ZIP" "annotation-file-utilities-${VERSION}/annotation-file-utilities/bin/insert-annotations-to-source" \
   | grep -q '^-rwx' || fail "insert-annotations-to-source is not executable in the Annotation File Utilities zip file."
+# The manual shows its images: each one that manual.html references is next to it, in the web site
+# and in the Checker Framework zip file.
+mapfile -t MANUAL_IMAGES < <(grep -o '<img [^>]*src="[^"]*"' "$WEBSITE_DIR/manual/manual.html" | sed 's/.*src="//; s/"$//' | sort -u)
+[ "${#MANUAL_IMAGES[@]}" -gt 0 ] || fail "No image found in manual/manual.html."
+for img in "${MANUAL_IMAGES[@]}"; do
+  [ -f "$WEBSITE_DIR/manual/$img" ] || fail "copyToWebsite did not create manual/$img, which the manual shows."
+  grep -qx "checker-framework-${VERSION}/docs/manual/$img" "$TMP_DIR/cf-zip.txt" \
+    || fail "The Checker Framework zip file does not contain docs/manual/$img, which the manual shows."
+done
 # The manual shows the figures.
 grep -q "^annotation-file-utilities-${VERSION}/annotation-file-utilities/figures/.*\.svg$" "$TMP_DIR/afu-zip.txt" \
   || fail "The Annotation File Utilities zip file does not contain the figures of its manual."
