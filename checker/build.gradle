@@ -282,6 +282,12 @@ tasks.register("allJavadocJar", Jar) {
 // Shadowing Test Sources and Dependencies
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
+// The stubifier tool's compiled classes (JavaStubifier, BinaryStubWriter,
+// BinaryStubFileGenerator). Only the classesDir artifact is taken (not the configuration's
+// transitive dependency jars, e.g. stubparser), since those already reach checker.jar
+// through framework's own "api" dependency.
+def stubifierClasses = project.configurations.stubifierToolForShadow.filter { it.isDirectory() }
+
 tasks.register("checkerJar", ShadowJar) {
     dependsOn("compileJava")
     group = "Build"
@@ -291,7 +297,11 @@ tasks.register("checkerJar", ShadowJar) {
     // instead resolve against the project and rename every archive in this subproject.
     archiveBaseName = "checker"
 
-    from(shadowJar.source)
+    // The same content as shadowJar's.  Not `shadowJar.source`: that flattens shadowJar's
+    // whole copy spec, including its manifest and its META-INF/LICENSE.txt, into the root of
+    // this jar.
+    from(sourceSets.main.output)
+    from(stubifierClasses)
     configurations = shadowJar.configurations
     // To see what files are incorporated into the shadow jar file:
     // doLast { println sourceSets.main.runtimeClasspath.asPath }
@@ -309,7 +319,7 @@ tasks.register("checkerJar", ShadowJar) {
     // This appends to sourceSetsClassesDirs rather than adding a second entry to
     // `configurations`, which would corrupt minimize()'s analysis for the whole jar; see the
     // comment on shadowJar's own copy of this, and commit 8396efab63.
-    sourceSetsClassesDirs.from(project.configurations.stubifierToolForShadow.filter { it.isDirectory() })
+    sourceSetsClassesDirs.from(stubifierClasses)
 
     // Without this the published artifact ships ~1240 classes, about 2 MB, that nothing in it
     // can reach -- shadowJar has always minimized, and this jar differs from it only by the
@@ -333,13 +343,9 @@ tasks.named("shadowJar") {
     // doFirst { println sourceSets.main.runtimeClasspath.asPath }
     archiveClassifier = "all"
 
-    // The stubifier tool's compiled classes (JavaStubifier, BinaryStubWriter,
-    // BinaryStubFileGenerator). Only the classesDir artifact is taken (not the configuration's
-    // transitive dependency jars, e.g. stubparser), since those already reach checker.jar
-    // through framework's own "api" dependency.
-    def stubifierClasses = project.configurations.stubifierToolForShadow.filter { it.isDirectory() }
-    // Copy those classes straight into the jar's content. See the stubifierToolForShadow
-    // configuration's own comment for why this must NOT go through configurations.add(...).
+    // Copy the stubifier tool's classes straight into the jar's content. See the
+    // stubifierToolForShadow configuration's own comment for why this must NOT go through
+    // configurations.add(...).
     from(stubifierClasses)
     // Also register the classesDir as a minimize() root, alongside checker's own source sets
     // (this appends to sourceSetsClassesDirs' convention rather than replacing it). Without
