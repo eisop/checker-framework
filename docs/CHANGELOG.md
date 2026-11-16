@@ -105,6 +105,8 @@ Type-checking and subtyping improvements:
 - Issues `annotation.on.supertype` for a main annotation on a superclass or
   interface in `extends`/`implements` (type-argument annotations remain
   permitted); override `BaseTypeVisitor#checkAnnotationOnSupertype` to allow it.
+  It replaces the Nullness Checker's `nullness.on.supertype`, which is no longer
+  issued; a `@SuppressWarnings("nullness.on.supertype")` has no effect.
 - Anonymous class creation is now checked more consistently: `new @A AClass() {}`
   validates against the superclass's declaration bound on Java 8-11 too (not
   just 12+); `new AClass() {}` is defaulted using the supertype's declaration
@@ -384,9 +386,34 @@ The fields `messagesProperties`, `activeOptions`, `supportedOptions`, `subchecke
 `elementsWithSuppressedWarnings`, and `javacErrored` of `SourceChecker` and `ultimateParentChecker`
 and `baseTypeCheckerClassArray` of `BaseTypeChecker` are now private. Use the getters of the cached
 values instead: `getOptions()` for `activeOptions`, `getSubchecker(Class)` for an immediate
-subchecker, `fullMessageOf` for a message, and the getter of the same name for the others.
+subchecker, `fullMessageOf` for a message, `getUltimateParentChecker()`, and `getSupportedOptions()`,
+`getSubcheckers()`, `getSuppressWarningsPrefixesOfSubcheckers()`, and `getTreePathCacher()` for the
+fields of those names; the remaining fields are internal state without a getter.
 `getMessagesProperties()` is renamed `createMessagesProperties()` and is `protected`; `initChecker`
-calls it once.
+calls it once. `SourceChecker#printOrStoreMessage` is private.
+
+Public and protected API that changed without a deprecation period:
+
+- `org.plumelib.util.IPair` and `DeepCopyable` are replaced by `org.checkerframework.javacutil.Pair`
+  and `DeepCopyable` in every public signature (`AnnotatedTypeFactory#binaryTreeArgTypes`,
+  `#getFnInterfaceFromTree`, `#getDeclAnnotationWithMetaAnnotation`,
+  `GenericAnnotatedTypeFactory#getReturnStatementStores`, `TreePathUtil.enclosingNonParen`,
+  `PurityChecker.PurityResult`, and others), so published artifacts expose no relocated types.
+  `Pair` and `DeepCopyable` are no longer deprecated; `Pair` is `final`.
+- `AnnotationMirrorMap#keySet()` returns an unmodifiable `Set<AnnotationMirror>` instead of a new
+  `AnnotationMirrorSet`.
+- `ViewpointAdapter` declares `viewpointAdaptTypeDeclarationBounds` and
+  `viewpointAdaptType(AnnotatedTypeMirror, AnnotatedTypeMirror)`, and `AbstractViewpointAdapter`
+  declares the abstract `extractAnnotationMirror(AnnotationMirrorSet)`; an implementation outside
+  the framework must implement them.
+- The maps of `CFAbstractStore` (`localVariableValues`, `fieldValues`, `arrayValues`,
+  `methodCallExpressions`, `classValues`) are `CopyOnWriteMap`s, whose views are unmodifiable.
+- `BaseTypeValidator#areBoundsValid` is `protected`.
+- Removed: `AnnotatedTypeMirror#copyIntersectionBoundAnnotations`, `QualifierDefaults#applyDefault`,
+  `ValueTreeAnnotator.COVERED_CLASS_STRINGS`, `BaseTypeVisitor.positions` (use
+  `TreeUtils.getStartPosition` and `getEndPosition`). `AnnotationUtils.sameElementValues` is
+  private (use `areSame`). `QualifierDefaults.STANDARD_UNCHECKED_DEFAULTS_TOP` and `_BOTTOM` are
+  renamed `CONSERVATIVE_UNCHECKED_DEFAULTS_TOP` and `_BOTTOM`.
 
 When assertions are enabled, `SourceChecker#report` asserts that the reported key has message text
 in a `messages.properties` file that the checker loads. Tests of a checker that reports a key
@@ -693,6 +720,7 @@ eisop#1926,
 eisop#1958,
 eisop#1965,
 eisop#1971,
+eisop#1983,
 eisop#1986,
 eisop#1987,
 eisop#1990,
