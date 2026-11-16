@@ -52,7 +52,9 @@ def createDataflowShaded(shadedPkgName) {
         // Without this line, the Maven artifact will have the classifier "all".
         archiveClassifier.set("")
 
-        from(shadowJar.source)
+        // The same content as shadowJar's.  Not `shadowJar.source`: that flattens shadowJar's
+        // whole copy spec, including its manifest, into the root of this jar.
+        from(sourceSets.main.output)
         configurations = shadowJar.configurations
 
         destinationDirectory = layout.buildDirectory.dir("shadow/dataflow${shadedPkgName}")
