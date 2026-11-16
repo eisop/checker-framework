@@ -260,7 +260,23 @@ annotations, because the Checker Framework infers them according to
 Figure~\ref{fig:reflection-inference}.  Most readers can skip this
 section, which explains the inference rules.
 
+\begin{figure}[t!]
+\begin{center}
+\begin{small}
+% The rules use \infer of proof.sty, which Hevea cannot typeset, so the HTML manual shows
+% figures/reflection-inference.svg, a rendering of the same file; see figures/Makefile.
+%BEGIN LATEX
 \input{reflection-inference-rules}
+%END LATEX
+%HEVEA\imgsrc{reflection-inference.svg}
+\end{small}
+\end{center}
+\caption{\label{fig:reflection-inference}%
+Example inference rules for @ClassVal, @ClassBound, and @MethodVal.
+Additional rules exist for expressions with similar semantics but that call
+methods with different names or signatures.
+}
+\end{figure}
 
 The ClassVal Checker infers the exact class name (\<@ClassVal>) for a
 \<Class> literal (\<C.class>), and for a static method call (e.g.,

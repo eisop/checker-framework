@@ -25,6 +25,19 @@ else
   endif
 endif
 
+# reflection-inference.svg is checked in: it is the HTML manual's rendering of
+# ../reflection-inference-rules.tex, which the PDF manual typesets itself.  It is not a
+# prerequisite of `all`, so that building the manual does not need the tools below.
+# Run this target after changing the rules, and commit the result.
+# pdfcrop is in texlive-extra-utils and pdftocairo in poppler-utils.  The glyphs become paths, so
+# the figure needs no fonts.
+.PHONY: reflection-inference-svg
+reflection-inference-svg:
+	pdflatex -interaction=nonstopmode reflection-inference.tex
+	pdfcrop reflection-inference.pdf reflection-inference-crop.pdf
+	pdftocairo -svg reflection-inference-crop.pdf reflection-inference.svg
+	rm -f reflection-inference.pdf reflection-inference-crop.pdf reflection-inference.aux reflection-inference.log
+
 clean: clean-obsolete-files
 	@\rm -f ${PDFFILES}
 
