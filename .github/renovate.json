@@ -68,11 +68,11 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Update the Checker Framework version in the docs/examples Gradle builds. Renovate's Gradle manager is not relied on here: these builds hold the version in a variable (an `ext.versions` map entry, or a plain `def`), and the only Renovate edits ever seen in these files were plugin versions.",
+      "description": "Update the Checker Framework version in the docs/examples Gradle builds. Renovate's Gradle manager is not relied on here: these builds hold the version in a variable (an `ext.versions` map entry, or a plain `def`), and the only Renovate edits ever seen in these files were plugin versions. Either quote style is matched: Spotless formats these files with double quotes.",
       "managerFilePatterns": ["/^docs/examples/[^/]+/build\\.gradle$/"],
       "matchStrings": [
-        "eisopVersion: '(?<currentValue>[^']+)'",
-        "def eisopVersion = '(?<currentValue>[^']+)'"
+        "eisopVersion: [\"'](?<currentValue>[^\"']+)[\"']",
+        "def eisopVersion = [\"'](?<currentValue>[^\"']+)[\"']"
       ],
       "datasourceTemplate": "maven",
       "depNameTemplate": "io.github.eisop:checker-qual"
