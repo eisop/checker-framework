@@ -2844,6 +2844,15 @@ either direction: the data support neither the gain of about 1% that the issue a
 change that only saves allocation nor a cost of that size. The change is justified by the
 allocation reduction alone; resolving a 1% wall-clock effect would take 20 to 30 reps per side.
 
+The home entry of a pair depends on the identity hash of its first type only, so a lookup hashes
+one type, not two. Pairs that share a first type then share a probe run, but probes do not get
+longer: hashing both types or only the first gives 0.17 and 0.17 extra probe steps per lookup on
+plume-util (longest probe 9 and 9) and 0.21 and 0.21 on Guava (longest 11 and 9), with the same
+table sizes. Against hashing both types (interleaved, 10 reps per side, JDK 21), allocation is
+unchanged (4858 MB and 4854 MB; 8687 MB and 8683 MB) and diagnostics are identical; the medians
+are 19.88 s to 19.73 s on plume-util and 28.62 s to 28.33 s on Guava (user+sys CPU 75.5 s to
+75.0 s and 103.6 s to 101.4 s), faster in 6 and 7 of 10 rep pairs, which is within the noise.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a

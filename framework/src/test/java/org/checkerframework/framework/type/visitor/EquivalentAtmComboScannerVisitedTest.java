@@ -41,9 +41,10 @@ import javax.tools.ToolProvider;
  * IdentityHashMap}s it replaced over a seeded sequence of operations.
  *
  * <p>Collisions are made deterministic without assuming anything about identity hash codes: a test
- * creates fresh types until {@link EquivalentAtmComboScanner.Visited#slotFor} maps the pair to the
- * wanted home entry of an empty table of the relevant capacity, and then inspects the table to
- * confirm where the entry landed.
+ * creates fresh first types until {@link EquivalentAtmComboScanner.Visited#slotFor} maps a pair to
+ * the wanted home entry of an empty table of the relevant capacity, and then inspects the table to
+ * confirm where the entry landed. The home entry depends on the first type only, so pairs that
+ * share a first type collide by construction, which one test covers directly.
  */
 public class EquivalentAtmComboScannerVisitedTest {
 
@@ -179,26 +180,27 @@ public class EquivalentAtmComboScannerVisitedTest {
     }
 
     /**
-     * Returns a new type {@code t} such that the pair ({@code first}, {@code t}) has the given home
-     * entry in a table with room for {@code capacity} entries.
+     * Returns a new type {@code t} such that every pair ({@code t}, x) has the given home entry in
+     * a table with room for {@code capacity} entries.
      *
      * @param visited the history whose slot computation to use
-     * @param first the first type of the pair
      * @param capacity the number of entries the table has room for
      * @param home the wanted home entry
-     * @return the second type of a pair with home entry {@code home}
+     * @return the first type of pairs with home entry {@code home}
      */
-    private static AnnotatedTypeMirror secondWithHome(
-            EquivalentAtmComboScanner<String, Void>.Visited visited,
-            AnnotatedTypeMirror first,
-            int capacity,
-            int home) {
-        // The home entry is a function of two identity hash codes, so a handful of fresh types
+    private static AnnotatedTypeMirror firstWithHome(
+            EquivalentAtmComboScanner<String, Void>.Visited visited, int capacity, int home) {
+        // The home entry is a function of one identity hash code, so a handful of fresh types
         // suffices for each of the `capacity` possible homes; the bound only guards the loop.
+        AnnotatedTypeMirror any = newType();
         for (int i = 0; i < 100_000; i++) {
-            AnnotatedTypeMirror second = newType();
-            if (homeEntry(visited, first, second, capacity) == home) {
-                return second;
+            AnnotatedTypeMirror first = newType();
+            if (homeEntry(visited, first, any, capacity) == home) {
+                Assert.assertEquals(
+                        "the home entry does not depend on the second type",
+                        home,
+                        homeEntry(visited, first, newType(), capacity));
+                return first;
             }
         }
         throw new AssertionError("no pair with home entry " + home + " found");
@@ -332,37 +334,72 @@ public class EquivalentAtmComboScannerVisitedTest {
     public void collidingPairsProbeForward() {
         EquivalentAtmComboScanner<String, Void>.Visited visited = SCANNER.newVisited();
         int home = 3;
-        AnnotatedTypeMirror first = newType();
-        AnnotatedTypeMirror s1 = secondWithHome(visited, first, INITIAL_CAPACITY, home);
-        AnnotatedTypeMirror s2 = secondWithHome(visited, first, INITIAL_CAPACITY, home);
-        AnnotatedTypeMirror s3 = secondWithHome(visited, first, INITIAL_CAPACITY, home);
-        AnnotatedTypeMirror absent = secondWithHome(visited, first, INITIAL_CAPACITY, home);
-        AnnotatedTypeMirror absentNext = secondWithHome(visited, first, INITIAL_CAPACITY, home + 1);
+        AnnotatedTypeMirror second = newType();
+        AnnotatedTypeMirror f1 = firstWithHome(visited, INITIAL_CAPACITY, home);
+        AnnotatedTypeMirror f2 = firstWithHome(visited, INITIAL_CAPACITY, home);
+        AnnotatedTypeMirror f3 = firstWithHome(visited, INITIAL_CAPACITY, home);
+        AnnotatedTypeMirror absent = firstWithHome(visited, INITIAL_CAPACITY, home);
+        AnnotatedTypeMirror absentNext = firstWithHome(visited, INITIAL_CAPACITY, home + 1);
 
-        visited.add(first, s1, "s1");
-        visited.add(first, s2, "s2");
-        visited.add(first, s3, null);
+        visited.add(f1, second, "f1");
+        visited.add(f2, second, "f2");
+        visited.add(f3, second, null);
         Assert.assertEquals(INITIAL_CAPACITY, capacity(visited));
-        Assert.assertSame(first, firstTypeAt(visited, home));
-        Assert.assertSame(first, firstTypeAt(visited, home + 1));
-        Assert.assertSame(first, firstTypeAt(visited, home + 2));
+        Assert.assertSame(f1, firstTypeAt(visited, home));
+        Assert.assertSame(f2, firstTypeAt(visited, home + 1));
+        Assert.assertSame(f3, firstTypeAt(visited, home + 2));
         Assert.assertNull(firstTypeAt(visited, home + 3));
         Assert.assertEquals(3, occupied(visited));
 
-        assertRecorded(visited, first, s1, "s1");
-        assertRecorded(visited, first, s2, "s2");
-        assertRecorded(visited, first, s3, null);
+        assertRecorded(visited, f1, second, "f1");
+        assertRecorded(visited, f2, second, "f2");
+        assertRecorded(visited, f3, second, null);
         // A probe for an absent pair passes the three occupied entries and stops at the empty one.
-        assertAbsent(visited, first, absent);
-        assertAbsent(visited, first, absentNext);
-        assertAbsent(visited, s1, first);
-        assertAbsent(visited, s2, first);
+        assertAbsent(visited, absent, second);
+        assertAbsent(visited, absentNext, second);
+        assertAbsent(visited, second, f1);
+        assertAbsent(visited, second, f2);
 
         // Replacing a result does not move or duplicate the entry.
-        visited.add(first, s2, "s2'");
+        visited.add(f2, second, "f2'");
         Assert.assertEquals(3, occupied(visited));
-        Assert.assertSame(first, firstTypeAt(visited, home + 1));
-        assertRecorded(visited, first, s2, "s2'");
+        Assert.assertSame(f2, firstTypeAt(visited, home + 1));
+        assertRecorded(visited, f2, second, "f2'");
+    }
+
+    /** Pairs that share a first type have the same home entry and form one probe run. */
+    @Test
+    public void pairsSharingTheFirstTypeShareAProbeRun() {
+        EquivalentAtmComboScanner<String, Void>.Visited visited = SCANNER.newVisited();
+        AnnotatedTypeMirror first = firstWithHome(visited, INITIAL_CAPACITY, 2);
+        AnnotatedTypeMirror s1 = newType();
+        AnnotatedTypeMirror s2 = newType();
+        AnnotatedTypeMirror s3 = newType();
+        AnnotatedTypeMirror absent = newType();
+
+        visited.add(first, s1, "s1");
+        visited.add(first, s2, null);
+        visited.add(first, s3, "s3");
+        Assert.assertSame(first, firstTypeAt(visited, 2));
+        Assert.assertSame(first, firstTypeAt(visited, 3));
+        Assert.assertSame(first, firstTypeAt(visited, 4));
+        Assert.assertSame(s1, table(visited)[2 * ENTRY_SLOTS + 1]);
+        Assert.assertSame(s2, table(visited)[3 * ENTRY_SLOTS + 1]);
+        Assert.assertSame(s3, table(visited)[4 * ENTRY_SLOTS + 1]);
+        Assert.assertEquals(3, occupied(visited));
+
+        assertRecorded(visited, first, s1, "s1");
+        assertRecorded(visited, first, s2, null);
+        assertRecorded(visited, first, s3, "s3");
+        // The probe for an absent pair with the same first type passes the whole run.
+        assertAbsent(visited, first, absent);
+        assertAbsent(visited, first, first);
+        assertAbsent(visited, s1, first);
+
+        visited.add(first, s2, "s2");
+        Assert.assertEquals(3, occupied(visited));
+        Assert.assertSame(first, firstTypeAt(visited, 3));
+        assertRecorded(visited, first, s2, "s2");
     }
 
     /** A probe that reaches the end of the table continues at its first entry. */
@@ -370,44 +407,44 @@ public class EquivalentAtmComboScannerVisitedTest {
     public void probeWrapsAroundTheEndOfTheTable() {
         EquivalentAtmComboScanner<String, Void>.Visited visited = SCANNER.newVisited();
         int last = INITIAL_CAPACITY - 1;
-        AnnotatedTypeMirror first = newType();
-        AnnotatedTypeMirror atLast = secondWithHome(visited, first, INITIAL_CAPACITY, last);
-        AnnotatedTypeMirror atZero = secondWithHome(visited, first, INITIAL_CAPACITY, 0);
-        AnnotatedTypeMirror wrapsToOne = secondWithHome(visited, first, INITIAL_CAPACITY, last);
-        AnnotatedTypeMirror wrapsToTwo = secondWithHome(visited, first, INITIAL_CAPACITY, last);
-        AnnotatedTypeMirror absentLast = secondWithHome(visited, first, INITIAL_CAPACITY, last);
-        AnnotatedTypeMirror absentZero = secondWithHome(visited, first, INITIAL_CAPACITY, 0);
+        AnnotatedTypeMirror second = newType();
+        AnnotatedTypeMirror atLast = firstWithHome(visited, INITIAL_CAPACITY, last);
+        AnnotatedTypeMirror atZero = firstWithHome(visited, INITIAL_CAPACITY, 0);
+        AnnotatedTypeMirror wrapsToOne = firstWithHome(visited, INITIAL_CAPACITY, last);
+        AnnotatedTypeMirror wrapsToTwo = firstWithHome(visited, INITIAL_CAPACITY, last);
+        AnnotatedTypeMirror absentLast = firstWithHome(visited, INITIAL_CAPACITY, last);
+        AnnotatedTypeMirror absentZero = firstWithHome(visited, INITIAL_CAPACITY, 0);
 
-        visited.add(first, atLast, "last");
-        visited.add(first, atZero, "zero");
+        visited.add(atLast, second, "last");
+        visited.add(atZero, second, "zero");
         // Both home entries are taken, so this pair wraps around to entry 1 ...
-        visited.add(first, wrapsToOne, null);
+        visited.add(wrapsToOne, second, null);
         // ... and this one to entry 2.
-        visited.add(first, wrapsToTwo, "two");
+        visited.add(wrapsToTwo, second, "two");
         Assert.assertEquals(INITIAL_CAPACITY, capacity(visited));
-        Assert.assertSame(first, firstTypeAt(visited, last));
-        Assert.assertSame(first, firstTypeAt(visited, 0));
-        Assert.assertSame(first, firstTypeAt(visited, 1));
-        Assert.assertSame(first, firstTypeAt(visited, 2));
-        Assert.assertSame(atLast, table(visited)[last * ENTRY_SLOTS + 1]);
-        Assert.assertSame(atZero, table(visited)[1]);
-        Assert.assertSame(wrapsToOne, table(visited)[ENTRY_SLOTS + 1]);
-        Assert.assertSame(wrapsToTwo, table(visited)[2 * ENTRY_SLOTS + 1]);
+        Assert.assertSame(atLast, firstTypeAt(visited, last));
+        Assert.assertSame(atZero, firstTypeAt(visited, 0));
+        Assert.assertSame(wrapsToOne, firstTypeAt(visited, 1));
+        Assert.assertSame(wrapsToTwo, firstTypeAt(visited, 2));
+        Assert.assertSame(second, table(visited)[last * ENTRY_SLOTS + 1]);
+        Assert.assertSame(second, table(visited)[1]);
+        Assert.assertSame(second, table(visited)[ENTRY_SLOTS + 1]);
+        Assert.assertSame(second, table(visited)[2 * ENTRY_SLOTS + 1]);
         Assert.assertEquals(4, occupied(visited));
 
-        assertRecorded(visited, first, atLast, "last");
-        assertRecorded(visited, first, atZero, "zero");
-        assertRecorded(visited, first, wrapsToOne, null);
-        assertRecorded(visited, first, wrapsToTwo, "two");
+        assertRecorded(visited, atLast, second, "last");
+        assertRecorded(visited, atZero, second, "zero");
+        assertRecorded(visited, wrapsToOne, second, null);
+        assertRecorded(visited, wrapsToTwo, second, "two");
         // Probes for absent pairs wrap around too, and stop at entry 3.
-        assertAbsent(visited, first, absentLast);
-        assertAbsent(visited, first, absentZero);
-        assertAbsent(visited, atLast, first);
-        assertAbsent(visited, wrapsToOne, first);
+        assertAbsent(visited, absentLast, second);
+        assertAbsent(visited, absentZero, second);
+        assertAbsent(visited, second, atLast);
+        assertAbsent(visited, second, wrapsToOne);
 
-        visited.add(first, wrapsToOne, "one");
+        visited.add(wrapsToOne, second, "one");
         Assert.assertEquals(4, occupied(visited));
-        assertRecorded(visited, first, wrapsToOne, "one");
+        assertRecorded(visited, wrapsToOne, second, "one");
     }
 
     /**

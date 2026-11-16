@@ -247,9 +247,10 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
         /**
          * The backing history of type pairs: an open-addressing hash table keyed on the identity of
          * both types of a pair, with {@link #ENTRY_SLOTS} consecutive slots per entry (the first
-         * type, the second type, the result). An entry whose first slot is null is empty. The table
-         * is allocated on the first {@link #add} and is at most two thirds full, so a probe always
-         * ends at an empty slot.
+         * type, the second type, the result). An entry whose first slot is null is empty. The home
+         * entry of a pair depends on the first type only, so the pairs that share a first type form
+         * one probe run and the second type is never hashed. The table is allocated on the first
+         * {@link #add} and is at most two thirds full, so a probe always ends at an empty slot.
          */
         @Nullable Object @Nullable [] table;
 
@@ -289,7 +290,7 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
          */
         @SuppressWarnings("interning:not.interned") // the table is keyed on identity
         int slotFor(@Nullable Object[] table, Object type1, Object type2) {
-            int h = System.identityHashCode(type1) * 31 + System.identityHashCode(type2);
+            int h = System.identityHashCode(type1);
             h ^= (h >>> 16);
             int mask = table.length / ENTRY_SLOTS - 1;
             int i = (h & mask) * ENTRY_SLOTS;
