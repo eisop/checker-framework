@@ -4,18 +4,20 @@
 Usage: check-release-links.py [--online] UNPACKED_ZIP_DIR
 
 UNPACKED_ZIP_DIR is the checker-framework-VERSION directory that results from unpacking the
-release zip.  The pages checked are docs/checker-framework-webpage.html and
-docs/checker-framework-quick-start.html.  See the comment at the top of the first one for why its
-links are a mixture of relative and absolute.
+release zip.  The pages checked are docs/checker-framework-webpage.html,
+docs/checker-framework-quick-start.html, and the manual, docs/manual/manual.html.  See the comment
+at the top of the first one for why its links are a mixture of relative and absolute.
 
 Offline checks (always run; no network):
- * a relative link must name a file or directory that the zip contains, and a fragment must name an
-   anchor of that file;
+ * a relative link must name a file or directory that the zip contains, or, for a link into the
+   Javadoc, an entry of checker/dist/checker-javadoc.jar; a fragment must name an anchor of that
+   file;
  * an absolute path must be one of the site singletons below, and the zip download must be this
    release's;
  * an external (http/https) link must be well-formed.
-With --online, each external link is also fetched.  That is flaky, so it is not for pull requests;
-the release build uses it.
+With --online, each external link of the web page and the quick-start guide is also fetched.  That
+is flaky, so it is not for pull requests; the release build uses it.  The manual's several hundred
+external links are not fetched.
 """
 
 import argparse
@@ -23,19 +25,30 @@ import re
 import sys
 import urllib.error
 import urllib.request
+import zipfile
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urldefrag, urlparse
 
-PAGES = ["docs/checker-framework-webpage.html", "docs/checker-framework-quick-start.html"]
+# The pages to check, mapped to whether their external links are fetched with --online.
+PAGES = {
+    "docs/checker-framework-webpage.html": True,
+    "docs/checker-framework-quick-start.html": True,
+    "docs/manual/manual.html": False,
+}
 
 # Relative targets that the website generator produces rather than the zip carrying them, mapped
 # to the zip file the generator produces them from.  A link to the key resolves on the website.
 GENERATED = {
     "quick-start.html": "docs/checker-framework-quick-start.html",
-    "api/checker-javadoc/": "checker/dist/checker-javadoc.jar",
     "CFLogo.png": "docs/tutorial/CFLogo.png",
 }
+
+# The web page links to the Javadoc as api/ and the manual as ../api/, a directory that the zip
+# carries as a jar.  The website generator unpacks the jar there.  A link into it is checked
+# against the jar's entries.
+JAVADOC_DIR = "docs/api/"
+JAVADOC_JAR = "checker/dist/checker-javadoc.jar"
 
 # Absolute paths: site singletons, which exist only on the website, not in the zip.
 SITE_SINGLETONS = {"/cf/releases/releases.html", "/afu/annotation-file-utilities.html"}
@@ -61,14 +74,14 @@ class LinkParser(HTMLParser):
                 self.anchors.add(value)
 
 
-def parse(path: Path) -> LinkParser:
-    """Parse the HTML file at the given path.
+def parse(text: str) -> LinkParser:
+    """Parse the given HTML text.
 
     Returns:
-        the links and anchors of the file
+        the links and anchors of the text
     """
     parser = LinkParser()
-    parser.feed(path.read_text(encoding="utf-8", errors="replace"))
+    parser.feed(text)
     return parser
 
 
@@ -111,13 +124,25 @@ def main() -> int:
     zip_link = f"/cf/checker-framework-{version}.zip"
     errors: list[str] = []
     parsed: dict[Path, LinkParser] = {}
+    javadoc_jar_path = root / JAVADOC_JAR
+    if not javadoc_jar_path.is_file():
+        print(f"check-release-links: {JAVADOC_JAR}: not in the release", file=sys.stderr)
+        return 1
+    javadoc = zipfile.ZipFile(javadoc_jar_path)
+    javadoc_entries = set(javadoc.namelist())
+    javadoc_parsed: dict[str, LinkParser] = {}
 
     def anchors_of(path: Path) -> set[str]:
         if path not in parsed:
-            parsed[path] = parse(path)
+            parsed[path] = parse(path.read_text(encoding="utf-8", errors="replace"))
         return parsed[path].anchors
 
-    for page in PAGES:
+    def javadoc_anchors_of(entry: str) -> set[str]:
+        if entry not in javadoc_parsed:
+            javadoc_parsed[entry] = parse(javadoc.read(entry).decode("utf-8", errors="replace"))
+        return javadoc_parsed[entry].anchors
+
+    for page, fetch in PAGES.items():
         page_path = root / page
         if not page_path.is_file():
             errors.append(f"{page}: not in the release")
@@ -131,13 +156,14 @@ def main() -> int:
             if re.match(r"(mailto|javascript):", link):
                 continue
             if re.match(r"https?://", link):
-                check_external(link, args.online, errors, page)
+                check_external(link, args.online and fetch, errors, page)
                 continue
             if re.match(r"[a-z][a-z0-9+.-]*:", link, re.IGNORECASE) or link.startswith("//"):
                 errors.append(f"{where}: unexpected URL scheme")
                 continue
             target, fragment = urldefrag(link)
             target = unquote(target)
+            fragment = unquote(fragment)
             if target.startswith("/"):
                 if target in SITE_SINGLETONS or target == zip_link:
                     continue
@@ -155,6 +181,18 @@ def main() -> int:
                 if root not in resolved.parents and resolved != root:
                     errors.append(f"{where}: points outside the release")
                     continue
+                relative = resolved.relative_to(root).as_posix()
+                if target.endswith("/"):
+                    relative += "/"
+                if relative.startswith(JAVADOC_DIR):
+                    entry = relative.removeprefix(JAVADOC_DIR)
+                    if entry == "" or entry.endswith("/"):
+                        entry += "index.html"
+                    if entry not in javadoc_entries:
+                        errors.append(f"{where}: {entry} is not in {JAVADOC_JAR}")
+                    elif fragment and fragment not in javadoc_anchors_of(entry):
+                        errors.append(f"{where}: no anchor '{fragment}' in {JAVADOC_JAR}:{entry}")
+                    continue
                 if target.endswith("/"):
                     resolved = resolved / "index.html"
             if not resolved.is_file():
@@ -166,6 +204,7 @@ def main() -> int:
                         f"{where}: no anchor '{fragment}' in {resolved.relative_to(root)}"
                     )
 
+    javadoc.close()
     for e in errors:
         print(f"check-release-links: {e}", file=sys.stderr)
     if errors:

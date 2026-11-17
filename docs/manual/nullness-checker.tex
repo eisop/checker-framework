@@ -54,7 +54,7 @@ The checker issues a warning in these cases:
   is indexed, an exception is thrown, a lock is taken in a synchronized
   block, and more.  For a complete description of all checks performed by
   the Nullness Checker, see the Javadoc for
-  \refclass{checker/nullness}{NullnessVisitor}.
+  \refclass{checker/nullness}{NullnessNoInitVisitor}.
 
 \item
   When an expression of \refqualclass{checker/nullness/qual}{NonNull} type
@@ -503,7 +503,7 @@ For example, enum types are implicitly non-null, so you never need to write
 \<@NonNull MyEnumType>.
 
 If you want details about implicitly-added nullness qualifiers, see the
-implementation of \refclass{checker/nullness}{NullnessAnnotatedTypeFactory}.
+implementation of \refclass{checker/nullness}{NullnessNoInitAnnotatedTypeFactory}.
 
 
 

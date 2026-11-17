@@ -817,10 +817,10 @@ Also, Section~\ref{defaults}
 describes other meta-annotations used to specify default annotations.
 
 When specifying defaults procedurally via methods such as
-\refmethod{framework/util/defaults}{QualifierDefaults}{addCheckedCodeDefault}{},
-\refmethod{framework/util/defaults}{QualifierDefaults}{addConservativeUncheckedCodeDefault}{},
-\refmethod{framework/util/defaults}{QualifierDefaults}{addPermissiveUncheckedCodeDefault}{}, or
-\refmethod{framework/util/defaults}{QualifierDefaults}{addElementDefault}{},
+\refmethod{framework/util/defaults}{QualifierDefaults}{addCheckedCodeDefault}{(javax.lang.model.element.AnnotationMirror,org.checkerframework.framework.qual.TypeUseLocation)},
+\refmethod{framework/util/defaults}{QualifierDefaults}{addConservativeUncheckedCodeDefault}{(javax.lang.model.element.AnnotationMirror,org.checkerframework.framework.qual.TypeUseLocation)},
+\refmethod{framework/util/defaults}{QualifierDefaults}{addPermissiveUncheckedCodeDefault}{(javax.lang.model.element.AnnotationMirror,org.checkerframework.framework.qual.TypeUseLocation)}, or
+\refmethod{framework/util/defaults}{QualifierDefaults}{addElementDefault}{(javax.lang.model.element.Element,javax.lang.model.element.AnnotationMirror,org.checkerframework.framework.qual.TypeUseLocation)},
 the target location must be permitted for the qualifier:
 \begin{itemize}
 \item Top and bottom qualifiers in a qualifier hierarchy are permitted as programmatic defaults at all locations by default (as the canonical bounds of the lattice), even if their \refqualclass{framework/qual}{TargetLocations} restricts explicit user use.
@@ -1331,12 +1331,12 @@ is an error, so a typo does not silently do nothing.
 \subsubsectionAndLabel{Default Options}{creating-providing-command-line-options-default-options}
 
 The default options passed to a custom checker may be customized by overriding the
-\refmethodterse{common/basetype}{BaseTypeChecker}{getOptions}{()} method in the
+\refmethodterse{framework/source}{SourceChecker}{getOptions}{()} method in the
 custom checker class.
 
 For example, to ignore the \<introduce.eliminate> warnings raised by the
 Optional Checker (Chapter~\ref{optional-checker}), override
-\refmethodterse{common/basetype}{BaseTypeChecker}{getOptions}{()} as follows:
+\refmethodterse{framework/source}{SourceChecker}{getOptions}{()} as follows:
 
 \begin{Verbatim}
   @Override
@@ -2321,7 +2321,7 @@ exactly one error, whose message key is \<dereference.of.nullable>, on
 the line following the ``// ::'' comment.
 
 The test classes (subclassing
-\refclass{framework/test}{CheckerFrameworkTest} or
+\refclass{framework/test}{CheckerFrameworkPerDirectoryTest} or
 \refclass{framework/test}{CheckerFrameworkPerFileTest}) compile the test
 inputs and assert that the actual diagnostics match the expected error
 comments.
