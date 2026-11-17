@@ -11,7 +11,7 @@ from pathlib import Path
 from release_errors import ReleaseError
 from release_utils import (
     continue_or_exit,
-    current_distribution_by_website,
+    current_release_version,
     delete_directory,
     delete_directory_if_exists,
     delete_if_exists,
@@ -301,7 +301,7 @@ def main(argv: list[str]) -> None:
 
     dev_checker_website = DEV_SITE_URL
     live_checker_website = LIVE_SITE_URL
-    current_cf_version = current_distribution_by_website(live_checker_website)
+    current_cf_version = current_release_version()
     new_cf_version = CF_VERSION
     test_mode = not has_command_line_option(argv, "release")
     validate_args(argv)
