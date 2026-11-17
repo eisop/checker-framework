@@ -387,9 +387,10 @@ A constructor reference, such as `Foo::new`, and an array constructor reference,
 `Object[]::new`, have the qualifiers of the constructor's result, as `new Foo()` does, where the
 reference does not write one, instead of those of a use of the type.
 
-A crash while computing the type of the left-hand side of an assignment no longer disables
-flow-sensitive type refinement for the rest of the compilation. The compilation units checked
-after the crash reported false positives, such as a dereference after `if (x != null)`.
+A crash while computing the type of the left-hand side of an assignment, including during type
+argument inference, no longer changes how the rest of the compilation is checked. Previously, the
+compilation units checked after the crash were checked without flow-sensitive type refinement and
+reported false positives, such as a dereference after `if (x != null)`.
 
 ### Implementation details
 
