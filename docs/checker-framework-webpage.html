@@ -10,7 +10,7 @@ served at two depths is what fixes the link scheme, so do not "simplify" it:
 
   relative  what exists beside the page at both depths.  manual/manual.html,
             manual/manual.pdf, manual/checker-framework-dataflow-manual.pdf,
-            tutorial/, api/checker-javadoc/, CHANGELOG.md, quick-start.html,
+            tutorial/, api/, CHANGELOG.md, quick-start.html,
             CFLogo.png, favicon-checkerframework.png
   absolute  site singletons, which exist only under /cf/ or /afu/.  The two
             zip downloads, /cf/releases/releases.html,
@@ -24,8 +24,8 @@ Three of the relative targets are produced by the website generator rather than
 carried in the zip, so they resolve on the website but not when this page is
 opened from an unzipped release: quick-start.html (the zip has
 docs/checker-framework-quick-start.html, which the generator renames),
-api/checker-javadoc/ (the zip has checker/dist/checker-javadoc.jar, which the
-generator unpacks), and CFLogo.png (the generator copies it up from tutorial/).
+api/ (the zip has checker/dist/checker-javadoc.jar, which the generator
+unpacks), and CFLogo.png (the generator copies it up from tutorial/).
 
 The version and date are stamped in at release time by the updateVersionNumbers
 task in release.gradle, which keys off the marker comments below.  Do not remove
@@ -93,7 +93,7 @@ to write your own compiler plug-ins.
         <a href="manual/manual.html#faq">FAQ (Frequently Asked Questions with answers)</a>
       </li>
       <li>
-        <a href="api/checker-javadoc/">Javadoc</a> API documentation
+        <a href="api/">Javadoc</a> API documentation
       </li>
       <li>
         <a href="CHANGELOG.md">Changelog</a>
@@ -195,7 +195,7 @@ If none of those documents answers your question, then use one of the
         <a href="manual/manual.html#faq">FAQ (Frequently Asked Questions with answers)</a>
       </li>
       <li>
-        <a href="api/checker-javadoc/">Javadoc</a> API documentation
+        <a href="api/">Javadoc</a> API documentation
       </li>
       <li>
         <a href="CHANGELOG.md">Changelog</a>
