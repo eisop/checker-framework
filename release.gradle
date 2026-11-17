@@ -58,11 +58,10 @@ tasks.register("updateVersionNumbersInDocs", Copy) {
     // Every file this task rewrites, and the marker text that each rewrite keys off.  A Copy task
     // silently skips a missing file, and a filter that matches nothing silently leaves the old
     // version in place, so check both up front.  Keep these in sync with the rules below.
-    String zipMarker = "<!-- checker-framework-zip-version -->"
     String dateMarker = "<!-- checker-framework-date -->"
     Map<String, List<String>> requiredMarkers = [
-        "checker-framework-webpage.html": [zipMarker, dateMarker],
-        "checker-framework-quick-start.html": [zipMarker],
+        "checker-framework-webpage.html": [dateMarker],
+        "checker-framework-quick-start.html": [],
         "manual/introduction.tex": [],
         "manual/external-tools.tex": [],
         "manual/manual.tex": ["ReleaseVersion}{", "ReleaseInfo}{"],
