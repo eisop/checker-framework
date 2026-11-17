@@ -9,8 +9,9 @@ docs/checker-framework-quick-start.html, and the manual, docs/manual/manual.html
 at the top of the first one for why its links are a mixture of relative and absolute.
 
 Offline checks (always run; no network):
- * a relative link must name a file or directory that the zip contains, and a fragment must name an
-   anchor of that file;
+ * a relative link must name a file or directory that the zip contains, or, for a link into the
+   Javadoc, an entry of checker/dist/checker-javadoc.jar; a fragment must name an anchor of that
+   file;
  * an absolute path must be one of the site singletons below, and the zip download must be this
    release's;
  * an external (http/https) link must be well-formed.
@@ -40,12 +41,12 @@ PAGES = {
 # to the zip file the generator produces them from.  A link to the key resolves on the website.
 GENERATED = {
     "quick-start.html": "docs/checker-framework-quick-start.html",
-    "api/checker-javadoc/": "checker/dist/checker-javadoc.jar",
     "CFLogo.png": "docs/tutorial/CFLogo.png",
 }
 
-# The manual links to the Javadoc as ../api/, a directory that the zip carries as a jar.  The
-# website generator unpacks the jar next to the manual, where those links resolve.
+# The web page links to the Javadoc as api/ and the manual as ../api/, a directory that the zip
+# carries as a jar.  The website generator unpacks the jar there.  A link into it is checked
+# against the jar's entries.
 JAVADOC_DIR = "docs/api/"
 JAVADOC_JAR = "checker/dist/checker-javadoc.jar"
 
@@ -124,8 +125,11 @@ def main() -> int:
     errors: list[str] = []
     parsed: dict[Path, LinkParser] = {}
     javadoc_jar_path = root / JAVADOC_JAR
-    javadoc = zipfile.ZipFile(javadoc_jar_path) if javadoc_jar_path.is_file() else None
-    javadoc_entries = set(javadoc.namelist()) if javadoc else set()
+    if not javadoc_jar_path.is_file():
+        print(f"check-release-links: {JAVADOC_JAR}: not in the release", file=sys.stderr)
+        return 1
+    javadoc = zipfile.ZipFile(javadoc_jar_path)
+    javadoc_entries = set(javadoc.namelist())
     javadoc_parsed: dict[str, LinkParser] = {}
 
     def anchors_of(path: Path) -> set[str]:
@@ -135,7 +139,6 @@ def main() -> int:
 
     def javadoc_anchors_of(entry: str) -> set[str]:
         if entry not in javadoc_parsed:
-            assert javadoc is not None
             javadoc_parsed[entry] = parse(javadoc.read(entry).decode("utf-8", errors="replace"))
         return javadoc_parsed[entry].anchors
 
@@ -201,6 +204,7 @@ def main() -> int:
                         f"{where}: no anchor '{fragment}' in {resolved.relative_to(root)}"
                     )
 
+    javadoc.close()
     for e in errors:
         print(f"check-release-links: {e}", file=sys.stderr)
     if errors:
