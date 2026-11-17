@@ -218,3 +218,30 @@ fi
 (cd docs/examples/afu-consumer \
   && "$ROOT_DIR/gradlew" -Dmaven.repo.local="$MAVEN_REPO" -PafuVersion="${VERSION}" --console=plain \
     clean smoketest)
+
+## No published POM depends on org.checkerframework:checker-qual, the typetools artifact: a
+## consumer must get io.github.eisop:checker-qual only.  (Exclusions of it are fine.)
+for pom in "$MAVEN_LOCAL"/*/"${VERSION}"/*.pom; do
+  python3 - "$pom" << 'EOF' || fail "$pom depends on org.checkerframework:checker-qual."
+import sys
+import xml.etree.ElementTree as ET
+ns = {"m": "http://maven.apache.org/POM/4.0.0"}
+for dep in ET.parse(sys.argv[1]).getroot().findall("m:dependencies/m:dependency", ns):
+    if dep.findtext("m:groupId", "", ns) == "org.checkerframework" and dep.findtext("m:artifactId", "", ns) == "checker-qual":
+        sys.exit(1)
+EOF
+done
+
+## Compile the Maven example against the published artifacts, as release_push.py does: the
+## checker runs from the annotation processor path and reports the example's expected error.
+MAVEN_EXAMPLE_DIR="$TMP_DIR/maven-example"
+./gradlew updateCopyMavenExample -Prelease=true -PdestDir="$MAVEN_EXAMPLE_DIR" --console=plain --warning-mode=all
+# The example's build is supposed to fail; `-fn` makes mvn exit normally and the grep decides.
+(cd "$MAVEN_EXAMPLE_DIR/MavenExample" \
+  && mvn -B -fn -Dmaven.repo.local="$MAVEN_REPO" compile > "$TMP_DIR/maven-example.txt" 2>&1) || true
+grep -Eq 'MavenExample\.java:\[30,(29|30)\] \[assignment\.type\.incompatible\] incompatible types in assignment\.' \
+  "$TMP_DIR/maven-example.txt" \
+  || {
+    cat "$TMP_DIR/maven-example.txt"
+    fail "The Maven example did not report its expected error with the published artifacts."
+  }
