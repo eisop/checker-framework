@@ -10,6 +10,7 @@ Copyright (c) 2012 University of Washington
 
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import re
@@ -214,19 +215,26 @@ def test_increment_version() -> None:
     assert increment_version("3.22.6.1") == "3.22.7"
 
 
-def current_distribution_by_website(site: str) -> str:
-    """Return the Checker Framework version from the Checker Framework website.
+def current_release_version() -> str:
+    """Return the version of the latest release of the Checker Framework on GitHub.
+
+    The web site is generated from the GitHub releases, so this is also the version it shows.
 
     Returns:
-        the Checker Framework version from the Checker Framework website.
+        the version of the latest release, such as 3.49.5-eisop1
+
+    Raises:
+        ReleaseError: if the latest release's tag is not checker-framework-VERSION
     """
-    print(f"Looking up checker-framework-version from {site}\n")
-    ver_re = re.compile(r"<!-- checker-framework-zip-version -->checker-framework-(.*)\.zip")
-    text = urllib.request.urlopen(url=site).read().decode("utf-8")
-    result = ver_re.search(text)
-    if result is None:
-        raise ReleaseError("Didn't find zip version in " + site)
-    return result.group(1)
+    url = "https://api.github.com/repos/eisop/checker-framework/releases/latest"
+    print(f"Looking up the latest release at {url}\n")
+    with urllib.request.urlopen(url=url) as response:
+        tag = json.load(response)["tag_name"]
+    prefix = "checker-framework-"
+    if not tag.startswith(prefix):
+        msg = f"The latest release's tag is not {prefix}VERSION: {tag}"
+        raise ReleaseError(msg)
+    return tag.removeprefix(prefix)
 
 
 # =========================================================================================

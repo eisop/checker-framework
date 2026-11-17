@@ -20,7 +20,7 @@ from release_utils import (
     commit_tag_and_push,
     continue_or_exit,
     create_empty_file,
-    current_distribution_by_website,
+    current_release_version,
     delete_directory_if_exists,
     delete_if_exists,
     ensure_writeable,
@@ -39,7 +39,6 @@ from release_vars import (
     CHECKLINK_REPO,
     DEV_SITE_DIR,
     INTERM_TO_BUILD_REPOS,
-    LIVE_SITE_URL,
     LIVE_TO_INTERM_REPOS,
     PLUME_BIB,
     PLUME_BIB_REPO,
@@ -344,14 +343,14 @@ def main(argv: list[str]) -> None:
     check_tools(TOOLS)
 
     # Usually we increment the release by 0.0.1 per release unless there is a major change.  The
-    # release script will read the current version of the Checker Framework from the release
-    # website and then suggest the next release version 0.0.1 higher than the current version. You
+    # release script will read the current version of the Checker Framework from the latest GitHub
+    # release and then suggest the next release version 0.0.1 higher than the current version. You
     # can also manually specify a version higher than the current version. Lower or equivalent
     # versions are not possible and will be rejected when you try to push the release.
 
     print_step("Build Step 3: Determine release versions.")  # MANUAL
 
-    old_cf_version = current_distribution_by_website(LIVE_SITE_URL)
+    old_cf_version = current_release_version()
     cf_version = CF_VERSION
     print("Version: " + cf_version + "\n")
     check_changelog_date(Path(CHECKER_FRAMEWORK) / "docs" / "CHANGELOG.md", cf_version)
