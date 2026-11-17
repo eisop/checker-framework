@@ -1,0 +1,3 @@
+LhsExceptionTypeVar.java:7:42: compiler.err.proc.messager: [type.argument.inference.crashed] Type argument inference crashed for LhsExceptionTypeVar.id
+error: An exception occurred: Simulated error from getAnnotatedTypeLhsNoTypeVarDefault.
+1 error
