@@ -2354,9 +2354,11 @@ public abstract class GenericAnnotatedTypeFactory<
     public AnnotatedTypeMirror getAnnotatedTypeLhsNoTypeVarDefault(Tree lhsTree) {
         boolean old = this.shouldDefaultTypeVarLocals;
         shouldDefaultTypeVarLocals = false;
-        AnnotatedTypeMirror type = getAnnotatedTypeLhs(lhsTree);
-        this.shouldDefaultTypeVarLocals = old;
-        return type;
+        try {
+            return getAnnotatedTypeLhs(lhsTree);
+        } finally {
+            this.shouldDefaultTypeVarLocals = old;
+        }
     }
 
     /**
