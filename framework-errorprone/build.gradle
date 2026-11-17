@@ -36,7 +36,10 @@ dependencies {
     // A PUBLISHED artifact (not a composite build): the build-graph edge crosses a published
     // -artifact boundary, so Gradle sees no project-path cycle even though error_prone_check_api
     // transitively depends on the published dataflow-errorprone built from this repo.
-    implementation(libs.error.prone.check.api)
+    // "compileOnly", as is usual for Error Prone plugins: the user's error_prone_core, on the same
+    // processor path, provides the check API at run time, so the user chooses its version.  The
+    // tests get it from error_prone_core.
+    compileOnly(libs.error.prone.check.api)
 
     // Test-only: run the plugin through Error Prone end-to-end.
     // - error_prone_test_helpers provides CompilationTestHelper (captures ALL compiler
