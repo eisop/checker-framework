@@ -1008,6 +1008,7 @@ tasks.register("zip", Zip) {
                 "docs/manual/manual.html",
                 "docs/manual/manual.pdf",
                 "docs/manual/*.svg",
+                "docs/manual/favicon-checkerframework.png",
                 "docs/examples/InterningExample.java",
                 "docs/examples/InterningExampleWithWarnings.java",
                 "docs/examples/NullnessExample.java",
