@@ -474,8 +474,11 @@ Removed methods that have been deprecated for more than two years:
 `TreeUtils.isVarArgs` (both overloads), `TreeUtils.isVarArgMethodCall`,
 `AbstractAnalysis.getContainingMethod` and `getContainingClass`,
 `JavaExpression.isUnassignableByOtherCode` and `isUnmodifiableByOtherCode` (use
-`isAssignableByOtherCode` and `isModifiableByOtherCode`, which are now abstract), and
-`AnnotatedTypeMirror.removeNonTopAnnotationInHierarchy` and `isAnnotatedInHierarchy`.
+`isAssignableByOtherCode` and `isModifiableByOtherCode`, which are now abstract),
+`AnnotatedTypeMirror.removeNonTopAnnotationInHierarchy` and `isAnnotatedInHierarchy`,
+`GenericAnnotatedTypeFactory.addComputedTypeAnnotations(Tree, AnnotatedTypeMirror, boolean)` (use
+`addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)` or `addComputedTypeAnnotationsWithoutFlow`),
+and `AnnotationUtils.isDeclarationAnnotation` (use `!isTypeUseAnnotation`).
 
 The test framework accepts an expected error key in square brackets, as in
 `// :: error: [assignment]`, as well as in parentheses, so tests written for

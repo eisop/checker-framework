@@ -2637,24 +2637,6 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Like {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)}. Overriding
-     * implementations typically simply pass the boolean to calls to super.
-     *
-     * @param tree an AST node
-     * @param type the type obtained from tree
-     * @param iUseFlow whether to use information from dataflow analysis
-     * @deprecated use {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)} or {@link
-     *     #addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)} if you want to add
-     *     computed type annotations without using flow information
-     */
-    @Deprecated // 2024-07-07
-    @SuppressWarnings("unused")
-    protected void addComputedTypeAnnotations(
-            Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-        addComputedTypeAnnotationsWithoutFlow(tree, type);
-    }
-
-    /**
      * A helper method to add computed type annotations to a type without using flow information.
      *
      * <p>This method is final; override {@link #addComputedTypeAnnotations(Tree,
