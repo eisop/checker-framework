@@ -73,6 +73,8 @@ are fixed; and shaded jars are ~2 MB smaller, no longer bundling a stray
 `module-info.class`, jsr305 classes, or an incomplete copy of the JSpecify
 annotations, and no longer contain a stray `MANIFEST.MF`, `LICENSE.txt`, or
 `.keep` at their root. The POMs of all artifacts give the license URL as `https://`.
+The POM of `io.github.eisop:checker` lists `checker-qual` and `checker-util` at
+`compile` scope instead of `runtime` scope.
 The shell scripts in `checker/bin`, such as `wpi.sh`, are executable in
 `checker-framework-VERSION.zip`.
 
@@ -704,6 +706,7 @@ eisop#778,
 eisop#786,
 eisop#792,
 eisop#833,
+eisop#849,
 eisop#863,
 eisop#949,
 eisop#1011,
@@ -729,6 +732,7 @@ eisop#1592,
 eisop#1637,
 eisop#1642,
 eisop#1653,
+eisop#1678,
 eisop#1735,
 eisop#1801,
 eisop#1818,
