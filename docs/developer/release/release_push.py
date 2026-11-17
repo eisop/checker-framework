@@ -470,10 +470,11 @@ def main(argv: list[str]) -> None:
 
         msg = (
             "\n"
-            "Download the following files to your local machine."
-            "\n"
-            f"  {LIVE_SITE_URL}/checker-framework-{new_cf_version}.zip\n"
-            f"  {LIVE_SITE_URL}/annotation-file-utilities-{new_cf_version}.zip\n"
+            "The web site is generated from this GitHub release, so take the release files from"
+            " the local copy of the site.  If this script runs on another machine, copy them to"
+            " yours:\n"
+            f"  {LIVE_SITE_DIR}/checker-framework-{new_cf_version}.zip\n"
+            f"  {LIVE_SITE_DIR}/annotation-file-utilities-{new_cf_version}.zip\n"
             "\n"
             "To post the Checker Framework release on GitHub:\n"
             "\n"
@@ -484,7 +485,7 @@ def main(argv: list[str]) -> None:
             + new_cf_version
             + "\n"
             + "* For the description, insert the latest Checker Framework changelog entry "
-            + f"(available at {LIVE_SITE_URL}/CHANGELOG.md). Please include the first "
+            + f"(in {LIVE_SITE_DIR}/CHANGELOG.md). Please include the first "
             "line with the release version and date.\n"
             + '* Find the link below "Attach binaries by dropping them here or selecting them." '
             + 'Click on "selecting them" and upload checker-framework-'
