@@ -17,6 +17,10 @@ ANNCAT ?= ../../bin/anncat
 JAVAVERSION := $(shell $(JAVA) -version 2>&1)
 
 #Switch the lines below to deactivate this test
+# "all" cleans first, and the steps use each other's outputs, so run them one at a time even under
+# "make -j".
+.NOTPARALLEL:
+
 all: clean results
 #all: warn_and_exit
 

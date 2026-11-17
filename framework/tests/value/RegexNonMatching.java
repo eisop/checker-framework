@@ -110,7 +110,7 @@ public class RegexNonMatching {
         @DoesNotMatchRegex({}) String s4 = s;
         // :: error: assignment.type.incompatible
         @DoesNotMatchRegex({".*"}) String s5 = s;
-        @UnknownVal() String s6 = s;
+        @UnknownVal String s6 = s;
     }
 
     void lubRegexWithStringVal(

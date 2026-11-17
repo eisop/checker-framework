@@ -30,7 +30,7 @@ public class Generics {
     }
 
     // reduced from real-world code
-    private <@CalledMethods() T extends Symbol> T getMember(Class<T> type, boolean b) {
+    private <@CalledMethods T extends Symbol> T getMember(Class<T> type, boolean b) {
         if (b) {
             T sym = getMember(type, !b);
             if (sym != null && sym.isStatic()) {

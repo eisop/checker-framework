@@ -685,6 +685,83 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
     }
 
     /**
+     * Returns the value of an expression that is described both by this value and by {@code other},
+     * such as an operand of {@code a == b} where the comparison is true. In each hierarchy, its
+     * qualifier is the greatest lower bound of the two values' qualifiers. Its underlying type is
+     * that of this value: the operands of a comparison need not have a common subtype, for example
+     * a {@code byte} compared with a {@code char}.
+     *
+     * @param other another value that describes the same expression
+     * @return the value of an expression that is described by both values, or null if it has
+     *     missing annotations
+     */
+    public @Nullable V refineToEqualValue(V other) {
+        TypeMirror thisType = this.getUnderlyingType();
+        AnnotationMirrorSet glb =
+                new EqualValueGlb()
+                        .combineSets(
+                                thisType,
+                                this.getAnnotations(),
+                                other.getUnderlyingType(),
+                                other.getAnnotations(),
+                                canBeMissingAnnotations(thisType));
+        return analysis.createAbstractValue(glb, thisType);
+    }
+
+    /**
+     * Computes the qualifiers for {@link #refineToEqualValue}. It differs from {@link ValueGlb}
+     * when one value is a type variable without a primary annotation in a hierarchy. As the value
+     * of an expression, such a type variable stands for the qualifier of its instantiation, which
+     * is only known to be below the type variable's upper bound. So the expression's qualifier is
+     * below the other value's qualifier and below that upper bound, and this class returns their
+     * greatest lower bound. {@link ValueGlb} returns the greatest lower bound with the type
+     * variable's lower bound, which is below any instantiation and therefore claims too much.
+     */
+    private class EqualValueGlb extends ValueGlb {
+
+        /** Creates a new EqualValueGlb. */
+        private EqualValueGlb() {}
+
+        @Override
+        protected @Nullable AnnotationMirror combineAnnotationWithTypeVar(
+                AnnotationMirror annotation,
+                AnnotatedTypeVariable typeVar,
+                AnnotationMirror top,
+                boolean canCombinedSetBeMissingAnnos) {
+            QualifierHierarchy qualHierarchy = analysis.getTypeFactory().getQualifierHierarchy();
+            AnnotationMirror upperBound = typeVar.getEffectiveAnnotationInHierarchy(top);
+            if (canCombinedSetBeMissingAnnos
+                    && isUseOf(typeVar)
+                    && qualHierarchy.isSubtypeQualifiersOnly(upperBound, annotation)) {
+                // The type variable itself, without a primary annotation, is at least as precise
+                // as the annotation, and the result is a use of that type variable.
+                return null;
+            }
+            TypeMirror typeVarTM = typeVar.getUnderlyingType();
+            return combineTwoAnnotations(annotation, typeVarTM, upperBound, typeVarTM, top);
+        }
+    }
+
+    /**
+     * Returns true if the underlying type of this value is a use of the given type variable, or a
+     * wildcard whose extends bound is.
+     *
+     * @param typeVar a type variable
+     * @return true if the underlying type of this value is a use of {@code typeVar}
+     */
+    private boolean isUseOf(AnnotatedTypeVariable typeVar) {
+        TypeMirror type = underlyingType;
+        if (type.getKind() == TypeKind.WILDCARD) {
+            type = ((WildcardType) type).getExtendsBound();
+        }
+        return type != null
+                && type.getKind() == TypeKind.TYPEVAR
+                && ((TypeVariable) type)
+                        .asElement()
+                        .equals(typeVar.getUnderlyingType().asElement());
+    }
+
+    /**
      * Compute the greatest lower bound of two values.
      *
      * <p><em>Important</em>: This method must fulfill the following contract:

@@ -596,7 +596,7 @@ public class OptionalImplVisitor
                             .anyMatch(nameOfMethodToVerify -> nameOfMethodToVerify.equals(callee));
             if (isCalleeInMethodsToVerifyWithNonEmptyChecker) {
                 Set<String> callers =
-                        calleesToCallers.computeIfAbsent(callee, (__) -> new HashSet<>());
+                        calleesToCallers.computeIfAbsent(callee, __ -> new HashSet<>());
                 callers.add(caller.getName().toString());
             }
         }

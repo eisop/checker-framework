@@ -7,7 +7,7 @@ public class EnumValues {
         SOUTH,
         EAST,
         WEST
-    };
+    }
 
     public static void enumValues() {
         Direction @ArrayLen(4) [] arr4 = Direction.values();

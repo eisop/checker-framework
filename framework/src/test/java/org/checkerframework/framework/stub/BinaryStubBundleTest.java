@@ -30,12 +30,11 @@ public class BinaryStubBundleTest {
      * @throws IOException if the bytes cannot be written
      */
     private static InputStream bundle(BodyWriter body) throws IOException {
-        return raw(
-                out -> {
-                    out.writeInt(BinaryStubBundle.MAGIC);
-                    out.writeShort(BinaryStubBundle.VERSION);
-                    body.write(out);
-                });
+        return raw(out -> {
+            out.writeInt(BinaryStubBundle.MAGIC);
+            out.writeShort(BinaryStubBundle.VERSION);
+            body.write(out);
+        });
     }
 
     /**
@@ -114,12 +113,11 @@ public class BinaryStubBundleTest {
     @Test
     public void negativeEntryLengthIsMalformed() throws IOException {
         assertMalformed(
-                bundle(
-                        out -> {
-                            out.writeInt(1); // one entry
-                            out.writeUTF("Foo.astub");
-                            out.writeInt(-1); // implausible length
-                        }),
+                bundle(out -> {
+                    out.writeInt(1); // one entry
+                    out.writeUTF("Foo.astub");
+                    out.writeInt(-1); // implausible length
+                }),
                 "implausible binary stub bundle entry length");
     }
 
@@ -127,12 +125,11 @@ public class BinaryStubBundleTest {
     @Test
     public void hugeEntryLengthIsMalformed() throws IOException {
         assertMalformed(
-                bundle(
-                        out -> {
-                            out.writeInt(1); // one entry
-                            out.writeUTF("Foo.astub");
-                            out.writeInt(Integer.MAX_VALUE); // implausible length
-                        }),
+                bundle(out -> {
+                    out.writeInt(1); // one entry
+                    out.writeUTF("Foo.astub");
+                    out.writeInt(Integer.MAX_VALUE); // implausible length
+                }),
                 "implausible binary stub bundle entry length");
     }
 
@@ -140,12 +137,11 @@ public class BinaryStubBundleTest {
     @Test
     public void truncatedFileIsMalformed() throws IOException {
         assertMalformed(
-                bundle(
-                        out -> {
-                            out.writeInt(1); // one entry
-                            out.writeUTF("Foo.astub");
-                            out.writeInt(10); // claims ten bytes, but supplies none
-                        }),
+                bundle(out -> {
+                    out.writeInt(1); // one entry
+                    out.writeUTF("Foo.astub");
+                    out.writeInt(10); // claims ten bytes, but supplies none
+                }),
                 null);
     }
 
@@ -153,11 +149,10 @@ public class BinaryStubBundleTest {
     @Test
     public void wrongMagicIsMalformed() throws IOException {
         assertMalformed(
-                raw(
-                        out -> {
-                            out.writeInt(0xDEADBEEF);
-                            out.writeShort(BinaryStubBundle.VERSION);
-                        }),
+                raw(out -> {
+                    out.writeInt(0xDEADBEEF);
+                    out.writeShort(BinaryStubBundle.VERSION);
+                }),
                 "Invalid binary stub bundle magic number");
     }
 
@@ -165,11 +160,10 @@ public class BinaryStubBundleTest {
     @Test
     public void wrongVersionIsMalformed() throws IOException {
         assertMalformed(
-                raw(
-                        out -> {
-                            out.writeInt(BinaryStubBundle.MAGIC);
-                            out.writeShort(BinaryStubBundle.VERSION + 1);
-                        }),
+                raw(out -> {
+                    out.writeInt(BinaryStubBundle.MAGIC);
+                    out.writeShort(BinaryStubBundle.VERSION + 1);
+                }),
                 "Unsupported binary stub bundle version");
     }
 }

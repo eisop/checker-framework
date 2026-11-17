@@ -834,7 +834,9 @@ by name, so any Checker Framework checker on the path can be run.
 
 The plugin is published to Maven Central as \code{io.github.eisop:framework-errorprone},
 with the same version as the other Checker Framework artifacts; replace \<VERSION> below
-with that version (currently \ReleaseVersion{}).
+with that version (currently \ReleaseVersion{}).  The plugin's POM does not bring in Error
+Prone; the plugin runs with the \<error\_prone\_core> on the same path.  It is built and
+tested with Error Prone 2.52.0, the version in the example below.
 
 For example, with the
 \href{https://github.com/tbroyer/gradle-errorprone-plugin}{Gradle Error Prone plugin}, add
@@ -842,7 +844,7 @@ to your \<build.gradle> file:
 \begin{Verbatim}
 plugins {
     id 'java'
-    id 'net.ltgt.errorprone' version '5.1.0'
+    id 'net.ltgt.errorprone' version '5.2.0'
 }
 
 dependencies {
@@ -850,7 +852,7 @@ dependencies {
     compileOnly     "io.github.eisop:checker-qual:VERSION"
 
     // Error Prone, the eisopcf plugin, and the checkers to run.
-    errorprone      "com.google.errorprone:error_prone_core:2.50.0"
+    errorprone      "com.google.errorprone:error_prone_core:2.52.0"
     errorprone      "io.github.eisop:framework-errorprone:VERSION"
     errorprone      "io.github.eisop:checker:VERSION"
 }
@@ -1009,7 +1011,11 @@ Error Prone's own checks do.  In addition, a type system can supply its own fix 
 specific finding, which is offered ahead of the suppression fix.  For example, the Nullness
 Checker reports a nullness annotation on a primitive type (such as \<@Nullable int x>) and
 offers a fix that removes the annotation, so running Error Prone in patch mode rewrites
-\<@Nullable int x> to \<int x>.
+\<@Nullable int x> to \<int x>.  Likewise, for a nullness annotation on the outer type of a
+qualified inner class type, it offers a fix that moves the annotation onto the inner type,
+rewriting \<@Nullable Outer.Inner> to \<Outer.@Nullable Inner>.  Every checker, under
+\<-AcheckPurityAnnotations>, reports a method annotated with both \<@SideEffectFree> and
+\<@Deterministic> and offers a fix that replaces the two annotations by \<@Pure>.
 
 \subsectionAndLabel{Limitations}{error-prone-limitations}
 
@@ -1037,12 +1043,15 @@ add the following configuration to your \<build.gradle> file.
 \begin{Verbatim}
 plugins {
     // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '0.6.44'
+    id 'org.checkerframework' version '1.0.2'
 }
 
 apply plugin: 'org.checkerframework'
 
 checkerFramework {
+  // Use the EISOP Checker Framework version from the dependencies below,
+  // not the version the plugin would add by default.
+  version = "dependencies"
   checkers = [
     'org.checkerframework.checker.nullness.NullnessChecker',
   ]

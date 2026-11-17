@@ -121,7 +121,9 @@ fi
 # and silently fall back to the default depth of 64, which truncates the
 # leaf-most callers of the deep visitor + dataflow + qualifier-hierarchy stacks
 # this profile is meant to capture. It must be set separately.
-RECORDER_OPTS="-XX:FlightRecorderOptions=stackdepth=256"
+# CF stacks are about 100 frames deep (p99 about 200 on KeY's key.core); 1024
+# also keeps the repeating frames of a runaway recursion visible.
+RECORDER_OPTS="-XX:FlightRecorderOptions=stackdepth=1024"
 
 if [[ $JAVAC_MODE -eq 1 ]]; then
   # Single forked javac: it is the only JVM, so a fixed filename is unambiguous.

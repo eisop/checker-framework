@@ -16,7 +16,11 @@ compile:
 	$(MAKE) -C BazelExample
 	$(MAKE) -C nullaway
 	$(MAKE) -C jspecify
+# Not on Windows, where make runs the script's "#!/bin/bash" with the bash of the Windows Subsystem
+# for Linux rather than that of Git for Windows.  Releases are published on Linux.
+ifneq ($(OS),Windows_NT)
 	$(MAKE) -C publish-smoketest
+endif
 	$(MAKE) -C eisop-errorprone
 	$(MAKE) -C typetools-checker-qual
 

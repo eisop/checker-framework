@@ -12,8 +12,7 @@ public class Issue870 {
 
     public static Stream<? extends ZipEntry> entries2(ZipFile zipFile) {
         return zipFile.stream()
-                .filter(
-                        (ZipEntry entry) ->
-                                !entry.isDirectory() && entry.getName().endsWith(".xml"));
+                .filter((ZipEntry entry) ->
+                        !entry.isDirectory() && entry.getName().endsWith(".xml"));
     }
 }

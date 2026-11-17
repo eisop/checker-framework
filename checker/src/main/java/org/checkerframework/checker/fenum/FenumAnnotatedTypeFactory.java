@@ -14,6 +14,7 @@ import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
@@ -79,7 +80,7 @@ public class FenumAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         // load directories of qualifiers
-        for (String dirName : checker.getStringsOption("qualDirs", ',')) {
+        for (String dirName : SystemUtil.splitPaths(checker.getOption("qualDirs"))) {
             qualSet.addAll(loader.loadExternalAnnotationClassesFromDirectory(dirName));
         }
 

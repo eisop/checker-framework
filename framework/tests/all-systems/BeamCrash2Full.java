@@ -20,20 +20,14 @@ public class BeamCrash2Full {
                             "Property [%s] is marked with contradictory annotations. Found [%s].",
                             descriptor.getName(),
                             gettersWithTheAnnotation.stream()
-                                    .flatMap(
-                                            method ->
-                                                    Arrays.stream(method.getAnnotations())
-                                                            .filter(
-                                                                    annotationPredicates
-                                                                            .forAnnotation)
-                                                            .map(
-                                                                    annotation ->
-                                                                            String.format(
-                                                                                    "[%s on %s]",
-                                                                                    formatAnnotation(
-                                                                                            annotation),
-                                                                                    formatMethodWithClass(
-                                                                                            method))))
+                                    .flatMap(method ->
+                                            Arrays.stream(method.getAnnotations())
+                                                    .filter(annotationPredicates.forAnnotation)
+                                                    .map(annotation ->
+                                                            String.format(
+                                                                    "[%s on %s]",
+                                                                    formatAnnotation(annotation),
+                                                                    formatMethodWithClass(method))))
                                     .collect(Collectors.joining(", "))));
         }
     }

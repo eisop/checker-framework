@@ -3,7 +3,14 @@ FILES=qual/Frequency.java \
   qual/Hz.java \
   qual/kHz.java
 
-JAVAOPTS= -classpath .:../../../checker/dist/checker.jar
+# The separator of class path entries; java on Windows takes ";".
+ifeq ($(OS),Windows_NT)
+  SEP := ;
+else
+  SEP := :
+endif
+
+JAVAOPTS= -classpath ".$(SEP)../../../checker/dist/checker.jar"
 
 JAVAC?=../../../checker/bin/javac
 
@@ -25,13 +32,13 @@ compile-for-test:
 # test case for using externally defined units by explicitly naming them using the -Aunits option
 named-quals-test:
 	-$(JAVAC) -classpath $(PROJECTDIR) -processor org.checkerframework.checker.units.UnitsChecker -Aunits=qual.Hz,qual.kHz,qual.Frequency UnitsExtensionDemo.java > Out.txt 2>&1
-	diff -u Expected.txt Out.txt
+	tr -d '\r' < Out.txt | diff -u Expected.txt -
 	rm -f Out.txt
 
 # test case for using externally defined units by loading them from a directory using the -AunitsDirs option
 qual-folder-test:
 	-$(JAVAC) -classpath $(PROJECTDIR) -processor org.checkerframework.checker.units.UnitsChecker -AunitsDirs=$(PROJECTDIR) UnitsExtensionDemo.java > Out.txt 2>&1
-	diff -u Expected.txt Out.txt
+	tr -d '\r' < Out.txt | diff -u Expected.txt -
 	rm -f Out.txt
 
 # test clean up

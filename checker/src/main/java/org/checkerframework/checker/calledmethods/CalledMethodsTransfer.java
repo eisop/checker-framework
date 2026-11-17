@@ -187,12 +187,10 @@ public class CalledMethodsTransfer extends AccumulationTransfer {
                 }
             }
             AnnotationMirror newAnno = atypeFactory.createAccumulatorAnnotation(valuesAsList);
-            exceptionalStores.forEach(
-                    (tm, s) ->
-                            s.replaceValue(
-                                    target,
-                                    analysis.createSingleAnnotationValue(
-                                            newAnno, target.getType())));
+            exceptionalStores.forEach((tm, s) ->
+                    s.replaceValue(
+                            target,
+                            analysis.createSingleAnnotationValue(newAnno, target.getType())));
         }
     }
 

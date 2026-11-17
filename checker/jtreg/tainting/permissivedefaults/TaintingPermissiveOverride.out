@@ -1,0 +1,22 @@
+TaintingPermissiveOverride.java:26:52: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for value.
+found   : @Untainted String
+required: @Tainted String
+Consequence: method in @Tainted TaintingPermissiveOverride
+  void taintedParameter(@Tainted TaintingPermissiveOverride this, @Untainted String p0)
+cannot override method in @Tainted TaintingLib
+  void taintedParameter(@Tainted TaintingLib this, @Tainted String p0)
+TaintingPermissiveOverride.java:33:64: compiler.err.proc.messager: [override.param.invalid] Incompatible parameter type for values.
+found   : @Tainted List<@Untainted String>
+required: @Tainted List<@Tainted String>
+Consequence: method in @Tainted TaintingPermissiveOverride
+  void taintedElementNarrowed(@Tainted TaintingPermissiveOverride this, @Tainted List<@Untainted String> p0)
+cannot override method in @Tainted TaintingLib
+  void taintedElementNarrowed(@Tainted TaintingLib this, @Tainted List<@Tainted String> p0)
+TaintingPermissiveOverride.java:43:21: compiler.err.proc.messager: [override.return.invalid] Incompatible return type.
+found   : @Tainted String
+required: @Untainted String
+Consequence: method in @Tainted TaintingPermissiveOverride
+  @Tainted String untaintedReturn(@Tainted TaintingPermissiveOverride this)
+cannot override method in @Tainted TaintingLib
+  @Untainted String untaintedReturn(@Tainted TaintingLib this)
+3 errors

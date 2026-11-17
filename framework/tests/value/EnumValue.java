@@ -7,19 +7,19 @@ public class EnumValue {
         WEST,
         SOUTH,
         EAST
-    };
+    }
 
     public enum Color {
         BLUE,
         RED,
         GREEN
-    };
+    }
 
     private enum Fruit {
         APPLE,
         ORANGE,
         PEAR
-    };
+    }
 
     void simpleTest() {
         Direction @ArrayLen(4) [] myCompass = Direction.values();

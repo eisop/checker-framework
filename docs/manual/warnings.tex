@@ -118,6 +118,10 @@ Checker, for which you use the annotation name; see
 Section~\ref{subtyping-using}.)
 Sometimes, a checker honors multiple \emph{checkername} arguments; use
 the \code{-AshowSuppressWarningsStrings} command-line option to see them.
+A checker also honors the \emph{checkername} of every checker that runs it
+as a subchecker; for example, \code{@SuppressWarnings("index")} suppresses
+the warnings of the Constant Value Checker when it runs under the Index
+Checker.
 
 The argument \emph{messagekey} is the message key for the error.
 Each warning message from the compiler gives the most specific
@@ -670,6 +674,9 @@ definitions should be type-checked.
 Section~\ref{askipfiles}.)
 The regular expressions are unanchored, unless you anchor them yourself
 with ``\codesize\verb|^|'' and/or ``\codesize\verb|$|''.
+An anonymous or local class, which has no fully-qualified name, is checked if
+and only if its innermost enclosing class with a fully-qualified name is, and
+so is a class nested in an anonymous or local class.
 
 For example, if you use
 ``{\codesize\verb|-AskipDefs=^mypackage\.|}'' on the command line

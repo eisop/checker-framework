@@ -6,11 +6,13 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
 import tempfile
 from pathlib import Path
 
+from release_errors import ReleaseError
 from release_utils import (
     check_repo,
     check_tools,
@@ -18,7 +20,7 @@ from release_utils import (
     commit_tag_and_push,
     continue_or_exit,
     create_empty_file,
-    current_distribution_by_website,
+    current_release_version,
     delete_directory_if_exists,
     delete_if_exists,
     ensure_writeable,
@@ -37,7 +39,6 @@ from release_vars import (
     CHECKLINK_REPO,
     DEV_SITE_DIR,
     INTERM_TO_BUILD_REPOS,
-    LIVE_SITE_URL,
     LIVE_TO_INTERM_REPOS,
     PLUME_BIB,
     PLUME_BIB_REPO,
@@ -125,6 +126,26 @@ def get_new_version(project_name: str, curr_version: str) -> tuple[str, str]:
         print("Current version: " + curr_version)
 
     return (curr_version, new_version)
+
+
+def check_changelog_date(changelog: Path, version: str) -> None:
+    """Check that the date of the changelog's section for the given version is not a placeholder.
+
+    The section's heading is "## Version VERSION (DATE)".  Until release day, DATE may be a
+    placeholder such as "June ?, 2026"; a release must not ship it.
+
+    Raises:
+        ReleaseError: If the changelog has no section for the version, or its date is a placeholder.
+    """
+    heading = re.compile("^## Version " + re.escape(version) + r" \((.*)\)$", re.MULTILINE)
+    match = heading.search(changelog.read_text(encoding="utf-8"))
+    if match is None:
+        msg = f"{changelog} has no section for version {version}."
+        raise ReleaseError(msg)
+    date = match.group(1)
+    if "?" in date or "TODO" in date:
+        msg = f"The date of version {version} in {changelog} is a placeholder: {date}"
+        raise ReleaseError(msg)
 
 
 def create_dev_website_release_version_dir(project_name: str | None, version: str) -> Path:
@@ -322,16 +343,17 @@ def main(argv: list[str]) -> None:
     check_tools(TOOLS)
 
     # Usually we increment the release by 0.0.1 per release unless there is a major change.  The
-    # release script will read the current version of the Checker Framework from the release
-    # website and then suggest the next release version 0.0.1 higher than the current version. You
+    # release script will read the current version of the Checker Framework from the latest GitHub
+    # release and then suggest the next release version 0.0.1 higher than the current version. You
     # can also manually specify a version higher than the current version. Lower or equivalent
     # versions are not possible and will be rejected when you try to push the release.
 
     print_step("Build Step 3: Determine release versions.")  # MANUAL
 
-    old_cf_version = current_distribution_by_website(LIVE_SITE_URL)
+    old_cf_version = current_release_version()
     cf_version = CF_VERSION
     print("Version: " + cf_version + "\n")
+    check_changelog_date(Path(CHECKER_FRAMEWORK) / "docs" / "CHANGELOG.md", cf_version)
 
     if old_cf_version == cf_version:
         print(

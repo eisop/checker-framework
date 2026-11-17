@@ -241,6 +241,50 @@ public class InferenceResult {
     }
 
     /**
+     * Creates a copy of {@code original} whose type arguments are deep copies.
+     *
+     * @param original the inference result to copy
+     */
+    private InferenceResult(InferenceResult original) {
+        this.results = new HashMap<>(original.results.size());
+        for (Map.Entry<Tree, Map<TypeVariable, AnnotatedTypeMirror>> entry :
+                original.results.entrySet()) {
+            Map<TypeVariable, AnnotatedTypeMirror> typeArgs =
+                    new HashMap<>(entry.getValue().size());
+            for (Map.Entry<TypeVariable, AnnotatedTypeMirror> typeArg :
+                    entry.getValue().entrySet()) {
+                typeArgs.put(typeArg.getKey(), typeArg.getValue().deepCopy());
+            }
+            this.results.put(entry.getKey(), typeArgs);
+        }
+        this.uncheckedConversion = original.uncheckedConversion;
+        this.annoInferenceFailed = original.annoInferenceFailed;
+        this.errorMsg = original.errorMsg;
+        this.inferenceCrashed = original.inferenceCrashed;
+        this.inferenceBudgetExceeded = original.inferenceBudgetExceeded;
+    }
+
+    /**
+     * Returns a copy of this result for another computation of the same method type, {@code
+     * methodType}, of {@code tree}: its type arguments are deep copies, so that a caller can modify
+     * them, and they are keyed by the type variables of {@code methodType}.
+     *
+     * @param methodType the type of the method or constructor before type argument substitution
+     * @param tree the tree whose type arguments this result contains
+     * @return a copy of this result for {@code methodType}
+     */
+    public InferenceResult copyFor(AnnotatedExecutableType methodType, ExpressionTree tree) {
+        if (this == emptyResult) {
+            return this;
+        }
+        InferenceResult copy = new InferenceResult(this);
+        if (copy.results.get(tree) != null) {
+            copy.swapTypeVariables(methodType, tree);
+        }
+        return copy;
+    }
+
+    /**
      * Switch the {@link TypeVariable}s in {@code results} with the {@code TypeVariable}s in {@code
      * methodType} so that the {@code TypeVariable}s in the result are {@code .equals}. {@link
      * TypesUtils#areSame(TypeVariable, TypeVariable)} is used to decide which type variables to

@@ -24,7 +24,7 @@ public class Issue5042 {
     }
 
     static final Function<PromptViewModel, Boolean> IS_PENDING_OR_SHOWING_CONFIRMATION =
-            (viewModel) -> {
+            viewModel -> {
                 @Nullable PromptButtonViewModel promptLambda = viewModel.getConfirmationButton();
                 @Nullable ConfirmationPopupViewModel popup =
                         promptLambda != null ? promptLambda.getConfirmationPopup() : null;
@@ -32,7 +32,7 @@ public class Issue5042 {
             };
 
     final Function<PromptViewModel, Boolean> IS_PENDING_OR_SHOWING_CONFIRMATION2 =
-            (viewModel) -> {
+            viewModel -> {
                 @Nullable PromptButtonViewModel prompt = viewModel.getConfirmationButton();
                 @Nullable ConfirmationPopupViewModel popup =
                         prompt == null ? null : prompt.getConfirmationPopup();

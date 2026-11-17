@@ -63,7 +63,7 @@
     stroke:#000;
     stroke-width:3.2;
     marker-start:url(#arrow);
-    stroke-dasharray:0, 5, 1000;
+    stroke-dasharray:1000,5;stroke-dashoffset:-5;
     }
     polyline.noarrow{
     marker-start:none;
@@ -600,7 +600,7 @@
      points="720,360 720,450"
      id="polyline192-2"
      transform="translate(30.09959,-2.1630304)"
-     style="fill:none;stroke:#000000;stroke-width:3.2;stroke-dasharray:0, 5, 1000;marker-start:url(#arrow-9)" />
+     style="fill:none;stroke:#000000;stroke-width:3.2;stroke-dasharray:1000,5;stroke-dashoffset:-5;marker-start:url(#arrow-9)" />
   <polyline
      points="720,280 720,320"
      id="polyline194"
@@ -637,7 +637,7 @@
      points="720,280 720,320"
      id="polyline194-9"
      transform="translate(29.031255,-1.788207)"
-     style="fill:none;stroke:#000000;stroke-width:3.2;stroke-dasharray:0, 5, 1000;marker-start:url(#arrow-3)" />
+     style="fill:none;stroke:#000000;stroke-width:3.2;stroke-dasharray:1000,5;stroke-dashoffset:-5;marker-start:url(#arrow-3)" />
   <path
      style="fill:none;stroke:#000000;stroke-width:3.20026;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#arrow-2)"
      d="M 891.19251,279.37975 984.8836,447.7049"

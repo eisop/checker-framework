@@ -18,8 +18,8 @@ import javax.lang.model.element.AnnotationMirror;
  * Registers {@link AliasedCtorLegacyBottom} as an alias for {@link AliasedCtorBottom}. See {@code
  * framework/tests/aliasedctor} for what this is testing: that a constructor written with the alias,
  * not the canonical annotation, on its own declared type is still recognized when {@code
- * org.checkerframework.framework.util.AnnotatedTypes#copyOnlyExplicitConstructorAnnotations} copies
- * its explicit annotations to the type of a constructor reference ({@code Foo::new}).
+ * org.checkerframework.framework.type.AnnotatedTypeFactory#getResultingTypeOfConstructorMemberReference}
+ * computes the type of a constructor reference ({@code Foo::new}).
  */
 public class AliasedCtorAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 

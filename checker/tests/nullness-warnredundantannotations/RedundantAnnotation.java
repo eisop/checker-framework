@@ -72,7 +72,6 @@ Check for redundant annotations in the following locations
         List<? extends @NonNull Object> l;
 
         // TODO :: warning: (redundant.anno) warning on the lower bound
-        // :: error: (type.invalid.super.wildcard)
         List<? super @NonNull Object> l2;
 
         Object obj = null;

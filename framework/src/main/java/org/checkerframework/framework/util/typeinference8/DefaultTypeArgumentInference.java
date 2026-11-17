@@ -23,6 +23,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -39,6 +40,41 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
 
     /** Stack of all inference problems currently being solved. */
     private final ArrayDeque<InvocationTypeInference> java8InferenceStack = new ArrayDeque<>();
+
+    /**
+     * A poly expression whose type arguments are inferred as if it were not nested in another
+     * expression, or null; see {@link #inferStandalone}.
+     */
+    private @Nullable ExpressionTree standaloneTree = null;
+
+    /**
+     * Returns the result of {@code computation}, during which the type arguments of {@code tree}
+     * are inferred as if {@code tree} were not nested in another expression: without inferring the
+     * invocations whose inference includes it, and without a target type.
+     *
+     * @param <R> the type of the result
+     * @param tree a poly expression
+     * @param computation the computation
+     * @return the result of {@code computation}
+     */
+    public <R> R inferStandalone(ExpressionTree tree, Supplier<R> computation) {
+        ExpressionTree previous = standaloneTree;
+        standaloneTree = tree;
+        try {
+            return computation.get();
+        } finally {
+            standaloneTree = previous;
+        }
+    }
+
+    /**
+     * Returns true if {@link #inferStandalone} is running.
+     *
+     * @return true if {@link #inferStandalone} is running
+     */
+    public boolean isInferringStandalone() {
+        return standaloneTree != null;
+    }
 
     /** Creates a DefaultTypeArgumentInference. */
     public DefaultTypeArgumentInference() {}
@@ -66,6 +102,17 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         // So, first find the outermost tree that is required to infer the type arguments for
         // expressionTree
         ExpressionTree outerTree = outerInference(expressionTree, pathToExpression.getParentPath());
+        if (standaloneTree != null && outerTree != expressionTree) {
+            // Do not infer the invocations that enclose standaloneTree.
+            for (TreePath p = pathToExpression;
+                    p != null && p.getLeaf() != outerTree;
+                    p = p.getParentPath()) {
+                if (p.getLeaf() == standaloneTree) {
+                    outerTree = standaloneTree;
+                    break;
+                }
+            }
+        }
 
         if (java8Inference != null && java8Inference.context.maps.containsKey(expressionTree)) {
             // Inference of expressionTree has started as part of the current inference problem,
@@ -85,25 +132,11 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         }
         AnnotatedExecutableType outerMethodType;
         if (outerTree != expressionTree) {
-            if (outerTree instanceof MethodInvocationTree) {
-                pathToExpression = typeFactory.getPath(outerTree);
-                outerMethodType =
-                        typeFactory.methodFromUseWithoutTypeArgInference(
-                                        (MethodInvocationTree) outerTree)
-                                .executableType;
-            } else if (outerTree instanceof NewClassTree) {
-                pathToExpression = typeFactory.getPath(outerTree);
-                outerMethodType =
-                        typeFactory.constructorFromUseWithoutTypeArgInference(
-                                        (NewClassTree) outerTree)
-                                .executableType;
-            } else if (outerTree instanceof MemberReferenceTree) {
-                pathToExpression = typeFactory.getPath(outerTree);
+            pathToExpression = typeFactory.getPath(outerTree);
+            if (outerTree instanceof MemberReferenceTree) {
                 outerMethodType = null;
             } else {
-                throw new BugInCF(
-                        "Unexpected kind of outer expression to infer type arguments: %s",
-                        outerTree.getKind());
+                outerMethodType = methodTypeWithoutTypeArgInference(typeFactory, outerTree);
             }
         } else {
             outerMethodType = methodType;
@@ -113,6 +146,7 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         }
         try {
             java8Inference = new InvocationTypeInference(typeFactory, pathToExpression);
+            java8Inference.withoutTargetType = outerTree == standaloneTree;
             if (outerTree instanceof MemberReferenceTree) {
                 return java8Inference.infer((MemberReferenceTree) outerTree);
             } else {
@@ -124,12 +158,19 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
                         return java8Inference.infer((MemberReferenceTree) expressionTree);
                     }
                     // expressionTree is not part of the problem of outerTree (see
-                    // AdditionalArgument#reduce), so infer it on its own, now that the lambda
-                    // parameters it uses have their types.
-                    java8Inference =
-                            new InvocationTypeInference(
-                                    typeFactory, typeFactory.getPath(expressionTree));
-                    result = java8Inference.infer(expressionTree, methodType);
+                    // AdditionalArgument#reduce). An invocation between the two may still have
+                    // it as part of its problem, and inferring expressionTree on its own would
+                    // take its target type from that invocation's method type before type
+                    // argument inference. So infer the enclosing invocations first.
+                    result = inferEnclosingInvocations(typeFactory, expressionTree, outerTree);
+                    if (result == null) {
+                        // Infer expressionTree on its own, now that the lambda parameters it
+                        // uses have their types.
+                        java8Inference =
+                                new InvocationTypeInference(
+                                        typeFactory, typeFactory.getPath(expressionTree));
+                        result = java8Inference.infer(expressionTree, methodType);
+                    }
                 }
                 return result.swapTypeVariables(methodType, expressionTree);
             }
@@ -165,6 +206,98 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
     }
 
     /**
+     * Infers the type arguments of the method and constructor invocations that enclose {@code
+     * expressionTree}, up to but not including {@code outerTree}, from the outermost one in, until
+     * one of them has {@code expressionTree} in its inference problem. Returns the result of that
+     * one, or null if there is none.
+     *
+     * <p>{@link #outerInference} decides from the declared type of a method whether an argument
+     * needs the enclosing invocation to be inferred. The type of the method as a member of the
+     * receiver type may have no type variables at all, for example when the receiver is raw (JLS
+     * 4.8). The problem of such an invocation does not include its arguments, so the generic
+     * invocations between it and {@code expressionTree} are inferred here, each on its own. Each
+     * has a proper target type: the invocation enclosing it is {@code outerTree} or was inferred
+     * already, and did not include it in its problem.
+     *
+     * @param typeFactory the type factory
+     * @param expressionTree a method or constructor invocation
+     * @param outerTree the outermost invocation whose type arguments were inferred for {@code
+     *     expressionTree}, which encloses {@code expressionTree}
+     * @return the result of inferring the outermost enclosing invocation whose problem includes
+     *     {@code expressionTree}, or null if none does
+     */
+    @SuppressWarnings("interning:not.interned") // comparing trees for identity
+    private @Nullable InferenceResult inferEnclosingInvocations(
+            AnnotatedTypeFactory typeFactory,
+            ExpressionTree expressionTree,
+            ExpressionTree outerTree) {
+        List<TreePath> enclosing = new ArrayList<>();
+        for (TreePath path = typeFactory.getPath(expressionTree).getParentPath();
+                path != null && path.getLeaf() != outerTree;
+                path = path.getParentPath()) {
+            if (needsTypeArgInference(path.getLeaf())) {
+                enclosing.add(path);
+            }
+        }
+        for (int i = enclosing.size() - 1; i >= 0; i--) {
+            TreePath path = enclosing.get(i);
+            ExpressionTree invocation = (ExpressionTree) path.getLeaf();
+            java8Inference = new InvocationTypeInference(typeFactory, path);
+            InferenceResult result =
+                    java8Inference.infer(
+                            invocation, methodTypeWithoutTypeArgInference(typeFactory, invocation));
+            if (result.getResults().containsKey(expressionTree)) {
+                return result;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns true if {@code tree} is a method or constructor invocation that has type arguments to
+     * infer: it has type parameters, or is a diamond, and no explicit type arguments.
+     *
+     * @param tree a tree
+     * @return true if {@code tree} is an invocation that has type arguments to infer
+     */
+    private static boolean needsTypeArgInference(Tree tree) {
+        if (tree instanceof MethodInvocationTree) {
+            MethodInvocationTree methodInvocation = (MethodInvocationTree) tree;
+            return methodInvocation.getTypeArguments().isEmpty()
+                    && !TreeUtils.elementFromUse(methodInvocation).getTypeParameters().isEmpty();
+        } else if (tree instanceof NewClassTree) {
+            NewClassTree newClass = (NewClassTree) tree;
+            return newClass.getTypeArguments().isEmpty()
+                    && (TreeUtils.isDiamondTree(newClass)
+                            || !TreeUtils.elementFromUse(newClass).getTypeParameters().isEmpty());
+        }
+        return false;
+    }
+
+    /**
+     * Returns the type of the method or constructor invoked by {@code invocation}, without
+     * inferring its type arguments.
+     *
+     * @param typeFactory the type factory
+     * @param invocation a method or constructor invocation
+     * @return the type of the invoked method or constructor, before type argument inference
+     */
+    private static AnnotatedExecutableType methodTypeWithoutTypeArgInference(
+            AnnotatedTypeFactory typeFactory, ExpressionTree invocation) {
+        if (invocation instanceof MethodInvocationTree) {
+            return typeFactory.methodFromUseWithoutTypeArgInference(
+                            (MethodInvocationTree) invocation)
+                    .executableType;
+        } else if (invocation instanceof NewClassTree) {
+            return typeFactory.constructorFromUseWithoutTypeArgInference((NewClassTree) invocation)
+                    .executableType;
+        }
+        throw new BugInCF(
+                "Unexpected kind of outer expression to infer type arguments: %s",
+                invocation.getKind());
+    }
+
+    /**
      * Returns the type arguments of {@code expressionTree} that the running inference problem
      * {@code inference} has already instantiated, without inferring any others.
      *
@@ -180,12 +313,11 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         }
         List<Variable> instantiated = new ArrayList<>();
         m.values()
-                .forEach(
-                        var -> {
-                            if (var.getInstantiation() != null) {
-                                instantiated.add(var);
-                            }
-                        });
+                .forEach(var -> {
+                    if (var.getInstantiation() != null) {
+                        instantiated.add(var);
+                    }
+                });
         if (instantiated.isEmpty()) {
             return InferenceResult.emptyResult();
         }

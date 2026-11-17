@@ -1,6 +1,5 @@
 package org.checkerframework.javacutil;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 
 /**
@@ -29,8 +28,7 @@ public interface DeepCopyable<T> {
      * @return the deep copy of a non-null argument, or {@code null} for a {@code null} argument
      * @param <T2> the type of the object
      */
-    static <T2 extends @Nullable DeepCopyable<T2>> @PolyNull T2 deepCopyOrNull(
-            @PolyNull T2 object) {
+    static <T2 extends DeepCopyable<T2>> @PolyNull T2 deepCopyOrNull(@PolyNull T2 object) {
         if (object == null) {
             return null;
         }

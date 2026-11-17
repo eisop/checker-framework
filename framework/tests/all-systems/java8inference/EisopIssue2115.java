@@ -19,17 +19,15 @@ public class EisopIssue2115 {
     }
 
     void throwStatement() {
-        invoke(
-                () -> {
-                    throw new MyError();
-                });
+        invoke(() -> {
+            throw new MyError();
+        });
     }
 
     void assertionError() {
-        invoke(
-                () -> {
-                    throw new AssertionError();
-                });
+        invoke(() -> {
+            throw new AssertionError();
+        });
     }
 
     void declaredThrows() {
@@ -37,10 +35,9 @@ public class EisopIssue2115 {
     }
 
     void constructor() {
-        invoke(
-                () -> {
-                    new Thrower();
-                });
+        invoke(() -> {
+            new Thrower();
+        });
     }
 
     static class Thrower {

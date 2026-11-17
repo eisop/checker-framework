@@ -6,7 +6,7 @@ public class Enums {
     public enum VarFlags {
         IS_PARAM,
         NO_DUPS
-    };
+    }
 
     public MyEnumSet<VarFlags> var_flags = new MyEnumSet<>();
 

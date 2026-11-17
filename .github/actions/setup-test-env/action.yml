@@ -30,6 +30,12 @@ inputs:
 runs:
   using: composite
   steps:
+    # Restored caches keep the times of their files, so a file newer than this marker was
+    # downloaded by the job; the last step of the job lists those files.
+    - name: Mark the time before the caches are restored
+      shell: bash
+      run: touch "$RUNNER_TEMP/downloads-marker"
+
     # GitHub does not enforce "required" for the inputs of a composite action.
     - name: Check the early-access JDK inputs
       shell: bash
@@ -43,14 +49,14 @@ runs:
         fi
 
     - name: Set up primary JDK ${{ inputs.primary-jdk }}
-      uses: actions/setup-java@v6.1.0
+      uses: actions/setup-java@v6.2.0
       with:
         java-version: ${{ inputs.primary-jdk }}
         distribution: 'zulu'
 
     - name: Set up stable target JDK ${{ inputs.target-jdk }}
       if: ${{ inputs.target-jdk != inputs.primary-jdk && inputs.target-jdk != inputs.jdk-ea-major }}
-      uses: actions/setup-java@v6.1.0
+      uses: actions/setup-java@v6.2.0
       with:
         java-version: ${{ inputs.target-jdk }}
         distribution: 'zulu'
@@ -111,6 +117,14 @@ runs:
         echo "::remove-matcher owner=javac::"
         echo "::remove-matcher owner=maven-javac::"
 
+    # After setup-java, which writes its own ~/.m2/settings.xml.
+    - name: Use Google's mirror of Maven Central
+      shell: bash
+      run: |
+        mkdir -p ~/.gradle/init.d ~/.m2
+        cp "${{ github.action_path }}/maven-central-mirror.gradle" ~/.gradle/init.d/
+        cp "${{ github.action_path }}/maven-settings.xml" ~/.m2/settings.xml
+
     - name: Pin Gradle to primary JDK via gradle.properties
       if: ${{ inputs.target-jdk != inputs.primary-jdk }}
       shell: bash
@@ -164,7 +178,7 @@ runs:
     # docs/examples/BazelExample/Makefile runs Bazel only on JDK 21 and earlier.
     - name: Setup Bazel
       if: ${{ inputs.script == 'cftests-nonjunit' && fromJSON(inputs.target-jdk) <= 21 }}
-      uses: bazel-contrib/setup-bazel@0.19.1
+      uses: bazel-contrib/setup-bazel@0.19.2
       with:
         bazelisk-cache: true
         disk-cache: ${{ github.workflow }}

@@ -710,6 +710,26 @@ allprojects { currentProj ->
     } // end afterEvaluate
 } // end allProjects
 
+// CI runs this task before a build, with a retry, so that a dependency that fails to download, for
+// example because Maven Central rate-limits the runner, is retried instead of failing a test task.
+allprojects {
+    tasks.register("resolveDependencies") {
+        description = "Downloads the artifacts of every resolvable configuration."
+        // Only external modules. The files are not an input of this task, so that it does not
+        // depend on the tasks that build the artifacts of this build's projects and file
+        // dependencies.
+        FileCollection externalFiles =
+                files(configurations.matching { it.canBeResolved }.collect { conf ->
+                    conf.incoming.artifactView {
+                        componentFilter { it instanceof ModuleComponentIdentifier }
+                    }.files
+                })
+        doLast {
+            externalFiles.files
+        }
+    }
+}
+
 tasks.register("version") {
     group = "Documentation"
     description = "Print Checker Framework version"
@@ -988,7 +1008,7 @@ tasks.register("zip", Zip) {
                 "docs/manual/manual.html",
                 "docs/manual/manual.pdf",
                 "docs/manual/*.svg",
-                "docs/manual/manual001.png",
+                "docs/manual/favicon-checkerframework.png",
                 "docs/examples/InterningExample.java",
                 "docs/examples/InterningExampleWithWarnings.java",
                 "docs/examples/NullnessExample.java",
@@ -1281,10 +1301,17 @@ subprojects {
     // ShadowJar would rewrite along with the package. It stays on the compile classpath, where
     // javac needs javax.annotation.meta.When to read Guava's annotations; without it `-Werror`
     // fails on "unknown enum constant When.UNKNOWN".
+    //
+    // The JSpecify annotations come in the same way: Guava's classes carry them, so minimize()
+    // keeps the few it finds referenced, unrelocated, as an incomplete copy of the
+    // `org.jspecify.annotations` package. No Checker Framework class references a JSpecify type
+    // either; the Nullness Checker recognizes the user's JSpecify annotations by name, from the
+    // user's classpath. Relocating them would rewrite those names.
     tasks.withType(com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configureEach {
         exclude("**/module-info.class")
         dependencies {
             exclude(dependency("com.google.code.findbugs:jsr305:.*"))
+            exclude(dependency("org.jspecify:jspecify:.*"))
         }
     }
 
@@ -1498,25 +1525,22 @@ subprojects {
                         "-vmoptions:--add-opens=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED",
                     ]
                 }
-                args += [
-                    "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-                    "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-                    "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
-                    "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-                    "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-                    "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-                    "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-                    "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-                    "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-                ]
+                // The javac-internal packages that running the Checker Framework needs.
+                args += (javacInternalExportedPackages + javacInternalOpenedPackages).collect { pkg ->
+                    "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.${pkg}=ALL-UNNAMED".toString()
+                }
                 if (isFramework) {
                     // Do not check for the annotated JDK
                     args += [
                         "-javacoptions:-ApermitMissingJdk"
                     ]
                 } else if (isChecker) {
+                    // The JSpecify annotations, which some tests use; the Checker Framework's own
+                    // jars do not contain them.
+                    String jspecifyJars = configurations.testRuntimeClasspath
+                            .filter { it.name.startsWith("jspecify-") }.asPath
                     args += [
-                        "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}",
+                        "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}:${jspecifyJars}",
                     ]
                 }
 
@@ -1946,12 +1970,42 @@ final createCheckTaskClosureScopingTask(Project project) {
 createCheckTaskClosureScopingTask(rootProject)
 
 /**
- * Adds the shared pom information to the given publication.
+ * Adds the pom information that every published artifact shares, for a GPL-licensed artifact that
+ * also exists in typetools. See the two-argument overload.
+ *
  * @param publication the MavenPublication
  */
-final sharedPublicationConfiguration(publication) {
+final sharedPublicationConfiguration(MavenPublication publication) {
+    sharedPublicationConfiguration([:], publication)
+}
+
+/**
+ * Adds the pom information that every published artifact shares: the project URL, the license,
+ * the lead developers, and the SCM information. The name and description are per artifact.
+ *
+ * @param options named options: {@code mitLicensed}, true if the artifact is under the MIT License
+ *     (checker-qual, checker-util, annotation-file-utilities), otherwise it is under the GPL with
+ *     the Classpath Exception; {@code eisopOnly}, true if the artifact exists only in EISOP and
+ *     not in typetools, so that it lists only the EISOP lead developers
+ * @param publication the MavenPublication
+ */
+final sharedPublicationConfiguration(Map options, MavenPublication publication) {
+    boolean mitLicensed = options.mitLicensed ?: false
+    boolean eisopOnly = options.eisopOnly ?: false
     publication.pom {
         url = "https://eisop.github.io/"
+        licenses {
+            license {
+                if (mitLicensed) {
+                    name = "The MIT License"
+                    url = "https://opensource.org/licenses/MIT"
+                } else {
+                    name = "GNU General Public License, version 2 (GPL2), with the classpath exception"
+                    url = "https://www.gnu.org/software/classpath/license.html"
+                }
+                distribution = "repo"
+            }
+        }
         developers {
             // These are the lead developers/maintainers, not all the developers or contributors.
 
@@ -1965,21 +2019,23 @@ final sharedPublicationConfiguration(publication) {
                 organizationUrl = "https://uwaterloo.ca/"
             }
 
-            // For typetools
-            developer {
-                id = "mernst"
-                name = "Michael Ernst"
-                email = "mernst@cs.washington.edu"
-                url = "https://homes.cs.washington.edu/~mernst/"
-                organization = "University of Washington"
-                organizationUrl = "https://www.cs.washington.edu/"
-            }
-            developer {
-                id = "smillst"
-                name = "Suzanne Millstein"
-                email = "smillst@cs.washington.edu"
-                organization = "University of Washington"
-                organizationUrl = "https://www.cs.washington.edu/"
+            if (!eisopOnly) {
+                // For typetools
+                developer {
+                    id = "mernst"
+                    name = "Michael Ernst"
+                    email = "mernst@cs.washington.edu"
+                    url = "https://homes.cs.washington.edu/~mernst/"
+                    organization = "University of Washington"
+                    organizationUrl = "https://www.cs.washington.edu/"
+                }
+                developer {
+                    id = "smillst"
+                    name = "Suzanne Millstein"
+                    email = "smillst@cs.washington.edu"
+                    organization = "University of Washington"
+                    organizationUrl = "https://www.cs.washington.edu/"
+                }
             }
         }
 

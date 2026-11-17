@@ -25,13 +25,15 @@ permissions:
 jobs:
   dependency-submission:
     runs-on: ubuntu-26.04
+    # It takes under 6 minutes; without a limit, a hung job would hold a runner for 6 hours.
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v6.1.0
+        uses: actions/setup-java@v6.2.0
         with:
           java-version: '21'
           distribution: 'zulu'

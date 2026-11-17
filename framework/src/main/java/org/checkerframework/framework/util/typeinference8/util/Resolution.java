@@ -135,12 +135,39 @@ public class Resolution {
      */
     private BoundSet resolve(BoundSet boundSet, Set<Variable> unresolvedVars) {
         Set<Variable> resolvedSet = boundSet.getInstantiatedVariables();
+        boolean resolveIndependentTogether = true;
 
         while (!unresolvedVars.isEmpty()) {
             assert !boundSet.containsFalse();
 
             Set<Variable> smallestDependencySet =
                     getSmallestDependencySet(resolvedSet, unresolvedVars);
+
+            // Resolve the variables that depend on no other unresolved variable in one attempt.
+            // Resolving them one at a time gives the same instantiations, but saves the bounds of
+            // every variable and incorporates into every bound once per variable, which is
+            // quadratic for an invocation with many poly expression arguments.
+            if (resolveIndependentTogether && smallestDependencySet.size() == 1) {
+                Set<Variable> independent = getIndependentVariables(resolvedSet, unresolvedVars);
+                if (independent.size() > 1 && !boundSet.containsCapture(independent)) {
+                    BoundSet copy = new BoundSet(boundSet);
+                    // Save the current bounds in case the attempt at resolution fails.
+                    copy.saveBounds();
+                    context.recordIncorporationWork(independent.size());
+                    BoundSet resolved = tryResolveWithoutCapture(independent, boundSet);
+                    if (resolved != null) {
+                        boundSet = resolved;
+                        resolvedSet = boundSet.getInstantiatedVariables();
+                        unresolvedVars.removeAll(resolvedSet);
+                        continue;
+                    }
+                    // Undo the attempt and resolve the variables one smallest set at a time, so
+                    // that only the variable that fails is resolved with capture.
+                    boundSet = copy;
+                    boundSet.restore();
+                    resolveIndependentTogether = false;
+                }
+            }
 
             // Resolve the smallest unresolved dependency set.
             boundSet = resolveSmallestSet(smallestDependencySet, boundSet);
@@ -149,6 +176,36 @@ public class Resolution {
             unresolvedVars.removeAll(resolvedSet);
         }
         return boundSet;
+    }
+
+    /**
+     * Returns the unresolved variables that depend on no other unresolved variable, in the order of
+     * {@code unresolvedVars}. Each of them is on its own a smallest set of unresolved dependencies,
+     * so they can be resolved in any order, or all at once.
+     *
+     * @param resolvedSet variables that have been resolved
+     * @param unresolvedVars variables that have not been resolved
+     * @return the unresolved variables that depend on no other unresolved variable
+     */
+    private Set<Variable> getIndependentVariables(
+            Set<Variable> resolvedSet, Set<Variable> unresolvedVars) {
+        Set<Variable> independent = new LinkedHashSet<>();
+        for (Variable alpha : unresolvedVars) {
+            if (alpha.isCaptureVariable()) {
+                continue;
+            }
+            boolean isIndependent = true;
+            for (Variable beta : dependencies.dependsOn(alpha)) {
+                if (beta != alpha && !resolvedSet.contains(beta)) {
+                    isIndependent = false;
+                    break;
+                }
+            }
+            if (isIndependent) {
+                independent.add(alpha);
+            }
+        }
+        return independent;
     }
 
     /**
@@ -212,13 +269,9 @@ public class Resolution {
             BoundSet copy = new BoundSet(boundSet);
             // Save the current bounds in case the first attempt at resolution fails.
             copy.saveBounds();
-            try {
-                BoundSet resolvedBounds = resolveWithoutCapture(as, boundSet);
-                if (!resolvedBounds.containsFalse()) {
-                    return resolvedBounds;
-                }
-            } catch (FalseBoundException ex) {
-                // Try with capture.
+            BoundSet resolvedBounds = tryResolveWithoutCapture(as, boundSet);
+            if (resolvedBounds != null) {
+                return resolvedBounds;
             }
             boundSet = copy;
             // If resolveWithoutCapture fails, then undo all resolved variables from the failed
@@ -226,6 +279,27 @@ public class Resolution {
             boundSet.restore();
             return resolveWithCapture(as, boundSet, context);
         }
+    }
+
+    /**
+     * Resolves {@code as} without capture, as {@link #resolveWithoutCapture(Set, BoundSet)} does.
+     * If that fails, the bounds of the variables are left in an intermediate state, and the caller
+     * must restore the bounds it saved before the attempt.
+     *
+     * @param as variables to resolve
+     * @param boundSet the bound set to use
+     * @return the resolved bound set, or null if resolution without capture failed
+     */
+    private @Nullable BoundSet tryResolveWithoutCapture(Set<Variable> as, BoundSet boundSet) {
+        try {
+            BoundSet resolvedBounds = resolveWithoutCapture(as, boundSet);
+            if (!resolvedBounds.containsFalse()) {
+                return resolvedBounds;
+            }
+        } catch (FalseBoundException ex) {
+            // Resolution without capture failed.
+        }
+        return null;
     }
 
     /**

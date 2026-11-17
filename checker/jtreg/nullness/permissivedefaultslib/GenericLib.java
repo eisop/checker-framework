@@ -1,0 +1,25 @@
+package permissivedefaultslib;
+
+import java.util.List;
+
+/** Unchecked code: not {@code @AnnotatedFor("nullness")}. */
+public class GenericLib<T> {
+    public void consume(T value) {}
+
+    public T produce() {
+        return null;
+    }
+
+    public void consumeAll(List<T> values) {}
+
+    public T apply(T value) {
+        return value;
+    }
+
+    public void unannotated(String value) {}
+
+    /** An interface with a type variable. */
+    public interface Consumer<T> {
+        void consume(T value);
+    }
+}

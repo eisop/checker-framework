@@ -1417,23 +1417,22 @@ public class DependentTypesHelper {
          * @param qh the qualifier hierarchy
          */
         private ErrorAnnoReplacer(QualifierHierarchy qh) {
-            super(
-                    (AnnotatedTypeMirror type, Void aVoid) -> {
-                        AnnotationMirrorSet replacementAnnos = null;
-                        for (AnnotationMirror am : type.getAnnotations()) {
-                            if (isExpressionAnno(am) && hasErrorElement(am)) {
-                                if (replacementAnnos == null) {
-                                    replacementAnnos = new AnnotationMirrorSet();
-                                }
-                                replacementAnnos.add(qh.getTopAnnotation(am));
-                            }
+            super((AnnotatedTypeMirror type, Void aVoid) -> {
+                AnnotationMirrorSet replacementAnnos = null;
+                for (AnnotationMirror am : type.getAnnotations()) {
+                    if (isExpressionAnno(am) && hasErrorElement(am)) {
+                        if (replacementAnnos == null) {
+                            replacementAnnos = new AnnotationMirrorSet();
                         }
+                        replacementAnnos.add(qh.getTopAnnotation(am));
+                    }
+                }
 
-                        if (replacementAnnos != null) {
-                            type.replaceAnnotations(replacementAnnos);
-                        }
-                        return null;
-                    });
+                if (replacementAnnos != null) {
+                    type.replaceAnnotations(replacementAnnos);
+                }
+                return null;
+            });
         }
     }
 

@@ -199,7 +199,7 @@ public class Issue1797 {
         try {
             NullableParamFunction n2 = (@Nullable Object x) -> (x == null) ? "null" : x.toString();
         } finally {
-            NullableParamFunction n3 = (x) -> (x == null) ? "null" : x.toString();
+            NullableParamFunction n3 = x -> (x == null) ? "null" : x.toString();
         }
     }
 

@@ -30,7 +30,13 @@ public class SystemUtil {
     /** A splitter that splits on commas. The result contains no empty strings. */
     public static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings();
 
-    /** A splitter that splits on colons. The result contains no empty strings. */
+    /**
+     * A splitter that splits on colons. The result contains no empty strings.
+     *
+     * @deprecated to split a list of paths, use {@link #PATH_SEPARATOR_SPLITTER} or {@link
+     *     #splitPaths}, which use the platform's path separator
+     */
+    @Deprecated // 2026-11-04
     public static final Splitter COLON_SPLITTER = Splitter.on(':').omitEmptyStrings();
 
     /** Matches a Java version string of the form used since Java 9 (e.g. "11.0.1", "17-ea"). */
@@ -49,12 +55,20 @@ public class SystemUtil {
      * @return the paths in the system property; may be an empty array
      */
     public static final List<String> getPathsProperty(String propName) {
-        String propValue = System.getProperty(propName);
-        if (propValue == null) {
+        return splitPaths(System.getProperty(propName));
+    }
+
+    /**
+     * Splits a list of paths on the path separator.
+     *
+     * @param paths paths separated by {@code File.pathSeparator}, or null
+     * @return the paths; empty if {@code paths} is null
+     */
+    public static List<String> splitPaths(@Nullable String paths) {
+        if (paths == null) {
             return Collections.emptyList();
-        } else {
-            return PATH_SEPARATOR_SPLITTER.splitToList(propValue);
         }
+        return PATH_SEPARATOR_SPLITTER.splitToList(paths);
     }
 
     /** The major version number of the Java runtime (JRE), such as 8, 11, or 17. */

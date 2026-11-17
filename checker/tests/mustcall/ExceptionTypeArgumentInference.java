@@ -20,10 +20,9 @@ public class ExceptionTypeArgumentInference {
     }
 
     void testRunThrowIOException() throws IOException {
-        this.run(
-                () -> {
-                    throw new IOException();
-                });
+        this.run(() -> {
+            throw new IOException();
+        });
     }
 
     void testRunNoThrowMethodReference() {

@@ -60,7 +60,7 @@ public class CreatesMustCallForToJavaExpression {
                             n.getTarget().getMethod().getSimpleName(),
                             atypeFactory,
                             supplier,
-                            (s) ->
+                            s ->
                                     StringToJavaExpression.atMethodInvocation(
                                             s, n, atypeFactory.getChecker()));
             if (expr != null && !results.contains(expr)) {
@@ -101,7 +101,7 @@ public class CreatesMustCallForToJavaExpression {
                             method.getSimpleName(),
                             atypeFactory,
                             supplier,
-                            (s) ->
+                            s ->
                                     StringToJavaExpression.atMethodBody(
                                             s, tree, atypeFactory.getChecker()));
             if (expr != null && !results.contains(expr)) {

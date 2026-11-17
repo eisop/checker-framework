@@ -19,11 +19,11 @@ permissions:
 
 env:
   PRIMARY_JDK: "21"
-  USE_BAZEL_VERSION: "9.3.1"
+  USE_BAZEL_VERSION: "9.3.2"
   # Pinned pre-release JDK build, from jdk.java.net. Renovate bumps JDK_EA_BUILD;
   # JDK_EA_MAJOR changes by hand when the next feature release opens.
   JDK_EA_MAJOR: "28"
-  JDK_EA_BUILD: "21"
+  JDK_EA_BUILD: "24"
 
 jobs:
   # All Linux test suites across all supported JDKs in a single parallel matrix.
@@ -132,7 +132,13 @@ jobs:
           ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
           JAVA_VERSION: ${{ matrix.java.version }}
 
-  # Sanity tests on Windows and macOS.
+      # What the job downloaded instead of restoring it from a cache.
+      - name: List the downloaded files
+        if: ${{ !cancelled() }}
+        run: ./checker/bin-devel/list-downloads.sh "$RUNNER_TEMP/downloads-marker"
+
+  # Tests of the platform-dependent code on Windows and macOS; see test-otheros.sh.  One job per
+  # operating system, as macOS runners are often not available.
   otheros:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -141,9 +147,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ['windows-latest', 'macos-latest']
-        # Two parts, as on Linux: a single job took 20 to 27 minutes on Windows and was the
-        # longest job of every run.
-        script: ['cftests-junit-part1', 'cftests-junit-part2']
+        script: ['otheros']
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
@@ -152,7 +156,7 @@ jobs:
 
       - name: Set up JDK ${{ matrix.java_version }}
         timeout-minutes: 10
-        uses: actions/setup-java@v6.1.0
+        uses: actions/setup-java@v6.2.0
         with:
           java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
@@ -169,7 +173,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6.4.1
         with:
           # As for linux-tests, one job per operating system writes the cache.
-          cache-read-only: ${{ github.ref != 'refs/heads/master' || matrix.script != 'cftests-junit-part1' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
 
       - name: Install coreutils on macOS
         if: ${{ matrix.os == 'macos-latest' }}

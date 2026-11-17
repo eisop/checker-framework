@@ -22,10 +22,10 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.plumelib.reflection.Signatures;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -99,7 +99,7 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
         Map<String, String> result = new HashMap<>();
 
         if (checker.hasOption("propfiles")) {
-            for (String propfile : checker.getStringsOption("propfiles", File.pathSeparator)) {
+            for (String propfile : SystemUtil.splitPaths(checker.getOption("propfiles"))) {
                 Properties prop = new Properties();
                 ClassLoader cl = this.getClass().getClassLoader();
                 if (cl == null) {

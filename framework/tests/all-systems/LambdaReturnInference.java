@@ -26,20 +26,18 @@ public class LambdaReturnInference {
     }
 
     String[] blockBody() {
-        return run(
-                () -> {
-                    return arr(new String[0]);
-                });
+        return run(() -> {
+            return arr(new String[0]);
+        });
     }
 
     String[] nestedReturn(boolean b) {
-        return run(
-                () -> {
-                    if (b) {
-                        return arr(new String[0]);
-                    }
-                    return arr(new String[] {});
-                });
+        return run(() -> {
+            if (b) {
+                return arr(new String[0]);
+            }
+            return arr(new String[] {});
+        });
     }
 
     List<String> list() {

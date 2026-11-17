@@ -20,6 +20,13 @@ sourceSets {
             exclude("**/org/checkerframework/checker/resourceleak/MustCallInference.java")
         }
     }
+    test {
+        resources {
+            // The messages.properties files of the test checkers.
+            srcDirs += ["src/test/java"]
+            include("**/messages.properties")
+        }
+    }
     testannotations {
         java {
             srcDirs = ["src/testannotations/java"]
@@ -275,6 +282,12 @@ tasks.register("allJavadocJar", Jar) {
 // Shadowing Test Sources and Dependencies
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
+// The stubifier tool's compiled classes (JavaStubifier, BinaryStubWriter,
+// BinaryStubFileGenerator). Only the classesDir artifact is taken (not the configuration's
+// transitive dependency jars, e.g. stubparser), since those already reach checker.jar
+// through framework's own "api" dependency.
+def stubifierClasses = project.configurations.stubifierToolForShadow.filter { it.isDirectory() }
+
 tasks.register("checkerJar", ShadowJar) {
     dependsOn("compileJava")
     group = "Build"
@@ -284,7 +297,11 @@ tasks.register("checkerJar", ShadowJar) {
     // instead resolve against the project and rename every archive in this subproject.
     archiveBaseName = "checker"
 
-    from(shadowJar.source)
+    // The same content as shadowJar's.  Not `shadowJar.source`: that flattens shadowJar's
+    // whole copy spec, including its manifest and its META-INF/LICENSE.txt, into the root of
+    // this jar.
+    from(sourceSets.main.output)
+    from(stubifierClasses)
     configurations = shadowJar.configurations
     // To see what files are incorporated into the shadow jar file:
     // doLast { println sourceSets.main.runtimeClasspath.asPath }
@@ -302,7 +319,7 @@ tasks.register("checkerJar", ShadowJar) {
     // This appends to sourceSetsClassesDirs rather than adding a second entry to
     // `configurations`, which would corrupt minimize()'s analysis for the whole jar; see the
     // comment on shadowJar's own copy of this, and commit 8396efab63.
-    sourceSetsClassesDirs.from(project.configurations.stubifierToolForShadow.filter { it.isDirectory() })
+    sourceSetsClassesDirs.from(stubifierClasses)
 
     // Without this the published artifact ships ~1240 classes, about 2 MB, that nothing in it
     // can reach -- shadowJar has always minimized, and this jar differs from it only by the
@@ -326,13 +343,9 @@ tasks.named("shadowJar") {
     // doFirst { println sourceSets.main.runtimeClasspath.asPath }
     archiveClassifier = "all"
 
-    // The stubifier tool's compiled classes (JavaStubifier, BinaryStubWriter,
-    // BinaryStubFileGenerator). Only the classesDir artifact is taken (not the configuration's
-    // transitive dependency jars, e.g. stubparser), since those already reach checker.jar
-    // through framework's own "api" dependency.
-    def stubifierClasses = project.configurations.stubifierToolForShadow.filter { it.isDirectory() }
-    // Copy those classes straight into the jar's content. See the stubifierToolForShadow
-    // configuration's own comment for why this must NOT go through configurations.add(...).
+    // Copy the stubifier tool's classes straight into the jar's content. See the
+    // stubifierToolForShadow configuration's own comment for why this must NOT go through
+    // configurations.add(...).
     from(stubifierClasses)
     // Also register the classesDir as a minimize() root, alongside checker's own source sets
     // (this appends to sourceSetsClassesDirs' convention rather than replacing it). Without
@@ -438,12 +451,16 @@ tasks.named("checkCompilerMessages") {
     }
 }
 
+// checker/bin/javac for the tests that run make. The path uses "/" on Windows too, because the
+// shell that make starts would treat a backslash as an escape.
+def checkerJavac = "${projectDir.path.replace('\\', '/')}/bin/javac -AnoJreVersionCheck"
+
 tasks.register("nullnessExtraTests", Exec) {
     dependsOn("assembleForJavac")
     group = "Verification"
     description = "Run extra tests for the Nullness Checker."
     executable = "make"
-    environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck", JAVAP: "javap"
+    environment JAVAC: checkerJavac, JAVAP: "javap"
     args = ["-C", "tests/nullness-extra/"]
 }
 
@@ -452,7 +469,7 @@ tasks.register("commandLineTests", Exec) {
     group = "Verification"
     description = "Run tests that need a special command line."
     executable = "make"
-    environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck"
+    environment JAVAC: checkerJavac
     args = ["-C", "tests/command-line/"]
 }
 
@@ -483,7 +500,7 @@ tasks.register("exampleTests", Exec) {
     group = "Verification"
     description = "Run tests for the example programs."
     executable = "make"
-    environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck"
+    environment JAVAC: checkerJavac
     args = ["-C", "../docs/examples"]
 }
 
@@ -571,19 +588,14 @@ tasks.register("jtregJdk11Tests", Exec) {
         "-samevm",
         "-javacoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
         "-vmoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
-        "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-        "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-        "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
-        "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-        "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-        "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-        "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-        "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-        "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
         "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}",
-        // Location of jtreg tests
-        "."
     ]
+    // The javac-internal packages that running the Checker Framework needs.
+    args += (javacInternalExportedPackages + javacInternalOpenedPackages).collect { pkg ->
+        "-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.${pkg}=ALL-UNNAMED".toString()
+    }
+    // Location of jtreg tests
+    args += "."
 }
 
 tasks.named("test") {
@@ -1218,13 +1230,6 @@ final checkerPom(publication) {
                 "The Checker Framework includes compiler plug-ins (\"checkers\")",
                 "that find bugs or verify their absence. It also permits you to",
                 "write your own compiler plug-ins.")
-        licenses {
-            license {
-                name = "GNU General Public License, version 2 (GPL2), with the classpath exception"
-        url = "https://www.gnu.org/software/classpath/license.html"
-                distribution = "repo"
-            }
-        }
     }
 }
 

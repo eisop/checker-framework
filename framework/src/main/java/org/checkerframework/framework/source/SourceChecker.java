@@ -101,6 +101,7 @@ import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
@@ -569,9 +570,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Maps error keys to localized/custom error messages. Do not use directly; call {@link
-     * #fullMessageOf} or {@link #processErrorMessageArg}. Is set in {@link #initChecker}.
+     * #fullMessageOf} or {@link #processErrorMessageArg}. Is set in {@link #initChecker} to the
+     * result of {@link #createMessagesProperties}.
      */
-    protected Properties messagesProperties;
+    private Properties messagesProperties;
 
     /**
      * Used to report error messages and warnings via the compiler. Is set in {@link
@@ -602,7 +604,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * (including indirect subcheckers). Do not access this field directly; instead, use {@link
      * #getSuppressWarningsPrefixesOfSubcheckers}.
      */
-    protected @MonotonicNonNull Collection<String> suppressWarningsPrefixesOfSubcheckers = null;
+    private @MonotonicNonNull Collection<String> suppressWarningsPrefixesOfSubcheckers = null;
 
     /**
      * Stores all messages issued by this checker and its subcheckers for the current compilation
@@ -613,7 +615,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>If this checker has no subcheckers and is not a subchecker for any other checker, then
      * messageStore is null and messages will be printed as they are issued by this checker.
      */
-    protected @MonotonicNonNull TreeSet<CheckerMessage> messageStore;
+    private @MonotonicNonNull TreeSet<CheckerMessage> messageStore;
 
     /**
      * An optional destination for this checker's diagnostics. When non-null, findings are reported
@@ -726,7 +728,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>Both the simple and the canonical name of the checker can be used. Superclasses of the
      * current checker are also considered.
      */
-    protected @MonotonicNonNull Map<String, String> activeOptions;
+    private @MonotonicNonNull Map<String, String> activeOptions;
 
     /**
      * Options supplied by a host that embeds the Checker Framework, which {@link
@@ -741,53 +743,53 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * passed to this checker. By contrast, {@link #activeOptions} is a map for options that were
      * passed for this run of the checker.
      */
-    protected @MonotonicNonNull Set<String> supportedOptions = null;
+    private @MonotonicNonNull Set<String> supportedOptions = null;
 
     /**
      * The class hierarchy from this checker's runtime class up to {@link AbstractTypeProcessor}.
      */
-    protected @MonotonicNonNull List<Class<?>> classHierarchy = null;
+    private @MonotonicNonNull List<Class<?>> classHierarchy = null;
 
     /**
      * The raw (unprefixed) options declared directly on this checker's class hierarchy via {@link
      * SupportedOptions} or {@link javax.annotation.processing.SupportedOptions}.
      */
-    protected @MonotonicNonNull Set<String> declaredOptions = null;
+    private @MonotonicNonNull Set<String> declaredOptions = null;
 
     /**
      * The raw stub files declared directly on this checker's class hierarchy via {@link StubFiles}.
      */
-    protected @MonotonicNonNull List<String> declaredStubFiles = null;
+    private @MonotonicNonNull List<String> declaredStubFiles = null;
 
     /** The list of all stub files supported by this checker and its compound checker hierarchy. */
-    protected @MonotonicNonNull List<String> stubFiles = null;
+    private @MonotonicNonNull List<String> stubFiles = null;
 
     /**
      * The raw SuppressWarnings prefixes declared directly on this checker's class hierarchy via
      * {@link SuppressWarningsPrefix}.
      */
-    protected @MonotonicNonNull Set<String> declaredSuppressWarningsPrefixes = null;
+    private @MonotonicNonNull Set<String> declaredSuppressWarningsPrefixes = null;
 
     /** The cached standard SuppressWarnings prefixes for this checker. */
-    protected @MonotonicNonNull NavigableSet<String> standardSuppressWarningsPrefixes = null;
+    private @MonotonicNonNull NavigableSet<String> standardSuppressWarningsPrefixes = null;
 
     /**
      * The raw lint options declared directly on this checker's class hierarchy via {@link
      * SupportedLintOptions}.
      */
-    protected @MonotonicNonNull Set<String> declaredLintOptions = null;
+    private @MonotonicNonNull Set<String> declaredLintOptions = null;
 
     /**
      * The raw mode names declared directly on this checker's class hierarchy via {@link
      * SupportedModes}.
      */
-    protected @MonotonicNonNull Set<String> declaredModes = null;
+    private @MonotonicNonNull Set<String> declaredModes = null;
 
     /**
      * The cached relevant Java types classes for this checker. Null if no {@link RelevantJavaTypes}
      * annotation is present on this checker's class hierarchy.
      */
-    protected @Nullable Set<Class<?>> relevantJavaTypes = null;
+    private @Nullable Set<Class<?>> relevantJavaTypes = null;
 
     /** Whether {@link #relevantJavaTypes} has been initialized. */
     private boolean relevantJavaTypesInitialized = false;
@@ -854,20 +856,20 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * getSubcheckers} sets this field to an immutable list which is empty for all but the ultimate
      * parent checker.
      */
-    protected @MonotonicNonNull List<SourceChecker> subcheckers = null;
+    private @MonotonicNonNull List<SourceChecker> subcheckers = null;
 
     /**
      * The list of subcheckers that are direct dependencies of this checker. This list will be
      * non-empty for any checker that has at least one subchecker.
      */
     // This field is set to non-null when `subcheckers` is.
-    protected @MonotonicNonNull List<SourceChecker> immediateSubcheckers = null;
+    private @MonotonicNonNull List<SourceChecker> immediateSubcheckers = null;
 
     /**
      * TreePathCacher to share between subcheckers. Initialized either in {@link
      * #getTreePathCacher()} or {@link #instantiateSubcheckers(Map)}.
      */
-    protected TreePathCacher treePathCacher = null;
+    private TreePathCacher treePathCacher = null;
 
     /** Creates a source checker. */
     protected SourceChecker() {}
@@ -889,7 +891,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @param sink the diagnostic sink, or {@code null} to print to javac
      */
-    public void setDiagnosticSink(@Nullable DiagnosticSink sink) {
+    public final void setDiagnosticSink(@Nullable DiagnosticSink sink) {
         this.diagnosticSink = sink;
     }
 
@@ -903,7 +905,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @param options the host's options, as unprefixed {@code -A} option names mapped to values
      */
-    public void setHostOptions(Map<String, String> options) {
+    public final void setHostOptions(Map<String, String> options) {
         if (processingEnv != null) {
             throw new BugInCF(
                     "setHostOptions must be called before init(ProcessingEnvironment), which"
@@ -937,7 +939,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * {@code checker-qual} jar of another Checker Framework that is earlier on the annotation
      * processor path shadows them: {@code TypeUseLocation} is then the other jar's, which lacks the
      * constants this release uses, and every compilation unit fails with a {@code
-     * NoSuchFieldError}. Report that once, with the jar, instead (eisop#2372).
+     * NoSuchFieldError}. Report that once, with the jar, instead.
      *
      * @throws UserError if the qualifier classes are not the ones of this release
      */
@@ -1283,7 +1285,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the list of stub files for this checker
      */
-    public List<String> getStubFiles() {
+    public final List<String> getStubFiles() {
         if (stubFiles == null) {
             stubFiles = Collections.unmodifiableList(new ArrayList<>(createStubFiles()));
         }
@@ -1295,7 +1297,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the collection of stub files for this checker
      */
-    protected Collection<String> createStubFiles() {
+    private Collection<String> createStubFiles() {
         Set<String> result = new LinkedHashSet<>(getDeclaredStubFiles());
         result.addAll(getExtraStubFiles());
 
@@ -1320,7 +1322,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw stub files declared on this checker's class hierarchy
      */
-    protected List<String> getDeclaredStubFiles() {
+    private List<String> getDeclaredStubFiles() {
         if (declaredStubFiles == null) {
             List<String> list = new ArrayList<>();
             for (Class<?> clazz : getClassHierarchy()) {
@@ -1355,21 +1357,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Provides a mapping of error keys to custom error messages.
+     * Creates the mapping of error keys to custom error messages.
      *
      * <p>As a default, this implementation builds a {@link Properties} out of file {@code
      * messages.properties}. It accumulates all the properties files in the Java class hierarchy
      * from the checker up to {@code SourceChecker}. This permits subclasses to inherit default
      * messages while being able to override them.
      *
+     * <p>{@link #initChecker} calls this method once and uses the result for every diagnostic.
+     *
      * @return a {@link Properties} that maps error keys to error message text
      */
-    public Properties getMessagesProperties() {
-        if (messagesProperties != null) {
-            return messagesProperties;
-        }
-
-        messagesProperties = new Properties();
+    protected Properties createMessagesProperties() {
+        Properties result = new Properties();
 
         ArrayDeque<Class<?>> checkers = new ArrayDeque<>();
         Class<?> currClass = this.getClass();
@@ -1380,9 +1380,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         for (Class<?> checker : checkers) {
-            messagesProperties.putAll(getProperties(checker, MSGS_FILE, true));
+            result.putAll(getProperties(checker, MSGS_FILE, true));
         }
-        return messagesProperties;
+        return result;
     }
 
     /**
@@ -1548,7 +1548,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         this.trees = trees;
 
         this.messager = processingEnv.getMessager();
-        this.messagesProperties = getMessagesProperties();
+        this.messagesProperties = createMessagesProperties();
 
         // Set the active options for this checker and all subcheckers.
         Map<String, String> options = getOptions();
@@ -1609,7 +1609,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * If true, javac failed to compile the code or a previously-run annotation processor issued an
      * error.
      */
-    protected boolean javacErrored = false;
+    private boolean javacErrored = false;
 
     /** Output the warning about memory at most once. */
     private boolean warnedAboutGarbageCollection = false;
@@ -2079,6 +2079,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         String defaultFormat = "(" + messageKey + ")";
+        // The test framework passes -Anomsgtext, so check here that the key has message text.
+        assert !fullMessageOf(messageKey, defaultFormat).equals(defaultFormat)
+                : "No message text for key \"" + messageKey + "\" in " + getClass().getName();
         String prefix;
         String fmtString;
         if (hasOption("nomsgtext")) {
@@ -2828,7 +2831,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw lint options declared on this checker's class hierarchy
      */
-    protected Set<String> getDeclaredLintOptions() {
+    private Set<String> getDeclaredLintOptions() {
         if (declaredLintOptions == null) {
             Set<String> lintSet = new HashSet<>();
             for (Class<?> clazz : getClassHierarchy()) {
@@ -2857,7 +2860,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return an unmodifiable set of supported mode names
      */
-    public Set<String> getSupportedModes() {
+    public final Set<String> getSupportedModes() {
         if (supportedModes == null) {
             supportedModes = Collections.unmodifiableSet(createSupportedModes());
         }
@@ -2891,7 +2894,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw modes declared on this checker's class hierarchy
      */
-    protected Set<String> getDeclaredModes() {
+    private Set<String> getDeclaredModes() {
         if (declaredModes == null) {
             Set<String> result = new HashSet<>();
             for (Class<?> clazz : getClassHierarchy()) {
@@ -3337,7 +3340,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the class hierarchy of this checker
      */
-    public List<Class<?>> getClassHierarchy() {
+    public final List<Class<?>> getClassHierarchy() {
         if (classHierarchy == null) {
             List<Class<?>> hierarchy = new ArrayList<>();
             Class<?> clazz = this.getClass();
@@ -3358,7 +3361,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw options declared on this checker's class hierarchy
      */
-    protected Set<String> getDeclaredOptions() {
+    private Set<String> getDeclaredOptions() {
         if (declaredOptions == null) {
             Set<String> declared = new HashSet<>();
             for (Class<?> clazz : getClassHierarchy()) {
@@ -3382,7 +3385,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return all declared options across this checker and its subcheckers
      */
-    protected Set<String> getAllDeclaredOptions() {
+    private Set<String> getAllDeclaredOptions() {
         Set<String> all = new HashSet<>(getDeclaredOptions());
         for (SourceChecker sub : getSubcheckers()) {
             all.addAll(sub.getAllDeclaredOptions());
@@ -3396,7 +3399,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the set of relevant Java classes, or null if unrestricted
      */
-    public @Nullable Set<Class<?>> getRelevantJavaTypes() {
+    public final @Nullable Set<Class<?>> getRelevantJavaTypes() {
         if (!relevantJavaTypesInitialized) {
             relevantJavaTypes = createRelevantJavaTypes();
             relevantJavaTypesInitialized = true;
@@ -3528,13 +3531,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 parent != null;
                 parent = parent.parentChecker) {
             parent.getOptions()
-                    .forEach(
-                            (parentOptKey, parentOptVal) -> {
-                                if (parentOptVal != null) {
-                                    allOptions.merge(
-                                            parentOptKey, parentOptVal, this::combineOptionValues);
-                                }
-                            });
+                    .forEach((parentOptKey, parentOptVal) -> {
+                        if (parentOptVal != null) {
+                            allOptions.merge(parentOptKey, parentOptVal, this::combineOptionValues);
+                        }
+                    });
         }
         return Collections.unmodifiableMap(allOptions);
     }
@@ -3933,7 +3934,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Elements with a {@code @SuppressWarnings} that actually suppressed a warning for this
      * checker.
      */
-    protected final Set<Element> elementsWithSuppressedWarnings = new HashSet<>();
+    private final Set<Element> elementsWithSuppressedWarnings = new HashSet<>();
 
     /**
      * Returns true if all the warnings pertaining to a given element should be suppressed. Returns
@@ -4226,7 +4227,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the raw SuppressWarnings prefixes declared on this checker's class hierarchy
      */
-    protected Set<String> getDeclaredSuppressWarningsPrefixes() {
+    private Set<String> getDeclaredSuppressWarningsPrefixes() {
         if (declaredSuppressWarningsPrefixes == null) {
             Set<String> declared = new TreeSet<>();
             for (Class<?> clazz : getClassHierarchy()) {
@@ -4375,13 +4376,16 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Returns true if the class definition should not be checked because it matches the {@code
-     * checker.skipDefs} property.
+     * checker.skipDefs} property, or does not match the {@code checker.onlyDefs} property. An
+     * anonymous or local class, which has no fully-qualified name, is checked if and only if its
+     * innermost enclosing class with a fully-qualified name is.
      *
      * @param tree class to potentially skip
      * @return true if checker should not type-check {@code tree}
      */
     public boolean shouldSkipDefs(ClassTree tree) {
-        String qualifiedName = TreeUtils.typeOf(tree).toString();
+        String qualifiedName =
+                namedEnclosingClass(TreeUtils.elementFromDeclaration(tree)).asType().toString();
         // System.out.printf("shouldSkipDefs(%s) %s%nskipDefs %s%nonlyDefs %s%nresult %s%n%n",
         //                   tree,
         //                   qualifiedName,
@@ -4398,6 +4402,32 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         return skipDefsPattern.matcher(qualifiedName).find()
                 || !onlyDefsPattern.matcher(qualifiedName).find();
+    }
+
+    /**
+     * Returns the innermost class that encloses {@code type}, or is {@code type}, and is not
+     * enclosed in an anonymous or local class, nor is one itself. Its type, unlike that of an
+     * anonymous or local class, prints as a fully-qualified name.
+     *
+     * @param type a class
+     * @return the innermost class enclosing or equal to {@code type} that has a fully-qualified
+     *     name
+     */
+    private static TypeElement namedEnclosingClass(TypeElement type) {
+        @Nullable TypeElement named = null;
+        for (@Nullable TypeElement t = type;
+                t != null;
+                t = ElementUtils.strictEnclosingTypeElement(t)) {
+            NestingKind kind = t.getNestingKind();
+            if (kind == NestingKind.ANONYMOUS || kind == NestingKind.LOCAL) {
+                named = null;
+            } else if (named == null) {
+                named = t;
+            }
+        }
+        // The outermost class is a top-level class, which is neither anonymous nor local.
+        assert named != null : "@AssumeAssertion(nullness): a top-level class is named";
+        return named;
     }
 
     /**

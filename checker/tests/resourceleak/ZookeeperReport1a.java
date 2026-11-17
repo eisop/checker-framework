@@ -11,14 +11,14 @@ class ZookeeperReport1a {
 
     static int tickTime, initLimit;
 
-    protected static @MustCall() Socket createSocket() throws IOException {
+    protected static @MustCall Socket createSocket() throws IOException {
         Socket sock;
         sock = new Socket();
         sock.setSoTimeout(tickTime * initLimit);
         return sock;
     }
 
-    protected static @MustCall() Socket createSocket2() throws IOException {
+    protected static @MustCall Socket createSocket2() throws IOException {
         Socket sock;
         sock = createCustomSocket();
         sock.setSoTimeout(tickTime * initLimit);
@@ -26,7 +26,7 @@ class ZookeeperReport1a {
     }
 
     // This is the full version of case 1.
-    protected static @MustCall() Socket createSocket3(boolean b) throws IOException {
+    protected static @MustCall Socket createSocket3(boolean b) throws IOException {
         Socket sock;
         if (b) {
             sock = createCustomSocket();
@@ -37,7 +37,7 @@ class ZookeeperReport1a {
         return sock;
     }
 
-    private static @MustCall() Socket createCustomSocket() {
+    private static @MustCall Socket createCustomSocket() {
         return new Socket();
     }
 

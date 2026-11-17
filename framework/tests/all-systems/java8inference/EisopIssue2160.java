@@ -16,38 +16,35 @@ public class EisopIssue2160 {
     }
 
     List<String> anonymous(List<String> list) {
-        return defer(
-                () -> {
-                    new Object() {
-                        Object f() {
-                            return "";
-                        }
-                    };
-                    return list;
-                });
+        return defer(() -> {
+            new Object() {
+                Object f() {
+                    return "";
+                }
+            };
+            return list;
+        });
     }
 
     List<String> local(List<String> list) {
-        return defer(
-                () -> {
-                    class Local {
-                        Object f() {
-                            return "";
-                        }
-                    }
-                    return list;
-                });
+        return defer(() -> {
+            class Local {
+                Object f() {
+                    return "";
+                }
+            }
+            return list;
+        });
     }
 
     List<String> invariant(List<String> list) {
-        return get(
-                () -> {
-                    new Object() {
-                        Object f() {
-                            return "";
-                        }
-                    };
-                    return list;
-                });
+        return get(() -> {
+            new Object() {
+                Object f() {
+                    return "";
+                }
+            };
+            return list;
+        });
     }
 }

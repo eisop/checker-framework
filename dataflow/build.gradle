@@ -52,7 +52,9 @@ def createDataflowShaded(shadedPkgName) {
         // Without this line, the Maven artifact will have the classifier "all".
         archiveClassifier.set("")
 
-        from(shadowJar.source)
+        // The same content as shadowJar's.  Not `shadowJar.source`: that flattens shadowJar's
+        // whole copy spec, including its manifest, into the root of this jar.
+        from(sourceSets.main.output)
         configurations = shadowJar.configurations
 
         destinationDirectory = layout.buildDirectory.dir("shadow/dataflow${shadedPkgName}")
@@ -182,6 +184,7 @@ testDataflowAnalysis("constantPropagationTest", "constant-propagation", "constan
 testDataflowAnalysis("issue3447Test", "issue3447", "livevar.LiveVariable", false)
 testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable", true)
 testDataflowAnalysis("reachingDefinitionTest", "reachingdef", "reachingdef.ReachingDefinition", true)
+testDataflowAnalysis("unboxingTest", "unboxing", "reachingdef.ReachingDefinition", true)
 if (useJdkVersionInt >= 22) {
     testDataflowAnalysis("unnamedPatternTest", "java22/unnamed-pattern", "reachingdef.ReachingDefinition", true)
 }
@@ -192,17 +195,9 @@ apply from: rootProject.file("gradle-mvn-push.gradle")
 final dataflowPom(publication) {
     rootProject.sharedPublicationConfiguration(publication)
     publication.from(components.java)
-    // Information that is in all pom files is configured in checker-framework/gradle-mvn-push.gradle.
     publication.pom {
         name = "Dataflow"
         description = "Dataflow is a dataflow framework based on the javac compiler."
-        licenses {
-            license {
-                name = "GNU General Public License, version 2 (GPL2), with the classpath exception"
-        url = "https://www.gnu.org/software/classpath/license.html"
-                distribution = "repo"
-            }
-        }
     }
 }
 
@@ -224,13 +219,6 @@ final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
                 "It differs from the io.github.eisop:dataflow artifact in two ways.",
                 "First, the packages in this artifact have been renamed to org.checkerframework.${shadedPkgName}.*.",
                 "Second, unlike the dataflow artifact, this artifact contains the dependencies it requires.")
-        licenses {
-            license {
-                name = "GNU General Public License, version 2 (GPL2), with the classpath exception"
-        url = "https://www.gnu.org/software/classpath/license.html"
-                distribution = "repo"
-            }
-        }
     }
 }
 

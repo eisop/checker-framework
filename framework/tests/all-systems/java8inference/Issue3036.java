@@ -34,11 +34,10 @@ public class Issue3036 {
         @SuppressWarnings("type.arguments.not.inferred")
         List<Map<String, ?>> dsData =
                 getDsData().stream()
-                        .map(
-                                dsData1 ->
-                                        ImmutableMap.of(
-                                                "keyTag", dsData1.getKeyTag(),
-                                                "digest", dsData1.getDigest()))
+                        .map(dsData1 ->
+                                ImmutableMap.of(
+                                        "keyTag", dsData1.getKeyTag(),
+                                        "digest", dsData1.getDigest()))
                         .collect(Collectors.toList());
     }
 

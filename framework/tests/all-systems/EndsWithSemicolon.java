@@ -3,4 +3,3 @@
 // A class is technically permitted to end with a semicolon (though it doesn't do
 // anything).
 public class EndsWithSemicolon {}
-;

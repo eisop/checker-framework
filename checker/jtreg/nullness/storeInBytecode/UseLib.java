@@ -2,7 +2,8 @@
  * @test
  * @summary Test that -AstoreInBytecode=false writes only source-code annotations into
  *          the .class file, that AnnotatedFor is still read from bytecode, and that
- *          -Amode=jspecify implies it, which -AstoreInBytecode=true overrides.
+ *          -Amode=jspecify implies it, which -AstoreInBytecode=true overrides.  The defaults
+ *          of unchecked code, which -Amode=jspecify enables for Unannotated, are never stored.
  *
  * @compile -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext ../storeInBytecodeLib/Lib.java ../storeInBytecodeLib/Unannotated.java
  * @compile/fail/ref=WithStorage.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=bytecode UseLib.java
@@ -14,7 +15,7 @@
  * @compile/fail/ref=NoStorage.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=bytecode UseLib.java
  *
  * @compile -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -Amode=jspecify -AstoreInBytecode=true ../storeInBytecodeLib/Lib.java ../storeInBytecodeLib/Unannotated.java
- * @compile/fail/ref=WithStorage.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=bytecode UseLib.java
+ * @compile/fail/ref=NoStorage.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=bytecode UseLib.java
  */
 
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -30,9 +31,10 @@ public class UseLib {
         // apply.
         @NonNull Object a = Lib.nonNull();
 
-        // Unannotated is not @AnnotatedFor("nullness").  With the default storage the defaulted
-        // @NonNull is in the bytecode; with -AstoreInBytecode=false, conservative
-        // defaults apply.
+        // Unannotated is not @AnnotatedFor("nullness").  Compiled as checked code with the default
+        // storage, its defaulted @NonNull is in the bytecode.  Otherwise conservative defaults
+        // apply: with -AstoreInBytecode=false, or if it was compiled as unchecked code
+        // (-Amode=jspecify), whose defaults are not stored.
         @NonNull Object b = Unannotated.get();
 
         // Written in the source, so in the bytecode either way.

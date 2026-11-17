@@ -1002,21 +1002,10 @@ public abstract class InitializationParentAnnotatedTypeFactory
                 DeclaredType underlyingType = returnType.getUnderlyingType();
                 AnnotationMirror a = getUnderInitializationAnnotationOfSuperType(underlyingType);
                 returnType.replaceAnnotation(a);
-
-                // The return type of an inner class constructor does not capture the explicit
-                // annotation of the enclosing receiver parameter (e.g. Outer Outer.this).
-                // If the enclosing receiver's type is specified, annotate the return type's
-                // enclosing type with that qualifier.
-                AnnotatedDeclaredType returnEnclosingType = returnType.getEnclosingType();
-                if (returnEnclosingType != null) {
-                    AnnotatedDeclaredType receiverType = exeType.getReceiverType();
-                    if (receiverType != null) {
-                        AnnotationMirror enclAnno = receiverType.getAnnotationInHierarchy(a);
-                        if (enclAnno != null) {
-                            returnEnclosingType.replaceAnnotation(enclAnno);
-                        }
-                    }
-                }
+                // The enclosing type of the return type, the type of Outer.this in the body, is
+                // set from the constructor's receiver by AnnotatedTypeFactory after defaulting, so
+                // an explicit receiver parameter (e.g. @UnknownInitialization Outer Outer.this)
+                // needs no handling here.
             }
             return result;
         }

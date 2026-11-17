@@ -11,11 +11,9 @@ import java.util.stream.Stream;
 public class Issue6762 {
 
     void method(Optional<String> opt, Stream<Integer> intStream) {
-        opt.map(
-                rids ->
-                        intStream.collect(
-                                Collectors.collectingAndThen(
-                                        Collectors.toSet(), i -> new IntArraySet(i))));
+        opt.map(rids ->
+                intStream.collect(
+                        Collectors.collectingAndThen(Collectors.toSet(), i -> new IntArraySet(i))));
     }
 
     static class IntArraySet extends IntSet {

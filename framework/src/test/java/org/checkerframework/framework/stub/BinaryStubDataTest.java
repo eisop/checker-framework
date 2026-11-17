@@ -35,13 +35,12 @@ public class BinaryStubDataTest {
      * @throws IOException if the bytes cannot be written
      */
     private static InputStream binaryStub(BodyWriter body) throws IOException {
-        return compressed(
-                out -> {
-                    out.writeInt(BinaryStubData.MAGIC);
-                    out.writeShort(BinaryStubData.VERSION);
-                    out.writeInt(-1); // no source fingerprint
-                    body.write(out);
-                });
+        return compressed(out -> {
+            out.writeInt(BinaryStubData.MAGIC);
+            out.writeShort(BinaryStubData.VERSION);
+            out.writeInt(-1); // no source fingerprint
+            body.write(out);
+        });
     }
 
     /**
@@ -128,26 +127,25 @@ public class BinaryStubDataTest {
     @Test
     public void stringPoolIndexOutsideThePoolIsMalformed() throws IOException {
         assertMalformed(
-                binaryStub(
-                        out -> {
-                            out.writeInt(1); // string pool: one entry, index 0
-                            out.writeUTF("Foo");
-                            out.writeInt(0); // annotation pool: empty
-                            out.writeInt(1); // one class record
-                            out.writeInt(0); // class name: "Foo"
-                            out.writeInt(0); // no outer class
-                            out.writeByte(BinaryStubData.ClassRecord.KIND_CLASS_OR_INTERFACE);
-                            out.writeShort(0); // no declaration annotations
-                            out.writeShort(1); // one field
-                            out.writeInt(9999); //   its name: an index outside the pool
-                            out.writeShort(0); //    no declaration annotations
-                            out.writeShort(0); //    no type annotations
-                            out.writeShort(0); // no methods
-                            out.writeShort(0); // no presence-only method signatures
-                            out.writeShort(0); // no type parameters
-                            out.writeInt(0); // no annotated packages
-                            out.writeInt(0); // no annotated modules
-                        }),
+                binaryStub(out -> {
+                    out.writeInt(1); // string pool: one entry, index 0
+                    out.writeUTF("Foo");
+                    out.writeInt(0); // annotation pool: empty
+                    out.writeInt(1); // one class record
+                    out.writeInt(0); // class name: "Foo"
+                    out.writeInt(0); // no outer class
+                    out.writeByte(BinaryStubData.ClassRecord.KIND_CLASS_OR_INTERFACE);
+                    out.writeShort(0); // no declaration annotations
+                    out.writeShort(1); // one field
+                    out.writeInt(9999); //   its name: an index outside the pool
+                    out.writeShort(0); //    no declaration annotations
+                    out.writeShort(0); //    no type annotations
+                    out.writeShort(0); // no methods
+                    out.writeShort(0); // no presence-only method signatures
+                    out.writeShort(0); // no type parameters
+                    out.writeInt(0); // no annotated packages
+                    out.writeInt(0); // no annotated modules
+                }),
                 "outside the string pool");
     }
 
@@ -162,24 +160,23 @@ public class BinaryStubDataTest {
     @Test
     public void annotationPoolIndexOutsideThePoolIsMalformed() throws IOException {
         assertMalformed(
-                binaryStub(
-                        out -> {
-                            out.writeInt(1); // string pool: one entry, index 0
-                            out.writeUTF("Foo");
-                            out.writeInt(0); // annotation pool: empty
-                            out.writeInt(1); // one class record
-                            out.writeInt(0); // class name: "Foo"
-                            out.writeInt(0); // no outer class
-                            out.writeByte(BinaryStubData.ClassRecord.KIND_CLASS_OR_INTERFACE);
-                            out.writeShort(1); // one declaration annotation
-                            out.writeInt(9999); //   its index: outside the annotation pool
-                            out.writeShort(0); // no fields
-                            out.writeShort(0); // no methods
-                            out.writeShort(0); // no presence-only method signatures
-                            out.writeShort(0); // no type parameters
-                            out.writeInt(0); // no annotated packages
-                            out.writeInt(0); // no annotated modules
-                        }),
+                binaryStub(out -> {
+                    out.writeInt(1); // string pool: one entry, index 0
+                    out.writeUTF("Foo");
+                    out.writeInt(0); // annotation pool: empty
+                    out.writeInt(1); // one class record
+                    out.writeInt(0); // class name: "Foo"
+                    out.writeInt(0); // no outer class
+                    out.writeByte(BinaryStubData.ClassRecord.KIND_CLASS_OR_INTERFACE);
+                    out.writeShort(1); // one declaration annotation
+                    out.writeInt(9999); //   its index: outside the annotation pool
+                    out.writeShort(0); // no fields
+                    out.writeShort(0); // no methods
+                    out.writeShort(0); // no presence-only method signatures
+                    out.writeShort(0); // no type parameters
+                    out.writeInt(0); // no annotated packages
+                    out.writeInt(0); // no annotated modules
+                }),
                 "outside the annotation pool");
     }
 
@@ -187,11 +184,10 @@ public class BinaryStubDataTest {
     @Test
     public void truncatedFileIsMalformed() throws IOException {
         assertMalformed(
-                binaryStub(
-                        out -> {
-                            out.writeInt(2); // string pool: claims two entries
-                            out.writeUTF("Foo"); // but supplies only one
-                        }),
+                binaryStub(out -> {
+                    out.writeInt(2); // string pool: claims two entries
+                    out.writeUTF("Foo"); // but supplies only one
+                }),
                 null);
     }
 
@@ -199,11 +195,10 @@ public class BinaryStubDataTest {
     @Test
     public void wrongMagicIsMalformed() throws IOException {
         assertMalformed(
-                compressed(
-                        out -> {
-                            out.writeInt(0xDEADBEEF);
-                            out.writeShort(BinaryStubData.VERSION);
-                        }),
+                compressed(out -> {
+                    out.writeInt(0xDEADBEEF);
+                    out.writeShort(BinaryStubData.VERSION);
+                }),
                 "Invalid magic number");
     }
 
@@ -211,11 +206,10 @@ public class BinaryStubDataTest {
     @Test
     public void wrongVersionIsMalformed() throws IOException {
         assertMalformed(
-                compressed(
-                        out -> {
-                            out.writeInt(BinaryStubData.MAGIC);
-                            out.writeShort(BinaryStubData.VERSION + 1);
-                        }),
+                compressed(out -> {
+                    out.writeInt(BinaryStubData.MAGIC);
+                    out.writeShort(BinaryStubData.VERSION + 1);
+                }),
                 "Unsupported version");
     }
 }

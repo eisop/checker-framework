@@ -67,7 +67,6 @@ class ACRegularExitPointTest {
                     public void run() {
                         Foo f;
                     }
-                    ;
                 };
         r.run();
     }
@@ -79,7 +78,6 @@ class ACRegularExitPointTest {
                         // :: error: required.method.not.called
                         Foo g = new Foo();
                     }
-                    ;
                 };
         r.run();
     }
@@ -91,7 +89,6 @@ class ACRegularExitPointTest {
                         Foo g = makeFoo();
                         g.a();
                     }
-                    ;
                 };
         r.run();
     }

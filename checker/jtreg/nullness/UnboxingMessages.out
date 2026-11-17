@@ -1,0 +1,8 @@
+UnboxingMessages.java:16:23: compiler.err.proc.messager: [unboxing.of.nullable] unboxing a possibly-null reference o
+UnboxingMessages.java:20:22: compiler.err.proc.messager: [unboxing.of.nullable] unboxing a possibly-null reference i
+UnboxingMessages.java:20:26: compiler.err.proc.messager: [unboxing.of.nullable] unboxing a possibly-null reference k
+UnboxingMessages.java:24:19: compiler.err.proc.messager: [unboxing.of.nullable] unboxing a possibly-null reference i
+UnboxingMessages.java:28:14: compiler.err.proc.messager: [condition.nullable] condition on a possibly-null value b
+UnboxingMessages.java:32:27: compiler.err.proc.messager: [iterating.over.nullable] iterating over possibly-null reference list
+UnboxingMessages.java:36:22: compiler.err.proc.messager: [unboxing.of.nullable] unboxing a possibly-null reference list
+7 errors

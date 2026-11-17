@@ -99,13 +99,12 @@ public abstract class GitTask extends DefaultTask {
             // invalid privatekey: ...
             //       So fall back to running git pull on the command line.
             org.gradle.process.ExecResult execResult =
-                    execOperations.exec(
-                            execSpec -> {
-                                execSpec.workingDir(directory);
-                                execSpec.executable("git");
-                                execSpec.args("pull", "-q");
-                                execSpec.setIgnoreExitValue(true);
-                            });
+                    execOperations.exec(execSpec -> {
+                        execSpec.workingDir(directory);
+                        execSpec.executable("git");
+                        execSpec.args("pull", "-q");
+                        execSpec.setIgnoreExitValue(true);
+                    });
             if (execResult.getExitValue() != 0) {
                 getLogger()
                         .warn(

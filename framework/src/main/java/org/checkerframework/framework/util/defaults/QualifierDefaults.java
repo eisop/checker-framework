@@ -56,6 +56,7 @@ import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 
@@ -752,7 +753,7 @@ public class QualifierDefaults {
      *     TypeUseLocation, boolean)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
      *     TypeUseLocation, boolean)}.
      */
-    @Deprecated
+    @Deprecated // 2026-09-25
     public void addUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
@@ -770,7 +771,7 @@ public class QualifierDefaults {
      *     TypeUseLocation)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
      *     TypeUseLocation)}.
      */
-    @Deprecated
+    @Deprecated // 2026-09-25
     public void addUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
         addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
@@ -786,7 +787,7 @@ public class QualifierDefaults {
      *     TypeUseLocation[])} or {@link #addPermissiveUncheckedCodeDefaults(AnnotationMirror,
      *     TypeUseLocation[])}.
      */
-    @Deprecated
+    @Deprecated // 2026-09-25
     public void addUncheckedCodeDefaults(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
         addConservativeUncheckedCodeDefaults(absoluteDefaultAnno, locations);
@@ -1348,14 +1349,13 @@ public class QualifierDefaults {
      * defaults with {@code applyToSubpackages = true}, merged with what its parent package makes
      * available to it.
      *
-     * <p>This is not {@link #defaultsAt}({@code pkg}) filtered by {@code applyToSubpackages};
-     * computing it that way is <a
-     * href="https://github.com/eisop/checker-framework/issues/2037">eisop#2037</a>. Shadowing is a
-     * statement about one scope: a nearer default that does not itself apply to subpackages wins at
-     * {@code pkg} only, so it must not discard the farther default it shadowed there -- deeper
-     * packages, where nothing shadows it, still need it. So a default replaces a farther one here
-     * only if it too has {@code applyToSubpackages = true}. It still wins at {@code pkg} itself,
-     * via {@link #defaultsAt}, which merges {@code pkg}'s own defaults over this method's result.
+     * <p>This is not {@link #defaultsAt}({@code pkg}) filtered by {@code applyToSubpackages}, which
+     * would lose defaults. Shadowing is a statement about one scope: a nearer default that does not
+     * itself apply to subpackages wins at {@code pkg} only, so it must not discard the farther
+     * default it shadowed there -- deeper packages, where nothing shadows it, still need it. So a
+     * default replaces a farther one here only if it too has {@code applyToSubpackages = true}. It
+     * still wins at {@code pkg} itself, via {@link #defaultsAt}, which merges {@code pkg}'s own
+     * defaults over this method's result.
      *
      * @param pkg a package, or null for no package
      * @return the defaults {@code pkg} makes available to its own subpackages
@@ -1757,7 +1757,19 @@ public class QualifierDefaults {
             Element annotationScope, AnnotatedTypeMirror type, boolean fromTree) {
         DefaultApplierElement applier =
                 createDefaultApplierElement(atypeFactory, annotationScope, type, fromTree);
+        applier.applyDefaults(fusedDefaultsAt(annotationScope));
+    }
 
+    /**
+     * Returns the defaults to apply, in precedence order, to a type in the scope of {@code
+     * annotationScope}: the defaults in scope there, then the conservative or permissive
+     * unchecked-code defaults if they apply to that element, then the checked-code defaults.
+     *
+     * @param annotationScope the element representing the nearest enclosing default annotation
+     *     scope for the type
+     * @return the fused, ordered default list (shared and read-only; callers must not mutate it)
+     */
+    private List<Default> fusedDefaultsAt(Element annotationScope) {
         DefaultSet defaults = defaultsAt(annotationScope);
         UncheckedDefaultsMode mode;
         if (applyConservativeDefaults(annotationScope)) {
@@ -1768,8 +1780,7 @@ public class QualifierDefaults {
             // Checked code: fold in no unchecked-code defaults.
             mode = null;
         }
-
-        applier.applyDefaults(fusedDefaultsFor(defaults, mode));
+        return fusedDefaultsFor(defaults, mode);
     }
 
     /**
@@ -2243,16 +2254,26 @@ public class QualifierDefaults {
             if (hasVisited(type)) {
                 return null;
             }
-            if (type.isDeclaration()) {
-                // For a type variable declaration, apply the defaults to the bounds. Do not apply
-                // `TYPE_VARIABLE_USE` defaults.
-                visitBounds(type, type.getUpperBound(), type.getLowerBound(), true);
-                return null;
-            }
 
             // Always descend into the bounds FIRST so the bound/OTHERWISE defaults apply there
             // before any primary defaults (e.g., LOCAL_VARIABLE) can be smeared onto them.
-            visitBounds(type, type.getUpperBound(), type.getLowerBound(), true);
+            //
+            // The bounds belong to the type variable's declaration, so they get the defaults in
+            // scope there, not at this use: an UPPER_BOUND default on a method must not change the
+            // bound of the class's type variable, which the method's callers do not see.
+            List<Default> useSiteDefaults = outer.fusedDefaults;
+            outer.fusedDefaults = boundDefaults(type, useSiteDefaults);
+            try {
+                visitBounds(type, type.getUpperBound(), type.getLowerBound(), true);
+            } finally {
+                outer.fusedDefaults = useSiteDefaults;
+            }
+
+            if (type.isDeclaration()) {
+                // For a type variable declaration, only the bounds are defaulted. Do not apply
+                // `TYPE_VARIABLE_USE` defaults.
+                return null;
+            }
 
             boolean isTopLevelType = type == outer.type;
             boolean isLocalVariable =
@@ -2279,6 +2300,28 @@ public class QualifierDefaults {
                 }
             }
             return null;
+        }
+
+        /**
+         * Returns the defaults to apply to the bounds of {@code type}: those in scope at the
+         * element that declares the type variable. A captured type variable is declared nowhere;
+         * its bounds come from the wildcard at this use, so they get the use site's defaults.
+         *
+         * @param type a type variable, a declaration or a use
+         * @param useSiteDefaults the defaults in scope at the type being defaulted
+         * @return the defaults to apply to the bounds of {@code type}
+         */
+        private List<Default> boundDefaults(
+                AnnotatedTypeVariable type, List<Default> useSiteDefaults) {
+            TypeVariable typeVar = type.getUnderlyingType();
+            if (TypesUtils.isCapturedTypeVariable(typeVar)) {
+                return useSiteDefaults;
+            }
+            Element declaring = ((TypeParameterElement) typeVar.asElement()).getGenericElement();
+            if (declaring == null || declaring.equals(outer.scope)) {
+                return useSiteDefaults;
+            }
+            return fusedDefaultsAt(declaring);
         }
 
         @Override
@@ -2418,8 +2461,7 @@ public class QualifierDefaults {
             return prev;
         }
 
-        TreePath declaredTypeVarEle = atypeFactory.getTreeUtils().getPath(typeParamElem);
-        Tree typeParamDecl = declaredTypeVarEle == null ? null : declaredTypeVarEle.getLeaf();
+        TypeParameterTree typeParamDecl = typeParameterTree(typeParamElem);
 
         final BoundType boundType;
         if (typeParamDecl == null) {
@@ -2436,26 +2478,50 @@ public class QualifierDefaults {
                 boundType = BoundType.TYPEVAR_UPPER;
             }
         } else {
-            if (typeParamDecl instanceof TypeParameterTree) {
-                TypeParameterTree tptree = (TypeParameterTree) typeParamDecl;
-
-                List<? extends Tree> bnds = tptree.getBounds();
-                if (bnds != null && !bnds.isEmpty()) {
-                    boundType = BoundType.TYPEVAR_UPPER;
-                } else {
-                    boundType = BoundType.TYPEVAR_UNBOUNDED;
-                }
+            List<? extends Tree> bnds = typeParamDecl.getBounds();
+            if (bnds != null && !bnds.isEmpty()) {
+                boundType = BoundType.TYPEVAR_UPPER;
             } else {
-                throw new BugInCF(
-                        StringsPlume.joinLines(
-                                "Unexpected tree type for typeVar Element:",
-                                "typeParamElem=" + typeParamElem,
-                                typeParamDecl));
+                boundType = BoundType.TYPEVAR_UNBOUNDED;
             }
         }
 
         elementToBoundType.put(typeParamElem, boundType);
         return boundType;
+    }
+
+    /**
+     * Returns the declaration of a type parameter, or null if its source code is not available.
+     * Looks among the type parameters of its generic class or method rather than searching the
+     * whole compilation unit for it, which made checking a file quadratic in its number of type
+     * parameters.
+     *
+     * @param typeParamElem a type parameter
+     * @return the declaration of {@code typeParamElem}, or null if its source code is not available
+     */
+    private @Nullable TypeParameterTree typeParameterTree(TypeParameterElement typeParamElem) {
+        // declarationFromElement finds nothing without a current compilation unit, and the caller
+        // caches the result, so a source type parameter looked up then would keep the bound type
+        // of one from bytecode.
+        assert atypeFactory.getRoot() != null
+                        || !ElementUtils.isElementFromSourceCode(typeParamElem)
+                : "No compilation unit to look up source type parameter " + typeParamElem;
+        Tree genericDecl = atypeFactory.declarationFromElement(typeParamElem.getGenericElement());
+        List<? extends TypeParameterTree> typeParams;
+        if (genericDecl instanceof MethodTree) {
+            typeParams = ((MethodTree) genericDecl).getTypeParameters();
+        } else if (genericDecl instanceof ClassTree) {
+            typeParams = ((ClassTree) genericDecl).getTypeParameters();
+        } else {
+            return null;
+        }
+        Name name = typeParamElem.getSimpleName();
+        for (TypeParameterTree typeParam : typeParams) {
+            if (typeParam.getName() == name) {
+                return typeParam;
+            }
+        }
+        return null;
     }
 
     /**

@@ -235,7 +235,10 @@ public abstract class CFAbstractTransfer<
                 analysis.atypeFactory;
         Tree preTree = analysis.getCurrentTree();
         analysis.setCurrentTree(tree);
+        // The results of type argument inference are reused only within this computation.
+        factory.clearNodeValueInferenceResults();
         AnnotatedTypeMirror at;
+        AnnotatedTypeMirror standalone = null;
         try {
             if (node instanceof MethodInvocationNode
                     && ((MethodInvocationNode) node).getIterableExpression() != null) {
@@ -246,12 +249,20 @@ public abstract class CFAbstractTransfer<
                 ExpressionTree array = ((ArrayAccessNode) node).getArrayExpression();
                 at = factory.getIterableElementType(array);
             } else {
-                at = factory.getAnnotatedType(tree);
+                standalone = factory.getStandaloneTypeForNodeValue(tree);
+                at = standalone != null ? standalone : factory.getAnnotatedType(tree);
             }
         } catch (Exception e) {
             throw BugInCF.addLocation(tree, e);
         } finally {
             analysis.setCurrentTree(preTree);
+            factory.clearNodeValueInferenceResults();
+        }
+        if (standalone != null) {
+            // The primary annotations are those of the standalone type, the underlying type is
+            // the one javac inferred with the enclosing invocation.
+            return analysis.createAbstractValue(
+                    standalone.getAnnotations(), TreeUtils.typeOf((ExpressionTree) tree));
         }
         return analysis.createAbstractValue(at);
     }
@@ -423,24 +434,22 @@ public abstract class CFAbstractTransfer<
             // refinement still holds. Update values in place; keys are unchanged.
             // `store` is reassigned in this method, so the lambda below captures a copy.
             S lambdaStore = store;
-            store.fieldValues.replaceAll(
-                    (fieldAccess, currentValue) -> {
-                        AnnotatedTypeMirror declaredType =
-                                atypeFactory.getAnnotatedType(fieldAccess.getField());
-                        V newValue =
-                                analysis.createAbstractValue(declaredType)
-                                        .leastUpperBound(currentValue);
-                        if (!fieldAccess.getReceiver().isAssignableByOtherCode()) {
-                            V monotonicValue =
-                                    lambdaStore.newMonotonicFieldValueAfterMethodCall(
-                                            fieldAccess, analysis.getTypeFactory(), currentValue);
-                            if (monotonicValue != null) {
-                                // The monotonic target, where comparable, else the declared type.
-                                newValue = monotonicValue.mostSpecific(newValue, newValue);
-                            }
-                        }
-                        return newValue;
-                    });
+            store.fieldValues.replaceAll((fieldAccess, currentValue) -> {
+                AnnotatedTypeMirror declaredType =
+                        atypeFactory.getAnnotatedType(fieldAccess.getField());
+                V newValue =
+                        analysis.createAbstractValue(declaredType).leastUpperBound(currentValue);
+                if (!fieldAccess.getReceiver().isAssignableByOtherCode()) {
+                    V monotonicValue =
+                            lambdaStore.newMonotonicFieldValueAfterMethodCall(
+                                    fieldAccess, analysis.getTypeFactory(), currentValue);
+                    if (monotonicValue != null) {
+                        // The monotonic target, where comparable, else the declared type.
+                        newValue = monotonicValue.mostSpecific(newValue, newValue);
+                    }
+                }
+                return newValue;
+            });
         } else {
             assert false : "Unexpected tree: " + underlyingAST;
             store = null;
@@ -981,19 +990,21 @@ public abstract class CFAbstractTransfer<
     }
 
     /**
-     * Refine the annotation of {@code secondNode} if the annotation {@code secondValue} is less
-     * precise than {@code firstValue}. This is possible, if {@code secondNode} is an expression
-     * that is tracked by the store (e.g., a local variable or a field). Clients usually call this
-     * twice with {@code firstNode} and {@code secondNode} reversed, to refine each of them.
+     * Refine the annotation of {@code secondNode} to the greatest lower bound of {@code firstValue}
+     * and {@code secondValue}, if that is more precise than {@code secondValue}. Its underlying
+     * type stays that of {@code secondValue}. This is possible, if {@code secondNode} is an
+     * expression that is tracked by the store (e.g., a local variable or a field). Clients usually
+     * call this twice with {@code firstNode} and {@code secondNode} reversed, to refine each of
+     * them.
      *
      * <p>Note that when overriding this method, when a new type is inserted into the store, {@link
      * #splitAssignments} should be called, and the new type should be inserted into the store for
      * each of the resulting nodes.
      *
-     * @param firstNode the node that might be more precise
+     * @param firstNode the node that {@code secondNode} is compared with
      * @param secondNode the node whose type to possibly refine
-     * @param firstValue the abstract value that might be more precise
-     * @param secondValue the abstract value that might be less precise
+     * @param firstValue the abstract value of {@code firstNode}
+     * @param secondValue the abstract value of {@code secondNode}
      * @param res the previous result
      * @param notEqualTo if true, indicates that the logic is flipped (i.e., the information is
      *     added to the {@code elseStore} instead of the {@code thenStore}) for a not-equal
@@ -1007,9 +1018,12 @@ public abstract class CFAbstractTransfer<
             V firstValue,
             V secondValue,
             boolean notEqualTo) {
-        if (firstValue != null) {
-            // Only need to insert if the second value is actually different.
-            if (!firstValue.equals(secondValue)) {
+        // Only need to insert if the second value is actually different.
+        if (firstValue != null && !firstValue.equals(secondValue)) {
+            // The second node has both values, so it gets their greatest lower bound.
+            V refinedValue =
+                    secondValue == null ? firstValue : secondValue.refineToEqualValue(firstValue);
+            if (refinedValue != null && !refinedValue.equals(secondValue)) {
                 List<Node> secondParts = splitAssignments(secondNode);
                 for (Node secondPart : secondParts) {
                     JavaExpression secondInternal = JavaExpression.fromNode(secondPart);
@@ -1020,9 +1034,9 @@ public abstract class CFAbstractTransfer<
                         S thenStore = res.getThenStore();
                         S elseStore = res.getElseStore();
                         if (notEqualTo) {
-                            elseStore.insertValue(secondInternal, firstValue);
+                            elseStore.insertValue(secondInternal, refinedValue);
                         } else {
-                            thenStore.insertValue(secondInternal, firstValue);
+                            thenStore.insertValue(secondInternal, refinedValue);
                         }
                         // To handle `(a = b = c) == x`, repeat for all insertable receivers of
                         // splitted assignments instead of returning.
@@ -1188,6 +1202,22 @@ public abstract class CFAbstractTransfer<
     public TransferResult<V, S> visitMethodInvocation(
             MethodInvocationNode n, TransferInput<V, S> in) {
 
+        if (in.containsTwoStores() && isSyntheticBooleanConversion(n)) {
+            // The CFG boxes a boolean with Boolean.valueOf and unboxes a Boolean with booleanValue
+            // (see CFGTranslationPhaseOne.box and unbox). The conversion keeps the truth of the
+            // value, so the stores for the operand being true and false are the stores for the
+            // result being true and false. Keeping them makes a conditional postcondition on a
+            // method that returns Boolean work: at its `return cond;`, which boxes cond, and at a
+            // call `if (m())`, which unboxes the result. Both methods are side-effect-free, so the
+            // stores need no update.
+            ExpressionTree invocationTree = n.getTree();
+            V resValue = invocationTree == null ? null : getValueFromFactory(invocationTree, n);
+            S thenStore = in.getThenStore();
+            S elseStore = in.getElseStore();
+            return new ConditionalTransferResult<>(
+                    finishValue(resValue, thenStore, elseStore), thenStore, elseStore);
+        }
+
         S store = in.getRegularStore();
         ExecutableElement method = n.getTarget().getMethod();
 
@@ -1227,6 +1257,24 @@ public abstract class CFAbstractTransfer<
         } else {
             return new RegularTransferResult<>(finishValue(resValue, store), store);
         }
+    }
+
+    /**
+     * Returns true if {@code n} is a call that the CFG synthesized to box a {@code boolean} or to
+     * unbox a {@code Boolean}: {@code Boolean.valueOf(boolean)} or {@code Boolean.booleanValue()}.
+     *
+     * @param n a method invocation node
+     * @return true if {@code n} boxes a {@code boolean} or unboxes a {@code Boolean}
+     */
+    private boolean isSyntheticBooleanConversion(MethodInvocationNode n) {
+        if (n.getInSource()) {
+            return false;
+        }
+        ExecutableElement method = n.getTarget().getMethod();
+        TypeElement owner = ElementUtils.enclosingTypeElement(method);
+        return owner != null
+                && owner.getQualifiedName().contentEquals("java.lang.Boolean")
+                && TypesUtils.isBooleanType(method.getReturnType());
     }
 
     @Override

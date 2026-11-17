@@ -15,7 +15,7 @@ public class InheritableMustCallEmpty {
         }
     }
 
-    @InheritableMustCall()
+    @InheritableMustCall
     // :: error: inconsistent.mustcall.subtype
     class NoObligationCloseable2 implements Closeable {
         @Override

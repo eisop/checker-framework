@@ -11,7 +11,7 @@ import java.util.List;
  * Tests that a constructor's own explicit annotation, written using an alias rather than the
  * canonical annotation, is recognized when computing the type of a constructor reference ({@code
  * Foo::new}), the same way the canonical annotation would be. See {@code
- * org.checkerframework.framework.util.AnnotatedTypes#copyOnlyExplicitConstructorAnnotations}.
+ * org.checkerframework.framework.type.AnnotatedTypeFactory#getResultingTypeOfConstructorMemberReference}.
  */
 public class AliasedCtorTest extends CheckerFrameworkPerDirectoryTest {
 

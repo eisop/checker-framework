@@ -108,7 +108,7 @@ public class AdditionalArgument implements Constraint {
         if (!isInvocationReduced(context)) {
             // The invocation is not part of this problem: its constraint had a proper target type,
             // so it is inferred separately (JLS 18.2.1). Its constraints would mention variables
-            // that nothing here bounds, which then resolve to their declared bounds (eisop#2337).
+            // that nothing here bounds, which then resolve to their declared bounds.
             return new ConstraintSet();
         }
         return reduceInvocation(context);

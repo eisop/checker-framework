@@ -91,6 +91,25 @@ public class LockTransfer extends CFAbstractTransfer<CFValue, LockStore, LockTra
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The Lock Checker does not refine either operand. Its qualifiers describe references, not
+     * objects: two references to the same object may be guarded by different locks, because the
+     * checker does not track aliasing, and only the exact expression used to acquire a lock is
+     * held. So a comparison of two expressions says nothing about the qualifiers of either.
+     */
+    @Override
+    protected TransferResult<CFValue, LockStore> strengthenAnnotationOfEqualTo(
+            TransferResult<CFValue, LockStore> res,
+            Node firstNode,
+            Node secondNode,
+            CFValue firstValue,
+            CFValue secondValue,
+            boolean notEqualTo) {
+        return res;
+    }
+
     @Override
     public LockStore initialStore(UnderlyingAST underlyingAST, List<LocalVariableNode> parameters) {
 

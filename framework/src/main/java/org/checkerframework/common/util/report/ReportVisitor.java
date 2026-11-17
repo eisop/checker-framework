@@ -88,7 +88,7 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
         modifiers = modifiersTmp.isEmpty() ? null : modifiersTmp;
     }
 
-    @SuppressWarnings("compilermessages") // These warnings are not translated.
+    @SuppressWarnings("compilermessages") // ReportChecker#fullMessageOf gives the text of the key.
     @Override
     public Void scan(Tree tree, Void p) {
         if ((tree != null) && (treeKinds != null) && treeKinds.contains(tree.getKind())) {
@@ -308,7 +308,7 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
         return super.visitInstanceOf(tree, p);
     }
 
-    @SuppressWarnings("compilermessages") // These warnings are not translated.
+    @SuppressWarnings("compilermessages") // ReportChecker#fullMessageOf gives the text of the key.
     @Override
     public Void visitModifiers(ModifiersTree tree, Void p) {
         if (tree != null && modifiers != null) {

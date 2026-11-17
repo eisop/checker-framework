@@ -7,7 +7,7 @@ public class CreatesMustCallForTwoAliases {
     static class Foo {
 
         @SuppressWarnings("mustcall")
-        @MustCall() Foo() {
+        @MustCall Foo() {
             // unconnected socket like
         }
 

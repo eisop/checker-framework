@@ -14,7 +14,9 @@ import org.checkerframework.framework.testchecker.lubglb.quals.LubglbE;
 // are summarized, so a bare bound's own default (location-based or, e.g., @DefaultQualifierForUse)
 // takes part in combining exactly like a written qualifier. The companion file
 // framework/tests/lubglb/IntersectionBoundDefaulting.java covers the bare-bound declarations under
-// the default (first-bound-wins) hook.
+// the default (first-bound-wins) hook. Since the summary is below every bound's qualifier, no
+// written qualifier is ignored, and this checker's visitor issues no explicit.annotation.ignored
+// warnings.
 //
 // Hierarchy: @LubglbA is the top and the default qualifier; @LubglbB and @LubglbC are its
 // subtypes; @LubglbD is a subtype of both, so glb(@LubglbB, @LubglbC) is @LubglbD.
@@ -31,9 +33,7 @@ public class IntersectionBoundCombining {
     static class Impl implements IfaceA, IfaceB, IfaceC {}
 
     // Both bounds are explicitly annotated, so both take part in combining: the summary is
-    // glb(@LubglbB, @LubglbC) = @LubglbD. Neither written qualifier is the summary, so both are
-    // reported as ignored.
-    // :: warning: (explicit.annotation.ignored) :: warning: (explicit.annotation.ignored)
+    // glb(@LubglbB, @LubglbC) = @LubglbD.
     <S extends @LubglbB IfaceA & @LubglbC IfaceB> void bothExplicit(S p) {}
 
     void useBothExplicit(@LubglbD Impl d, @LubglbB Impl b) {
@@ -57,7 +57,6 @@ public class IntersectionBoundCombining {
     // The later bound is bare, and its own default comes from @DefaultQualifierForUse rather than
     // from its location: @LubglbC. That default takes part in combining just as a location default
     // does, so the summary is glb(@LubglbB, @LubglbC) = @LubglbD.
-    // :: warning: (explicit.annotation.ignored)
     <S extends @LubglbB IfaceA & IfaceC> void bareLaterBound(S p) {}
 
     void useBareLaterBound(@LubglbD Impl d, @LubglbB Impl b) {
@@ -72,7 +71,6 @@ public class IntersectionBoundCombining {
     // because the summary glb(@LubglbB, @LubglbC) is @LubglbD; a checker that instead checked each
     // bound's own qualifier individually would have to reject this. @LubglbE is unrelated to
     // @LubglbD (it is under @LubglbC only), so it is rejected.
-    // :: warning: (explicit.annotation.ignored) :: warning: (explicit.annotation.ignored)
     <T extends @LubglbB IfaceA & @LubglbC IfaceB> void siblingBounds(T t) {
         @LubglbD Object accepted = t;
         // :: error: (assignment.type.incompatible)
@@ -83,7 +81,7 @@ public class IntersectionBoundCombining {
     // parameter's own declaration) must not crash. Defaulting Recursive's own bare bound used to
     // re-enter construction of the same type parameter's upper bound. The first bound's own
     // default is the top @LubglbA (Recursive has no @DefaultQualifierForUse); glb(@LubglbA,
-    // @LubglbB) is @LubglbB, so the written qualifier is not ignored -- it already is the summary.
+    // @LubglbB) is @LubglbB.
     // This is unrelated to GLB specifically -- see
     // framework/tests/lubglb/IntersectionBoundDefaulting.java for the same case under the default
     // hook -- but is included here too since this checker exercises the summarizing code path
@@ -110,7 +108,6 @@ public class IntersectionBoundCombining {
     // glb(@LubglbB, @LubglbC) = @LubglbD.
     @DefaultQualifier(value = LubglbB.class, locations = TypeUseLocation.UPPER_BOUND)
     static class LocationDefault {
-        // :: warning: (explicit.annotation.ignored)
         <T extends IfaceA & @LubglbC IfaceB> void m(T t) {
             @LubglbD Object accepted = t;
             // :: error: (assignment.type.incompatible)
@@ -123,12 +120,10 @@ public class IntersectionBoundCombining {
     // Order independence across 3+ bounds: the same three qualifiers (the default @LubglbA, an
     // explicit @LubglbB, an explicit @LubglbC) reach the same summary glb(@LubglbB, @LubglbC) =
     // @LubglbD regardless of which bound each is written on.
-    // :: warning: (explicit.annotation.ignored) :: warning: (explicit.annotation.ignored)
     <T extends IfaceA & @LubglbB IfaceB & @LubglbC IfaceThird> void threeBoundForward(T t) {
         @LubglbD Object accepted = t;
     }
 
-    // :: warning: (explicit.annotation.ignored) :: warning: (explicit.annotation.ignored)
     <T extends @LubglbC IfaceA & @LubglbB IfaceB & IfaceThird> void threeBoundReordered(T t) {
         @LubglbD Object accepted = t;
     }

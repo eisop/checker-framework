@@ -12,7 +12,8 @@ public class BasicSafeDefaultsTest {
         // :: error: (assignment.type.incompatible)
         @NonNull Object x2 = SdfuscLib.returnsNullable();
         @NonNull Object x3 = SdfuscLib.returnsNonNull();
-        // :: error: (assignment.type.incompatible)
+        // SdfuscLibNotAnnotatedFor is unchecked code, whose conservative defaults are not stored
+        // into its class file, and this test applies conservative defaults only to source code.
         @NonNull Object x4 = SdfuscLibNotAnnotatedFor.unannotated();
         // :: error: (assignment.type.incompatible)
         @NonNull Object x5 = SdfuscLibNotAnnotatedFor.returnsNullable();

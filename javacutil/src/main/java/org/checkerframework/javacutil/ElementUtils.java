@@ -640,12 +640,15 @@ public class ElementUtils {
      *
      * @param element the element to test
      * @return true if {@code element} is "com.sun.tools.javac.comp.Resolve$SymbolNotFoundError"
+     * @deprecated This method is unused and will be removed. Its name is misleading: it returns
+     *     false for every erroneous element except a {@code SymbolNotFoundError}.
      */
+    @Deprecated // 2026-11-12
     public static boolean isError(Element element) {
-        // TODO: Class.getName() is not documented to be interned. Either use equals() or find a
-        // better way to check this.
+        // The JVM interns class names, as the annotated JDK's @Interned on Class.getName() records,
+        // so == is correct; the Interning Checker reports equals() here as unnecessary.
         return element.getClass().getName()
-                == "com.sun.tools.javac.comp.Resolve$SymbolNotFoundError"; // interned
+                == "com.sun.tools.javac.comp.Resolve$SymbolNotFoundError";
     }
 
     /**
@@ -974,7 +977,35 @@ public class ElementUtils {
      * @return true if the element is a binding variable
      */
     public static boolean isBindingVariable(Element element) {
-        return SystemUtil.jreVersion >= 16 && "BINDING_VARIABLE".equals(element.getKind().name());
+        return element.getKind() == BINDING_VARIABLE_KIND;
+    }
+
+    /**
+     * {@code ElementKind.BINDING_VARIABLE} on JDK 16 or later, otherwise null. JDK 14 and 15 have
+     * the constant for a preview feature, which {@link #isBindingVariable} does not recognize.
+     */
+    private static final @Nullable ElementKind BINDING_VARIABLE_KIND =
+            SystemUtil.jreVersion >= 16 ? elementKind("BINDING_VARIABLE") : null;
+
+    /**
+     * {@code ElementKind.RECORD}, or null on a JDK whose {@code ElementKind} has no such constant.
+     */
+    private static final @Nullable ElementKind RECORD_KIND = elementKind("RECORD");
+
+    /**
+     * Returns the {@code ElementKind} constant with the given name, or null on a JDK whose {@code
+     * ElementKind} has no such constant. Constants added after JDK 8 cannot be named directly,
+     * since the code is compiled for JDK 8.
+     *
+     * @param name the name of the constant
+     * @return the constant, or null if it does not exist
+     */
+    private static @Nullable ElementKind elementKind(String name) {
+        try {
+            return ElementKind.valueOf(name);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /**
@@ -1152,7 +1183,9 @@ public class ElementUtils {
      * @param e1 an element
      * @param e2 an element
      * @return true if the two elements are in the same class
+     * @deprecated This method is unused and will be removed.
      */
+    @Deprecated // 2026-11-12
     public static boolean inSameClass(Element e1, Element e2) {
         return e1.getEnclosingElement().equals(e2.getEnclosingElement());
     }
@@ -1165,8 +1198,7 @@ public class ElementUtils {
      * @return whether the element is of the kind RECORD
      */
     public static boolean isRecordElement(Element elt) {
-        ElementKind kind = elt.getKind();
-        return kind.name().equals("RECORD");
+        return elt.getKind() == RECORD_KIND;
     }
 
     /**

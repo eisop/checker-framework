@@ -25,7 +25,7 @@ class LambdaParamBody {
                 i.toString();
             };
     ConsumerLPB fn3b =
-            (i) -> {
+            i -> {
                 // :: error: (dereference.of.nullable)
                 i.toString();
             };
@@ -35,7 +35,7 @@ class LambdaParamBody {
                 i.toString();
             };
     NNConsumerLPB fn4b =
-            (i) -> {
+            i -> {
                 i.toString();
             };
     NNConsumerLPB fn5 =

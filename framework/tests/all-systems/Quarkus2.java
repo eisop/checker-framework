@@ -8,14 +8,12 @@ public class Quarkus2 {
             CompletableFuture<List<ClassD<ClassB, ClassC>>> list,
             CompletableFuture<List<ClassD<ClassB, ClassC>>> x) {
         CompletableFuture<List<ClassD<ClassB, ClassC>>> q =
-                server.thenCompose(
-                        ls -> {
-                            x.thenApply(
-                                    y -> {
-                                        return y;
-                                    });
-                            return list;
-                        });
+                server.thenCompose(ls -> {
+                    x.thenApply(y -> {
+                        return y;
+                    });
+                    return list;
+                });
     }
 
     public interface InferfaceA {}

@@ -541,7 +541,9 @@ public class AnnotationUtils {
      *
      * @param anno the annotation to check for an @Inherited meta-annotation
      * @return true if the given annotation has a @Inherited meta-annotation
+     * @deprecated This method is unused and will be removed.
      */
+    @Deprecated // 2026-11-12
     public static boolean hasInheritedMeta(AnnotationMirror anno) {
         return anno.getAnnotationType().asElement().getAnnotation(Inherited.class) != null;
     }
@@ -1492,7 +1494,9 @@ public class AnnotationUtils {
      * @param key the key whose value to update
      * @param newQual the element to add to the given key's value
      * @param <T> the key type
+     * @deprecated This method is unused and will be removed.
      */
+    @Deprecated // 2026-11-12
     public static <T extends @NonNull Object> void updateMappingToImmutableSet(
             Map<T, AnnotationMirrorSet> map, T key, AnnotationMirrorSet newQual) {
         AnnotationMirrorSet result = new AnnotationMirrorSet();
@@ -1523,19 +1527,6 @@ public class AnnotationUtils {
             annotationSet.addAll(TreeUtils.annotationsFromTypeAnnotationTrees(annotationTrees));
         }
         return annotationSet;
-    }
-
-    /**
-     * Returns true if {@code anno} is not a type use annotation, that is, it cannot be written on
-     * uses of types.
-     *
-     * @param anno the AnnotationMirror
-     * @return true if anno is a declaration annotation
-     * @deprecated use {@link #isTypeUseAnnotation(AnnotationMirror)} instead
-     */
-    @Deprecated // 2024-01-06
-    public static boolean isDeclarationAnnotation(AnnotationMirror anno) {
-        return !isTypeUseAnnotation(anno);
     }
 
     /**
@@ -1674,13 +1665,12 @@ public class AnnotationUtils {
             Map<? extends ExecutableElement, ? extends AnnotationValue> elementValues) {
         // Most annotations have no elements.
         Map<ExecutableElement, AnnotationValue> nonDefaults = new ArrayMap<>(0);
-        elementValues.forEach(
-                (element, value) -> {
-                    AnnotationValue dflt = element.getDefaultValue();
-                    if (dflt == null || !Objects.equals(value.getValue(), dflt.getValue())) {
-                        nonDefaults.put(element, value);
-                    }
-                });
+        elementValues.forEach((element, value) -> {
+            AnnotationValue dflt = element.getDefaultValue();
+            if (dflt == null || !Objects.equals(value.getValue(), dflt.getValue())) {
+                nonDefaults.put(element, value);
+            }
+        });
         return nonDefaults;
     }
 

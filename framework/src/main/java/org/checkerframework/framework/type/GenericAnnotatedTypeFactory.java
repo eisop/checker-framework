@@ -88,6 +88,7 @@ import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesTreeAnnotator;
 import org.checkerframework.framework.util.typeinference8.DefaultTypeArgumentInference;
+import org.checkerframework.framework.util.typeinference8.types.InferenceFactory;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -459,11 +460,7 @@ public abstract class GenericAnnotatedTypeFactory<
         this.inferredTypesApplier = new DefaultInferredTypesApplier(getQualifierHierarchy(), this);
     }
 
-    /**
-     * Returns the {@link QualifierDefaults} this factory applies.
-     *
-     * @return the {@link QualifierDefaults} this factory applies
-     */
+    @Override
     public QualifierDefaults getQualifierDefaults() {
         return defaults;
     }
@@ -1430,9 +1427,13 @@ public abstract class GenericAnnotatedTypeFactory<
         try {
             if (fromExpressionTreeCache != null) {
                 // The analysis may refine the types of flow-dependent trees that were cached
-                // before it started.
+                // before it started, and the type arguments inferred from them.
                 fromExpressionTreeCache.clear();
             }
+            if (inferenceResultCache != null) {
+                inferenceResultCache.clear();
+            }
+            clearNodeValueInferenceResults();
             performFlowAnalysisForClassImpl(classTree);
         } finally {
             flowAnalysisDepth--;
@@ -1495,6 +1496,75 @@ public abstract class GenericAnnotatedTypeFactory<
         boolean isInferenceRoot =
                 DefaultTypeArgumentInference.outerInference(tree, path.getParentPath()) == tree;
         return isInferenceRoot;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The analysis computes the value of a node in {@link
+     * org.checkerframework.framework.flow.CFAbstractTransfer#getValueFromFactory}, which sets the
+     * analysis's current tree for the duration of the computation and clears the reused results
+     * before and after it.
+     */
+    @Override
+    protected boolean isComputingNodeValue() {
+        return analysis != null && analysis.isRunning() && analysis.getCurrentTree() != null;
+    }
+
+    /**
+     * Returns the type of {@code tree} for the dataflow value of its node, computed as if {@code
+     * tree} were not nested in another expression, or null if the value is computed from {@link
+     * #getAnnotatedType(Tree)} as usual.
+     *
+     * <p>This applies to a diamond that does not create an anonymous class, has no poly expression
+     * argument, and is inferred together with an enclosing invocation, such as {@code new Pair<>(a,
+     * b)} in {@code Arrays.asList(new Pair<>(a, b), ...)}. Its type arguments come from that
+     * invocation, but its primary annotations, which are all that a dataflow value keeps of its
+     * type, do not; inferring the enclosing invocation for each such argument would take time
+     * quadratic in the number of arguments. The underlying type of the result is not the one javac
+     * infers, so the caller uses only its primary annotations.
+     *
+     * <p>The primary annotations of such a diamond are the same with and without the enclosing
+     * inference: a test that compared them for every nested diamond in the Checker Framework's
+     * tests and in a large project found no difference (see performance-notes.md and
+     * framework/tests/standalone-diamond). That is not so for a generic method invocation, whose
+     * return type can be a type variable that only the enclosing inference determines, nor for a
+     * lambda, which has no type without its target, so neither may be a direct argument.
+     *
+     * @param tree a tree whose node's value is being computed
+     * @return the type of {@code tree} inferred without its enclosing invocation, or null
+     */
+    @SuppressWarnings("interning:not.interned") // comparing trees for identity
+    public @Nullable AnnotatedTypeMirror getStandaloneTypeForNodeValue(Tree tree) {
+        if (!(tree instanceof NewClassTree)
+                || !(typeArgumentInference instanceof DefaultTypeArgumentInference)
+                || ((DefaultTypeArgumentInference) typeArgumentInference).isInferring()) {
+            return null;
+        }
+        NewClassTree newClassTree = (NewClassTree) tree;
+        if (!TreeUtils.isDiamondTree(newClassTree) || newClassTree.getClassBody() != null) {
+            return null;
+        }
+        // Inferring newClassTree on its own must not change the type of any other tree, so its
+        // inference problem must contain only newClassTree.  A poly expression joins the problem
+        // of an enclosing expression only through a chain of poly expressions: outerInference
+        // returns a standalone expression as its own root.  So a poly expression nested in a
+        // standalone argument, such as make() in new Box<>(encrypt(make())), has its root within
+        // that argument and is inferred the same either way, and it suffices to reject a poly
+        // expression as a direct argument.
+        for (ExpressionTree arg : newClassTree.getArguments()) {
+            if (InferenceFactory.isPolyExpression(arg)) {
+                return null;
+            }
+        }
+        TreePath path = getPath(newClassTree);
+        if (path == null
+                || DefaultTypeArgumentInference.outerInference(newClassTree, path.getParentPath())
+                        == newClassTree) {
+            return null;
+        }
+        return ((DefaultTypeArgumentInference) typeArgumentInference)
+                .inferStandalone(newClassTree, () -> getAnnotatedType(newClassTree));
     }
 
     /**
@@ -1700,8 +1770,15 @@ public abstract class GenericAnnotatedTypeFactory<
 
             TreePath preTreePath = getVisitorTreePath();
 
-            // Don't call AnnotatedTypeFactory#getPath, because it uses visitorTreePath.
-            setVisitorTreePath(TreePath.getPath(this.getRoot(), ct));
+            // Query the TreePathCacher directly, not AnnotatedTypeFactory#getPath, so that this
+            // does not depend on visitorTreePath. The lookup is a cache hit when the class was
+            // reached through the visitor (BaseTypeVisitor.visitClass records its path), is a
+            // member of a class analyzed earlier in this loop (recorded below), or is declared in
+            // a body analyzed earlier in this loop (the CFG builder records it). Searching the
+            // compilation unit instead would cost O(file) per class, which is quadratic over a
+            // file with many anonymous or local classes.
+            TreePath classPath = checker.getTreePathCacher().getPath(this.getRoot(), ct);
+            setVisitorTreePath(classPath);
 
             // start with the captured store as initialization store
             initializationStaticStore = capturedStore;
@@ -1730,6 +1807,11 @@ public abstract class GenericAnnotatedTypeFactory<
                         case ENUM:
                             // Visit inner and nested class trees.
                             // TODO: Use no store for them? What can be captured?
+                            if (classPath != null
+                                    && checker.getTreePathCacher().getCachedPath(m) == null) {
+                                // A member's path extends the class path by one step.
+                                checker.getTreePathCacher().addPath(m, new TreePath(classPath, m));
+                            }
                             classQueue.add(Pair.of((ClassTree) m, capturedStore));
                             break;
                         case METHOD:
@@ -2021,9 +2103,10 @@ public abstract class GenericAnnotatedTypeFactory<
             // path, so the getPath(root, code) lookups below (in CFCFGBuilder.build, and when the
             // visitor path is set before performAnalysis) are cache hits rather than an O(members)
             // scan from the compilation-unit root -- which, once per body, is quadratic over a
-            // class with many methods. Only done for methods, whose body path is an unambiguous
-            // two-step extension of the class path (class -> method -> body); lambdas and
-            // initializers (rarer / nested) fall through to the normal lookup.
+            // class with many methods. A method body path is an unambiguous two-step extension of
+            // the class path (class -> method -> body). A lambda body path is a one-step extension
+            // of the lambda's path, which was recorded when the lambda was queued (below).
+            // Initializers (rarer) fall through to the normal lookup.
             if (ast.getKind() == UnderlyingAST.Kind.METHOD) {
                 UnderlyingAST.CFGMethod cfgMethod = (UnderlyingAST.CFGMethod) ast;
                 TreePath classPath = getVisitorTreePath();
@@ -2037,16 +2120,25 @@ public abstract class GenericAnnotatedTypeFactory<
                                     new TreePath(
                                             new TreePath(classPath, cfgMethod.getMethod()), body));
                 }
+            } else if (ast.getKind() == UnderlyingAST.Kind.LAMBDA) {
+                CFGLambda cfgLambda = (CFGLambda) ast;
+                TreePath lambdaPath =
+                        checker.getTreePathCacher().getCachedPath(cfgLambda.getLambdaTree());
+                Tree body = cfgLambda.getCode();
+                if (lambdaPath != null
+                        && body != null
+                        && checker.getTreePathCacher().getCachedPath(body) == null) {
+                    checker.getTreePathCacher().addPath(body, new TreePath(lambdaPath, body));
+                }
             }
             cfg = CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
             if (ignoreDeadCode) {
                 cfg.getAllNodes(this::isIgnoredExceptionType)
-                        .forEach(
-                                node -> {
-                                    if (node.getTree() != null) {
-                                        reachableNodes.add(node.getTree());
-                                    }
-                                });
+                        .forEach(node -> {
+                            if (node.getTree() != null) {
+                                reachableNodes.add(node.getTree());
+                            }
+                        });
             }
         }
         if (isInitializationCode) {
@@ -2138,12 +2230,30 @@ public abstract class GenericAnnotatedTypeFactory<
             }
         }
 
+        List<ClassTree> declaredClasses = cfg.getDeclaredClasses();
+        List<LambdaExpressionTree> declaredLambdas = cfg.getDeclaredLambdas();
+        if (!declaredClasses.isEmpty() || !declaredLambdas.isEmpty()) {
+            // Record the path of each class and lambda declared in this body, by a search that
+            // starts at the body, so that their analysis (performFlowAnalysisForClassImpl, and
+            // the lambda body lookup above) finds the paths in the cache instead of searching the
+            // compilation unit for them: that search costs O(file) per class or lambda, which is
+            // quadratic over a file with many anonymous classes, local classes, or lambdas.
+            TreePath bodyPath = checker.getTreePathCacher().getPath(this.getRoot(), ast.getCode());
+            if (bodyPath != null) {
+                for (ClassTree cls : declaredClasses) {
+                    checker.getTreePathCacher().getPath(bodyPath, cls);
+                }
+                for (LambdaExpressionTree lambda : declaredLambdas) {
+                    checker.getTreePathCacher().getPath(bodyPath, lambda);
+                }
+            }
+        }
         // add classes declared in CFG
-        for (ClassTree cls : cfg.getDeclaredClasses()) {
+        for (ClassTree cls : declaredClasses) {
             classQueue.add(Pair.of(cls, getStoreBefore(cls)));
         }
         // add lambdas declared in CFG
-        for (LambdaExpressionTree lambda : cfg.getDeclaredLambdas()) {
+        for (LambdaExpressionTree lambda : declaredLambdas) {
             lambdaQueue.add(Pair.of(lambda, getStoreBefore(lambda)));
         }
         return cfg;
@@ -2198,11 +2308,16 @@ public abstract class GenericAnnotatedTypeFactory<
      * to initialize additional state or to perform any analyzes that are easier to perform on the
      * CFG instead of the AST.
      *
+     * <p>This implementation type-checks the method invocations that the CFG synthesized for
+     * conversions, see {@link BaseTypeVisitor#checkSyntheticMethodInvocations}, and visualizes the
+     * CFG if requested.
+     *
      * @param cfg the CFG
      * @see #analyze(Queue, Queue, UnderlyingAST, List, ControlFlowGraph, boolean, boolean, boolean,
      *     CFAbstractStore)
      */
     protected void postAnalyze(ControlFlowGraph cfg) {
+        checker.getVisitor().checkSyntheticMethodInvocations(cfg);
         handleCFGViz(cfg);
     }
 
@@ -2539,24 +2654,6 @@ public abstract class GenericAnnotatedTypeFactory<
         copy.removeAnnotations(type.getAnnotationsField());
         addComputedTypeAnnotationsWithoutFlow(tree, copy);
         return copy;
-    }
-
-    /**
-     * Like {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)}. Overriding
-     * implementations typically simply pass the boolean to calls to super.
-     *
-     * @param tree an AST node
-     * @param type the type obtained from tree
-     * @param iUseFlow whether to use information from dataflow analysis
-     * @deprecated use {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)} or {@link
-     *     #addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)} if you want to add
-     *     computed type annotations without using flow information
-     */
-    @Deprecated // 2024-07-07
-    @SuppressWarnings("unused")
-    protected void addComputedTypeAnnotations(
-            Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-        addComputedTypeAnnotationsWithoutFlow(tree, type);
     }
 
     /**

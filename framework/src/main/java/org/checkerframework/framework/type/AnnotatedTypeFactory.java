@@ -69,6 +69,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiv
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeCombiner;
+import org.checkerframework.framework.type.visitor.DoubleAnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.AnnotatedTypes.TypeArguments;
@@ -77,7 +78,9 @@ import org.checkerframework.framework.util.CheckerMain;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.FieldInvariants;
 import org.checkerframework.framework.util.TreePathCacher;
+import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.framework.util.typeinference8.DefaultTypeArgumentInference;
+import org.checkerframework.framework.util.typeinference8.InferenceResult;
 import org.checkerframework.framework.util.typeinference8.TypeArgumentInference;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
 import org.checkerframework.framework.util.visualize.LspTypeInformationPresenter;
@@ -471,8 +474,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private final boolean assumePureGetters;
 
     /**
-     * True unless {@code -AstoreInBytecode=false} was supplied: whether to store into the class
-     * file the qualifiers that do not appear in the source code. See {@link #postProcessClassTree}.
+     * Whether to store into the class file the qualifiers that do not appear in the source code;
+     * the result of {@link #shouldStoreInBytecode}.
      */
     private final boolean storeInBytecode;
 
@@ -623,6 +626,33 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     protected IdentityHashMap<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
 
     /**
+     * Mapping from a tree that needs type argument inference to the method or constructor whose
+     * type arguments were inferred and the result of {@link #inferTypeArguments}. It is cleared
+     * with {@link #fromExpressionTreeCache}. Null if {@link #shouldCache} is false.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    protected @Nullable IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>>
+            inferenceResultCache;
+
+    /**
+     * Like {@link #inferenceResultCache}, but for the results inferred while a dataflow analysis
+     * computes the value of one node (see {@link #isComputingNodeValue}). The analysis state that
+     * the types of expressions depend on does not change during that computation, so a result
+     * inferred during it is reused within it: for example, the value of the array created for the
+     * variable arguments of a call is computed from the types of all those arguments, whose
+     * inference solves the same problem. The results are not reused after the computation, in which
+     * the analysis state can change; {@link #clearNodeValueInferenceResults} is called when a
+     * computation starts and ends. Null if {@link #shouldCache} is false.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    protected @Nullable IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>>
+            nodeValueInferenceResultCache;
+
+    /**
      * Mapping from a member tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
      *
@@ -754,7 +784,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.assumeDeterministic =
                 checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
         this.assumePureGetters = checker.hasOption("assumePureGetters");
-        this.storeInBytecode = checker.getBooleanOption("storeInBytecode", true);
 
         this.trees = Trees.instance(processingEnv);
         this.elements = processingEnv.getElementUtils();
@@ -776,6 +805,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             int cacheSize = getCacheSize();
             this.classAndMethodTreeCache = new IdentityHashMap<>();
             this.fromExpressionTreeCache = new IdentityHashMap<>();
+            this.inferenceResultCache = new IdentityHashMap<>();
+            this.nodeValueInferenceResultCache = new IdentityHashMap<>();
             this.fromMemberTreeCache = new IdentityHashMap<>();
             this.fromTypeTreeCache = new IdentityHashMap<>();
             this.elementCache = MapsP.createLruCache(cacheSize);
@@ -788,6 +819,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         } else {
             this.classAndMethodTreeCache = null;
             this.fromExpressionTreeCache = null;
+            this.inferenceResultCache = null;
+            this.nodeValueInferenceResultCache = null;
             this.fromMemberTreeCache = null;
             this.fromTypeTreeCache = null;
             this.elementCache = null;
@@ -802,6 +835,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.typeFormatter = createAnnotatedTypeFormatter();
         this.annotationFormatter = createAnnotationFormatter();
         this.typeInformationPresenter = createTypeInformationPresenter();
+        this.storeInBytecode = shouldStoreInBytecode();
 
         // Alias provided via -AaliasedTypeAnnos command-line option.
         // This can only be used for annotations whose attributes have the same names as in the
@@ -1336,6 +1370,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             elementToTreeCache = new IdentityHashMap<>();
             scannedEnclosingTrees = Collections.newSetFromMap(new IdentityHashMap<>());
             fromExpressionTreeCache = new IdentityHashMap<>();
+            inferenceResultCache = new IdentityHashMap<>();
+            nodeValueInferenceResultCache = new IdentityHashMap<>();
             fromMemberTreeCache = new IdentityHashMap<>();
             fromTypeTreeCache = new IdentityHashMap<>();
             classAndMethodTreeCache = new IdentityHashMap<>();
@@ -1387,7 +1423,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                             + "-"
                             + checker.getClass().getCanonicalName()
                             + ".ajava";
-            for (String ajavaLocation : checker.getStringsOption("ajava", File.pathSeparator)) {
+            for (String ajavaLocation : SystemUtil.splitPaths(checker.getOption("ajava"))) {
                 // ajavaLocation might either be (1) a directory, or (2) the name of a specific
                 // ajava file. This code must handle both possible cases.
                 // Case (1): ajavaPath is a directory
@@ -1523,8 +1559,35 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             AnnotatedDeclaredType overriddenType,
             ExecutableElement overriddenMethodElt,
             AnnotatedDeclaredType overriderType) {
+        return overriddenMethodType(
+                overriddenType,
+                overriddenMethodElt,
+                overriderType,
+                getAnnotatedType(overriddenMethodElt));
+    }
+
+    /**
+     * Returns the type of an overridden method as it should be seen for an override check against
+     * the given overriding class, starting from the given type of its declaration. See {@link
+     * #overriddenMethodType(AnnotatedDeclaredType, ExecutableElement, AnnotatedDeclaredType)}.
+     *
+     * @param overriddenType the supertype that contains the overridden method
+     * @param overriddenMethodElt the element of the overridden method
+     * @param overriderType the type of the class declaring the overriding method
+     * @param overriddenMethodDeclType the type of the declaration of the overridden method; as for
+     *     any instance method, {@link AnnotatedTypes#asMemberOf} adds the defaults at the locations
+     *     that have no qualifier
+     * @return the overridden method type, with type variables substituted and viewpoint-adapted to
+     *     the overriding class
+     */
+    private AnnotatedExecutableType overriddenMethodType(
+            AnnotatedDeclaredType overriddenType,
+            ExecutableElement overriddenMethodElt,
+            AnnotatedDeclaredType overriderType,
+            AnnotatedExecutableType overriddenMethodDeclType) {
         AnnotatedExecutableType result =
-                AnnotatedTypes.asMemberOf(types, this, overriddenType, overriddenMethodElt);
+                AnnotatedTypes.asMemberOf(
+                        types, this, overriddenType, overriddenMethodElt, overriddenMethodDeclType);
         if (viewpointAdapter != null) {
             // Adapt to a use of the class: the type arguments of its declaration are type variable
             // declarations, which cannot be type variable bounds.
@@ -1532,6 +1595,214 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     overriderType.asUse(), overriddenMethodElt, result);
         }
         return result;
+    }
+
+    /**
+     * Returns the {@link QualifierDefaults} this factory applies, or null if it applies no
+     * defaults.
+     *
+     * @return the {@link QualifierDefaults} this factory applies, or null
+     */
+    public @Nullable QualifierDefaults getQualifierDefaults() {
+        return null;
+    }
+
+    /**
+     * Returns the type of {@code overridden} as it constrains the overriding method, if the
+     * overridden method is in unchecked code that gets the permissive defaults (see {@link
+     * QualifierDefaults#applyPermissiveDefaults}): with the qualifiers of the overriding method at
+     * the locations of its signature that have no written qualifier. Then a qualifier that only a
+     * permissive default would supply, the top qualifier for a parameter or an upper bound and the
+     * bottom qualifier for a return type or a lower bound, does not constrain the overrider. A
+     * qualifier written at any location, such as {@code @Nullable} in {@code List<@Nullable
+     * Object>}, still does. Returns {@code overridden} otherwise. For a method reference, the
+     * overridden method is the method of the functional interface.
+     *
+     * <p>The type is computed as {@code overridden} is, but from the declaration of the method with
+     * only its written qualifiers, those of the overrider filled in (see {@link
+     * #fillUnwrittenLocations(Tree, AnnotatedExecutableType, AnnotatedTypeMirror,
+     * AnnotatedExecutableType)}): as a member of {@code overriddenType}, which substitutes the type
+     * arguments that the overrider's class gives the type variables of the overridden class, with
+     * their qualifiers, and applies the defaults to the locations that are still unwritten. The
+     * types of unchecked code are not stored into its elements (see {@code TypesIntoElements}), so
+     * {@link #fromElement} gives the written qualifiers whether or not the class of the overridden
+     * method has been type-checked already.
+     *
+     * @param overriderTree the declaration of the overriding method, or a method reference
+     * @param overrider the type of the overriding method
+     * @param overriderReturnType the return type of the overriding method; for a constructor
+     *     reference, the type of the result
+     * @param overriderType the type of the class that declares the overriding method, or null for a
+     *     method reference
+     * @param overridden the type of the overridden method, as a member of {@code overriddenType}
+     * @param overriddenType the supertype or functional interface that declares the overridden
+     *     method
+     * @return the type of the overridden method in which its unwritten locations do not constrain
+     *     the overrider, or {@code overridden}
+     */
+    public AnnotatedExecutableType permissiveOverriddenType(
+            Tree overriderTree,
+            AnnotatedExecutableType overrider,
+            AnnotatedTypeMirror overriderReturnType,
+            @Nullable AnnotatedDeclaredType overriderType,
+            AnnotatedExecutableType overridden,
+            AnnotatedDeclaredType overriddenType) {
+        ExecutableElement element = overridden.getElement();
+        QualifierDefaults defaults = getQualifierDefaults();
+        if (defaults == null || !defaults.applyPermissiveDefaults(element)) {
+            return overridden;
+        }
+        AnnotatedExecutableType written = fromElement(element);
+        fillUnwrittenLocations(overriderTree, overrider, overriderReturnType, written);
+        if (overriderType == null) {
+            return AnnotatedTypes.asMemberOf(types, this, overriddenType, element, written);
+        }
+        return overriddenMethodType(overriddenType, element, overriderType, written);
+    }
+
+    /**
+     * Gives each location of the signature of {@code written} that has no qualifier in a hierarchy
+     * the qualifier of the overriding method at that location: the parameter types, the return
+     * type, and the bounds of the type parameters, and for an unbound method reference the
+     * receiver.
+     *
+     * @param overriderTree the declaration of the overriding method, or a method reference
+     * @param overrider the type of the overriding method
+     * @param overriderReturnType the return type of the overriding method; for a constructor
+     *     reference, the type of the result
+     * @param written the type of the declaration of the overridden method, with only its written
+     *     qualifiers; side effected by this method
+     */
+    private void fillUnwrittenLocations(
+            Tree overriderTree,
+            AnnotatedExecutableType overrider,
+            AnnotatedTypeMirror overriderReturnType,
+            AnnotatedExecutableType written) {
+        UnwrittenLocationFiller filler = new UnwrittenLocationFiller();
+        List<AnnotatedTypeMirror> writtenParams = written.getParameterTypes();
+        List<AnnotatedTypeMirror> params =
+                AnnotatedTypes.overriddenParameters(overriderTree, written);
+        if (params.size() < writtenParams.size()) {
+            // The first parameter is the receiver of an unbound method reference.
+            AnnotatedTypeMirror overriderReceiver = overrider.getReceiverType();
+            if (overriderReceiver != null) {
+                filler.visit(writtenParams.get(0), overriderReceiver);
+            }
+        }
+        List<AnnotatedTypeMirror> overriderParams =
+                AnnotatedTypes.overriderParameters(overriderTree, overrider, params, written);
+        if (params.size() == overriderParams.size()) {
+            for (int i = 0; i < params.size(); i++) {
+                filler.visit(params.get(i), overriderParams.get(i));
+            }
+        }
+        filler.visit(written.getReturnType(), overriderReturnType);
+        if (!(overriderTree instanceof MemberReferenceTree)) {
+            List<AnnotatedTypeVariable> writtenTypeVars = written.getTypeVariables();
+            List<AnnotatedTypeVariable> overriderTypeVars = overrider.getTypeVariables();
+            if (writtenTypeVars.size() == overriderTypeVars.size()) {
+                for (int i = 0; i < writtenTypeVars.size(); i++) {
+                    filler.visit(
+                            writtenTypeVars.get(i).getUpperBound(),
+                            overriderTypeVars.get(i).getUpperBound());
+                    filler.visit(
+                            writtenTypeVars.get(i).getLowerBound(),
+                            overriderTypeVars.get(i).getLowerBound());
+                }
+            }
+        }
+    }
+
+    /**
+     * Gives each location of a type in the signature of the declaration of an overridden method
+     * that has no qualifier in a hierarchy the qualifier of the corresponding type of the
+     * overriding method at that location. A use of a type variable corresponds to its upper bound
+     * if the other type is not a type variable: in the overridden method's type, for an override by
+     * the erasure of the method or of a method of a raw supertype, and in the overrider's type, for
+     * a covariant return type. Otherwise nothing is filled in at a use of a type variable of a
+     * class or interface, which {@link AnnotatedTypes#asMemberOf} replaces by the type argument
+     * that the overrider's class gives it, with its qualifiers. An overrider's type whose class is
+     * a subclass of the other's, as for a covariant return type, is first viewed as that
+     * superclass. Nothing is filled in where the two types do not have the same structure, for
+     * example where the overrider's type is a raw type; the defaults apply there. The first type is
+     * side effected; the second is the overrider's.
+     */
+    private class UnwrittenLocationFiller extends DoubleAnnotatedTypeScanner<Void> {
+
+        /** Creates an UnwrittenLocationFiller. */
+        UnwrittenLocationFiller() {}
+
+        @Override
+        protected Void scan(AnnotatedTypeMirror writtenPart, AnnotatedTypeMirror overriderPart) {
+            if (overriderPart == null) {
+                return null;
+            }
+            if (writtenPart.getKind() == TypeKind.TYPEVAR) {
+                if (overriderPart.getKind() != TypeKind.TYPEVAR) {
+                    // An override by the erasure of the method, or of a method of a raw
+                    // supertype, which replaces the type variable by its upper bound.
+                    return scan(
+                            ((AnnotatedTypeVariable) writtenPart).getUpperBound(), overriderPart);
+                }
+                if (!(((TypeVariable) writtenPart.getUnderlyingType())
+                                .asElement()
+                                .getEnclosingElement()
+                        instanceof ExecutableElement)) {
+                    return null;
+                }
+            }
+            if (overriderPart.getKind() == TypeKind.TYPEVAR
+                    && writtenPart.getKind() != TypeKind.TYPEVAR
+                    && writtenPart.getKind() != TypeKind.WILDCARD) {
+                // A covariant return type that is a type variable, which is checked against the
+                // qualifiers of its upper bound.
+                writtenPart.addMissingAnnotations(overriderPart.getEffectiveAnnotations());
+                return scan(writtenPart, ((AnnotatedTypeVariable) overriderPart).getUpperBound());
+            }
+            if (overriderPart.getKind() != writtenPart.getKind()) {
+                return null;
+            }
+            if (writtenPart.getKind() == TypeKind.DECLARED
+                    && !((AnnotatedDeclaredType) writtenPart)
+                            .getUnderlyingType()
+                            .asElement()
+                            .equals(
+                                    ((AnnotatedDeclaredType) overriderPart)
+                                            .getUnderlyingType()
+                                            .asElement())) {
+                if (!TypesUtils.isErasedSubtype(
+                        overriderPart.getUnderlyingType(),
+                        writtenPart.getUnderlyingType(),
+                        types)) {
+                    defaultAction(writtenPart, overriderPart);
+                    return null;
+                }
+                // View a covariant return type as the class of the overridden method's return
+                // type, so that their type arguments correspond.
+                overriderPart =
+                        AnnotatedTypes.asSuper(
+                                AnnotatedTypeFactory.this, overriderPart, writtenPart);
+            }
+            return super.scan(writtenPart, overriderPart);
+        }
+
+        @Override
+        protected Void defaultAction(
+                AnnotatedTypeMirror writtenPart, AnnotatedTypeMirror overriderPart) {
+            // The qualifiers of a wildcard are those of its bounds, which are scanned.
+            if (writtenPart.getKind() != TypeKind.WILDCARD) {
+                writtenPart.addMissingAnnotations(overriderPart.getAnnotations());
+            }
+            return null;
+        }
+
+        @Override
+        public Void visitTypeVariable(
+                AnnotatedTypeVariable writtenPart, AnnotatedTypeMirror overriderPart) {
+            // A type variable's own qualifier is its primary qualifier; its bounds are those of
+            // its declaration.
+            return null;
+        }
     }
 
     /**
@@ -1556,6 +1827,145 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     public TypeArgumentInference getTypeArgumentInference() {
         return typeArgumentInference;
+    }
+
+    /**
+     * Infers the type arguments of {@code tree}, a method invocation, constructor invocation, or
+     * member reference, with {@link #getTypeArgumentInference()}. The visitor and the computation
+     * of the type of {@code tree} infer the same type arguments, so a result is cached and reused
+     * when both {@link #canCacheFlowDependentType} and {@link #canUseCachedFlowDependentType} hold
+     * for {@code tree}, which is when no dataflow analysis is running, and no inference problem is
+     * being solved, whose partial results are not cached.
+     *
+     * @param tree a tree that needs type argument inference
+     * @param methodType the type of the method or constructor before type argument substitution
+     * @return the result of type argument inference
+     */
+    public InferenceResult inferTypeArguments(
+            ExpressionTree tree, AnnotatedExecutableType methodType) {
+        // Both conditions hold together only when no dataflow analysis is running. During an
+        // analysis, the types of the arguments can differ from those after it: for example, a
+        // boxed argument has the type of its boxing conversion.
+        IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>> cache;
+        if (inferenceResultCache == null || isInferring() || isInferringStandalone()) {
+            cache = null;
+        } else if (canCacheFlowDependentType(tree) && canUseCachedFlowDependentType(tree)) {
+            cache = inferenceResultCache;
+        } else if (isComputingNodeValue()) {
+            cache = nodeValueInferenceResultCache;
+        } else {
+            cache = null;
+        }
+        ExecutableElement element = methodType.getElement();
+        if (cache != null) {
+            Pair<ExecutableElement, InferenceResult> cached = cache.get(tree);
+            if (cached != null && cached.first.equals(element)) {
+                return cached.second.copyFor(methodType, tree);
+            }
+        }
+        InferenceResult result = typeArgumentInference.inferTypeArgs(this, tree, methodType);
+        if (cache != null) {
+            InferenceResult cachedResult = result.copyFor(methodType, tree);
+            cache.put(tree, Pair.of(element, cachedResult));
+            cacheResultForOtherInvocations(tree, cachedResult, cache);
+        }
+        return result;
+    }
+
+    /**
+     * Returns true if the type arguments of a poly expression are being inferred as if it were not
+     * nested in another expression ({@link DefaultTypeArgumentInference#inferStandalone}). Such
+     * results are not cached.
+     *
+     * @return true if {@link DefaultTypeArgumentInference#inferStandalone} is running
+     */
+    protected boolean isInferringStandalone() {
+        return typeArgumentInference instanceof DefaultTypeArgumentInference
+                && ((DefaultTypeArgumentInference) typeArgumentInference).isInferringStandalone();
+    }
+
+    /**
+     * Returns true if a dataflow analysis is computing the value of a node, which it does from the
+     * type of the node's tree. The analysis state that the types of expressions depend on does not
+     * change during that computation, so the results of type argument inference during it are
+     * reused within it (see {@link #nodeValueInferenceResultCache}). This implementation, which
+     * performs no dataflow analysis, returns false.
+     *
+     * @return true if a dataflow analysis is computing the value of a node
+     */
+    protected boolean isComputingNodeValue() {
+        return false;
+    }
+
+    /**
+     * Discards the results of type argument inference reused while a dataflow analysis computes the
+     * value of a node (see {@link #nodeValueInferenceResultCache}). Called when such a computation
+     * starts and ends.
+     */
+    public void clearNodeValueInferenceResults() {
+        if (nodeValueInferenceResultCache != null) {
+            nodeValueInferenceResultCache.clear();
+        }
+    }
+
+    /**
+     * Caches {@code result}, the result of inferring the type arguments of {@code tree}, also for
+     * the other invocations whose type arguments it inferred: the poly expression arguments of the
+     * outermost invocation whose type arguments must be inferred to infer those of {@code tree}, if
+     * {@code tree} is one of them. Inferring the type arguments of such an invocation on its own
+     * solves the same problem, so the result is the same; without this, a call with many poly
+     * expression arguments is inferred once per argument.
+     *
+     * @param tree a tree whose type arguments were inferred
+     * @param result the result of inferring the type arguments of {@code tree}, as cached for it
+     * @param cache the cache in which {@code result} is cached for {@code tree}
+     */
+    @SuppressWarnings("interning:not.interned") // comparing trees for identity
+    private void cacheResultForOtherInvocations(
+            ExpressionTree tree,
+            InferenceResult result,
+            IdentityHashMap<ExpressionTree, Pair<ExecutableElement, InferenceResult>> cache) {
+        if (result.getResults().size() <= 1) {
+            return;
+        }
+        TreePath path = getPath(tree);
+        if (path == null) {
+            return;
+        }
+        ExpressionTree outer =
+                DefaultTypeArgumentInference.outerInference(tree, path.getParentPath());
+        if (outer == tree) {
+            // Inference for the outermost invocation itself starts from the caller's method type,
+            // but inference for a nested invocation starts from the outermost invocation's type
+            // without type argument inference, so their results can differ.
+            return;
+        }
+        for (Tree other : result.getResults().keySet()) {
+            if (other == tree || other == outer || cache.containsKey(other)) {
+                continue;
+            }
+            ExecutableElement otherElement;
+            if (other instanceof MethodInvocationTree) {
+                otherElement = TreeUtils.elementFromUse((MethodInvocationTree) other);
+            } else if (other instanceof NewClassTree
+                    && ((NewClassTree) other).getClassBody() == null) {
+                // The type arguments of an anonymous class created with a diamond are inferred
+                // from the super constructor, but constructorFromUse uses the anonymous
+                // constructor.
+                otherElement = TreeUtils.elementFromUse((NewClassTree) other);
+            } else {
+                continue;
+            }
+            TreePath otherPath = getPath(other);
+            if (otherPath == null
+                    || DefaultTypeArgumentInference.outerInference(
+                                    (ExpressionTree) other, otherPath.getParentPath())
+                            != outer) {
+                // Inferring the type arguments of other on its own would solve another problem.
+                continue;
+            }
+            cache.put((ExpressionTree) other, Pair.of(otherElement, result));
+        }
     }
 
     /** The cached value of {@link #getInferenceWorkBudget}; -1 until first computed. */
@@ -1723,6 +2133,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * AnnotatedTypeMirror#toString()} and will affect the error messages printed for checkers that
      * use this type factory.
      *
+     * <p>Called from the {@code AnnotatedTypeFactory} constructor, before any subclass constructor
+     * body or field initializer runs, so an override must not depend on subclass state.
+     *
      * @return the {@link AnnotatedTypeFormatter} to pass to all {@link AnnotatedTypeMirror}s
      */
     protected AnnotatedTypeFormatter createAnnotatedTypeFormatter() {
@@ -1745,6 +2158,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Creates the {@link AnnotationFormatter} used by this type factory.
      *
+     * <p>Called from the {@code AnnotatedTypeFactory} constructor, before any subclass constructor
+     * body or field initializer runs, so an override must not depend on subclass state.
+     *
      * @return the {@link AnnotationFormatter} used by this type factory
      */
     protected AnnotationFormatter createAnnotationFormatter() {
@@ -1763,6 +2179,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Creates the {@link TypeInformationPresenter} used in {@link #postProcessClassTree(ClassTree)}
      * to output type information about the current class.
+     *
+     * <p>Called from the {@code AnnotatedTypeFactory} constructor, before any subclass constructor
+     * body or field initializer runs, so an override must not depend on subclass state.
      *
      * @return the {@link TypeInformationPresenter} used by this type factory, or null
      */
@@ -1867,7 +2286,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Annotations explicitly written in the source code,
         // or obtained from bytecode.
         AnnotatedTypeMirror type = fromElement(elt);
+        boolean implicitEnclosingInstance = hasImplicitEnclosingInstance(type);
         addComputedTypeAnnotations(elt, type);
+        if (type.getKind() == TypeKind.EXECUTABLE) {
+            setEnclosingInstanceType((AnnotatedExecutableType) type, implicitEnclosingInstance);
+        }
         // Do not cache a result computed while an annotation file is being parsed: a fake
         // override (AnnotationFileParser#processFakeOverride, BinaryStubReader#applyFakeOverride)
         // reentrantly calls this method on the overridden method while that method's own
@@ -1900,9 +2323,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * hierarchy, into the single annotation used to summarize that hierarchy. Called by {@link
      * AnnotatedTypeMirror.AnnotatedIntersectionType#summarizeBounds()}: for a type variable's own
      * intersection upper bound, after each bound has been independently defaulted, so a bound's
-     * annotation may be explicit or defaulted; for an intersection cast target, before defaulting,
-     * so only explicit annotations are seen. Either way, this method is called only when two bounds
-     * carry different annotations in one hierarchy.
+     * annotation may be explicit or defaulted; for an intersection cast target, after each bound
+     * without a written qualifier got the cast operand's qualifier. Either way, this method is
+     * called only when two bounds carry different annotations in one hierarchy.
      *
      * <p>By default the annotation of the bound encountered first, in source order, wins
      * (first-bound-wins): the returned summary equals {@code existingAnnotation} and {@code
@@ -1911,20 +2334,23 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * equals one of the bounds' own annotations and the intersection is a subtype of each of its
      * bounds.
      *
-     * <p>A checker that wants an order-independent, more precise summary -- for example a
-     * JSpecify-style integration -- may override this to return {@code
-     * qualifierHierarchy.greatestLowerBoundQualifiersOnly(existingAnnotation, newAnnotation)}. This
-     * method decides only how the per-hierarchy summary is computed; that summary is always written
-     * back onto every bound (homogenization). Computing it via {@code
-     * greatestLowerBoundQualifiersOnly} additionally relies on {@link
-     * QualifierHierarchy#greatestLowerBoundQualifiers} being consistent with {@link
-     * QualifierHierarchy#isSubtypeQualifiers} for the qualifier hierarchy in use (see that method's
-     * documentation): if a qualifier hierarchy's true subtyping relation depends on something a
-     * static declarative lattice cannot express, such as a checker option, and its computation of
-     * the greatest lower bound was not updated to match, the summary this method returns can be a
-     * qualifier the qualifier hierarchy's own subtype check would not itself have derived,
-     * producing a spurious type error where none existed before the summary was combined -- not a
-     * fault of this method or of homogenization, but of that inconsistency.
+     * <p>A checker in which every bound constrains the intersection -- for example a JSpecify-style
+     * integration -- may override this to return {@code
+     * qualifierHierarchy.greatestLowerBoundQualifiersOnly(existingAnnotation, newAnnotation)}. Such
+     * a checker usually also overrides {@code
+     * BaseTypeVisitor#checkExplicitAnnotationsOnIntersectionBounds}, whose {@code
+     * explicit.annotation.ignored} warning assumes that only the first bound counts: under the
+     * greatest lower bound, no written qualifier is ignored. This method decides only how the
+     * per-hierarchy summary is computed; that summary is always written back onto every bound
+     * (homogenization). Computing it via {@code greatestLowerBoundQualifiersOnly} additionally
+     * relies on {@link QualifierHierarchy#greatestLowerBoundQualifiers} being consistent with
+     * {@link QualifierHierarchy#isSubtypeQualifiers} for the qualifier hierarchy in use (see that
+     * method's documentation): if a qualifier hierarchy's true subtyping relation depends on
+     * something a static declarative lattice cannot express, such as a checker option, and its
+     * computation of the greatest lower bound was not updated to match, the summary this method
+     * returns can be a qualifier the qualifier hierarchy's own subtype check would not itself have
+     * derived, producing a spurious type error where none existed before the summary was combined
+     * -- not a fault of this method or of homogenization, but of that inconsistency.
      *
      * @param existingAnnotation the annotation already chosen for this hierarchy, from an earlier
      *     bound in source order
@@ -2001,9 +2427,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (type.isFrozen()) {
             type = type.deepCopy();
         }
+        boolean implicitEnclosingInstance = hasImplicitEnclosingInstance(type);
         addComputedTypeAnnotations(tree, type);
+        if (type.getKind() == TypeKind.EXECUTABLE) {
+            setEnclosingInstanceType((AnnotatedExecutableType) type, implicitEnclosingInstance);
+        }
         if (tree instanceof TypeCastTree) {
-            type = applyCaptureConversion(type);
+            // javac's type of a cast is already captured (Attr#visitTypeCast). Reuse its captured
+            // type variables, so that every query of the cast's type sees the same ones.
+            type = applyCaptureConversion(type, TreeUtils.typeOf(tree));
         }
 
         if (shouldCache && (isClassTree || tree instanceof MethodTree)) {
@@ -2025,13 +2457,31 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public void preProcessClassTree(ClassTree classTree) {}
 
     /**
+     * Returns whether {@link #postProcessClassTree} stores into the class file the qualifiers that
+     * do not appear in the source code (defaulted types and inherited declaration annotations).
+     *
+     * <p>The default implementation returns true unless {@code -AstoreInBytecode=false} was
+     * supplied. A checker whose computed qualifiers must never reach bytecode (for example, because
+     * they are an implementation detail that no reader of the class file should depend on) can
+     * override this to return false.
+     *
+     * <p>Called from the {@code AnnotatedTypeFactory} constructor, before any subclass constructor
+     * body or field initializer runs, so an override must not depend on subclass state.
+     *
+     * @return whether to store computed qualifiers into the class file
+     */
+    protected boolean shouldStoreInBytecode() {
+        return checker.getBooleanOption("storeInBytecode", true);
+    }
+
+    /**
      * Called by {@link BaseTypeVisitor#visitClass(ClassTree, Void)} after the ClassTree has been
      * type checked.
      *
-     * <p>The default implementation uses this to store the defaulted AnnotatedTypeMirrors and
-     * inherited declaration annotations back into the corresponding Elements, unless {@code
-     * -AstoreInBytecode=false} was supplied. Subclasses might want to override this method if
-     * storing defaulted types is not desirable.
+     * <p>The default implementation stores the defaulted AnnotatedTypeMirrors and inherited
+     * declaration annotations back into the corresponding Elements, if {@link
+     * #shouldStoreInBytecode} returned true, and then runs the {@link TypeInformationPresenter}
+     * returned by {@link #createTypeInformationPresenter}, if any.
      *
      * @param tree the ClassTree that has been processed
      */
@@ -3102,9 +3552,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the type of {@code this} at the location of {@code tree}
      */
     public @Nullable AnnotatedDeclaredType getSelfType(Tree tree) {
-        // The type of "this" is a use of the class, not its declaration.
         if (TreeUtils.isClassTree(tree)) {
-            return getAnnotatedType(TreeUtils.elementFromDeclaration((ClassTree) tree)).asUse();
+            return getSelfType(TreeUtils.elementFromDeclaration((ClassTree) tree));
         }
 
         Tree enclosingTree = getEnclosingClassOrMethod(tree);
@@ -3119,9 +3568,161 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 return getAnnotatedType(enclosingMethod).getReceiverType();
             }
         } else if (TreeUtils.isClassTree(enclosingTree)) {
-            return ((AnnotatedDeclaredType) getAnnotatedType(enclosingTree)).asUse();
+            return getSelfType(TreeUtils.elementFromDeclaration((ClassTree) enclosingTree));
         }
         return null;
+    }
+
+    /**
+     * Returns the type of {@code this} in {@code classElt}: the class applied to its own type
+     * parameters, with the annotations that the class's defaults give it. This is the receiver that
+     * a method of the class has when neither the method nor a default in its scope says otherwise,
+     * and the type of {@code this} in a field initializer or an initializer block. A default that
+     * only a method is in the scope of is not part of it. Its enclosing type is the type of this in
+     * the enclosing class, without the defaults of {@code classElt}: a default of an inner class
+     * says nothing about its enclosing instance.
+     *
+     * @param classElt a class
+     * @return the type of {@code this} in {@code classElt}
+     */
+    public AnnotatedDeclaredType getSelfType(TypeElement classElt) {
+        // The type of "this" is a use of the class, not its declaration. As a use, its type
+        // arguments take the defaults that the class gives a use of a type variable.
+        AnnotatedDeclaredType selfType = getAnnotatedType(classElt).asUse().deepCopy();
+        addComputedTypeAnnotations(classElt, selfType);
+        AnnotatedDeclaredType enclosing = selfType.getEnclosingType();
+        if (enclosing != null) {
+            selfType.setEnclosingType(
+                    getSelfType((TypeElement) enclosing.getUnderlyingType().asElement()));
+        }
+        return selfType;
+    }
+
+    /**
+     * Returns true if {@code type} is the type of a method or constructor of an inner class whose
+     * enclosing instance has no written annotation. For a method, the enclosing instance is the
+     * enclosing type of the receiver, as in {@code Outer<O>.Inner this}; for a constructor, it is
+     * the receiver itself, as in {@code Inner(Outer<O> Outer.this)}. Call this on the type from
+     * {@link #fromElement(Element)}, before defaults are added.
+     *
+     * @param type the type of an element or a declaration
+     * @return true if {@code type} is the type of a method or constructor of an inner class whose
+     *     enclosing instance has no written annotation
+     */
+    private static boolean hasImplicitEnclosingInstance(AnnotatedTypeMirror type) {
+        if (type.getKind() != TypeKind.EXECUTABLE) {
+            return false;
+        }
+        AnnotatedExecutableType exeType = (AnnotatedExecutableType) type;
+        AnnotatedDeclaredType receiver = exeType.getReceiverType();
+        if (receiver == null) {
+            return false;
+        }
+        AnnotatedDeclaredType enclosingInstance =
+                exeType.getElement().getKind() == ElementKind.CONSTRUCTOR
+                        ? receiver
+                        : receiver.getEnclosingType();
+        if (enclosingInstance == null) {
+            return false;
+        }
+        // A receiver is the class applied to its own type parameters, so each type argument is a
+        // type variable, and an annotation on it is a primary annotation.
+        for (AnnotatedDeclaredType t = enclosingInstance; t != null; t = t.getEnclosingType()) {
+            if (!t.getAnnotations().isEmpty()) {
+                return false;
+            }
+            for (AnnotatedTypeMirror typeArg : t.getTypeArguments()) {
+                if (!typeArg.getAnnotations().isEmpty()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Sets the type of the enclosing instance of a method or constructor of an inner class. If
+     * nothing is written on it ({@code implicit}), it becomes the type of {@code this} in the
+     * enclosing class, from {@link #getSelfType(TypeElement)}. The type of the enclosing instance
+     * is not written in the inner class, so a default of the inner class or of the method says
+     * nothing about it; without this, such a default would annotate it, as in {@code Outer<@NonNull
+     * O>.Inner this} under a {@code TYPE_VARIABLE_USE} default on {@code Inner}. Then the method
+     * could not be called through an {@code Outer<@Nullable String>.Inner}, and a constructor,
+     * whose receiver is checked only with {@code -AcheckEnclosingExpr}, could dereference a null
+     * field of the enclosing instance.
+     *
+     * <p>For a method, the enclosing type of the receiver becomes the enclosing class's self type.
+     * For a constructor, the receiver becomes it. The enclosing type of a constructor's result,
+     * which is the type of {@code Outer.this} in its body, always becomes a copy of the receiver,
+     * so a written constructor receiver such as {@code Inner(Outer<@NonNull O> Outer.this)} is
+     * respected in the body. Does nothing for a method or constructor without an enclosing
+     * instance.
+     *
+     * @param exeType the type of a method or constructor, after defaults were added
+     * @param implicit whether {@link #hasImplicitEnclosingInstance} held for {@code exeType} before
+     *     defaults were added
+     */
+    private void setEnclosingInstanceType(AnnotatedExecutableType exeType, boolean implicit) {
+        AnnotatedDeclaredType receiver = exeType.getReceiverType();
+        if (receiver == null) {
+            return;
+        }
+        if (exeType.getElement().getKind() == ElementKind.CONSTRUCTOR) {
+            if (implicit) {
+                receiver = getSelfType((TypeElement) receiver.getUnderlyingType().asElement());
+                exeType.setReceiverType(receiver);
+            }
+            AnnotatedDeclaredType result = (AnnotatedDeclaredType) exeType.getReturnType();
+            if (result.getEnclosingType() != null) {
+                result.setEnclosingType(receiver.deepCopy());
+            }
+        } else if (implicit) {
+            AnnotatedDeclaredType enclosing = receiver.getEnclosingType();
+            receiver.setEnclosingType(
+                    getSelfType((TypeElement) enclosing.getUnderlyingType().asElement()));
+        }
+    }
+
+    /**
+     * The new array expressions whose type is being computed for the target type of one of their
+     * initializers, by {@link #getInitializerTargetType}.
+     */
+    private final Set<NewArrayTree> initializerTargetArrays =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /**
+     * Returns the target type of an initializer of {@code newArray}: the component type of the
+     * array (JLS 10.6), without the lub of the initializers' types that {@link
+     * #getAnnotatedType(Tree)} gives the array. Type argument inference of a generic initializer,
+     * such as {@code new Pair<>(a, b)}, and the functional interface type of a lambda initializer
+     * use it. The lub would infer every initializer again for each initializer, which is quadratic
+     * in the number of initializers, and exponential where the initializers' inference asks for the
+     * target type again.
+     *
+     * @param newArray a new array expression with initializers
+     * @return the target type of an initializer of {@code newArray}
+     */
+    public AnnotatedTypeMirror getInitializerTargetType(NewArrayTree newArray) {
+        boolean added = initializerTargetArrays.add(newArray);
+        try {
+            return getAnnotatedType(newArray).getComponentType();
+        } finally {
+            if (added) {
+                initializerTargetArrays.remove(newArray);
+            }
+        }
+    }
+
+    /**
+     * Returns true if the type of {@code newArray} is being computed by {@link
+     * #getInitializerTargetType}, so it must not depend on the types of the initializers.
+     *
+     * @param newArray a new array expression
+     * @return true if the type of {@code newArray} is being computed for the target type of one of
+     *     its initializers
+     */
+    public boolean isComputingInitializerTargetType(NewArrayTree newArray) {
+        return initializerTargetArrays.contains(newArray);
     }
 
     /** A set containing class, method, and annotation tree kinds. */
@@ -3504,8 +4105,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             methodType.setReturnType(methodType.getReturnType().getErased());
         }
 
-        if (tree instanceof MethodInvocationTree
-                && TreeUtils.isMethodInvocation(tree, objectGetClass, processingEnv)) {
+        if ((tree instanceof MethodInvocationTree
+                        && TreeUtils.isMethodInvocation(tree, objectGetClass, processingEnv))
+                || (tree instanceof MemberReferenceTree
+                        && ElementUtils.isMethod(methodElt, objectGetClass, processingEnv))) {
             adaptGetClassReturnTypeToReceiver(methodType, receiverType, tree);
         }
 
@@ -3880,18 +4483,31 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *   <li>{@code someInteger.getClass()} has the type {@code Class< ? extends Integer >}
      * </ul>
      *
+     * <p>A method reference such as {@code x::getClass} or {@code Foo::getClass} returns the same
+     * type as an invocation on the reference's receiver.
+     *
      * @param getClassType this must be a type representing a call to Object.getClass otherwise a
      *     runtime exception will be thrown. It is modified by side effect.
      * @param receiverType the receiver type of the method invocation (not the declared receiver
      *     type)
-     * @param tree getClass method invocation tree
+     * @param tree a getClass method invocation or member reference tree
      */
     protected void adaptGetClassReturnTypeToReceiver(
             AnnotatedExecutableType getClassType,
             AnnotatedTypeMirror receiverType,
             ExpressionTree tree) {
-        TypeMirror type = TreeUtils.typeOf(tree);
-        AnnotatedTypeMirror returnType = AnnotatedTypeMirror.createType(type, this, false);
+        AnnotatedDeclaredType declaredReturnType =
+                (AnnotatedDeclaredType) getClassType.getReturnType();
+        AnnotatedWildcardType classWildcardArg =
+                (AnnotatedWildcardType) declaredReturnType.getTypeArguments().get(0);
+        AnnotatedTypeMirror returnType;
+        if (tree instanceof MemberReferenceTree) {
+            returnType =
+                    getClassReturnTypeForMemberReference(
+                            declaredReturnType, classWildcardArg, receiverType);
+        } else {
+            returnType = AnnotatedTypeMirror.createType(TreeUtils.typeOf(tree), this, false);
+        }
 
         if (returnType == null
                 || !(returnType.getKind() == TypeKind.DECLARED)
@@ -3902,11 +4518,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     getClassType, receiverType);
         }
 
-        AnnotatedWildcardType classWildcardArg =
-                (AnnotatedWildcardType)
-                        ((AnnotatedDeclaredType) getClassType.getReturnType())
-                                .getTypeArguments()
-                                .get(0);
         getClassType.setReturnType(returnType);
 
         // Usually, the only locations that will add annotations to the return type are getClass in
@@ -3931,6 +4542,38 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedTypeMirror newTypeArg =
                 ((AnnotatedDeclaredType) getClassType.getReturnType()).getTypeArguments().get(0);
         ((AnnotatedTypeVariable) newTypeArg).getUpperBound().replaceAnnotations(newAnnos);
+    }
+
+    /**
+     * Returns the return type of a member reference to {@code getClass} with a receiver of type
+     * {@code receiverType}: as for an invocation, the capture of {@code Class<? extends
+     * erasure_of_receiver>}. An invocation's type comes from javac, and the tree annotators and
+     * defaults complete its annotations. A member reference's return type is used as computed here,
+     * so it is annotated like the declared {@code Class<?>}, with the erased receiver type as the
+     * upper bound of the wildcard.
+     *
+     * @param declaredReturnType the declared return type of {@code getClass}, {@code Class<?>}
+     * @param classWildcardArg the type argument of {@code declaredReturnType}
+     * @param receiverType the receiver type of the member reference
+     * @return the capture of {@code Class<? extends erasure_of_receiver>}
+     */
+    private AnnotatedTypeMirror getClassReturnTypeForMemberReference(
+            AnnotatedDeclaredType declaredReturnType,
+            AnnotatedWildcardType classWildcardArg,
+            AnnotatedTypeMirror receiverType) {
+        AnnotatedTypeMirror erasedReceiverType = receiverType.getErased();
+        DeclaredType classType =
+                types.getDeclaredType(
+                        (TypeElement) declaredReturnType.getUnderlyingType().asElement(),
+                        types.getWildcardType(erasedReceiverType.getUnderlyingType(), null));
+        AnnotatedDeclaredType result =
+                (AnnotatedDeclaredType) AnnotatedTypeMirror.createType(classType, this, false);
+        result.addAnnotations(declaredReturnType.getAnnotations());
+        AnnotatedWildcardType wildcard = (AnnotatedWildcardType) result.getTypeArguments().get(0);
+        wildcard.addAnnotations(classWildcardArg.getAnnotations());
+        wildcard.setExtendsBound(erasedReceiverType);
+        wildcard.setSuperBound(classWildcardArg.getSuperBound().deepCopy());
+        return applyCaptureConversion(result);
     }
 
     /**
@@ -4063,12 +4706,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             MemberReferenceTree memberReferenceTree, AnnotatedExecutableType constructorType) {
         assert memberReferenceTree.getMode() == MemberReferenceTree.ReferenceMode.NEW;
 
-        // The return type for constructors should only have explicit annotations from the
-        // constructor. The code below recreates some of the logic from TypeFromTree.visitNewClass
-        // to do this.
-
-        // The return type of the constructor will be the type of the expression of the member
-        // reference tree.
+        // As for a `new` expression (see TypeFromExpressionVisitor.visitNewClass), the result has
+        // the annotations written on the expression of the member reference tree and, in every
+        // other hierarchy, those of the constructor's result. For an array constructor reference,
+        // such as `Object[]::new`, the constructor is javac's constructor for arrays.
         AnnotatedTypeMirror constructorReturnType =
                 fromTypeTree(memberReferenceTree.getQualifierExpression());
         if (TreeUtils.needsTypeArgInference(memberReferenceTree)) {
@@ -4081,15 +4722,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             constructorReturnType = re;
         }
 
-        if (constructorReturnType.getKind() == TypeKind.DECLARED) {
-            // Keep only explicit annotations and those from @Poly
-            AnnotatedTypes.copyOnlyExplicitConstructorAnnotations(
-                    this, (AnnotatedDeclaredType) constructorReturnType, constructorType);
-        }
-
-        // Now add back defaulting.
+        AnnotationMirrorSet written =
+                new AnnotationMirrorSet(constructorReturnType.getAnnotations());
         addComputedTypeAnnotations(
                 memberReferenceTree.getQualifierExpression(), constructorReturnType);
+        for (AnnotationMirror fromConstructor : constructorType.getReturnType().getAnnotations()) {
+            AnnotationMirror writtenAnno =
+                    qualHierarchy.findAnnotationInSameHierarchy(written, fromConstructor);
+            // A polymorphic qualifier was resolved in the constructor type.
+            if (writtenAnno == null || qualHierarchy.isPolymorphicQualifier(writtenAnno)) {
+                constructorReturnType.replaceAnnotation(fromConstructor);
+            }
+        }
         return constructorReturnType;
     }
 
@@ -6560,8 +7204,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
             case NEW_ARRAY:
                 NewArrayTree newArray = (NewArrayTree) parentTree;
-                AnnotatedArrayType newArrayATM = getAnnotatedType(newArray);
-                AnnotatedTypeMirror elementATM = newArrayATM.getComponentType();
+                AnnotatedTypeMirror elementATM = getInitializerTargetType(newArray);
                 assertIsFunctionalInterface(elementATM.getUnderlyingType(), parentTree, tree);
                 return elementATM;
 
@@ -6917,7 +7560,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         AnnotatedDeclaredType uncapturedType = (AnnotatedDeclaredType) type;
-        DeclaredType capturedTypeMirror = (DeclaredType) typeMirror;
+        DeclaredType capturedTypeMirror =
+                uncollapseSuperBoundedWildcards(uncapturedType, (DeclaredType) typeMirror);
         // `capturedType` is the return value of this method.
         AnnotatedDeclaredType capturedType =
                 (AnnotatedDeclaredType)
@@ -7003,6 +7647,70 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         capturedType.setTypeArguments(newTypeArgs);
         capturedType.addAnnotations(uncapturedType.getAnnotationsField());
         return capturedType;
+    }
+
+    /**
+     * Returns {@code capturedTypeMirror} with a fresh captured type variable for each super-bounded
+     * wildcard of {@code uncapturedType} that javac's capture conversion collapsed to a declared
+     * type, if the wildcard's annotated bounds differ.
+     *
+     * <p>javac captures {@code ? super B} to {@code B} itself when the type variable it would
+     * create has {@code B} as both bounds (JDK-8054309). That type argument cannot carry the
+     * annotations of both bounds: for {@code Lib<T extends @Nullable Object>}, {@code Lib<?
+     * super @NonNull Object>} would read as {@code @NonNull} and be a subtype of {@code Lib<?
+     * extends @NonNull Object>}. {@link #annotateCapturedTypeVar} annotates the type variable
+     * created here like any other. A wildcard that collapsed to a type variable is kept; see {@code
+     * BaseTypeValidator#checkExplicitSuperBoundWildcards}.
+     *
+     * @param uncapturedType a declared type with a wildcard type argument
+     * @param capturedTypeMirror the result of javac's capture conversion of the underlying type of
+     *     {@code uncapturedType}
+     * @return {@code capturedTypeMirror}, or a copy of it in which every collapsed type argument
+     *     with differing annotated bounds is a fresh captured type variable
+     */
+    private DeclaredType uncollapseSuperBoundedWildcards(
+            AnnotatedDeclaredType uncapturedType, DeclaredType capturedTypeMirror) {
+        List<? extends TypeMirror> capturedArgs = capturedTypeMirror.getTypeArguments();
+        List<? extends AnnotatedTypeMirror> uncapturedArgs = uncapturedType.getTypeArguments();
+        TypeMirror[] newArgs = null;
+        for (int i = 0; i < capturedArgs.size(); i++) {
+            TypeMirror capturedArg = capturedArgs.get(i);
+            AnnotatedTypeMirror uncapturedArg = uncapturedArgs.get(i);
+            if (uncapturedArg.getKind() != TypeKind.WILDCARD
+                    || capturedArg.getKind() == TypeKind.WILDCARD
+                    || TypesUtils.isCapturedTypeVariable(capturedArg)) {
+                continue;
+            }
+            AnnotatedWildcardType wildcard = (AnnotatedWildcardType) uncapturedArg;
+            if (wildcard.getUnderlyingType().getSuperBound() == null
+                    || capturedArg.getKind() == TypeKind.TYPEVAR) {
+                // Only a super-bounded wildcard can have equal bounds. A collapsed type variable
+                // (`Gen<T, S extends T>` used as `Gen<F, ? super F>`) is kept: the bounds of the
+                // captured type variable would be the type variable itself, which
+                // StructuralEqualityComparer cannot compare with a captured type variable.
+                continue;
+            }
+            if (AnnotationUtils.areSame(
+                    wildcard.getExtendsBound().getAnnotations(),
+                    wildcard.getSuperBound().getAnnotations())) {
+                continue;
+            }
+            if (newArgs == null) {
+                newArgs = capturedArgs.toArray(new TypeMirror[0]);
+            }
+            // javac collapsed the wildcard because the upper and lower bounds of the type
+            // variable it would have created are the same Java type, namely `capturedArg`.
+            newArgs[i] = TypesUtils.freshTypeVariable(capturedArg, capturedArg, processingEnv);
+        }
+        if (newArgs == null) {
+            return capturedTypeMirror;
+        }
+        TypeElement element = (TypeElement) capturedTypeMirror.asElement();
+        TypeMirror enclosing = capturedTypeMirror.getEnclosingType();
+        if (enclosing.getKind() == TypeKind.DECLARED) {
+            return types.getDeclaredType((DeclaredType) enclosing, element, newArgs);
+        }
+        return types.getDeclaredType(element, newArgs);
     }
 
     /**
