@@ -121,6 +121,11 @@ Type-checking and subtyping improvements:
   qualifiers of the superclass's type arguments from the target type and the
   arguments, as for `new C<>(args)`. They were defaulted, which caused false
   positives and checked the arguments against the defaulted type.
+- The `equals`, `hashCode`, and `toString` methods that the compiler generates
+  for a record in the source code being compiled have the types of the
+  `java.lang.Record` methods they implement, rather than the defaults. The Nullness Checker no longer rejects
+  `item.equals(null)`, and the Lock Checker no longer rejects `item.hashCode()`
+  on a `@GuardedBy` record while its lock is held.
 - Method invocations that the CFG synthesizes (boxing, unboxing, enhanced `for`,
   try-with-resources) are type-checked by every checker, with diagnostics at
   the source construct, also in code the CFG cannot reach unless
@@ -858,6 +863,7 @@ eisop#2603,
 eisop#2612,
 eisop#2623,
 eisop#2625,
+eisop#2633,
 typetools#399,
 typetools#602,
 typetools#2816,
