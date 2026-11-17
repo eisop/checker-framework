@@ -178,7 +178,7 @@ runs:
     # docs/examples/BazelExample/Makefile runs Bazel only on JDK 21 and earlier.
     - name: Setup Bazel
       if: ${{ inputs.script == 'cftests-nonjunit' && fromJSON(inputs.target-jdk) <= 21 }}
-      uses: bazel-contrib/setup-bazel@0.19.1
+      uses: bazel-contrib/setup-bazel@0.19.2
       with:
         bazelisk-cache: true
         disk-cache: ${{ github.workflow }}
