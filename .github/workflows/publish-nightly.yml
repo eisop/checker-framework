@@ -47,8 +47,10 @@ jobs:
 
   publish:
     needs: check
-    # A manual run from another branch must not publish that branch as the nightly build.
-    if: needs.check.outputs.changed == 'true' && github.ref == 'refs/heads/master'
+    # A manual run from another branch, or in a fork, must not publish a nightly build.
+    if: >-
+      needs.check.outputs.changed == 'true' && github.ref == 'refs/heads/master'
+      && github.repository == 'eisop/checker-framework'
     runs-on: ubuntu-26.04
     timeout-minutes: 45
     permissions:
@@ -88,16 +90,15 @@ jobs:
             exit 1
           fi
           notes="The zip files of master at $GITHUB_SHA, built $(date -u +%Y-%m-%d).  Not a release."
-          git tag -f "$TAG"
-          git push -f origin "refs/tags/$TAG"
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release edit "$TAG" --prerelease --latest=false --title "Nightly build" --notes "$notes"
           else
-            gh release create "$TAG" --prerelease --latest=false --title "Nightly build" --notes "$notes"
+            gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --latest=false --title "Nightly build" --notes "$notes"
           fi
           gh release upload "$TAG" "${files[@]}" --clobber
           # Remove the files of earlier versions, whose names differ.
-          for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+          assets=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+          for asset in $assets; do
             keep=false
             for f in "${files[@]}"; do
               [ "$asset" = "$(basename "$f")" ] && keep=true
@@ -106,3 +107,6 @@ jobs:
               gh release delete-asset "$TAG" "$asset" --yes
             fi
           done
+          # Last, so that the check job skips only after a successful build.
+          git tag -f "$TAG"
+          git push -f origin "refs/tags/$TAG"
