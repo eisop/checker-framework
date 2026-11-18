@@ -2801,7 +2801,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param type the type of {@code elt}; side-effected by this method
      */
     private void applyRecordMethodTypesToGeneratedMethod(Element elt, AnnotatedTypeMirror type) {
-        if (elt.getKind() != ElementKind.METHOD
+        // While an annotation file is parsed, the type of the java.lang.Record method may be
+        // incomplete, and the type of a method that an annotation file declares comes from that
+        // file anyway.
+        if (isParsingAnnotationFile()
+                || elt.getKind() != ElementKind.METHOD
                 || !ElementUtils.isRecordElement(elt.getEnclosingElement())
                 || !isGeneratedRecordMethod((ExecutableElement) elt)) {
             return;
