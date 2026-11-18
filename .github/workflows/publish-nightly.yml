@@ -1,0 +1,108 @@
+name: Publish nightly build
+
+# Builds the release zip files of master, as a release does, and attaches them to the "nightly"
+# prerelease, replacing those of the previous night.  The web site's generator publishes them as
+# the development version of the web site, https://eisop.github.io/cf/dev/, so that problems in
+# the manual and the zip files show up before a release.
+#
+# The prerelease is never the latest release: GitHub's "latest release", which the release
+# scripts and the web site use, excludes prereleases.  It is updated in place rather than
+# recreated, because creating a release notifies everyone who watches the repository's releases.
+
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: '0 4 * * *'  # Daily at 04:00 UTC, before the web site is published at 06:00.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-nightly
+  cancel-in-progress: false
+
+env:
+  TAG: nightly
+
+jobs:
+  check:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # gh prints the error response on stdout when there is no tag yet.
+          built=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2> /dev/null) || built=""
+          echo "master: $GITHUB_SHA; last nightly build: ${built:-none}"
+          if [ "$built" = "$GITHUB_SHA" ] && [ "$GITHUB_EVENT_NAME" = schedule ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "master has not changed since the last nightly build." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    needs: check
+    # A manual run from another branch must not publish that branch as the nightly build.
+    if: needs.check.outputs.changed == 'true' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    permissions:
+      # To move the tag and to replace the files of the prerelease.
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      # The same environment as the release job of ci.yml, which builds the manuals.
+      - name: Set up the build environment
+        timeout-minutes: 15
+        uses: ./.github/actions/setup-test-env
+        with:
+          primary-jdk: '21'
+          target-jdk: '21'
+          # Not used, as the target JDK is not the early-access one; see ci.yml for the values.
+          jdk-ea-major: '0'
+          jdk-ea-build: '0'
+          script: release
+          cache-read-only: 'true'
+
+      - name: Build the zip files
+        run: |
+          make -C docs/tutorial
+          ./gradlew zip annotationFileUtilitiesZip --console=plain --warning-mode=all
+
+      - name: Attach the zip files to the prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          files=(build/checker-framework-*-SNAPSHOT.zip build/annotation-file-utilities-*-SNAPSHOT.zip)
+          if [ "${#files[@]}" -ne 2 ]; then
+            echo "::error::Expected the two -SNAPSHOT zip files in build/, found: ${files[*]}"
+            exit 1
+          fi
+          notes="The zip files of master at $GITHUB_SHA, built $(date -u +%Y-%m-%d).  Not a release."
+          git tag -f "$TAG"
+          git push -f origin "refs/tags/$TAG"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --prerelease --latest=false --title "Nightly build" --notes "$notes"
+          else
+            gh release create "$TAG" --prerelease --latest=false --title "Nightly build" --notes "$notes"
+          fi
+          gh release upload "$TAG" "${files[@]}" --clobber
+          # Remove the files of earlier versions, whose names differ.
+          for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+            keep=false
+            for f in "${files[@]}"; do
+              [ "$asset" = "$(basename "$f")" ] && keep=true
+            done
+            if [ "$keep" = false ]; then
+              gh release delete-asset "$TAG" "$asset" --yes
+            fi
+          done

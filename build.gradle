@@ -421,6 +421,11 @@ allprojects { currentProj ->
             // on changed lines.  Enable -Xwerror in the future when all Javadoc exists.
             // options.addBooleanOption("Xwerror", true)
             options.addStringOption("Xmaxwarns", "99999")
+            // Without a timestamp, a page changes only when its content does, so the nightly
+            // build's Javadoc on the web site changes only where the code changed.
+            if (standardDoclet) {
+                options.addBooleanOption("notimestamp", true)
+            }
 
             // Javadoc looks for this CSS file; create it when the task runs (it must not be created
             // at configuration time). Uses the task's own destinationDir and plain file I/O, so no
