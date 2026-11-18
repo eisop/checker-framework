@@ -122,10 +122,11 @@ Type-checking and subtyping improvements:
   arguments, as for `new C<>(args)`. They were defaulted, which caused false
   positives and checked the arguments against the defaulted type.
 - The `equals`, `hashCode`, and `toString` methods that the compiler generates
-  for a record in the source code being compiled have the types of the
-  `java.lang.Record` methods they implement, rather than the defaults. The Nullness Checker no longer rejects
-  `item.equals(null)`, and the Lock Checker no longer rejects `item.hashCode()`
-  on a `@GuardedBy` record while its lock is held.
+  for a record have the types of the `java.lang.Record` methods they implement,
+  rather than the defaults, also for a record read from a class file. The
+  Nullness Checker no longer rejects `item.equals(null)`, and the Lock Checker
+  no longer rejects `item.hashCode()` on a `@GuardedBy` record while its lock
+  is held.
 - Method invocations that the CFG synthesizes (boxing, unboxing, enhanced `for`,
   try-with-resources) are type-checked by every checker, with diagnostics at
   the source construct, also in code the CFG cannot reach unless

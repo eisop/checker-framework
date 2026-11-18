@@ -1,8 +1,9 @@
+// @below-java16-jdk-skip-test
+
 import org.checkerframework.checker.lock.qual.GuardedBy;
 
 import java.util.concurrent.locks.ReentrantLock;
 
-// @below-java16-jdk-skip-test
 class LockRecordGeneratedMethods {
     record Item(String name) {}
 

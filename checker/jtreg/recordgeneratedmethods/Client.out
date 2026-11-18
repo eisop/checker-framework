@@ -1,0 +1,4 @@
+Client.java:31:18: compiler.err.proc.messager: (argument.type.incompatible)
+Client.java:32:18: compiler.err.proc.messager: (argument.type.incompatible)
+Client.java:37:19: compiler.err.proc.messager: (dereference.of.nullable)
+3 errors
