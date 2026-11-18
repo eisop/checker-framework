@@ -272,7 +272,7 @@ def main(argv: list[str]) -> None:
 
         print_step("Push Step 8. Publish the web site.")  # MANUAL
         continue_or_exit(
-            "The web site is published daily at 06:00 UTC.  To publish it now, run the\n"
+            "The web site is published daily at 20:00 UTC.  To publish it now, run the\n"
             '"Publish website" workflow with dry_run unchecked:\n'
             "  https://github.com/eisop/eisop.github.io/actions/workflows/publish-website.yml\n"
             "or:\n"
