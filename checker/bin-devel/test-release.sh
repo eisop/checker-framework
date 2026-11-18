@@ -67,6 +67,8 @@ for f in \
   checker/dist/checker-qual.jar \
   checker/bin/javac \
   README.md \
+  docs/manual/manual.pdf \
+  docs/manual/checker-framework-dataflow-manual.pdf \
   docs/tutorial/index.html \
   docs/tutorial/sourcefiles.zip; do
   grep -qx "checker-framework-${VERSION}/$f" "$TMP_DIR/cf-zip.txt" \

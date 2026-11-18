@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Release utilities.
 
 Python Utils for releasing the Checker Framework
@@ -101,12 +101,6 @@ def prompt_yn(msg: str) -> bool:
     return y_or_n == "y"
 
 
-def prompt_to_continue() -> None:
-    """Prompts the user to continue, until they enter yes."""
-    while not prompt_yes_no("Continue?"):
-        pass
-
-
 def prompt_w_default(msg: str, default: str, valid_regex: str | None = None) -> str:
     """Only accept answers that match valid_regex.  If default is None, require an answer.
 
@@ -137,11 +131,6 @@ def check_tools(tools: list[str]) -> None:
     """Verify that each tools is on the PATH."""
     print("\nChecking to make sure the following programs are installed:")
     print(", ".join(tools))
-    print(
-        "Note: If you are NOT working in the Release Docker image then you "
-        "likely need to change the variables that are set in release.py\n"
-        'Search for "Set environment variables".'
-    )
     list(map(check_command, tools))
     print()
 
@@ -180,6 +169,23 @@ def version_number_to_array(version_num: str) -> list[int]:
     numbers = [int(x) for x in match.group(1).split(".")]
     numbers += [0] * (4 - len(numbers))
     return [*numbers, int(match.group(2) or 0)]
+
+
+def check_release_version(previous_release: str, new_release: str) -> None:
+    """Ensure that the given new release version is greater than the given previous one.
+
+    Raises:
+        ReleaseError: If the new version is not greater than the previous one.
+    """
+    if version_number_to_array(previous_release) >= version_number_to_array(new_release):
+        raise ReleaseError(
+            "Previous release version ("
+            + previous_release
+            + ") should be less than "
+            + "the new release version ("
+            + new_release
+            + ")"
+        )
 
 
 def current_release_version() -> str:
@@ -301,7 +307,10 @@ def check_repo(repo: Path) -> None:
     Raises:
         ReleaseError: If the repository is not clean and up to date.
     """
-    if git_repo_exists_at_path(repo) and not is_repo_cleaned_and_updated(repo):
+    if not git_repo_exists_at_path(repo):
+        msg = f"There is no repository at {repo}.  Clone it from scratch and start over."
+        raise ReleaseError(msg)
+    if not is_repo_cleaned_and_updated(repo):
         msg = f"repo {repo} is not cleaned and updated!  Clone it from scratch and start over."
         raise ReleaseError(msg)
 

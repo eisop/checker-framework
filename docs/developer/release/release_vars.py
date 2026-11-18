@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Release variables."""
 
 # See README-release-process.html for an explanation of how the release process works.
@@ -101,16 +101,20 @@ CHECKER_FRAMEWORK = BUILD_DIR / "checker-framework"
 # The version of the release.  Without -Prelease=true, the build's version is a -SNAPSHOT version.
 # If a new Gradle wrapper was recently installed, the first ./gradlew command may output:
 #   Downloading https://services.gradle.org/distributions/gradle-6.6.1-bin.zip
-execute("./gradlew version -q -Prelease=true", TMP_DIR / "checker-framework")
-CF_VERSION = execute_output(
-    "./gradlew version -q -Prelease=true", TMP_DIR / "checker-framework"
-).strip()
+SCRIPTS_CLONE = TMP_DIR / "checker-framework"
+if not (SCRIPTS_CLONE / "gradlew").is_file():
+    msg = (
+        f"Run the release scripts from a clone of the Checker Framework in {SCRIPTS_CLONE}; see"
+        " the Step by Step section of docs/developer/release/README-release-process.html."
+    )
+    raise ReleaseError(msg)
+execute("./gradlew version -q -Prelease=true", SCRIPTS_CLONE)
+CF_VERSION = execute_output("./gradlew version -q -Prelease=true", SCRIPTS_CLONE).strip()
 
 # The release files, checker-framework-VERSION.zip and annotation-file-utilities-VERSION.zip,
 # which are attached to the GitHub release.  The web site is generated from them.
 RELEASE_FILES_DIR = TMP_DIR / "release-files"
 
-os.environ["PARENT_DIR"] = str(BUILD_DIR)
 os.environ["CHECKERFRAMEWORK"] = str(CHECKER_FRAMEWORK)
 os.environ["TEXINPUTS"] = ".:..:"
 # The JDK of the release build; the environment variable JAVA_21_HOME overrides the default.
@@ -125,7 +129,6 @@ os.environ["PATH"] = PATH
 # Tools that must be on your PATH (besides common Unix ones like grep)
 TOOLS = [
     "hevea",
-    "perl",
     "java",
     "latex",
     "mvn",

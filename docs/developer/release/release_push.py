@@ -1,16 +1,17 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Push the release."""
 
 # See README-release-process.html for more information
 
 import filecmp
-import pathlib
 import sys
 import tempfile
+import urllib.error
 from pathlib import Path
 
 from release_errors import ReleaseError
 from release_utils import (
+    check_release_version,
     continue_or_exit,
     current_release_version,
     delete_if_exists,
@@ -20,7 +21,6 @@ from release_utils import (
     print_step,
     prompt_yes_no,
     push_release,
-    version_number_to_array,
 )
 from release_vars import (
     CF_VERSION,
@@ -35,23 +35,6 @@ from sanity_checks import (
 )
 
 
-def check_release_version(previous_release: str, new_release: str) -> None:
-    """Ensure that the given new release version is greater than the given previous one.
-
-    Raises:
-        ReleaseError: If the new version is not greater than the previous one.
-    """
-    if version_number_to_array(previous_release) >= version_number_to_array(new_release):
-        raise ReleaseError(
-            "Previous release version ("
-            + previous_release
-            + ") should be less than "
-            + "the new release version ("
-            + new_release
-            + ")"
-        )
-
-
 def release_file_names(cf_version: str) -> list[str]:
     """Return the names of the files that are attached to the GitHub release.
 
@@ -61,11 +44,24 @@ def release_file_names(cf_version: str) -> list[str]:
     return [f"checker-framework-{cf_version}.zip", f"annotation-file-utilities-{cf_version}.zip"]
 
 
-def check_github_release_files(cf_version: str) -> None:
-    """Check that the files attached to the GitHub release are the ones that were built.
+def download_github_release_file(url: str, destination: Path) -> str | None:
+    """Download a file attached to the GitHub release.
 
-    Raises:
-        ReleaseError: If a file attached to the GitHub release differs from the built one.
+    Returns:
+        why the file could not be downloaded, or None if it was.
+    """
+    try:
+        download_binary(url, destination)
+    except urllib.error.URLError as e:
+        return f"Could not download {url}: {e}"
+    return None
+
+
+def github_release_files_problem(cf_version: str) -> str | None:
+    """Compare the files attached to the GitHub release with the ones that were built.
+
+    Returns:
+        why the files attached to the GitHub release are not the built ones, or None if they are.
     """
     download_url = (
         "https://github.com/eisop/checker-framework/releases/download/"
@@ -75,11 +71,28 @@ def check_github_release_files(cf_version: str) -> None:
         for name in release_file_names(cf_version):
             downloaded = Path(download_dir) / name
             print(f"Downloading {download_url}/{name}")
-            download_binary(f"{download_url}/{name}", downloaded)
+            problem = download_github_release_file(f"{download_url}/{name}", downloaded)
+            if problem is not None:
+                return problem
             if not filecmp.cmp(downloaded, RELEASE_FILES_DIR / name, shallow=False):
-                msg = f"{name} attached to the GitHub release differs from {RELEASE_FILES_DIR}."
-                raise ReleaseError(msg)
+                return f"{name} attached to the GitHub release differs from {RELEASE_FILES_DIR}."
             print(f"{name} attached to the GitHub release is the built one.")
+    return None
+
+
+def check_github_release_files(cf_version: str) -> None:
+    """Check the files attached to the GitHub release until they are right or the user gives up.
+
+    A re-run of the script cannot reach the steps after this one, because the release then exists,
+    so on a failure the user is asked to fix the GitHub release and try again.
+
+    Raises:
+        ReleaseError: If the files are not right and the user chooses not to try again.
+    """
+    while (problem := github_release_files_problem(cf_version)) is not None:
+        print(problem)
+        if not prompt_yes_no("Fix the GitHub release, then try again?", True):
+            raise ReleaseError(problem)
 
 
 def validate_args(argv: list[str]) -> None:
@@ -145,7 +158,7 @@ def main(argv: list[str]) -> None:
     else:
         print("Continuing in release mode.")
 
-    if not pathlib.Path(RELEASE_BUILD_COMPLETED_FLAG_FILE).exists():
+    if not Path(RELEASE_BUILD_COMPLETED_FLAG_FILE).exists():
         continue_or_exit(
             "It appears that release_build.py has not been run since the last push to "
             "the Checker Framework repository.  Please ensure it has "
@@ -212,9 +225,12 @@ def main(argv: list[str]) -> None:
     # This step could be performed without asking for user input but I think we should err on the
     # side of caution.
     if not test_mode:
-        if prompt_yes_no(f"Push master and {tag} to GitHub?  This is irreversible.", True):
-            push_release(CHECKER_FRAMEWORK, tag)
-            print("Pushed to GitHub")
+        if not prompt_yes_no(f"Push master and {tag} to GitHub?  This is irreversible.", True):
+            # Posting a GitHub release for a tag that is not on GitHub would create the tag on
+            # the head of master, which is not the release commit.
+            raise ReleaseError("The release was not pushed, so it cannot be posted.")
+        push_release(CHECKER_FRAMEWORK, tag)
+        print("Pushed to GitHub")
     else:
         print("Test mode: Skipping push to GitHub!")
 
@@ -278,7 +294,10 @@ def main(argv: list[str]) -> None:
         )
 
         print_step("Push Step 11. Update the Checker Framework Gradle plugin.")  # MANUAL
-        print("You might have to wait for Maven Central to propagate changes.\n")
+        print(
+            "Do this after publishing to Maven Central (see the release process README), once\n"
+            "Maven Central has propagated the release.\n"
+        )
         continue_or_exit(
             "Please update the Checker Framework Gradle plugin:\n"
             "https://github.com/kelloggm/checkerframework-gradle-plugin/blob/master/RELEASE.md#updating-the-checker-framework-version\n"
@@ -294,7 +313,8 @@ def main(argv: list[str]) -> None:
             "updates the CF version number in the BazelExample, by re-pinning the versions."
         )
 
-    delete_if_exists(RELEASE_BUILD_COMPLETED_FLAG_FILE)
+    if not test_mode:
+        delete_if_exists(RELEASE_BUILD_COMPLETED_FLAG_FILE)
 
     print("Done with release_push.py.\n")
 
