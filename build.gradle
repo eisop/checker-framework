@@ -982,7 +982,8 @@ tasks.register("annotationFileUtilitiesZip", Zip) {
 
 tasks.register("zip", Zip) {
     description = "Creates a zip archive for the Checker Framework."
-    dependsOn("buildAll")
+    // The zip file contains the manual and the Dataflow manual.
+    dependsOn("buildAll", "manual", ":dataflow:manual")
     archiveFileName = "checker-framework-${version}.zip"
     destinationDirectory = layout.buildDirectory
     into("checker-framework-${version}")

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Release utilities.
 
 This contains no main method only utility functions to
@@ -10,16 +10,14 @@ Copyright (c) 2012 University of Washington
 
 import os
 import pathlib
-import zipfile
+import re
 from pathlib import Path
 
+from release_errors import ReleaseError
 from release_utils import (
-    delete,
     delete_directory,
-    download_binary,
-    ensure_writeable,
+    delete_directory_if_exists,
     execute_write_to_file,
-    wget_file,
 )
 from release_vars import (
     CHECKER_FRAMEWORK,
@@ -28,47 +26,21 @@ from release_vars import (
 )
 
 
-def javac_sanity_check(checker_framework_website: str, release_version: str) -> None:
-    """Download the release of the Checker Framework from the development website.
+def javac_sanity_check(release_zip: Path, release_version: str) -> None:
+    """Run the Nullness Checker of the given Checker Framework release zip file.
 
-    Download NullnessExampleWithWarnings.java from the GitHub repository.
-    Run the Nullness Checker on NullnessExampleWithWarnings and verify the output
-    Fails if the expected errors are not found in the output.
+    Run it on the NullnessExampleWithWarnings.java that the zip file contains, and verify the
+    output.  Fails if the expected errors are not found in the output.
     """
-    new_checkers_release_zip = (
-        f"{checker_framework_website}"
-        f"/releases/{release_version}/checker-framework-{release_version}.zip"
-    )
-
     javac_sanity_dir = Path(SANITY_DIR) / "javac"
-
-    if pathlib.Path(javac_sanity_dir).is_dir():
-        delete_directory(javac_sanity_dir)
+    delete_directory_if_exists(javac_sanity_dir)
     execute(f"mkdir -p {javac_sanity_dir}")
 
-    javac_sanity_zip = Path(javac_sanity_dir) / f"checker-framework-{release_version}.zip"
-
-    print(f"Attempting to download {new_checkers_release_zip} to {javac_sanity_zip}")
-    download_binary(new_checkers_release_zip, javac_sanity_zip)
-
-    nullness_example_url = "https://raw.githubusercontent.com/eisop/checker-framework/master/docs/examples/NullnessExampleWithWarnings.java"
-    nullness_example = Path(javac_sanity_dir) / "NullnessExampleWithWarnings.java"
-
-    if pathlib.Path(nullness_example).is_file():
-        delete(nullness_example)
-
-    wget_file(nullness_example_url, javac_sanity_dir)
+    # unzip, unlike zipfile, keeps the permissions, so checker/bin/javac stays executable.
+    execute(f"unzip -q {release_zip} -d {javac_sanity_dir}")
 
     deploy_dir = Path(javac_sanity_dir) / f"checker-framework-{release_version}"
-
-    if pathlib.Path(deploy_dir).exists():
-        print(f"Deleting existing path: {deploy_dir}")
-        delete_directory(deploy_dir)
-
-    with zipfile.ZipFile(javac_sanity_zip, "r") as z:
-        z.extractall(javac_sanity_dir)
-
-    ensure_writeable(deploy_dir)
+    nullness_example = deploy_dir / "docs" / "examples" / "NullnessExampleWithWarnings.java"
 
     sanity_script = Path(__file__).resolve().parent / "javac-sanity-check.sh"
     execute(f"{sanity_script} {deploy_dir} {nullness_example}")
@@ -96,4 +68,13 @@ def maven_sanity_check(sub_sanity_dir_name: str) -> None:
     execute(get_example_dir_cmd, CHECKER_FRAMEWORK)
 
     os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
+    # The example's build is supposed to fail with the example's expected error.
     execute_write_to_file("mvn compile", output_log, False, maven_example_dir)
+    expected_error = re.compile(
+        r"MavenExample\.java:\[30,(29|30)\] \[assignment\.type\.incompatible\]"
+        r" incompatible types in assignment\."
+    )
+    if not expected_error.search(output_log.read_text(encoding="utf-8")):
+        msg = f"The Maven example did not report its expected error; see {output_log}."
+        raise ReleaseError(msg)
+    print("Maven sanity check: passed!")

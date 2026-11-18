@@ -3,7 +3,7 @@
 # Runs the Nullness Checker of an unpacked Checker Framework release on NullnessExampleWithWarnings.java
 # and checks that it reports the expected errors.
 #
-# This script is run by sanity_checks.py (from release_push.py) on the downloaded release, and by
+# This script is run by sanity_checks.py (from release_push.py) on the release zip file, and by
 # checker/bin-devel/test-release.sh (in CI) on the release that it built.
 #
 # Usage: javac-sanity-check.sh <unpacked Checker Framework release> <NullnessExampleWithWarnings.java>
