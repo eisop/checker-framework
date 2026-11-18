@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Release the Checker Framework."""
 
 # See README-release-process.html for more information
@@ -14,6 +14,7 @@ from pathlib import Path
 
 from release_errors import ReleaseError
 from release_utils import (
+    check_release_version,
     check_repo,
     check_tools,
     clone_from_scratch_or_update,
@@ -25,7 +26,6 @@ from release_utils import (
     delete_if_exists,
     has_command_line_option,
     print_step,
-    prompt_to_continue,
     prompt_yes_no,
 )
 from release_vars import (
@@ -197,8 +197,7 @@ def main(argv: list[str]) -> None:
     check_tools(TOOLS)
 
     # The release script reads the current version of the Checker Framework from the latest GitHub
-    # release.  The new version is releaseVersion in release.gradle.  Lower or equivalent
-    # versions are not possible and will be rejected when you try to push the release.
+    # release.  The new version is releaseVersion in release.gradle, and must be greater.
 
     print_step("Build Step 3: Determine release versions.")  # MANUAL
 
@@ -207,18 +206,14 @@ def main(argv: list[str]) -> None:
     print("Version: " + cf_version + "\n")
     check_changelog_date(Path(CHECKER_FRAMEWORK) / "docs" / "CHANGELOG.md", cf_version)
 
-    if old_cf_version == cf_version:
-        print(
-            "It is *strongly discouraged* to not update the release version numbers for "
-            "the Checker Framework even if no changes were made to these in a month. "
-            "This would break so much in the release scripts that they would become unusable. "
-            "Update releaseVersion in checker-framework/release.gradle\n"
-        )
-        prompt_to_continue()
+    # A version that is not greater would otherwise be noticed only by release_push.py, after the
+    # whole build.  Update releaseVersion in release.gradle and start over.
+    check_release_version(old_cf_version, cf_version)
 
     # The Checker Framework and the Annotation File Utilities are built together.  This is the most
-    # time-consuming piece of the release. There are no prompts from this step forward; you
-    # might want to get a cup of coffee and do something else until it is done.
+    # time-consuming piece of the release.  After the prompt about occurrences of the old version
+    # number, there are no prompts; you might want to get a cup of coffee and do something else
+    # until it is done.
 
     print_step("Build Step 4: Build the Checker Framework and the Annotation File Utilities.")
     build_checker_framework_release(cf_version, old_cf_version)

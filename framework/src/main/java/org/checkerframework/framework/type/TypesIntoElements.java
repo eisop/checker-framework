@@ -27,14 +27,12 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVari
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
-import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.Types;
 
@@ -67,7 +65,11 @@ public final class TypesIntoElements {
         Symbol.ClassSymbol csym = (Symbol.ClassSymbol) TreeUtils.elementFromDeclaration(tree);
         Types types = processingEnv.getTypeUtils();
 
-        if (!hasUncheckedDefaults(atypeFactory, csym)) {
+        // The types of unchecked code are not stored: they are not the result of type-checking,
+        // and stored into the element they would look written, both to a client of the class
+        // file and to the type factories of this compilation, which read the written qualifiers
+        // of an element with AnnotatedTypeFactory#fromElement.
+        if (!atypeFactory.hasUncheckedDefaults(csym)) {
             storeTypeParameters(processingEnv, types, atypeFactory, tree.getTypeParameters(), csym);
         }
 
@@ -93,38 +95,19 @@ public final class TypesIntoElements {
 
         for (Tree mem : tree.getMembers()) {
             if (mem instanceof MethodTree) {
-                if (!hasUncheckedDefaults(
-                        atypeFactory, TreeUtils.elementFromDeclaration((MethodTree) mem))) {
+                if (!atypeFactory.hasUncheckedDefaults(
+                        TreeUtils.elementFromDeclaration((MethodTree) mem))) {
                     storeMethod(processingEnv, types, atypeFactory, (MethodTree) mem);
                 }
             } else if (mem instanceof VariableTree) {
-                if (!hasUncheckedDefaults(
-                        atypeFactory, TreeUtils.elementFromDeclaration((VariableTree) mem))) {
+                if (!atypeFactory.hasUncheckedDefaults(
+                        TreeUtils.elementFromDeclaration((VariableTree) mem))) {
                     storeVariable(processingEnv, types, atypeFactory, (VariableTree) mem);
                 }
             } else {
                 // System.out.println("Unhandled member tree: " + mem);
             }
         }
-    }
-
-    /**
-     * Returns true if the types of {@code elt} get the defaults for unchecked code (see {@link
-     * QualifierDefaults#applyPermissiveDefaults} and {@link
-     * QualifierDefaults#applyConservativeDefaults}). Such types are not stored: they are not the
-     * result of type-checking, and stored into the element they would look written, both to a
-     * client of the class file and to the type factories of this compilation, which read the
-     * written qualifiers of an element with {@link AnnotatedTypeFactory#fromElement}.
-     *
-     * @param atypeFactory the type factory
-     * @param elt an element of a class that was type-checked
-     * @return true if the types of {@code elt} get the defaults for unchecked code
-     */
-    private static boolean hasUncheckedDefaults(AnnotatedTypeFactory atypeFactory, Element elt) {
-        QualifierDefaults defaults = atypeFactory.getQualifierDefaults();
-        return defaults != null
-                && (defaults.applyPermissiveDefaults(elt)
-                        || defaults.applyConservativeDefaults(elt));
     }
 
     /**

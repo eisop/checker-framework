@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Release utilities.
 
 This contains no main method only utility functions to
@@ -10,8 +10,10 @@ Copyright (c) 2012 University of Washington
 
 import os
 import pathlib
+import re
 from pathlib import Path
 
+from release_errors import ReleaseError
 from release_utils import (
     delete_directory,
     delete_directory_if_exists,
@@ -66,4 +68,13 @@ def maven_sanity_check(sub_sanity_dir_name: str) -> None:
     execute(get_example_dir_cmd, CHECKER_FRAMEWORK)
 
     os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
+    # The example's build is supposed to fail with the example's expected error.
     execute_write_to_file("mvn compile", output_log, False, maven_example_dir)
+    expected_error = re.compile(
+        r"MavenExample\.java:\[30,(29|30)\] \[assignment\.type\.incompatible\]"
+        r" incompatible types in assignment\."
+    )
+    if not expected_error.search(output_log.read_text(encoding="utf-8")):
+        msg = f"The Maven example did not report its expected error; see {output_log}."
+        raise ReleaseError(msg)
+    print("Maven sanity check: passed!")

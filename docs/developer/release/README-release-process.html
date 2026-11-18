@@ -228,7 +228,8 @@ TreeAnnotator
         and the script will run its checks and prompts but will not push or post anything.
       </p>
       <p>
-        Pushing master and the tag to GitHub (step 5) is the first irreversible step.
+        Pushing master and the tag to GitHub (step 5) is the first irreversible step;
+        answering &quot;no&quot; there stops the script.
         Afterwards you post the GitHub release with the two zip files attached
         and publish the web site, which is generated from that release.
         See <a href="#release_scripts">Release Scripts</a> for all steps.
@@ -451,8 +452,8 @@ git clone git@github.com:eisop/checker-framework.git checker-framework</pre>
         order for the release date to be correct in all documents.  Answer &quot;yes&quot; to
         clone from scratch, because the earlier run committed and tagged a release.
         <pre>
-cd /tmp/$USER/cf-release/checker-framework
-docs/developer/release/release_build.py</pre>
+cd /tmp/$USER/cf-release/checker-framework/docs/developer/release
+python3 release_build.py</pre>
       </td>
     </tr>
   </table>
@@ -691,10 +692,7 @@ docs/developer/release/release_build.py</pre>
   <p>TODO: provide a docker image that can be used for reproducible releases.</p>
 
   <h2 id="future_improvements">Future Improvements</h2>
-  <p>Below is a roughly priority-ordered list of future improvements.  In a perfect world we would do
-    all of these.  At the moment, I believe only the first 2 (Open JDK Javadoc Fixes,
-    and More Sanity Checks) should have any appreciable priority.
-  </p>
+  <p>Below is a roughly priority-ordered list of future improvements.</p>
 
     <h3 id="future_more_sanity_checks">More Sanity Checks</h3> <!-- omit from toc -->
     There are likely more sanity checks we might want to run during the release process.  One such example
@@ -708,24 +706,6 @@ docs/developer/release/release_build.py</pre>
     <h4 id="sanity-checks">Sanity Checks:</h4> <!-- omit from toc -->
     <ul>
       <li>Run tutorial sanity check automatically via command line.</li>
-    </ul>
-    <h3 id="future_continuous_integration">Release in Continuous Integration</h3> <!-- omit from toc -->
-    If we could run the release_build script nightly, we could head off broken links and other
-    release related errors.
-    <h4>Tasks:</h4> <!-- omit from toc -->
-    <ul>
-      <li>Create a task to run the release_build script without prompting.</li>
-      <li>Observe the output of this task and identify possible errors.</li>
-      <li>Fix up all observed errors until the release_build script runs without error.</li>
-    </ul>
-    <h3 id="future_auto-copy_release_scripts">Auto-copy Release Scripts</h3> <!-- omit from toc -->
-    The first step in running the release process, after the pre-release checklist, is to copy the
-    release scripts into the <code>cf-release</code> directory.  We could automate this.
-    <h4>Tasks:</h4> <!-- omit from toc -->
-    <ul>
-      <li>Create a read-only script in cf-release/scripts.</li>
-      <li>Edit the script so that it downloads all release scripts into the cf-release directory.</li>
-      <li>Update this document to reflect this new process.</li>
     </ul>
     <h3 id="future_option_parsing">Option Parsing</h3> <!-- omit from toc -->
     There is currently some primitive option parsing written into the release scripts.  We should use

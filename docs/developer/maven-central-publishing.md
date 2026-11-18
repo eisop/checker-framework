@@ -176,10 +176,9 @@ contents, and a run of the annotator from the locally published artifact by the
 consumer project `docs/examples/afu-consumer/`. It has the same limitation: it
 runs against `publishToMavenLocal` output.
 
-**Nothing publishes the website automatically.** `EisopSiteGenerator` is run by
-hand against a `gh-pages` checkout, as its README in the `eisop.github.io`
-repository describes, and the release scripts here do not mention it, so
-"re-run the website generator" belongs in the release checklist.
+**The website is generated from the GitHub releases.** The "Publish website"
+workflow of the `eisop.github.io` repository runs `EisopSiteGenerator` daily;
+`release_push.py` asks to run it right after the GitHub release is posted.
 
 ## Open questions
 

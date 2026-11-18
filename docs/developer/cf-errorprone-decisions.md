@@ -808,7 +808,7 @@ directly. It publishes the plain jar (`components.java`), not the `-all` shadow 
 (which bundles Error Prone's classes).
 
 **Release scripts: no change needed, with one caveat.** The release publishes via a
-module-agnostic `./gradlew publish` (see `docs/developer/release/release_push.py`), which
+module-agnostic `./gradlew publish` (see `docs/developer/release/README-release-process.html`), which
 picks up every subproject that has a publishing block — so `framework-errorprone` is
 included automatically. Caveat: `framework-errorprone` is gated to JDK 21+ in
 `settings.gradle`, so the Maven-publish step must run on JDK 21+ or the module is silently
