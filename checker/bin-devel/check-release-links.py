@@ -88,7 +88,8 @@ def parse(text: str) -> LinkParser:
 def check_external(url: str, online: bool, errors: list[str], where: str) -> None:
     """Check the syntax of an external link and, if online, fetch it."""
     parts = urlparse(url)
-    if not parts.netloc or " " in url:
+    # A backslash or brace is a LaTeX macro that was not expanded, such as one inside \url.
+    if not parts.netloc or any(c in url for c in " \\{}"):
         errors.append(f"{where}: malformed URL {url}")
         return
     if not online:
