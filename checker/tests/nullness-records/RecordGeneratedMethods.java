@@ -21,6 +21,8 @@ class RecordGeneratedMethods {
 
     record ComponentNamedEquals(@Nullable String equals) {}
 
+    record Pair<U>(U a, @Nullable U b) {}
+
     void generated(Item item) {
         item.equals(null);
         ((Record) item).equals(null);
@@ -37,6 +39,12 @@ class RecordGeneratedMethods {
     void handWritten(HandWrittenEquals h) {
         // :: error: (argument.type.incompatible)
         h.equals(null);
+    }
+
+    void generic(Pair<String> pair) {
+        pair.equals(null);
+        Predicate<@Nullable Object> p = pair::equals;
+        pair.toString().length();
     }
 
     void componentNamedEquals(ComponentNamedEquals c) {

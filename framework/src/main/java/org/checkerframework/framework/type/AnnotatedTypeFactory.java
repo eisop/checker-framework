@@ -1618,7 +1618,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param elt an element
      * @return true if the types of {@code elt} get the defaults for unchecked code
      */
-    public boolean hasUncheckedDefaults(Element elt) {
+    /*package-private*/ boolean hasUncheckedDefaults(Element elt) {
         QualifierDefaults defaults = getQualifierDefaults();
         return defaults != null
                 && (defaults.applyPermissiveDefaults(elt)
@@ -2720,7 +2720,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Creates an AnnotatedTypeMirror for {@code elt} that includes: annotations explicitly written
-     * on the element and annotations from stub files.
+     * on the element and annotations from stub files. A method that the compiler generated for a
+     * record gets the annotations of the {@code java.lang.Record} method that it implements; see
+     * {@link #applyRecordMethodTypesToGeneratedMethod}.
      *
      * <p>Does not include default qualifiers. To obtain them, use {@link
      * #getAnnotatedType(Element)}.
@@ -2818,8 +2820,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private void applyRecordMethodTypesToGeneratedMethod(Element elt, AnnotatedTypeMirror type) {
         // While an annotation file is parsed, the type of the java.lang.Record method may be
-        // incomplete, and the type of a method that an annotation file declares comes from that
-        // file anyway.
+        // incomplete. The type of a method of a record from a class file that an annotation file
+        // declares comes from that file; for source code, the type from an annotation file is
+        // merged into the copied one afterwards.
         if (isParsingAnnotationFile()
                 || elt.getKind() != ElementKind.METHOD
                 || !ElementUtils.isRecordElement(elt.getEnclosingElement())
@@ -2829,7 +2832,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         ExecutableElement method = (ExecutableElement) elt;
         TypeElement record = (TypeElement) method.getEnclosingElement();
-        Element recordClass = types.asElement(record.getSuperclass());
+        Element recordClass = ((DeclaredType) record.getSuperclass()).asElement();
         // An accessor never overrides a method of java.lang.Record: javac rejects a record
         // component named after a no-argument method of Object, and a component named "equals"
         // has an accessor that takes no argument.
