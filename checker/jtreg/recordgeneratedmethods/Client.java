@@ -1,11 +1,14 @@
 /*
  * @test
  * @summary Test that the generated methods of a record from bytecode have the types of the
- * Record methods they implement, and that hand-written ones keep their own types.
+ * Record methods they implement, and that hand-written ones keep their own types. With the
+ * defaults for unchecked code, those defaults apply instead.
  *
  * @requires jdk.version >= 17
  * @compile RecordLib.java
  * @compile/fail/ref=Client.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext Client.java
+ * @compile/fail/ref=ClientConservative.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=bytecode Client.java
+ * @compile/fail/ref=ClientPermissive.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AusePermissiveDefaultsForUncheckedCode=bytecode Client.java
  * @compile -processor org.checkerframework.checker.lock.LockChecker -Anomsgtext -Werror LockClient.java
  */
 

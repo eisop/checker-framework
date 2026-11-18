@@ -1611,6 +1611,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns true if the types of {@code elt} get the defaults for unchecked code (see {@link
+     * QualifierDefaults#applyPermissiveDefaults} and {@link
+     * QualifierDefaults#applyConservativeDefaults}).
+     *
+     * @param elt an element
+     * @return true if the types of {@code elt} get the defaults for unchecked code
+     */
+    public boolean hasUncheckedDefaults(Element elt) {
+        QualifierDefaults defaults = getQualifierDefaults();
+        return defaults != null
+                && (defaults.applyPermissiveDefaults(elt)
+                        || defaults.applyConservativeDefaults(elt));
+    }
+
+    /**
      * Returns the type of {@code overridden} as it constrains the overriding method, if the
      * overridden method is in unchecked code that gets the permissive defaults (see {@link
      * QualifierDefaults#applyPermissiveDefaults}): with the qualifiers of the overriding method at
@@ -2792,10 +2807,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * If {@code elt} is an {@code equals}, {@code hashCode}, or {@code toString} method that the
-     * compiler generated for a record, gives {@code type} the annotations of the type of the {@code
-     * java.lang.Record} method that it implements. Such a method has no tree, so without this it
-     * would get the defaults of its record, which need not be a valid override: for example, a
-     * non-null parameter for {@code equals}, which accepts null.
+     * compiler generated for a record in checked code, gives {@code type} the annotations of the
+     * type of the {@code java.lang.Record} method that it implements. Such a method has no tree, so
+     * without this it would get the defaults of its record, which need not be a valid override: for
+     * example, a non-null parameter for {@code equals}, which accepts null. In unchecked code, the
+     * defaults for unchecked code apply instead, as to any other method.
      *
      * @param elt an element that has no declaration tree
      * @param type the type of {@code elt}; side-effected by this method
@@ -2807,7 +2823,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (isParsingAnnotationFile()
                 || elt.getKind() != ElementKind.METHOD
                 || !ElementUtils.isRecordElement(elt.getEnclosingElement())
-                || !isGeneratedRecordMethod((ExecutableElement) elt)) {
+                || !isGeneratedRecordMethod((ExecutableElement) elt)
+                || hasUncheckedDefaults(elt)) {
             return;
         }
         ExecutableElement method = (ExecutableElement) elt;

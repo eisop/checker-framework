@@ -126,7 +126,8 @@ Type-checking and subtyping improvements:
   rather than the defaults, also for a record read from a class file. The
   Nullness Checker no longer rejects `item.equals(null)`, and the Lock Checker
   no longer rejects `item.hashCode()` on a `@GuardedBy` record while its lock
-  is held.
+  is held. In unchecked code, the conservative or permissive defaults for
+  unchecked code still apply.
 - Method invocations that the CFG synthesizes (boxing, unboxing, enhanced `for`,
   try-with-resources) are type-checked by every checker, with diagnostics at
   the source construct, also in code the CFG cannot reach unless
