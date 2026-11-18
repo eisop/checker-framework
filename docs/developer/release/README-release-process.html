@@ -202,38 +202,42 @@ TreeAnnotator
       <strong>In a user-specific temporary directory, clone/update the Checker Framework repository (it contains the release scripts).</strong><br/>
       <!-- This isn't a <pre> block because that formats differently than commands. -->
       <code>mkdir -p /tmp/$USER/cf-release<br/></code>
-      <code>chown -R :types_www /tmp/$USER/cf-release<br/></code>
-      <code>chmod -R g+rw /tmp/$USER/cf-release<br/></code>
       <code>cd /tmp/$USER/cf-release<br/></code>
       <code>test -d checker-framework && (cd checker-framework && git pull --ff-only --quiet) || git clone --quiet https://github.com/eisop/checker-framework.git<br/></code>
       <code>cd checker-framework/docs/developer/release<br/></code>
       To use another directory, set the environment variable <code>CF_RELEASE_DIR</code> to it
       before running the release scripts.
   </li>
-  <li><strong>Run release_build</strong> to create the release artifacts and place them in the development website<br/>
+  <li><strong>Run release_build</strong> to build the release in a clone, commit it, and tag it.
+      It does not push anything; nothing is on GitHub yet.<br/>
       <code>git pull && python3 release_build.py</code><br/><br/>
       For verbose debugging output, use the <code>--debug</code> option.<br/><br/>
       <strong>Note:</strong> release_build deploys the release to your local Maven repository
       (for the Maven sanity check in release_push) with <code>-Prelease=true</code>, which signs
       the artifacts.  Set up your signing key, as for the Maven Central publish step below,
-      before running it.
+      before running it.<br/><br/>
+      It also stops while the date in the release's section of the changelog is a placeholder.
   </li>
   <li>
-      <strong>Run release_push</strong> to run a few tests and move release artifacts from the development website to the live site<br/>
+      <strong>Run release_push</strong> to test the release, push it to GitHub, and guide you through
+      the manual steps<br/>
       <code>python3 release_push.py release</code><br/><br/>
       <p>
         The &quot;<strong>release</strong>&quot; argument states that you intend
         to do an actual release.  If you just want to test the script, leave out &quot;release&quot;
-        and the script will run but not update anything.
+        and the script will run its checks and prompts but will not push or post anything.
       </p>
-
-      If you get an obscure error about permissions, try running the release_push script several times
-      in a row. This will sometimes update the repository permissions such that the script can proceed
-      further each time.
+      <p>
+        Pushing master and the tag to GitHub (step 5) is the first irreversible step.
+        Afterwards you post the GitHub release with the two zip files attached
+        and publish the web site, which is generated from that release.
+        See <a href="#release_scripts">Release Scripts</a> for all steps.
+      </p>
   </li>
   <li>
-      <strong>Publish to Maven Central.</strong>  The release scripts do not do this.  In a
-      checkout of the release commit, on JDK 21 or later, run<br/>
+      <strong>Publish to Maven Central.</strong>  The release scripts do not do this.  In
+      the build clone (<code>build/checker-framework</code>, which is at the release commit),
+      on JDK 21 or later, run<br/>
       <code>./gradlew publish -Prelease=true --no-parallel</code><br/>
       (<code>-Prelease=true</code> makes the version <code>releaseVersion</code> from
       <code>release.gradle</code> rather than a <code>-SNAPSHOT</code> version, and signs the
@@ -277,7 +281,7 @@ TreeAnnotator
 
   <p>
     Then, update your project's buildfile.  For Maven,
-    just <a href="https://checkerframework.org/manual/#maven-locally-built">update
+    just <a href="https://eisop.github.io/cf/manual/#maven-locally-built">update
     the Checker Framework version number</a>.  For Gradle,
     also <a href="https://github.com/kelloggm/checkerframework-gradle-plugin#specifying-a-checker-framework-version">add <code>repositories
     { mavenLocal() }</code></a>.
@@ -367,14 +371,6 @@ configurations.all({
   <table class="table">
     <tr>
       <td>1.</td>
-      <td><strong>Ensure you are a member of the types_www and pl_gang groups</strong><br/>
-        Run the command "groups" on the CSE file system (perhaps on tern).
-        If the group types_www or pl_gang do not appear in the list, email the appropriate
-        person to be added (currently Michael Ernst).
-      </td>
-    </tr>
-    <tr>
-      <td>2.</td>
       <td><strong>Set up a PGP signing key</strong><br/>
         Maven Central requires signed artifacts, but does not pin a key to a namespace: each
         maintainer signs with their own.  Have a GPG key whose public half is published to a
@@ -384,7 +380,7 @@ configurations.all({
         See <a href="../maven-central-publishing.md">Maven Central publishing</a>.<br/>
       </td>
     <tr>
-      <td>3.</td>
+      <td>2.</td>
       <td><strong>Sign up for a Sonatype Account</strong><br/>
         You will likely want to do this a few days in advance.
         Directions can be found <a href="http://central.sonatype.org/pages/ossrh-guide.html">here</a>.
@@ -399,7 +395,7 @@ configurations.all({
       </td>
     </tr>
     <tr>
-      <td>4.</td>
+      <td>3.</td>
       <td><strong>Add your user token information to gradle/build.properties in your home directory.</strong><br/>
         Follow the <a href="https://central.sonatype.org/publish/generate-token/">instructions</a> to generate a user token.
         Create a <code>~/.gradle/gradle.properties</code> file with the following:
@@ -410,7 +406,7 @@ SONATYPE_NEXUS_PASSWORD=your_tokenkey</pre>
       </td>
     </tr>
     <tr>
-      <td>5.</td>
+      <td>4.</td>
       <td><strong>Get edit privileges for the Checker Framework</strong><br/>
         Once a release has been completed, you will be prompted to update issues in the
         issue tracker for each project that has been released.
@@ -420,22 +416,13 @@ SONATYPE_NEXUS_PASSWORD=your_tokenkey</pre>
       </td>
     </tr>
     <tr>
-      <td>6.</td>
-      <td><strong>Install html5validator</strong><br/>
-       If you are going to perform the release outside the <a href="#release_docker">Release Docker image</a>,
-       you may need to install html5validator.  If <code>html5validator --version</code> issues any errors,
-       try running <code>pip3 install --user html5validator</code>.  You may need to add <code>.local/bin</code>
-       to your path.
-      </td>
-    </tr>
-    <tr>
-      <td>7.</td>
+      <td>5.</td>
       <td><strong>Add GitHub SSH keys to your <a href="#release_docker">Release Docker image</a></strong><br/>
       See <a href="https://help.github.com/articles/connecting-to-github-with-ssh/">GitHub docs</a>.
       </td>
     </tr>
     <tr>
-      <td>8.</td>
+      <td>6.</td>
       <td><strong>Configure git</strong><br/>
         <pre>
 git config --global user.name "Your Name"
@@ -443,10 +430,10 @@ git config --global user.email you@example.com</pre>
         or copy over your configuration file.</td>
     </tr>
     <tr>
-      <td>9.</td>
+      <td>7.</td>
       <td><strong>Clone the Checker Framework</strong><br/>
         <pre>
-mkdir /tmp/$USER/cf-release
+mkdir -p /tmp/$USER/cf-release
 cd /tmp/$USER/cf-release
 git clone git@github.com:eisop/checker-framework.git checker-framework</pre>
         If the directory already exists, the <code>git clone</code> command will
@@ -454,14 +441,15 @@ git clone git@github.com:eisop/checker-framework.git checker-framework</pre>
       </td>
     </tr>
     <tr>
-      <td>10.</td>
+      <td>8.</td>
       <td><strong>Run release_build.py once</strong><br/>
         To save time on release day addressing potential configuration issues, before your first
         release day, ensure that <code>release_build.py</code> is working correctly
         by following the initial steps of the <a href="#step_by_step">Step by Step</a> section.
         <code>release_build.py</code> still needs to be re-run on release day (even if no changes
         were pushed to any repositories since the last run of <code>release_build.py</code>) in
-        order for the release date to be correct in all documents.
+        order for the release date to be correct in all documents.  Answer &quot;yes&quot; to
+        clone from scratch, because the earlier run committed and tagged a release.
         <pre>
 cd /tmp/$USER/cf-release/checker-framework
 docs/developer/release/release_build.py</pre>
@@ -477,121 +465,90 @@ docs/developer/release/release_build.py</pre>
       <tr>
         <th colspan="2">Release Directory <span class="glyphicon glyphicon-folder-open" style="float:right;"></span></th>
         <th></th>
-        <th></th>
       </tr>
       <tr>
-        <td colspan="2" class="top_file">/tmp/$USER/cf-release</td>
-        <td>Contains repositories and scripts to perform a release</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td></td>
-        <td colspan="2">build</td>
-        <td>Contains repositories for:
-          checker-framework, git-scripts, plume-bib, plume-scripts<br/>
-          These repositories are used to build the Checker Framework and its dependencies.
-        </td>
+        <td colspan="2" class="top_file">/tmp/$USER/cf-release (or <code>$CF_RELEASE_DIR</code>)</td>
+        <td>Contains the clones and files used to perform a release</td>
       </tr>
       <tr>
         <td></td>
-        <td colspan="2">interm</td>
-        <td>Contains repositories for:
-          checker-framework, git-scripts, plume-bib, plume-scripts<br/>
-          The repositories in build are clones of repositories in interm.  The repositories
-          in interm are clones of the GitHub repositories.  This is so that
-          we can test and push the release to the interm repositories then check the
-          release before we have made any irreversible changes.  Then, when the release
-          is validated, all we do is run &quot;git push&quot; on all of the repositories in interm.
-        </td>
-      </tr>
-      <tr>
-        <td></td>
-        <td colspan="2">sanity</td>
-        <td>Directory used by the release_push script to do sanity checks.
-        </td>
-      </tr>
-      <tr>
-        <td></td>
-        <td colspan="2">checker-framework/docs/developer/release</td>
+        <td>checker-framework/docs/developer/release</td>
         <td>The directory where the release scripts are run from.  Any changes made under this directory
           won't be automatically committed when the release is committed.
         </td>
       </tr>
-    </table>
-
-    <table class="table table-bordered file_layout_table">
-      <tr>
-        <th colspan="2">Live Website Directory <span class="glyphicon glyphicon-folder-open" style="float:right;"></span></th>
-        <th></th>
-        <th></th>
-      </tr>
-
-      <tr>
-        <td colspan="2" class="top_file">/cse/www2/types</td>
-        <td>The file system location of the website: <br/><a href="https://checkerframework.org/">https://checkerframework.org/</a>.</td>
-        <td></td>
-      </tr>
       <tr>
         <td></td>
-        <td colspan="2">m2-repo</td>
-        <td>The location of the in-house Maven repository.  It is accessed through URL: <br/>
-          <a href="https://checkerframework.org/m2-repo">https://checkerframework.org/m2-repo</a>
-        </td>
-      </tr>
-    </table>
-
-    <table class="table table-bordered file_layout_table">
-      <tr>
-        <th colspan="2">Staging (Development) Website Directory <span class="glyphicon glyphicon-folder-open" style="float:right;"></span></th>
-        <th></th>
-        <th></th>
-      </tr>
-
-      <tr>
-        <td colspan="2" class="top_file">/cse/www2/types/dev</td>
-        <td>The file system location of the development staging website: <br/><a href="https://checkerframework.org/dev/">https://checkerframework.org/dev</a>.</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td></td>
-        <td colspan="2">&lt;project&gt;/current</td>
-        <td>The staging analogue to /cse/www2/types/&lt;project&gt;/current directory.  The latest release is copied from this directory
-          to the /cse/www2/types/&lt;project&gt;/current by the release_push script after a prompt.
+        <td>build/checker-framework</td>
+        <td>The clone in which release_build builds, commits, and tags the release.
+          release_push pushes master and the tag from it.
         </td>
       </tr>
       <tr>
         <td></td>
-        <td colspan="2">m2-repo</td>
-        <td>The location of the in-house staging version of the Maven repository.  It is accessed through URL: <br/>
-          <a href="https://checkerframework.org/dev/m2-repo">https://checkerframework.org/dev/m2-repo</a>
+        <td>release-files</td>
+        <td>The two release zip files, <code>checker-framework-<em>VERSION</em>.zip</code> and
+          <code>annotation-file-utilities-<em>VERSION</em>.zip</code>.  You attach them to the GitHub release.
         </td>
       </tr>
+      <tr>
+        <td></td>
+        <td>sanity</td>
+        <td>Directory used by the release_push script to do sanity checks.</td>
+      </tr>
     </table>
+
+    <p>
+      There is no development or live web site.  The site <a href="https://eisop.github.io/">https://eisop.github.io/</a>
+      is generated by the &quot;Publish website&quot; GitHub Actions workflow of the repository
+      <a href="https://github.com/eisop/eisop.github.io">eisop/eisop.github.io</a>,
+      daily at 06:00 UTC or when the workflow is dispatched manually, from the two zip files attached to the
+      GitHub release.
+    </p>
 
     <h3 id="release_scripts">Release Scripts</h3>
-    <p>As mentioned above, in order to release the Checker Framework you must run two scripts,
-      release_build.py and release_push.py but there are supporting scripts and files in the
-      release directory.  Some of these files are described below.
+    <p>To release the Checker Framework you run two scripts, release_build.py and release_push.py.
+      Both are documented in code comments, and have supporting scripts and files in the
+      release directory.
     </p>
 
     <table class="table table-bordered">
       <tr>
         <td>release_build.py</td>
-        <td>Reverts the build/interm repositories to the state of their master repositories in GitHub.
-          It then builds the projects and all their artifacts and then stages a development
-          version of all websites to
-          <a href="https://checkerframework.org/dev/">https://checkerframework.org/dev/</a>
-          This script is thoroughly documented in code comments located in its <code>main()</code> function.
+        <td>Builds the release in <code>build/checker-framework</code>, commits it, and tags it, without pushing.
+          Steps:
+          <ol>
+            <li>Clone or update the repository (1a), and verify that it is clean (1b).</li>
+            <li>Check that the required tools are installed.</li>
+            <li>Determine the versions: the latest GitHub release and <code>releaseVersion</code>.
+              Check that the changelog date is not a placeholder.</li>
+            <li>Build: <code>updateVersionNumbers</code>, <code>buildAll</code>, the tutorial,
+              <code>./gradlew zip annotationFileUtilitiesZip -Prelease=true</code>; copy both zip files
+              to <code>release-files</code>; run <code>check-release-links.py --online</code> on the unpacked zip;
+              <code>publishToMavenLocal</code>.</li>
+            <li>Commit and tag the release.</li>
+          </ol>
         </td>
       </tr>
       <tr>
         <td>release_push.py</td>
-        <td>Verifies the release at
-          <a href="https://checkerframework.org/dev/">https://checkerframework.org/dev/</a>
-          is correct through scripts and manual steps.  When the user is satisfied the website
-          is correct it deploys the website to the live website:
-          <a href="https://checkerframework.org/">https://checkerframework.org/</a>.
-          This script is thoroughly documented in code comments located in its <code>main()</code> function.
+        <td>Tests the release, pushes it, and guides you through the remaining steps.
+          Steps:
+          <ol>
+            <li>Check that the new version is greater than the latest release.</li>
+            <li>Sanity tests: javac sanity check on the local release zip; Maven sanity check on <code>~/.m2</code>.</li>
+            <li>Run <code>allTests</code>.</li>
+            <li>Manual: run the web site generator with <code>--local-release</code> on the zip
+              and inspect the generated pages.</li>
+            <li>Push master and the tag to GitHub, atomically.  This is irreversible.</li>
+            <li>Manual: post the GitHub release, with both zip files attached.</li>
+            <li>Check that the files attached to the GitHub release are the ones that were built.</li>
+            <li>Manual: publish the web site (dispatch the &quot;Publish website&quot; workflow), and check
+              <a href="https://eisop.github.io/cf/">https://eisop.github.io/cf/</a>.</li>
+            <li>Announce the release.</li>
+            <li>Change <code>releaseVersion</code> to the next release.</li>
+            <li>Update the Checker Framework Gradle plugin and the examples that use it, and the BazelExample.</li>
+          </ol>
         </td>
       </tr>
       <tr>
@@ -601,6 +558,19 @@ docs/developer/release/release_build.py</pre>
       <tr>
         <td>sanity_checks.py</td>
         <td>Contains methods to run various sanity checks.  These methods are called from release_push.py
+        </td>
+      </tr>
+      <tr>
+        <td>javac-sanity-check.sh</td>
+        <td>Runs the Nullness Checker of an unpacked release on <code>NullnessExampleWithWarnings.java</code>
+          and checks the expected errors.  Called by sanity_checks.py and by
+          <code>checker/bin-devel/test-release.sh</code>.
+        </td>
+      </tr>
+      <tr>
+        <td>checker/bin-devel/test-release.sh</td>
+        <td>Run in CI.  Runs the steps of the release build that need no credentials, so that a
+          problem is found by a pull request rather than during a release.
         </td>
       </tr>
       <tr>
@@ -616,7 +586,7 @@ docs/developer/release/release_build.py</pre>
         <td>In the top-level directory of the repository.  It defines <code>releaseVersion</code>
           and the Gradle tasks that the release scripts call: <code>updateVersionNumbers</code>,
           which writes the new version and date into the documentation and fails if a file it
-          rewrites has moved; <code>copyToWebsite</code>; and <code>updateCopyMavenExample</code>.
+          rewrites has moved; and <code>updateCopyMavenExample</code>.
           The <code>zip</code> task, which creates the release zip file, is in
           <code>build.gradle</code>.
         </td>
@@ -698,55 +668,27 @@ docs/developer/release/release_build.py</pre>
     </ul>
 
   <h2 id="backing_out">Backing Out an Uncommitted Release</h2>
-  <p>At the time of this writing, one step of these scripts cannot be reverted:
-    the push from the interm repositories to the GitHub (release) repositories.
-    (Publishing to Maven Central is also irreversible, but it is not done by
-    these scripts; see <a href="../maven-central-publishing.md">Maven Central publishing</a>.)</p>
+  <p>Two steps cannot be reverted: the push of master and the tag to GitHub (release_push step 5),
+    and publishing to Maven Central, which these scripts do not do; see
+    <a href="../maven-central-publishing.md">Maven Central publishing</a>.</p>
   <p> If you have executed either of those and then realized there is a breaking error, you should do another
-    release.  The release script will allow you to do a point release like &quot;1.8.0.1&quot; when a version
-    &quot;1.8.0&quot; already exists.<br/>
-    <br/>
-    If you have NOT committed an irreversible step then you can
-    follow the steps below to point the live release to a previous release.  You can then redo the original
-    release.  Make sure to say &quot;yes&quot; when the release script asks you to delete the old directories.
+    release.
   </p>
   <h3 id="backing_out_steps">Manual Steps to Back Out a Release</h3>
   <ul>
+    <li><strong>Before release_push step 5</strong><br/>
+      Nothing is on GitHub yet.  Delete the build clone (<code>build/checker-framework</code>),
+      or rerun release_build.py and answer &quot;yes&quot; to clone from scratch.
+    </li>
     <li><strong>Drop the deployment from Central</strong><br/>
       If you have already run <code>./gradlew publish -Prelease=true</code> but have not released the
       deployment, drop it (do NOT publish it) at
       <a href="https://central.sonatype.com/publishing/deployments">https://central.sonatype.com/publishing/deployments</a>.
     </li>
-    <!-- <li><strong>Drop the Maven Artifacts from our Maven repo *** currently unneeded ***</strong>
-      <p class="alert alert-warning"><strong>Note:</strong> The procedure below is NOT recommended
-        by the Maven developers guide.  However, if done carefully and quickly no harm will likely
-        come.  If people end up with out-of-date artifacts, recommend to them that they use the -U option
-        in Maven 3.  Never follow these instructions if the plugin release has been publicized or
-        existed for a while.
-      </p>
-
-      At the moment, we have decided to drop the user of our local Maven repository in favor of using
-      the Central Repository exclusively.  This may not be the case in the future.  If we do have a
-      local repository, you need to go into the repositories directory (usually an m2-repo directory) and
-      manually delete the versions of the Maven artifacts.  For instance, for the artifacts checker and compiler
-      using version 0.9.8, I would delete the directories:
-      <ul>
-        <li>.../m2-repo/io/github/eisop/checker/0.9.8</li>
-        <li>.../m2-repo/io/github/eisop/compiler/0.9.8</li>
-      </ul>
-      Furthermore, I would grep the files in the parents of these directories and ensure the version number
-      does not appear in any metadata.  If so, fix up the metadata.
-    </li> -->
   </ul>
-
-  <p class="alert alert-danger"><strong>Note:</strong> You may find yourself copying release directories for some
-    reason or other.  It is important to remember that the symlinks may be absolute.  You should check any
-    symlinks that may be affected by the move and ensure they point to the new location and not the old one.
-  </p>
 
   <h2 id="release_docker">Release Docker image</h2>
   <p>TODO: provide a docker image that can be used for reproducible releases.</p>
-  <p>TODO: remove remaining uses of "buffalo".</p>
 
   <h2 id="future_improvements">Future Improvements</h2>
   <p>Below is a roughly priority-ordered list of future improvements.  In a perfect world we would do
@@ -772,13 +714,9 @@ docs/developer/release/release_build.py</pre>
     release related errors.
     <h4>Tasks:</h4> <!-- omit from toc -->
     <ul>
-      <li>Create a tern task to run the release_build script without prompting.</li>
+      <li>Create a task to run the release_build script without prompting.</li>
       <li>Observe the output of this task and identify possible errors.</li>
       <li>Fix up all observed errors until the release_build script runs without error.</li>
-      <li>We probably want to move the link checking of the development site to the release_build script and
-        write it out to disk.  This will allow the developer releasing the framework to consult pre-made
-        link-checking results rather than waiting for the link checker to execute in the push script.
-      </li>
     </ul>
     <h3 id="future_auto-copy_release_scripts">Auto-copy Release Scripts</h3> <!-- omit from toc -->
     The first step in running the release process, after the pre-release checklist, is to copy the

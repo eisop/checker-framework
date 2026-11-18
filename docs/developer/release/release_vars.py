@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 """Release variables."""
 
-# See release_development.html for an explanation of how the release process works
-# it will be invaluable when trying to understand the scripts that drive the
-# release process
+# See README-release-process.html for an explanation of how the release process works.
 
 from __future__ import annotations
 
@@ -18,20 +16,6 @@ from release_errors import ReleaseError
 # ---------------------------------------------------------------------------------
 # The only methods that should go here are methods that help define global release
 # variables.  All other methods that aid in release should go in release_utils.py
-
-
-def get_and_append(name: str, append: str) -> str:
-    """Return the given environment variable plus `append`, or an empty string.
-
-    Return an empty string if the environment variable does not exist.
-
-    Returns:
-        the given environment variable plus `append`, or an empty string.
-    """
-    if name in os.environ:
-        return os.environ[name] + append
-
-    return ""
 
 
 def execute_output(
@@ -98,9 +82,6 @@ TMP_DIR = Path(
     os.environ.get("CF_RELEASE_DIR", Path("/tmp") / pwd.getpwuid(os.geteuid())[0] / "cf-release")
 )
 
-# Location this and other release scripts are contained in.
-SCRIPTS_DIR = TMP_DIR / "checker-framework" / "docs" / "developer" / "release"
-
 # Location in which we will download files to run sanity checks.
 SANITY_DIR = TMP_DIR / "sanity"
 
@@ -109,22 +90,13 @@ SANITY_DIR = TMP_DIR / "sanity"
 # end of a release_push run.
 RELEASE_BUILD_COMPLETED_FLAG_FILE = TMP_DIR / "release-build-completed"
 
-# Every time a release is built the changes/tags are pushed here.
-INTERM_REPO_ROOT = TMP_DIR / "interm"
-INTERM_CHECKER_REPO = INTERM_REPO_ROOT / "checker-framework"
-
-# The central repositories for Checker Framework related projects.
+# The GitHub repository of the Checker Framework, which includes the AFU.
 LIVE_CHECKER_REPO = "git@github.com:eisop/checker-framework.git"
-GIT_SCRIPTS_REPO = "https://github.com/eisop-plume-lib/git-scripts"
-PLUME_SCRIPTS_REPO = "https://github.com/eisop-plume-lib/plume-scripts"
-CHECKLINK_REPO = "https://github.com/eisop-plume-lib/checklink"
-PLUME_BIB_REPO = "https://github.com/eisop-plume-lib/plume-bib"
 
-# Location of the project directories in which we will build the actual projects.
-# When we build these projects are pushed to the INTERM repositories.
+# The clone in which release_build.py builds, commits, and tags the release, and from which
+# release_push.py pushes it to LIVE_CHECKER_REPO.
 BUILD_DIR = TMP_DIR / "build"
 CHECKER_FRAMEWORK = BUILD_DIR / "checker-framework"
-CHECKER_FRAMEWORK_RELEASE = CHECKER_FRAMEWORK / "docs" / "developer" / "release"
 
 # The version of the release.  Without -Prelease=true, the build's version is a -SNAPSHOT version.
 # If a new Gradle wrapper was recently installed, the first ./gradlew command may output:
@@ -134,48 +106,19 @@ CF_VERSION = execute_output(
     "./gradlew version -q -Prelease=true", TMP_DIR / "checker-framework"
 ).strip()
 
-GIT_SCRIPTS = BUILD_DIR / "git-scripts"
-PLUME_SCRIPTS = BUILD_DIR / "plume-scripts"
-CHECKLINK = BUILD_DIR / "checklink"
-PLUME_BIB = BUILD_DIR / "plume-bib"
-
-INTERM_TO_BUILD_REPOS = ((INTERM_CHECKER_REPO, CHECKER_FRAMEWORK),)
-
-LIVE_TO_INTERM_REPOS = ((LIVE_CHECKER_REPO, INTERM_CHECKER_REPO),)
-
-# TODO: publish to GitHub
-
-# The location the test site is built in.
-DEV_SITE_URL = "https://eisop.github.io/cf/dev"
-DEV_SITE_DIR = TMP_DIR / "web-cf-dev"
-
-# The location the test site is pushed to when it is ready.
-LIVE_SITE_URL = "https://eisop.github.io/cf"
-LIVE_SITE_DIR = TMP_DIR / "web-cf"
-
-CHECKER_LIVE_RELEASES_DIR = LIVE_SITE_DIR / "releases"
-CHECKER_LIVE_API_DIR = LIVE_SITE_DIR / "api"
+# The release files, checker-framework-VERSION.zip and annotation-file-utilities-VERSION.zip,
+# which are attached to the GitHub release.  The web site is generated from them.
+RELEASE_FILES_DIR = TMP_DIR / "release-files"
 
 os.environ["PARENT_DIR"] = str(BUILD_DIR)
 os.environ["CHECKERFRAMEWORK"] = str(CHECKER_FRAMEWORK)
-# Environment variables for tools needed during the build
-os.environ["PLUME_SCRIPTS"] = str(PLUME_SCRIPTS)
-os.environ["CHECKLINK"] = str(CHECKLINK)
-os.environ["BIBINPUTS"] = ".:" + str(PLUME_BIB)
 os.environ["TEXINPUTS"] = ".:..:"
 # The JDK of the release build; the environment variable JAVA_21_HOME overrides the default.
 os.environ.setdefault("JAVA_21_HOME", "/usr/lib/jvm/java-21-openjdk/")
 os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
 
-EDITOR = os.getenv("EDITOR")
-if EDITOR is None:
-    EDITOR = "emacs"
-
 PATH = os.environ["JAVA_HOME"] + "/bin:" + os.environ["PATH"]
 PATH = PATH + ":/usr/bin"
-PATH = PATH + ":" + str(PLUME_SCRIPTS)
-PATH = PATH + ":" + str(CHECKLINK)
-PATH = PATH + ":" + str(Path.home() / ".local" / "bin")  # for uv
 PATH = PATH + ":."
 os.environ["PATH"] = PATH
 
@@ -187,7 +130,5 @@ TOOLS = [
     "latex",
     "mvn",
     "git",
-    "uv",
     "dot",
-    EDITOR,
 ]
