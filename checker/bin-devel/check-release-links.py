@@ -51,7 +51,11 @@ JAVADOC_DIR = "docs/api/"
 JAVADOC_JAR = "checker/dist/checker-javadoc.jar"
 
 # Absolute paths: site singletons, which exist only on the website, not in the zip.
-SITE_SINGLETONS = {"/cf/releases/releases.html", "/afu/annotation-file-utilities.html"}
+SITE_SINGLETONS = {
+    "/cf/releases/releases.html",
+    "/cf/dev/",
+    "/afu/annotation-file-utilities.html",
+}
 
 
 class LinkParser(HTMLParser):

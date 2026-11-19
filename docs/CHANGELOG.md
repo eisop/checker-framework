@@ -399,6 +399,9 @@ argument inference, no longer changes how the rest of the compilation is checked
 compilation units checked after the crash were checked without flow-sensitive type refinement and
 reported false positives, such as a dereference after `if (x != null)`.
 
+The development version of the web site, <https://eisop.github.io/cf/dev/>, has the manual, the
+Javadoc, and the zip files of master, built nightly from a master that passed CI.
+
 ### Implementation details
 
 The validation of qualifier target locations moved from `BaseTypeVisitor` to `BaseTypeValidator`.

@@ -132,6 +132,18 @@ jobs:
           ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
           JAVA_VERSION: ${{ matrix.java.version }}
 
+      # The zip files that test-release.sh built, for the nightly-zips job of the scheduled run.
+      - name: Keep the zip files for the nightly build
+        if: ${{ github.event_name == 'schedule' && matrix.script == 'release' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-zips
+          path: |
+            build/checker-framework-*.zip
+            build/annotation-file-utilities-*.zip
+          if-no-files-found: error
+          retention-days: 1
+
       # What the job downloaded instead of restoring it from a cache.
       - name: List the downloaded files
         if: ${{ !cancelled() }}
@@ -225,3 +237,71 @@ jobs:
           path: checker/dist/*.jar
           if-no-files-found: error
           retention-days: 30
+
+  # Attach the zip files of master to the "nightly" prerelease, replacing those of the previous
+  # night.  The web site's generator publishes them as the development version of the web site,
+  # https://eisop.github.io/cf/dev/, so that problems in the manual and the zip files show up
+  # before a release.  Only the scheduled run, and only when its tests pass, so the development
+  # version is a master that passed CI.  Not gated on otheros: GitHub cancels its macOS job on
+  # about half of the scheduled runs for lack of runners.
+  #
+  # The prerelease is never the latest release: GitHub's "latest release", which the release
+  # scripts and the web site use, excludes prereleases.  It is updated in place rather than
+  # recreated, because creating a release notifies everyone who watches the repository's releases.
+  nightly-zips:
+    name: Nightly build
+    needs: linux-tests
+    if: ${{ github.event_name == 'schedule' && github.repository == 'eisop/checker-framework' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    permissions:
+      # To move the tag and to replace the files of the prerelease.
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      # gh works on this repository without a checkout.
+      GH_REPO: ${{ github.repository }}
+      TAG: nightly
+    steps:
+      - name: Check whether master changed since the last nightly build
+        id: check
+        run: |
+          # gh prints the error response on stdout when there is no tag yet.
+          built=$(gh api "repos/$GH_REPO/git/ref/tags/$TAG" --jq .object.sha 2> /dev/null) || built=""
+          echo "master: $GITHUB_SHA; last nightly build: ${built:-none}"
+          if [ "$built" = "$GITHUB_SHA" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "master has not changed since the last nightly build." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@v8
+        if: ${{ steps.check.outputs.changed == 'true' }}
+        with:
+          name: nightly-zips
+          path: zips
+
+      - name: Attach the zip files to the prerelease
+        if: ${{ steps.check.outputs.changed == 'true' }}
+        run: |
+          files=(zips/checker-framework-*.zip zips/annotation-file-utilities-*.zip)
+          notes="The zip files of master at $GITHUB_SHA, built $(date -u +%Y-%m-%d) by the scheduled CI run.  Not a release."
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --prerelease --latest=false --title "Nightly build" --notes "$notes"
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --latest=false --title "Nightly build" --notes "$notes"
+          fi
+          gh release upload "$TAG" "${files[@]}" --clobber
+          # Remove the files of earlier versions, whose names differ.
+          assets=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+          for asset in $assets; do
+            case " ${files[*]##*/} " in
+              *" $asset "*) ;;
+              *) gh release delete-asset "$TAG" "$asset" --yes ;;
+            esac
+          done
+          # Last, so that a failed upload is retried the next night.  gh release create made the
+          # tag; deleting it by hand turns the release into a draft, and the tag is made again.
+          gh api -X PATCH "repos/$GH_REPO/git/refs/tags/$TAG" -f sha="$GITHUB_SHA" -F force=true \
+            || gh api -X POST "repos/$GH_REPO/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA"
