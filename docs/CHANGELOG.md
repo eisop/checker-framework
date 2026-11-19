@@ -513,6 +513,11 @@ on trees, too.
 New `SourceChecker#shouldSkipDefs(VariableTree)` lets a checker skip a variable declaration and
 its initializer, as the `ClassTree` and `MethodTree` overloads do for classes and methods.
 
+New `SourceChecker#getErrorCount()` returns the number of errors that the checker has reported, for
+example for an override of `typeProcessingOver` that prints a note if there were any. Unlike javac's
+error count, it counts only the checker's own errors, including under `-Awarns` and when the Error
+Prone plugin receives the diagnostics.
+
 `GenericAnnotatedTypeFactory#performFlowAnalysisForClass` is now `final`; a subclass customizes the
 analysis in the new `performFlowAnalysisForClassImpl`. New `AnnotatedTypeFactory` hooks
 `canUseCachedFlowDependentType`, `canCacheFlowDependentType`, and `isAnonymousDiamondSupertypeFinal`
@@ -877,6 +882,7 @@ eisop#2612,
 eisop#2623,
 eisop#2625,
 eisop#2633,
+eisop#2640,
 eisop#2641,
 typetools#399,
 typetools#602,
