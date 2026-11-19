@@ -453,11 +453,6 @@ When assertions are enabled, `SourceChecker#report` asserts that the reported ke
 in a `messages.properties` file that the checker loads. Tests of a checker that reports a key
 without text now fail.
 
-New `SourceChecker#getErrorCount()` returns the number of errors that the checker has reported, for
-example for an override of `typeProcessingOver` that prints a note if there were any. Unlike javac's
-error count, it counts only the checker's own errors, including under `-Awarns` and when the Error
-Prone plugin receives the diagnostics.
-
 New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
 reachable from the entry block, too.
 
@@ -517,6 +512,11 @@ on trees, too.
 
 New `SourceChecker#shouldSkipDefs(VariableTree)` lets a checker skip a variable declaration and
 its initializer, as the `ClassTree` and `MethodTree` overloads do for classes and methods.
+
+New `SourceChecker#getErrorCount()` returns the number of errors that the checker has reported, for
+example for an override of `typeProcessingOver` that prints a note if there were any. Unlike javac's
+error count, it counts only the checker's own errors, including under `-Awarns` and when the Error
+Prone plugin receives the diagnostics.
 
 `GenericAnnotatedTypeFactory#performFlowAnalysisForClass` is now `final`; a subclass customizes the
 analysis in the new `performFlowAnalysisForClassImpl`. New `AnnotatedTypeFactory` hooks
