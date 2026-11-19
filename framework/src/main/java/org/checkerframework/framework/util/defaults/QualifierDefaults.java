@@ -476,7 +476,7 @@ public class QualifierDefaults {
                 if (conflictsWithExistingDefaults(defaults, qualifier, location)) {
                     continue;
                 }
-                addUncheckedCodeDefault(mode, qualifier, location, true);
+                addUncheckedCodeDefault(mode, qualifier, location);
             }
         }
     }
@@ -597,37 +597,42 @@ public class QualifierDefaults {
     }
 
     /**
-     * Adds a default annotation. A programmer may override this by writing the @DefaultQualifier
-     * annotation on an element.
+     * Adds a default annotation for checked code. A programmer may override this by writing the
+     * {@code @DefaultQualifier} annotation on an element.
      *
-     * @param absoluteDefaultAnno the default annotation mirror
-     * @param location the type use location
-     * @param applyToSubpackages whether the default should be inherited by subpackages
-     */
-    public void addCheckedCodeDefault(
-            AnnotationMirror absoluteDefaultAnno,
-            TypeUseLocation location,
-            boolean applyToSubpackages) {
-        if (!permittedAtProgrammaticLocation(absoluteDefaultAnno, location)) {
-            throw new TypeSystemError(
-                    "The default qualifier %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
-                    absoluteDefaultAnno, location);
-        }
-        checkDuplicates(checkedCodeDefaults, absoluteDefaultAnno, location);
-        checkedCodeDefaults.add(new Default(absoluteDefaultAnno, location, applyToSubpackages));
-        invalidateFusedDefaults();
-    }
-
-    /**
-     * Adds a default annotation that also applies to subpackages, if applicable. A programmer may
-     * override this by writing the @DefaultQualifier annotation on an element.
+     * <p>A checked-code default applies to all checked code; it is not scoped to a package.
      *
      * @param absoluteDefaultAnno the default annotation mirror
      * @param location the type use location
      */
     public void addCheckedCodeDefault(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation location) {
-        addCheckedCodeDefault(absoluteDefaultAnno, location, true);
+        if (!permittedAtProgrammaticLocation(absoluteDefaultAnno, location)) {
+            throw new TypeSystemError(
+                    "The default qualifier %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
+                    absoluteDefaultAnno, location);
+        }
+        checkDuplicates(checkedCodeDefaults, absoluteDefaultAnno, location);
+        checkedCodeDefaults.add(new Default(absoluteDefaultAnno, location, true));
+        invalidateFusedDefaults();
+    }
+
+    /**
+     * Adds a default annotation for checked code.
+     *
+     * @param absoluteDefaultAnno the default annotation mirror
+     * @param location the type use location
+     * @param applyToSubpackages ignored
+     * @deprecated {@code applyToSubpackages} has no effect, because a checked-code default is not
+     *     scoped to a package. Use {@link #addCheckedCodeDefault(AnnotationMirror,
+     *     TypeUseLocation)}.
+     */
+    @Deprecated // 2026-11-19
+    public void addCheckedCodeDefault(
+            AnnotationMirror absoluteDefaultAnno,
+            TypeUseLocation location,
+            boolean applyToSubpackages) {
+        addCheckedCodeDefault(absoluteDefaultAnno, location);
     }
 
     /**
@@ -635,29 +640,10 @@ public class QualifierDefaults {
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
-     * @param applyToSubpackages whether the default should be inherited by subpackages
-     */
-    public void addConservativeUncheckedCodeDefault(
-            AnnotationMirror uncheckedDefaultAnno,
-            TypeUseLocation location,
-            boolean applyToSubpackages) {
-        addUncheckedCodeDefault(
-                UncheckedDefaultsMode.CONSERVATIVE,
-                uncheckedDefaultAnno,
-                location,
-                applyToSubpackages);
-    }
-
-    /**
-     * Add a conservative default annotation for unchecked elements that also applies to
-     * subpackages, if applicable.
-     *
-     * @param uncheckedDefaultAnno the default annotation mirror
-     * @param location the type use location
      */
     public void addConservativeUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
-        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+        addUncheckedCodeDefault(UncheckedDefaultsMode.CONSERVATIVE, uncheckedDefaultAnno, location);
     }
 
     /**
@@ -665,44 +651,24 @@ public class QualifierDefaults {
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
-     * @param applyToSubpackages whether the default should be inherited by subpackages
-     */
-    public void addPermissiveUncheckedCodeDefault(
-            AnnotationMirror uncheckedDefaultAnno,
-            TypeUseLocation location,
-            boolean applyToSubpackages) {
-        addUncheckedCodeDefault(
-                UncheckedDefaultsMode.PERMISSIVE,
-                uncheckedDefaultAnno,
-                location,
-                applyToSubpackages);
-    }
-
-    /**
-     * Add a permissive default annotation for unchecked elements that also applies to subpackages,
-     * if applicable.
-     *
-     * @param uncheckedDefaultAnno the default annotation mirror
-     * @param location the type use location
      */
     public void addPermissiveUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
-        addPermissiveUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+        addUncheckedCodeDefault(UncheckedDefaultsMode.PERMISSIVE, uncheckedDefaultAnno, location);
     }
 
     /**
-     * Adds an unchecked-code default for a mode.
+     * Adds an unchecked-code default for a mode. Like a checked-code default, it is not scoped to a
+     * package.
      *
      * @param mode the unchecked defaulting mode
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
-     * @param applyToSubpackages whether the default should be inherited by subpackages
      */
     private void addUncheckedCodeDefault(
             UncheckedDefaultsMode mode,
             AnnotationMirror uncheckedDefaultAnno,
-            TypeUseLocation location,
-            boolean applyToSubpackages) {
+            TypeUseLocation location) {
         if (!permittedAtProgrammaticLocation(uncheckedDefaultAnno, location)) {
             throw new TypeSystemError(
                     "The unchecked code default qualifier %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
@@ -711,7 +677,7 @@ public class QualifierDefaults {
         DefaultSet defaults = defaultsFor(mode);
         checkDuplicates(defaults, uncheckedDefaultAnno, location);
         checkIsValidUncheckedCodeLocation(uncheckedDefaultAnno, location);
-        defaults.add(new Default(uncheckedDefaultAnno, location, applyToSubpackages));
+        defaults.add(new Default(uncheckedDefaultAnno, location, true));
         invalidateFusedDefaults();
     }
 
@@ -743,27 +709,26 @@ public class QualifierDefaults {
     }
 
     /**
-     * Add an unchecked-code default annotation for unchecked elements that also applies to
-     * subpackages, if applicable.
+     * Add an unchecked-code default annotation for unchecked elements.
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
-     * @param applyToSubpackages whether the default should be inherited by subpackages
+     * @param applyToSubpackages ignored, because an unchecked-code default is not scoped to a
+     *     package
      * @deprecated Use {@link #addConservativeUncheckedCodeDefault(AnnotationMirror,
-     *     TypeUseLocation, boolean)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
-     *     TypeUseLocation, boolean)}.
+     *     TypeUseLocation)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
+     *     TypeUseLocation)}.
      */
     @Deprecated // 2026-09-25
     public void addUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
-        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, applyToSubpackages);
+        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location);
     }
 
     /**
-     * Add an unchecked-code default annotation for unchecked elements that also applies to
-     * subpackages.
+     * Add an unchecked-code default annotation for unchecked elements.
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
@@ -774,7 +739,7 @@ public class QualifierDefaults {
     @Deprecated // 2026-09-25
     public void addUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
-        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location);
     }
 
     /**

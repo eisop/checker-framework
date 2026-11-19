@@ -467,6 +467,9 @@ Deprecated:
   `AnnotatedTypeFactory#isFromByteCode` to account for stub files.
 - `QualifierDefaults.addUncheckedCodeDefault` and `addUncheckedCodeDefaults`; use the
   `addConservativeUncheckedCodeDefault(s)` or `addPermissiveUncheckedCodeDefault(s)` methods.
+- `QualifierDefaults.addCheckedCodeDefault(AnnotationMirror, TypeUseLocation, boolean)`, whose
+  `applyToSubpackages` argument has no effect, because a checked-code default is not scoped to a
+  package; use the overload without it.
 - `SystemUtil.COLON_SPLITTER`; use the new `SystemUtil.splitPaths(String)`, which splits a list of
   paths on the platform's path separator.
 - These unused methods, which will be removed in a future release:
@@ -874,6 +877,7 @@ eisop#2612,
 eisop#2623,
 eisop#2625,
 eisop#2633,
+eisop#2642,
 typetools#399,
 typetools#602,
 typetools#2816,

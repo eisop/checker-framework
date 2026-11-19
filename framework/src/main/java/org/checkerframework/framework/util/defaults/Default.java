@@ -21,7 +21,10 @@ public class Default implements Comparable<Default> {
     /** The type use location. */
     public final TypeUseLocation location;
 
-    /** Whether the default should be inherited by subpackages. */
+    /**
+     * Whether the default also applies to the subpackages of the package that it is written on or
+     * registered for. It has no effect on any other default.
+     */
     public final boolean applyToSubpackages;
 
     /**
