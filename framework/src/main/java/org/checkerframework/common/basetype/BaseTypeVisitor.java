@@ -499,6 +499,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // Do not descend into, or check, dead code.
             return null;
         }
+        if (tree instanceof VariableTree && checker.shouldSkipDefs((VariableTree) tree)) {
+            // Do not check the declaration or descend into its initializer. Checking here rather
+            // than in visitVariable also skips the checks of overrides of visitVariable.
+            return null;
+        }
         if (getCurrentPath() != null) {
             this.atypeFactory.setVisitorTreePath(new TreePath(getCurrentPath(), tree));
         }
