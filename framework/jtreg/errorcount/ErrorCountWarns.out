@@ -1,0 +1,4 @@
+ErrorCount.java:11:5: compiler.warn.proc.messager: (type.invalid)
+ErrorCount.java:13:5: compiler.warn.proc.messager: (type.invalid)
+- compiler.note.proc.messager: errors reported: 2
+2 warnings
