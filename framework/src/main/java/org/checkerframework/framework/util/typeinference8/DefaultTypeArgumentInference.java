@@ -18,6 +18,7 @@ import org.checkerframework.framework.util.typeinference8.util.InferenceBudgetEx
 import org.checkerframework.framework.util.typeinference8.util.Theta;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.UserError;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -181,6 +182,9 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
             // defaulted (as for a crash) so that checking continues soundly.
             return new InferenceResult(
                     Collections.emptyList(), false, true, false, true, budget.getMessage());
+        } catch (UserError ex) {
+            // A configuration error is the user's to fix, not an inference crash.
+            throw ex;
         } catch (Exception ex) {
             if (typeFactory
                     .getChecker()
