@@ -2,6 +2,7 @@ package org.checkerframework.checker.nullness;
 
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.initialization.InitializationChecker;
 import org.checkerframework.checker.initialization.InitializationFieldAccessSubchecker;
@@ -145,6 +146,12 @@ public class NullnessNoInitSubchecker extends BaseTypeChecker {
 
     @Override
     public boolean shouldSkipDefs(MethodTree tree) {
+        return super.shouldSkipDefs(tree)
+                || (parentChecker != null && parentChecker.shouldSkipDefs(tree));
+    }
+
+    @Override
+    public boolean shouldSkipDefs(VariableTree tree) {
         return super.shouldSkipDefs(tree)
                 || (parentChecker != null && parentChecker.shouldSkipDefs(tree));
     }

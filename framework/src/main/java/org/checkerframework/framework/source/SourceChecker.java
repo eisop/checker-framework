@@ -4454,19 +4454,33 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Returns true if the method definition should not be checked because it matches the {@code
-     * checker.skipDefs} property.
+     * Returns true if the method definition should not be checked. The default implementation
+     * returns false; subclasses may override it.
      *
      * @param tree method to potentially skip
      * @return true if checker should not type-check {@code tree}
      */
     public boolean shouldSkipDefs(MethodTree tree) {
-        return false; // subclasses may override this implementation
+        return false;
     }
 
     /**
-     * Returns true if the method definition should not be checked because it matches the {@code
-     * checker.skipDefs} property.
+     * Returns true if the variable declaration should not be checked: neither the declaration nor
+     * its initializer, including any lambda or class in the initializer. Code that uses the
+     * variable is still checked against its type. The default implementation returns false;
+     * subclasses may override it.
+     *
+     * @param tree variable declaration to potentially skip
+     * @return true if checker should not type-check {@code tree}
+     */
+    public boolean shouldSkipDefs(VariableTree tree) {
+        return false;
+    }
+
+    /**
+     * Returns true if the method definition should not be checked, because {@link
+     * #shouldSkipDefs(ClassTree)} is true for its class or {@link #shouldSkipDefs(MethodTree)} is
+     * true for the method.
      *
      * @param cls class to potentially skip
      * @param meth method to potentially skip
