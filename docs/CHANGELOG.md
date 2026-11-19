@@ -453,6 +453,9 @@ When assertions are enabled, `SourceChecker#report` asserts that the reported ke
 in a `messages.properties` file that the checker loads. Tests of a checker that reports a key
 without text now fail.
 
+New `SourceChecker#shouldSkipDefs(VariableTree)` lets a checker skip a variable declaration and
+its initializer, as the `ClassTree` and `MethodTree` overloads do for classes and methods.
+
 New `ControlFlowGraph#getAllNodesIncludingUnreachable` returns the nodes of the blocks that are not
 reachable from the entry block, too.
 
@@ -874,6 +877,7 @@ eisop#2612,
 eisop#2623,
 eisop#2625,
 eisop#2633,
+eisop#2641,
 typetools#399,
 typetools#602,
 typetools#2816,
