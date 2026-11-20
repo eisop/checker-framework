@@ -52,9 +52,9 @@ import javax.lang.model.util.Elements;
  *       Nullable} if the result is true.
  *   <li>If an expression is dereferenced, then it can safely be assumed to non-null in the future.
  *       If it would not be, then the dereference would have raised a {@link NullPointerException}.
- *   <li>Tracks whether {@link PolyNull} is known to be {@link Nullable}, because a {@link PolyNull}
- *       expression was found to be null, and if so gives {@link Nullable} values the {@link
- *       PolyNull} form.
+ *   <li>Tracks whether the current invocation is known to instantiate {@link PolyNull} as {@link
+ *       Nullable}, because a {@link PolyNull} expression was found to be null, and if so gives
+ *       {@link Nullable} values the {@link PolyNull} form.
  * </ol>
  */
 public class NullnessNoInitTransfer
@@ -208,14 +208,15 @@ public class NullnessNoInitTransfer
     }
 
     /**
-     * Where {@code @PolyNull} is known to be {@code @Nullable}, the two qualifiers denote the same
-     * type, so this gives a {@code @Nullable} value the {@code @PolyNull} form, which is compatible
-     * with a {@code @PolyNull} variable, parameter, or return type. For example:
+     * Where the current invocation is known to instantiate {@code @PolyNull} as {@code @Nullable},
+     * the two qualifiers denote the same type, so this gives a {@code @Nullable} value the
+     * {@code @PolyNull} form, which is compatible with a {@code @PolyNull} variable, parameter, or
+     * return type. For example:
      *
      * <pre>
      * &#64;PolyNull String foo(@PolyNull String param) {
      *     if (param == null) {
-     *         // @PolyNull is @Nullable here, so null has type @PolyNull.
+     *         // This invocation instantiates @PolyNull as @Nullable, so null has type @PolyNull.
      *         param = null;
      *     }
      *     return param;
@@ -223,7 +224,8 @@ public class NullnessNoInitTransfer
      * </pre>
      *
      * @param value a value, or null
-     * @param polyNullNull whether {@code @PolyNull} is known to be {@code @Nullable}
+     * @param polyNullNull whether the current invocation is known to instantiate {@code @PolyNull}
+     *     as {@code @Nullable}
      * @return {@code value} in the {@code @PolyNull} form if {@code polyNullNull} holds and it is
      *     {@code @Nullable}, otherwise {@code value} itself
      */

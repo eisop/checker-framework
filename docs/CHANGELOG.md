@@ -404,9 +404,9 @@ Javadoc, and the zip files of master, built nightly from a master that passed CI
 
 ### Implementation details
 
-Where the Nullness Checker knows that `@PolyNull` is `@Nullable`, `NullnessNoInitTransfer` gives
-`@Nullable` dataflow values the `@PolyNull` form, instead of the visitor replacing `@PolyNull` in
-the target type. Removed:
+Where the Nullness Checker knows that the current invocation instantiates `@PolyNull` as
+`@Nullable`, `NullnessNoInitTransfer` gives `@Nullable` dataflow values the `@PolyNull` form,
+instead of the visitor replacing `@PolyNull` in the target type. Removed:
 
 - `NullnessNoInitStore#isPolyNullNonNull` and `#setPolyNullNonNull`;
 - `NullnessNoInitValue#isPolyNullNonNull`, `#isPolyNullNull`, and their setters;

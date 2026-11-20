@@ -1,5 +1,6 @@
-// Where a @PolyNull expression has been compared to null, @PolyNull is @Nullable, and dataflow
-// gives a @Nullable value the @PolyNull form, so it is compatible with a @PolyNull variable,
+// Where a @PolyNull expression has been found to be null, the invocation instantiates @PolyNull as
+// @Nullable, and dataflow gives a @Nullable value the @PolyNull form, so it is compatible with a
+// @PolyNull variable,
 // parameter, or return type. The visitor compares the types as computed, without changing them.
 
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -29,7 +30,7 @@ class PolyNullRefinement {
         return p == null ? null : p.trim();
     }
 
-    // The else operand is non-null whatever @PolyNull is.
+    // The else operand is non-null whatever @PolyNull is instantiated as.
     @PolyNull String conditionalOtherParam(@PolyNull String p, @PolyNull String r) {
         return p == null ? null : "x";
     }
@@ -40,8 +41,8 @@ class PolyNullRefinement {
         return result;
     }
 
-    // That every @PolyNull parameter is non-null does not make @PolyNull @NonNull: the caller may
-    // still instantiate it as @Nullable, and a reassigned parameter no longer holds its argument.
+    // That every @PolyNull parameter is currently non-null does not show that every @PolyNull value
+    // is non-null: a reassigned parameter no longer holds its argument, so r can still be null.
     @PolyNull String polyLocal(@PolyNull String p, @PolyNull String q) {
         @PolyNull String r = q;
         q = "";
@@ -68,7 +69,7 @@ class PolyNullRefinement {
             // :: error: (return.type.incompatible)
             return n;
         }
-        // Only the p == null path reaches here, where @PolyNull is @Nullable.
+        // Only the p == null path reaches here, where @PolyNull is instantiated as @Nullable.
         return n;
     }
 
@@ -77,7 +78,7 @@ class PolyNullRefinement {
         return n;
     }
 
-    // @PolyNull is @Nullable here, so a @Nullable value is still not @NonNull.
+    // @PolyNull is instantiated as @Nullable here, so a @Nullable value is still not @NonNull.
     void nonNullTarget(@PolyNull String p, @Nullable String n) {
         if (p == null) {
             // :: error: (assignment.type.incompatible)

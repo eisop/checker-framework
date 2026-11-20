@@ -26,12 +26,19 @@ import java.util.Set;
 import javax.lang.model.element.ExecutableElement;
 
 /**
- * In addition to the base class behavior, tracks whether {@link PolyNull} is known to be {@link
- * Nullable}, and tracks which queue or deque receiver expressions are known to be non-empty.
+ * In addition to the base class behavior, tracks whether the current invocation is known to
+ * instantiate {@link PolyNull} as {@link Nullable}, and tracks which queue or deque receiver
+ * expressions are known to be non-empty.
  */
 public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, NullnessNoInitStore> {
 
-    /** True if, at this point, {@link PolyNull} is known to be {@link Nullable}. */
+    /**
+     * True if, at this point, the current invocation is known to instantiate {@link PolyNull} as
+     * {@link Nullable}, because a {@link PolyNull} expression was found to be null. False if that
+     * is not known. No knowledge of an instantiation as {@link NonNull} is tracked: the current
+     * values of the parameters would show it only if no {@link PolyNull} parameter were reassigned
+     * and none had a nested {@link PolyNull}.
+     */
     private boolean isPolyNullNull;
 
     /**
@@ -247,19 +254,22 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
     }
 
     /**
-     * Returns true if, at this point, {@link PolyNull} is known to be {@link Nullable}.
+     * Returns true if, at this point, the current invocation is known to instantiate {@link
+     * PolyNull} as {@link Nullable}.
      *
-     * @return true if, at this point, {@link PolyNull} is known to be {@link Nullable}
+     * @return true if, at this point, the current invocation is known to instantiate {@link
+     *     PolyNull} as {@link Nullable}
      */
     public boolean isPolyNullNull() {
         return isPolyNullNull;
     }
 
     /**
-     * Set the value of whether, at this point, {@link PolyNull} is known to be {@link Nullable}.
+     * Sets whether, at this point, the current invocation is known to instantiate {@link PolyNull}
+     * as {@link Nullable}.
      *
-     * @param isPolyNullNull whether, at this point, {@link PolyNull} is known to be {@link
-     *     Nullable}
+     * @param isPolyNullNull whether, at this point, the current invocation is known to instantiate
+     *     {@link PolyNull} as {@link Nullable}
      */
     public void setPolyNullNull(boolean isPolyNullNull) {
         this.isPolyNullNull = isPolyNullNull;

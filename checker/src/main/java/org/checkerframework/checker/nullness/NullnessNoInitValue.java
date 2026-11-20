@@ -9,8 +9,9 @@ import javax.lang.model.type.TypeMirror;
 
 /**
  * The abstract value of the Nullness Checker's dataflow analysis. It behaves just like {@link
- * CFValue}; whether {@code @PolyNull} is known to be {@code @Nullable} is tracked by {@link
- * NullnessNoInitStore} and applied to each value by {@link NullnessNoInitTransfer}.
+ * CFValue}; whether the current invocation is known to instantiate {@code @PolyNull} as
+ * {@code @Nullable} is tracked by {@link NullnessNoInitStore} and applied to each value by {@link
+ * NullnessNoInitTransfer}.
  */
 public class NullnessNoInitValue extends CFAbstractValue<NullnessNoInitValue> {
 
