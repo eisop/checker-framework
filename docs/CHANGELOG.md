@@ -467,6 +467,9 @@ Deprecated:
   `AnnotatedTypeFactory#isFromByteCode` to account for stub files.
 - `QualifierDefaults.addUncheckedCodeDefault` and `addUncheckedCodeDefaults`; use the
   `addConservativeUncheckedCodeDefault(s)` or `addPermissiveUncheckedCodeDefault(s)` methods.
+- `QualifierDefaults.addCheckedCodeDefault(AnnotationMirror, TypeUseLocation, boolean)`, whose
+  `applyToSubpackages` argument has no effect, because a checked-code default is not scoped to a
+  package; use the overload without it.
 - `SystemUtil.COLON_SPLITTER`; use the new `SystemUtil.splitPaths(String)`, which splits a list of
   paths on the platform's path separator.
 - These unused methods, which will be removed in a future release:
@@ -539,9 +542,10 @@ compound checker shares them with its subcheckers.
 
 New `@ProgrammaticDefaultLocations` permits a programmatic default at a location its
 `@TargetLocations` prohibits. `QualifierDefaults.addElementDefault` throws `TypeSystemError` after
-type checking begins, and registered defaults combine instead of replacing. `QualifierDefaults`
-keeps permissive unchecked-code defaults alongside the conservative ones
-(`addPermissiveUncheckedCodeDefault` and `addConservativeUncheckedCodeDefault`).
+type checking begins, and registered defaults combine instead of replacing. New
+`QualifierDefaults.addPackageDefault` takes `applyToSubpackages`, for a package default that does
+not apply to subpackages. `QualifierDefaults` keeps permissive unchecked-code defaults alongside the
+conservative ones (`addPermissiveUncheckedCodeDefault` and `addConservativeUncheckedCodeDefault`).
 `AnnotatedTypeFactory.getRoot()` is now `public`. A checker declares custom `-Amode` values with
 `@SupportedModes` and `addOptionsForMode`. Diagnostics go through `DiagnosticSink`;
 `reportError`/`reportWarning` accept a null source for positionless messages.
@@ -884,6 +888,7 @@ eisop#2625,
 eisop#2633,
 eisop#2640,
 eisop#2641,
+eisop#2642,
 typetools#399,
 typetools#602,
 typetools#2816,
