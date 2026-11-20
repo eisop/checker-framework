@@ -38,8 +38,9 @@ warning (suppressible via `-AsuppressWarnings=text.parsing`); `-AmergeStubsWithS
 `-AstubWarnIfNotFound`, and `-AstubDebug` use text parsing. `BinaryStubFileGenerator` pre-parses a
 custom `-Astubs` file, directory (`--bundle`), or jar; `JavaStubifier`, which generates the
 annotated JDK's stub files, names the source file on failure and has a new
-`--skipUnloadableAnnotations` flag. See the manual's "Using a binary (pre-parsed) stub file"
-section.
+`--skipUnloadableAnnotations` flag. Both tools are in the `framework` artifact as well as in
+`checker.jar`, so a checker that depends only on `framework` can build its own binary stub files.
+See the manual's "Using a binary (pre-parsed) stub file" section.
 
 Runs under JDK 27 and JDK 28 early-access builds.
 

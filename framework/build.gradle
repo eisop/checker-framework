@@ -71,11 +71,21 @@ sourceSets {
 tasks.named("sourcesJar") {
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(sourceSets.stubifier.allJava)
 }
 
 tasks.named("jar") {
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    // The stubifier tool (JavaStubifier, BinaryStubWriter, BinaryStubFileGenerator) ships in
+    // the framework artifact, so that a checker that depends only on it can build its own binary
+    // annotated JDK or stub files.
+    from(sourceSets.stubifier.output.classesDirs)
+}
+
+tasks.named("javadoc", Javadoc) {
+    source(sourceSets.stubifier.allJava)
+    classpath += sourceSets.stubifier.compileClasspath
 }
 
 configurations {
@@ -107,14 +117,8 @@ dependencies {
     api(libs.stubparser)
     stubifierImplementation(libs.stubparser)
     stubifierImplementation(project(":checker-qual"))
-    // Lets main sourceSet code (e.g. BinaryStubData, RemoveAnnotationsForInference) compile
-    // against stubifier classes. WARNING: this does not bundle those classes into framework.jar,
-    // which must work standalone -- they ship only inside checker.jar's shadow jar. Main
-    // sourceSet code may only reference stubifier compile-time constants (inlined by javac, so
-    // no runtime dependency results) or classes that are exclusively invoked against
-    // checker.jar's classpath (e.g. RemoveAnnotationsForInference's `main` method, run via
-    // checker/dist/checker.jar, never via framework.jar). Never add a real (non-inlined) runtime
-    // call from framework.jar-shipped code into a stubifier class.
+    // Lets main sourceSet code (e.g. BinaryStubData, RemoveAnnotationsForInference) use the
+    // stubifier classes, which the jar task above bundles into the framework artifact.
     //
     // Only the class directories: the source set has no resources, so its resources directory
     // never exists, and ShadowJar fails on a classpath entry that is neither file nor directory.
