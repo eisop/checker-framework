@@ -41,7 +41,9 @@ public interface ViewpointAdapter {
 
     /**
      * Viewpoint-adapts a constructor invocation. Takes an unsubstituted method invocation type and
-     * performs the viewpoint adaptation in place, modifying the parameter.
+     * performs the viewpoint adaptation in place, modifying the parameter. The type variables of
+     * the class stay in place: {@code AnnotatedTypes#asMemberOf} substitutes the type arguments for
+     * them afterwards.
      *
      * @param receiverType the receiver type through which a constructor is invoked
      * @param constructorElt the element of the invoked constructor
@@ -56,7 +58,9 @@ public interface ViewpointAdapter {
 
     /**
      * Viewpoint-adapts a method invocation. Takes an unsubstituted method invocation type and
-     * performs the viewpoint adaptation in place, modifying the parameter.
+     * performs the viewpoint adaptation in place, modifying the parameter. The type variables of
+     * the class stay in place: {@code AnnotatedTypes#asMemberOf} substitutes the receiver's type
+     * arguments for them afterwards.
      *
      * @param receiverType the receiver type through which a method is invoked
      * @param methodElt the element of the invoked method. Only used to determine whether this type
