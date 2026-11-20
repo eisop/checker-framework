@@ -1389,12 +1389,20 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         // use a copy of the types for the two invocations of #commonAssignmentCheck. These hacks
         // should be undone, by properly resolving polymorphic qualifiers in the ATF/transfer. As
         // this code is mostly duplicated from the super method, this code needs to be kept in sync.
-        AnnotatedTypeMirror condThen = atypeFactory.getAnnotatedType(tree);
-        AnnotatedTypeMirror condElse = condThen.deepCopy();
-        this.commonAssignmentCheck(
-                condThen, tree.getTrueExpression(), "conditional.type.incompatible");
-        this.commonAssignmentCheck(
-                condElse, tree.getFalseExpression(), "conditional.type.incompatible");
+        if (!TreeUtils.isPolyExpression(tree)) {
+            // A poly reference conditional expression is compatible with a target type T if its
+            // second and third operand expressions are compatible with T (JLS 15.25.3). As in the
+            // super method, that check happens in #commonAssignmentCheck against the target type.
+            // The conditional's own type is not a target type: javac gives a poly conditional in
+            // an invocation context the captured parameter type, such as `Comparator<capture of
+            // ? super T>`, which neither operand is a subtype of.
+            AnnotatedTypeMirror condThen = atypeFactory.getAnnotatedType(tree);
+            AnnotatedTypeMirror condElse = condThen.deepCopy();
+            this.commonAssignmentCheck(
+                    condThen, tree.getTrueExpression(), "conditional.type.incompatible");
+            this.commonAssignmentCheck(
+                    condElse, tree.getFalseExpression(), "conditional.type.incompatible");
+        }
         // Avoid calling super, as the super method does not handle conditional branches correctly.
         // Instead, manually implement the logic from TreeScanner#visitConditionalExpression to
         // traverse the subtree.
