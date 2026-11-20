@@ -1063,6 +1063,12 @@ tasks.register("zip", Zip) {
     from("docs/logo/Logo/CFLogo.png") {
         into("docs/tutorial/webpages")
     }
+
+    // The tutorial pages link to these two source files.
+    from("docs/tutorial/src") {
+        include("NullnessExample.java", "RegexExample.java")
+        into("docs/tutorial/src")
+    }
 }
 
 configurations {
