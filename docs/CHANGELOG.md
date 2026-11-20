@@ -680,6 +680,16 @@ Other improvements and bug fixes:
   (`Seq<E>` in `interface Coll<E>`), any member access on `java.util.List`, or an
   override of or raw method reference to a method whose type variable is bounded
   by a class type variable (`<S extends T> Ord<S> rev()` in `class Ord<T>`).
+- Viewpoint adaptation substitutes a receiver's type arguments for the class's
+  type variables once, in `asMemberOf`, instead of a second time in the adapter.
+  A receiver whose type arguments are the class's own type variables, such as
+  `Swap<B, A>` within `class Swap<A, B>`, no longer reports false
+  `return.type.incompatible`, `argument.type.incompatible`,
+  `override.return.invalid`, or `override.param.invalid` errors, or crashes in
+  `StructuralEqualityComparer` on `S5<? super V, T>`. A written qualifier on a
+  use of a class type variable in a member's declared type is now adapted and
+  replaces the type argument's qualifier, as in every other checker, instead of
+  being dropped.
 - Fixed aliasing bug in `AnnotatedTypeCopier` for executable types.
 - Fixed `IndexOutOfBoundsException` for lambdas in varargs.
 - Fixed crash on a dependent type annotation that names a lambda parameter.
@@ -869,6 +879,7 @@ eisop#2485,
 eisop#2490,
 eisop#2491,
 eisop#2499,
+eisop#2574,
 eisop#2582,
 eisop#2590,
 eisop#2591,

@@ -1588,16 +1588,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             ExecutableElement overriddenMethodElt,
             AnnotatedDeclaredType overriderType,
             AnnotatedExecutableType overriddenMethodDeclType) {
-        AnnotatedExecutableType result =
-                AnnotatedTypes.asMemberOf(
-                        types, this, overriddenType, overriddenMethodElt, overriddenMethodDeclType);
         if (viewpointAdapter != null) {
-            // Adapt to a use of the class: the type arguments of its declaration are type variable
-            // declarations, which cannot be type variable bounds.
+            // Adapt the declared type before its type variables are substituted, as for an
+            // invocation. Adapt to a use of the class: the type arguments of its declaration are
+            // type variable declarations, which cannot be type variable bounds.
             viewpointAdapter.viewpointAdaptMethod(
-                    overriderType.asUse(), overriddenMethodElt, result);
+                    overriderType.asUse(), overriddenMethodElt, overriddenMethodDeclType);
         }
-        return result;
+        return AnnotatedTypes.asMemberOf(
+                types, this, overriddenType, overriddenMethodElt, overriddenMethodDeclType);
     }
 
     /**
@@ -4215,7 +4214,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         memberTypeWithOverrides = applyRecordTypesToAccessors(methodElt, memberTypeWithOverrides);
         methodFromUsePreSubstitution(tree, memberTypeWithOverrides, inferTypeArgs);
 
-        // Perform viewpoint adaption before type argument substitution.
+        // Viewpoint-adapt the qualifiers of the declared type first; asMemberOf then substitutes
+        // the receiver's type arguments for the type variables of the class, exactly once.
         if (viewpointAdapter != null) {
             viewpointAdapter.viewpointAdaptMethod(receiverType, methodElt, memberTypeWithOverrides);
         }
@@ -4860,17 +4860,23 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                                         anonymousDiamondTypeArgs.typeArguments,
                                         superCon,
                                         anonymousDiamondTypeArgs.typeArgumentsInferred);
+                if (viewpointAdapter != null) {
+                    // Viewpoint adapt the super constructor, because the return type could depend
+                    // on the viewpoint and there is an LUB computation later.
+                    viewpointAdapter.viewpointAdaptConstructor(type, superCtor, superCon);
+                }
             } else {
                 superCon = getAnnotatedType(superCtor);
                 constructorFromUsePreSubstitution(tree, superCon, inferTypeArgs);
+                if (viewpointAdapter != null) {
+                    // Viewpoint adapt the super constructor before its type variables are
+                    // substituted, because the return type could depend on the viewpoint and
+                    // there is an LUB computation later.
+                    viewpointAdapter.viewpointAdaptConstructor(type, superCtor, superCon);
+                }
                 superCon =
                         AnnotatedTypes.asMemberOf(
                                 types, this, type, superCon.getElement(), superCon);
-            }
-            if (viewpointAdapter != null) {
-                // Viewpoint adapt the super constructor, because the return type could depend on
-                // the viewpoint and there is an LUB computation later.
-                viewpointAdapter.viewpointAdaptConstructor(type, superCtor, superCon);
             }
             con.computeVarargType(superCon);
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
@@ -4942,11 +4948,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // AnnotatedTypes.asMemberOf handles vararg type properly, so we do not need to compute
             // vararg type again.
             con.computeVarargType();
+            if (viewpointAdapter != null) {
+                // Viewpoint-adapt the qualifiers of the declared type first; asMemberOf then
+                // substitutes the type arguments for the type variables of the class, exactly once.
+                viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
+            }
             con = AnnotatedTypes.asMemberOf(types, this, type, ctor, con);
-        }
-
-        if (viewpointAdapter != null) {
-            viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
         }
 
         // The anonymous constructor has no type parameters, and for a diamond its parameters were
