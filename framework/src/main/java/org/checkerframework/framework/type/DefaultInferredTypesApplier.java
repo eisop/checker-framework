@@ -17,19 +17,40 @@ import javax.lang.model.type.WildcardType;
 /** Utility class for applying the annotations inferred by dataflow to a given type. */
 public class DefaultInferredTypesApplier {
 
-    // At the moment, only Inference uses the omitSubtypingCheck option.
-    // In actuality the subtyping check should be unnecessary since inferred
-    // types should be subtypes of their declaration.
+    /**
+     * Whether to apply an inferred qualifier even if it is not a subtype of the qualifier it
+     * replaces. Usually an inferred qualifier is a subtype of the declared one, but a checker whose
+     * dataflow may also widen a type, for example to a nullable type after a comparison with {@code
+     * null}, sets this to true.
+     */
     private final boolean omitSubtypingCheck;
 
+    /** The qualifier hierarchy of the type factory. */
     private final QualifierHierarchy hierarchy;
+
+    /** The type factory that uses this applier. */
     private final AnnotatedTypeFactory atypeFactory;
 
+    /**
+     * Creates an applier that applies an inferred qualifier only if it is a subtype of the
+     * qualifier it replaces.
+     *
+     * @param hierarchy the qualifier hierarchy of {@code atypeFactory}
+     * @param atypeFactory the type factory that uses this applier
+     */
     public DefaultInferredTypesApplier(
             QualifierHierarchy hierarchy, AnnotatedTypeFactory atypeFactory) {
         this(false, hierarchy, atypeFactory);
     }
 
+    /**
+     * Creates an applier.
+     *
+     * @param omitSubtypingCheck whether to apply an inferred qualifier even if it is not a subtype
+     *     of the qualifier it replaces
+     * @param hierarchy the qualifier hierarchy of {@code atypeFactory}
+     * @param atypeFactory the type factory that uses this applier
+     */
     public DefaultInferredTypesApplier(
             boolean omitSubtypingCheck,
             QualifierHierarchy hierarchy,

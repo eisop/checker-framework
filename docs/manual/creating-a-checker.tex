@@ -801,6 +801,37 @@ method.  You may do this even if you have declaratively defined the
 qualifier hierarchy.
 \end{sloppypar}
 
+\begin{sloppypar}
+The methods of \refclass{framework/util/defaults}{QualifierDefaults} that
+register a default differ in where the default applies:
+\begin{itemize}
+\item
+  \refmethod{framework/util/defaults}{QualifierDefaults}{addCheckedCodeDefault}{(javax.lang.model.element.AnnotationMirror,org.checkerframework.framework.qual.TypeUseLocation)}
+  sets the default for all checked code.
+\item
+  \refmethod{framework/util/defaults}{QualifierDefaults}{addConservativeUncheckedCodeDefault}{(javax.lang.model.element.AnnotationMirror,org.checkerframework.framework.qual.TypeUseLocation)}
+  and
+  \refmethod{framework/util/defaults}{QualifierDefaults}{addPermissiveUncheckedCodeDefault}{(javax.lang.model.element.AnnotationMirror,org.checkerframework.framework.qual.TypeUseLocation)}
+  set the conservative and the permissive default for unchecked code; the
+  command-line arguments of Section~\ref{AuseConservativeDefaultsForUncheckedCodesource}
+  choose which of them apply.
+\item
+  \refmethod{framework/util/defaults}{QualifierDefaults}{addElementDefault}{(javax.lang.model.element.Element,javax.lang.model.element.AnnotationMirror,org.checkerframework.framework.qual.TypeUseLocation)}
+  sets the default within an element and the elements it encloses, like a
+  \refqualclass{framework/qual}{DefaultQualifier} annotation written on it.
+  A default on a package also applies to its subpackages.
+\item
+  \refmethod{framework/util/defaults}{QualifierDefaults}{addPackageDefault}{(javax.lang.model.element.PackageElement,javax.lang.model.element.AnnotationMirror,org.checkerframework.framework.qual.TypeUseLocation,boolean)}
+  sets the default within a package and takes an \<applyToSubpackages>
+  argument, like the element of \<@DefaultQualifier>.
+\end{itemize}
+A \<@DefaultQualifier> annotation written in the code overrides a default
+that is set for an enclosing scope.
+\<addElementDefault> and \<addPackageDefault> must be called while the type
+factory is being initialized, such as from \<addCheckedCodeDefaults>; they
+throw a \<TypeSystemError> once type checking has begun.
+\end{sloppypar}
+
 If the default qualifier in the type hierarchy requires a value, there are
 ways for the type system designer to specify a default value both
 declaratively and procedurally, as well.  To do so declaratively, append
