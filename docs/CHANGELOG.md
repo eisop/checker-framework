@@ -443,11 +443,16 @@ Public and protected API that changed without a deprecation period:
 - The maps of `CFAbstractStore` (`localVariableValues`, `fieldValues`, `arrayValues`,
   `methodCallExpressions`, `classValues`) are `CopyOnWriteMap`s, whose views are unmodifiable.
 - `BaseTypeValidator#areBoundsValid` is `protected`.
+- `DefaultQualifierForUseTypeAnnotator#getDefaultAnnosForUses` is `public`, so an override must be
+  `public`, too.
 - Removed: `AnnotatedTypeMirror#copyIntersectionBoundAnnotations`, `QualifierDefaults#applyDefault`,
   `ValueTreeAnnotator.COVERED_CLASS_STRINGS`, `BaseTypeVisitor.positions` (use
-  `TreeUtils.getStartPosition` and `getEndPosition`). `AnnotationUtils.sameElementValues` is
-  private (use `areSame`). `QualifierDefaults.STANDARD_UNCHECKED_DEFAULTS_TOP` and `_BOTTOM` are
-  renamed `CONSERVATIVE_UNCHECKED_DEFAULTS_TOP` and `_BOTTOM`.
+  `TreeUtils.getStartPosition` and `getEndPosition`),
+  `CheckedExceptionsUtil.thrownCheckedExceptions` (use `thrownCheckedExceptionsATM`),
+  `InitializationStore#isDeclaredInitialized` (which always returned false).
+  `AnnotationUtils.sameElementValues` is private (use `areSame`).
+  `QualifierDefaults.STANDARD_UNCHECKED_DEFAULTS_TOP` and `_BOTTOM` are renamed
+  `CONSERVATIVE_UNCHECKED_DEFAULTS_TOP` and `_BOTTOM`.
 
 When assertions are enabled, `SourceChecker#report` asserts that the reported key has message text
 in a `messages.properties` file that the checker loads. Tests of a checker that reports a key
@@ -467,6 +472,9 @@ Deprecated:
   `AnnotatedTypeFactory#isFromByteCode` to account for stub files.
 - `QualifierDefaults.addUncheckedCodeDefault` and `addUncheckedCodeDefaults`; use the
   `addConservativeUncheckedCodeDefault(s)` or `addPermissiveUncheckedCodeDefault(s)` methods.
+- `QualifierDefaults.addCheckedCodeDefault(AnnotationMirror, TypeUseLocation, boolean)`, whose
+  `applyToSubpackages` argument has no effect, because a checked-code default is not scoped to a
+  package; use the overload without it.
 - `SystemUtil.COLON_SPLITTER`; use the new `SystemUtil.splitPaths(String)`, which splits a list of
   paths on the platform's path separator.
 - These unused methods, which will be removed in a future release:
@@ -539,9 +547,10 @@ compound checker shares them with its subcheckers.
 
 New `@ProgrammaticDefaultLocations` permits a programmatic default at a location its
 `@TargetLocations` prohibits. `QualifierDefaults.addElementDefault` throws `TypeSystemError` after
-type checking begins, and registered defaults combine instead of replacing. `QualifierDefaults`
-keeps permissive unchecked-code defaults alongside the conservative ones
-(`addPermissiveUncheckedCodeDefault` and `addConservativeUncheckedCodeDefault`).
+type checking begins, and registered defaults combine instead of replacing. New
+`QualifierDefaults.addPackageDefault` takes `applyToSubpackages`, for a package default that does
+not apply to subpackages. `QualifierDefaults` keeps permissive unchecked-code defaults alongside the
+conservative ones (`addPermissiveUncheckedCodeDefault` and `addConservativeUncheckedCodeDefault`).
 `AnnotatedTypeFactory.getRoot()` is now `public`. A checker declares custom `-Amode` values with
 `@SupportedModes` and `addOptionsForMode`. Diagnostics go through `DiagnosticSink`;
 `reportError`/`reportWarning` accept a null source for positionless messages.
@@ -708,6 +717,11 @@ Other improvements and bug fixes:
 - `AnnotatedTypeMirror.toString(false)` now matches `toString()`.
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
+- The Nullness Checker no longer crashes in `StructuralEqualityComparer` on a
+  conditional expression that is an argument of a generic method, such as
+  `wrap(first == null ? second : first.thenComparing(second))`. As in every
+  other checker, the operands of such a poly conditional are checked against the
+  parameter type, not against the conditional's own captured type.
 - No longer crashes on a type annotation on an array creation whose element
   type has a wildcard type argument, such as `new @NonNull List<?>[0]`, inside a
   method that has a parameter.
@@ -895,6 +909,8 @@ eisop#2625,
 eisop#2633,
 eisop#2640,
 eisop#2641,
+eisop#2642,
+eisop#2655,
 typetools#399,
 typetools#602,
 typetools#2816,

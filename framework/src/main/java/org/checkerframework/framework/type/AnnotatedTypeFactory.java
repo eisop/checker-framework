@@ -2000,23 +2000,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public int getInferenceWorkBudget() {
         if (inferenceWorkBudget == -1) {
+            // SourceChecker#initChecker has checked that the option, if given, is a positive
+            // integer.
             String option = getChecker().getOption("inferenceWorkBudget");
-            if (option == null) {
-                inferenceWorkBudget = Java8InferenceContext.MAX_INCORPORATION_WORK;
-            } else {
-                int budget;
-                try {
-                    budget = Integer.parseInt(option);
-                } catch (NumberFormatException e) {
-                    budget = -1;
-                }
-                if (budget <= 0) {
-                    throw new UserError(
-                            "Value of -AinferenceWorkBudget must be a positive integer, not "
-                                    + option);
-                }
-                inferenceWorkBudget = budget;
-            }
+            inferenceWorkBudget =
+                    option == null
+                            ? Java8InferenceContext.MAX_INCORPORATION_WORK
+                            : Integer.parseInt(option);
         }
         return inferenceWorkBudget;
     }
