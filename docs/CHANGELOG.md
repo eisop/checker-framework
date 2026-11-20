@@ -707,6 +707,11 @@ Other improvements and bug fixes:
 - `AnnotatedTypeMirror.toString(false)` now matches `toString()`.
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
+- The Nullness Checker no longer crashes in `StructuralEqualityComparer` on a
+  conditional expression that is an argument of a generic method, such as
+  `wrap(first == null ? second : first.thenComparing(second))`. As in every
+  other checker, the operands of such a poly conditional are checked against the
+  parameter type, not against the conditional's own captured type.
 - No longer crashes on a type annotation on an array creation whose element
   type has a wildcard type argument, such as `new @NonNull List<?>[0]`, inside a
   method that has a parameter.
@@ -894,6 +899,7 @@ eisop#2633,
 eisop#2640,
 eisop#2641,
 eisop#2642,
+eisop#2655,
 typetools#399,
 typetools#602,
 typetools#2816,
