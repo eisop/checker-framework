@@ -1385,17 +1385,16 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     @Override
     public Void visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
-        // Note: Because of the hack in NullnessVisitor#commonAssignmentCheck, this code needs to
-        // use a copy of the types for the two invocations of #commonAssignmentCheck. These hacks
-        // should be undone, by properly resolving polymorphic qualifiers in the ATF/transfer. As
-        // this code is mostly duplicated from the super method, this code needs to be kept in sync.
+        // As in the super method, the operands of a poly conditional expression are checked against
+        // the target type in #commonAssignmentCheck (JLS 15.25.3), not against the conditional's
+        // own type: in an invocation context, that is the captured parameter type, which neither
+        // operand need be a subtype of.
         if (!TreeUtils.isPolyExpression(tree)) {
-            // A poly reference conditional expression is compatible with a target type T if its
-            // second and third operand expressions are compatible with T (JLS 15.25.3). As in the
-            // super method, that check happens in #commonAssignmentCheck against the target type.
-            // The conditional's own type is not a target type: javac gives a poly conditional in
-            // an invocation context the captured parameter type, such as `Comparator<capture of
-            // ? super T>`, which neither operand is a subtype of.
+            // Because of the hack in NullnessVisitor#commonAssignmentCheck, this code needs to use
+            // a copy of the type for each of the two invocations of #commonAssignmentCheck. These
+            // hacks should be undone, by properly resolving polymorphic qualifiers in the
+            // ATF/transfer. As this code is mostly duplicated from the super method, this code
+            // needs to be kept in sync.
             AnnotatedTypeMirror condThen = atypeFactory.getAnnotatedType(tree);
             AnnotatedTypeMirror condElse = condThen.deepCopy();
             this.commonAssignmentCheck(
