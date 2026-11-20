@@ -198,14 +198,15 @@ public class QualifierDefaults {
             new IdentityHashMap<>();
 
     /**
-     * Defaults added via {@link #addElementDefault}, tracked separately from the {@link
-     * #elementDefaults} memoization cache so that {@link #defaultsAtDirect} can treat a
-     * programmatically-added default as part of an element's own direct contribution -- the same
-     * way it treats a written {@code @DefaultQualifier} -- rather than it being visible only
-     * through {@link #elementDefaults}, which {@link #propagatingDefaultsAt} does not consult (see
-     * that method). Without this, a default added on a package would apply to that package's own
-     * elements but silently fail to reach any of its subpackages, and adding a default on any
-     * element would bypass written annotations and parent defaults.
+     * Defaults added via {@link #addElementDefault} and {@link #addPackageDefault}, tracked
+     * separately from the {@link #elementDefaults} memoization cache so that {@link
+     * #defaultsAtDirect} can treat a programmatically-added default as part of an element's own
+     * direct contribution -- the same way it treats a written {@code @DefaultQualifier} -- rather
+     * than it being visible only through {@link #elementDefaults}, which {@link
+     * #propagatingDefaultsAt} does not consult (see that method). Without this, a default added on
+     * a package would apply to that package's own elements but silently fail to reach any of its
+     * subpackages, and adding a default on any element would bypass written annotations and parent
+     * defaults.
      */
     private final IdentityHashMap<Element, DefaultSet> programmaticElementDefaults =
             new IdentityHashMap<>();
@@ -504,8 +505,8 @@ public class QualifierDefaults {
 
     /**
      * Returns true if {@code anno} may be applied at {@code location} as a programmatic default
-     * (e.g., via {@link #addCheckedCodeDefault}, {@link #addUncheckedCodeDefault}, or {@link
-     * #addElementDefault}).
+     * (e.g., via {@link #addCheckedCodeDefault}, {@link #addUncheckedCodeDefault}, {@link
+     * #addElementDefault}, or {@link #addPackageDefault}).
      *
      * <p>If {@code anno} carries a {@link ProgrammaticDefaultLocations} meta-annotation, its
      * locations are checked. Otherwise, falls back to {@link #permittedAtLocation(AnnotationMirror,
@@ -626,7 +627,8 @@ public class QualifierDefaults {
      * @param applyToSubpackages ignored
      * @deprecated {@code applyToSubpackages} has no effect, because a checked-code default is not
      *     scoped to a package. Use {@link #addCheckedCodeDefault(AnnotationMirror,
-     *     TypeUseLocation)}.
+     *     TypeUseLocation)}, or {@link #addPackageDefault} for a default of one package that need
+     *     not apply to its subpackages.
      */
     @Deprecated // 2026-11-19
     public void addCheckedCodeDefault(
@@ -1457,8 +1459,9 @@ public class QualifierDefaults {
      * annotations that apply to {@code elt}, the one appearing first in the source wins and each
      * later one is discarded. An annotation that is an alias for {@code @DefaultQualifier} (such as
      * {@code @NullMarked}) participates at its own source position, so reordering the annotations
-     * on a declaration changes which one wins. Written against {@link #addElementDefault} is a
-     * {@link TypeSystemError}, since only a type system, not a user, can cause it.
+     * on a declaration changes which one wins. Written against {@link #addElementDefault} or {@link
+     * #addPackageDefault} is a {@link TypeSystemError}, since only a type system, not a user, can
+     * cause it.
      *
      * @param elt the element
      * @return the defaults that apply directly to {@code elt}, or null if it has none
@@ -1649,9 +1652,9 @@ public class QualifierDefaults {
      * avoiding costly content-based hashing of the set.
      *
      * <p>A {@code DefaultSet} that reaches this cache must never be mutated afterwards. The sets in
-     * {@link #programmaticElementDefaults} are mutated in place, by {@link #addElementDefault}, but
-     * they never reach it: {@link #defaultsAtDirect} copies their contents into a set of its own
-     * rather than handing one of them out.
+     * {@link #programmaticElementDefaults} are mutated in place, by {@link #addElementDefault} and
+     * {@link #addPackageDefault}, but they never reach it: {@link #defaultsAtDirect} copies their
+     * contents into a set of its own rather than handing one of them out.
      *
      * @param defaults the scope's defaults
      * @param mode which set of unchecked-code defaults to include, or null for none

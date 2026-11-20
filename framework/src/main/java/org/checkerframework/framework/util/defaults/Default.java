@@ -23,7 +23,8 @@ public class Default implements Comparable<Default> {
 
     /**
      * Whether the default also applies to the subpackages of the package that it is written on or
-     * registered for. It has no effect on any other default.
+     * registered for (see {@link QualifierDefaults#addPackageDefault}). It has no effect on any
+     * other default.
      */
     public final boolean applyToSubpackages;
 
