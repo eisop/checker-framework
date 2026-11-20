@@ -1,7 +1,6 @@
-// Dataflow resolves @PolyNull in the values it computes: where a @PolyNull expression has been
-// compared to null, @PolyNull is @Nullable, and a @Nullable value is compatible with a @PolyNull
-// variable, parameter, or return type; where every @PolyNull parameter is non-null, a @PolyNull
-// value is @NonNull. The visitor compares the types as computed, without changing them.
+// Where a @PolyNull expression has been compared to null, @PolyNull is @Nullable, and dataflow
+// gives a @Nullable value the @PolyNull form, so it is compatible with a @PolyNull variable,
+// parameter, or return type. The visitor compares the types as computed, without changing them.
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -41,13 +40,16 @@ class PolyNullRefinement {
         return result;
     }
 
-    // A @PolyNull local is non-null where every @PolyNull parameter is.
-    @PolyNull String polyLocal(@PolyNull String p) {
-        @PolyNull String q = p;
+    // That every @PolyNull parameter is non-null does not make @PolyNull @NonNull: the caller may
+    // still instantiate it as @Nullable, and a reassigned parameter no longer holds its argument.
+    @PolyNull String polyLocal(@PolyNull String p, @PolyNull String q) {
+        @PolyNull String r = q;
+        q = "";
         if (p != null) {
-            return q.toString();
+            // :: error: (dereference.of.nullable)
+            r.toString();
         }
-        return q;
+        return r;
     }
 
     @PolyNull String argument(@PolyNull String p, @Nullable String n) {

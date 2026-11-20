@@ -2,7 +2,6 @@ package org.checkerframework.checker.nullness;
 
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
-import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -23,18 +22,15 @@ import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.NullLiteralNode;
 import org.checkerframework.dataflow.cfg.node.ThrowNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
-import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.util.PurityUtils;
 import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.flow.CFAbstractTransfer;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
-import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
@@ -45,7 +41,6 @@ import java.util.Queue;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.Elements;
 
 /**
@@ -57,8 +52,9 @@ import javax.lang.model.util.Elements;
  *       Nullable} if the result is true.
  *   <li>If an expression is dereferenced, then it can safely be assumed to non-null in the future.
  *       If it would not be, then the dereference would have raised a {@link NullPointerException}.
- *   <li>Tracks whether {@link PolyNull} is known to be {@link NonNull} or {@link Nullable} (or not
- *       known to be either), and resolves {@link PolyNull} in the values it computes accordingly.
+ *   <li>Tracks whether {@link PolyNull} is known to be {@link Nullable}, because a {@link PolyNull}
+ *       expression was found to be null, and if so gives {@link Nullable} values the {@link
+ *       PolyNull} form.
  * </ol>
  */
 public class NullnessNoInitTransfer
@@ -107,10 +103,6 @@ public class NullnessNoInitTransfer
      * are assumed to be non-null.
      */
     private final boolean nonNullAssumptionAfterInvocation;
-
-    /** Reusable scanner for {@link #containsPolyNullNotAtTopLevel}; reset before each visit. */
-    private final ContainsPolyNullNotAtTopLevelScanner polyNullScanner =
-            new ContainsPolyNullNotAtTopLevelScanner();
 
     /**
      * Create a new NullnessTransfer for the given analysis.
@@ -203,7 +195,7 @@ public class NullnessNoInitTransfer
     protected @Nullable NullnessNoInitValue finishValue(
             @Nullable NullnessNoInitValue value, NullnessNoInitStore store) {
         value = super.finishValue(value, store);
-        return resolvePolyNull(value, store.isPolyNullNonNull(), store.isPolyNullNull());
+        return resolvePolyNull(value, store.isPolyNullNull());
     }
 
     @Override
@@ -212,19 +204,13 @@ public class NullnessNoInitTransfer
             NullnessNoInitStore thenStore,
             NullnessNoInitStore elseStore) {
         value = super.finishValue(value, thenStore, elseStore);
-        return resolvePolyNull(
-                value,
-                thenStore.isPolyNullNonNull() && elseStore.isPolyNullNonNull(),
-                thenStore.isPolyNullNull() && elseStore.isPolyNullNull());
+        return resolvePolyNull(value, thenStore.isPolyNullNull() && elseStore.isPolyNullNull());
     }
 
     /**
-     * Resolves {@link PolyNull} in {@code value} according to what is known about it at this point.
-     * Where {@code @PolyNull} is known to be {@code @NonNull}, a {@code @PolyNull} value is
-     * {@code @NonNull}. Where {@code @PolyNull} is known to be {@code @Nullable}, the two
-     * qualifiers denote the same type, and a {@code @Nullable} value is given the {@code @PolyNull}
-     * form so that it is compatible with a {@code @PolyNull} variable, parameter, or return type.
-     * For example:
+     * Where {@code @PolyNull} is known to be {@code @Nullable}, the two qualifiers denote the same
+     * type, so this gives a {@code @Nullable} value the {@code @PolyNull} form, which is compatible
+     * with a {@code @PolyNull} variable, parameter, or return type. For example:
      *
      * <pre>
      * &#64;PolyNull String foo(@PolyNull String param) {
@@ -237,31 +223,19 @@ public class NullnessNoInitTransfer
      * </pre>
      *
      * @param value a value, or null
-     * @param polyNullNonNull whether {@code @PolyNull} is known to be {@code @NonNull}
      * @param polyNullNull whether {@code @PolyNull} is known to be {@code @Nullable}
-     * @return {@code value} with {@code @PolyNull} resolved, which is {@code value} itself if
-     *     nothing is known or nothing changes
+     * @return {@code value} in the {@code @PolyNull} form if {@code polyNullNull} holds and it is
+     *     {@code @Nullable}, otherwise {@code value} itself
      */
     private @Nullable NullnessNoInitValue resolvePolyNull(
-            @Nullable NullnessNoInitValue value, boolean polyNullNonNull, boolean polyNullNull) {
-        if (value == null) {
-            return null;
-        }
-        AnnotationMirrorSet annos = value.getAnnotations();
-        AnnotationMirror current;
-        AnnotationMirror resolved;
-        if (polyNullNonNull && annos.contains(POLYNULL)) {
-            current = POLYNULL;
-            resolved = NONNULL;
-        } else if (polyNullNull && annos.contains(NULLABLE)) {
-            current = NULLABLE;
-            resolved = POLYNULL;
-        } else {
+            @Nullable NullnessNoInitValue value, boolean polyNullNull) {
+        if (!polyNullNull || value == null || !value.getAnnotations().contains(NULLABLE)) {
             return value;
         }
+        AnnotationMirrorSet annos = value.getAnnotations();
         AnnotationMirrorSet resolvedAnnos = new AnnotationMirrorSet(annos);
-        resolvedAnnos.remove(current);
-        resolvedAnnos.add(resolved);
+        resolvedAnnos.remove(NULLABLE);
+        resolvedAnnos.add(POLYNULL);
         return analysis.createAbstractValue(resolvedAnnos, value.getUnderlyingType());
     }
 
@@ -307,20 +281,10 @@ public class NullnessNoInitTransfer
                             secondValue.getAnnotations(), PolyNull.class)) {
                 thenStore = thenStore == null ? res.getThenStore() : thenStore;
                 elseStore = elseStore == null ? res.getElseStore() : elseStore;
-                // TODO: methodTree is null for lambdas.  Handle that case.  See Issue3850.java.
-                MethodTree methodTree = analysis.getEnclosingMethod(secondNode.getTree());
-                ExecutableElement methodElem =
-                        methodTree == null ? null : TreeUtils.elementFromDeclaration(methodTree);
                 if (notEqualTo) {
                     elseStore.setPolyNullNull(true);
-                    if (methodElem != null && polyNullIsNonNull(methodElem, thenStore)) {
-                        thenStore.setPolyNullNonNull(true);
-                    }
                 } else {
                     thenStore.setPolyNullNull(true);
-                    if (methodElem != null && polyNullIsNonNull(methodElem, elseStore)) {
-                        elseStore.setPolyNullNonNull(true);
-                    }
                 }
             }
 
@@ -329,78 +293,6 @@ public class NullnessNoInitTransfer
             }
         }
         return res;
-    }
-
-    /**
-     * Returns true if every formal parameter that is declared as @PolyNull is currently known to be
-     * non-null.
-     *
-     * @param method a method
-     * @param s a store
-     * @return true if every formal parameter declared as @PolyNull is non-null
-     */
-    private boolean polyNullIsNonNull(ExecutableElement method, NullnessNoInitStore s) {
-        // No need to check the receiver, which is always non-null.
-        for (VariableElement var : method.getParameters()) {
-            AnnotatedTypeMirror varType = nullnessTypeFactory.fromElement(var);
-
-            if (containsPolyNullNotAtTopLevel(varType)) {
-                return false;
-            }
-
-            if (varType.hasAnnotation(POLYNULL)) {
-                NullnessNoInitValue v = s.getValue(new LocalVariable(var));
-                if (!AnnotationUtils.containsSameByName(v.getAnnotations(), NONNULL)) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    /**
-     * A scanner that returns true if there is an occurrence of @PolyNull that is not at the top
-     * level.
-     */
-    // Not static so it can access field POLYNULL.
-    private class ContainsPolyNullNotAtTopLevelScanner
-            extends SimpleAnnotatedTypeScanner<Boolean, Void> {
-        /**
-         * True if the top-level type has not yet been processed (by the first call to
-         * defaultAction).
-         */
-        private boolean isTopLevel = true;
-
-        /** Create a ContainsPolyNullNotAtTopLevelScanner. */
-        ContainsPolyNullNotAtTopLevelScanner() {
-            super(Boolean::logicalOr, false);
-        }
-
-        @Override
-        public void reset() {
-            isTopLevel = true;
-            super.reset();
-        }
-
-        @Override
-        protected Boolean defaultAction(AnnotatedTypeMirror type, Void p) {
-            if (isTopLevel) {
-                isTopLevel = false;
-                return false;
-            } else {
-                return type.hasAnnotation(POLYNULL);
-            }
-        }
-    }
-
-    /**
-     * Returns true if there is an occurrence of @PolyNull that is not at the top level.
-     *
-     * @param t a type
-     * @return true if there is an occurrence of @PolyNull that is not at the top level
-     */
-    private boolean containsPolyNullNotAtTopLevel(AnnotatedTypeMirror t) {
-        return polyNullScanner.visit(t);
     }
 
     @Override

@@ -3,7 +3,6 @@ package org.checkerframework.checker.nullness;
 import com.sun.source.tree.MethodInvocationTree;
 
 import org.checkerframework.checker.initialization.InitializationAnnotatedTypeFactory;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
@@ -28,13 +27,9 @@ import javax.lang.model.element.ExecutableElement;
 
 /**
  * In addition to the base class behavior, tracks whether {@link PolyNull} is known to be {@link
- * NonNull} or {@link Nullable} (or not known to be either), and tracks which queue or deque
- * receiver expressions are known to be non-empty.
+ * Nullable}, and tracks which queue or deque receiver expressions are known to be non-empty.
  */
 public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, NullnessNoInitStore> {
-
-    /** True if, at this point, {@link PolyNull} is known to be {@link NonNull}. */
-    private boolean isPolyNullNonNull;
 
     /** True if, at this point, {@link PolyNull} is known to be {@link Nullable}. */
     private boolean isPolyNullNull;
@@ -72,7 +67,6 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
             CFAbstractAnalysis<NullnessNoInitValue, NullnessNoInitStore, ?> analysis,
             boolean sequentialSemantics) {
         super(analysis, sequentialSemantics);
-        isPolyNullNonNull = false;
         isPolyNullNull = false;
         nonEmptyQueueReceivers = null;
     }
@@ -84,7 +78,6 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
      */
     public NullnessNoInitStore(NullnessNoInitStore s) {
         super(s);
-        isPolyNullNonNull = s.isPolyNullNonNull;
         isPolyNullNull = s.isPolyNullNull;
         if (s.initializedFieldValueCache != null) {
             initializedFieldValueCache = s.initializedFieldValueCache;
@@ -204,7 +197,6 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
             return this.copy();
         }
         NullnessNoInitStore lub = super.leastUpperBound(other);
-        lub.isPolyNullNonNull = isPolyNullNonNull && other.isPolyNullNonNull;
         lub.isPolyNullNull = isPolyNullNull && other.isPolyNullNull;
         if (nonEmptyQueueReceivers != null && other.nonEmptyQueueReceivers != null) {
             Set<JavaExpression> common = new HashSet<>(nonEmptyQueueReceivers);
@@ -226,8 +218,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
             return false;
         }
         NullnessNoInitStore other = (NullnessNoInitStore) o;
-        if ((other.isPolyNullNonNull != isPolyNullNonNull)
-                || (other.isPolyNullNull != isPolyNullNull)) {
+        if (other.isPolyNullNull != isPolyNullNull) {
             return false;
         }
         if (other.nonEmptyQueueReceivers != null && !other.nonEmptyQueueReceivers.isEmpty()) {
@@ -245,8 +236,6 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
         String res =
                 super.internalVisualize(viz)
                         + viz.getSeparator()
-                        + viz.visualizeStoreKeyVal("isPolyNullNonNull", isPolyNullNonNull)
-                        + viz.getSeparator()
                         + viz.visualizeStoreKeyVal("isPolyNullNull", isPolyNullNull);
         if (nonEmptyQueueReceivers != null && !nonEmptyQueueReceivers.isEmpty()) {
             res +=
@@ -255,26 +244,6 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
                                     "nonEmptyQueueReceivers", nonEmptyQueueReceivers);
         }
         return res;
-    }
-
-    /**
-     * Returns true if, at this point, {@link PolyNull} is known to be {@link NonNull}.
-     *
-     * @return true if, at this point, {@link PolyNull} is known to be {@link NonNull}
-     */
-    public boolean isPolyNullNonNull() {
-        return isPolyNullNonNull;
-    }
-
-    /**
-     * Set the value of whether, at this point, {@link PolyNull} is known to be {@link NonNull}.
-     *
-     * @param isPolyNullNonNull whether, at this point, {@link PolyNull} is known to be {@link
-     *     NonNull}
-     */
-    public void setPolyNullNonNull(boolean isPolyNullNonNull) {
-        this.isPolyNullNonNull = isPolyNullNonNull;
-        hashCodeCache = 0;
     }
 
     /**
@@ -322,8 +291,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
         if (!thisEmpty && !Objects.equals(nonEmptyQueueReceivers, other.nonEmptyQueueReceivers)) {
             return false;
         }
-        return isPolyNullNonNull == other.isPolyNullNonNull
-                && isPolyNullNull == other.isPolyNullNull;
+        return isPolyNullNull == other.isPolyNullNull;
     }
 
     /** The cached hash code. */
@@ -333,7 +301,6 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
     public int hashCode() {
         if (hashCodeCache == 0) {
             int h = super.hashCode();
-            h = 31 * h + (isPolyNullNonNull ? 1 : 0);
             h = 31 * h + (isPolyNullNull ? 1 : 0);
             if (nonEmptyQueueReceivers != null && !nonEmptyQueueReceivers.isEmpty()) {
                 h = 31 * h + nonEmptyQueueReceivers.hashCode();

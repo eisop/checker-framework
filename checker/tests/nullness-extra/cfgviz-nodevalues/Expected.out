@@ -219,7 +219,6 @@ Process order: 1
 TransferInput#59
 Before: NullnessNoInitStore#38(
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
@@ -229,7 +228,6 @@ Process order: 2
 TransferInput#60
 Before: NullnessNoInitStore#38(
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 (this)   [ ImplicitThis ]    > CFAV{@NonNull, CfgVizNodeValues}
@@ -239,7 +237,6 @@ AnalysisResult#4
 After: resultValue=CFAV{@NonNull, CfgVizNodeValues}
 NullnessNoInitStore#47(
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 
 4:
@@ -247,7 +244,6 @@ Process order: 3
 TransferInput#64
 Before: NullnessNoInitStore#39(
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 (this).<init>()   [ MethodInvocation ]    > CFAV{@NonNull, Object}
@@ -257,7 +253,6 @@ After: resultValue=CFAV{@NonNull, Object}
 NullnessNoInitStore#49(
   this > CFAV{@NonNull, CfgVizNodeValues}
   this.<init>() > CFAV{@NonNull, Object}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 
 5:
@@ -266,7 +261,6 @@ TransferInput#67
 Before: NullnessNoInitStore#40(
   this > CFAV{@NonNull, CfgVizNodeValues}
   this.<init>() > CFAV{@NonNull, Object}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 expression statement super()   [ ExpressionStatement ]
@@ -275,7 +269,6 @@ AnalysisResult#4
 After: NullnessNoInitStore#51(
   this > CFAV{@NonNull, CfgVizNodeValues}
   this.<init>() > CFAV{@NonNull, Object}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 
 1:
@@ -283,7 +276,6 @@ Process order: 6
 TransferInput#68
 Before: NullnessNoInitStore#41(
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 <exceptional-exit>
@@ -294,7 +286,6 @@ TransferInput#71
 Before: NullnessNoInitStore#44(
   this > CFAV{@NonNull, CfgVizNodeValues}
   this.<init>() > CFAV{@NonNull, Object}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
@@ -312,7 +303,6 @@ TransferInput#76
 Before: NullnessNoInitStore#54(
   cond > CFAV{@NonNull, boolean}
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
@@ -323,7 +313,6 @@ TransferInput#77
 Before: NullnessNoInitStore#54(
   cond > CFAV{@NonNull, boolean}
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 a   [ VariableDeclaration ]
@@ -338,7 +327,6 @@ NullnessNoInitStore#64(
   a > CFAV{@NonNull, int}
   cond > CFAV{@NonNull, boolean}
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 
 11:
@@ -348,7 +336,6 @@ Before: NullnessNoInitStore#55(
   a > CFAV{@NonNull, int}
   cond > CFAV{@NonNull, boolean}
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 ConditionalBlock: then: 15, else: 17
@@ -360,7 +347,6 @@ Before: NullnessNoInitStore#56(
   a > CFAV{@NonNull, int}
   cond > CFAV{@NonNull, boolean}
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 b   [ LocalVariable ]
@@ -374,7 +360,6 @@ After: NullnessNoInitStore#67(
   b > CFAV{@NonNull, int}
   cond > CFAV{@NonNull, boolean}
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 
 17:
@@ -384,7 +369,6 @@ Before: NullnessNoInitStore#57(
   a > CFAV{@NonNull, int}
   cond > CFAV{@NonNull, boolean}
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 b   [ LocalVariable ]
@@ -398,7 +382,6 @@ After: NullnessNoInitStore#69(
   b > CFAV{@NonNull, int}
   cond > CFAV{@NonNull, boolean}
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 
 18:
@@ -409,7 +392,6 @@ Before: NullnessNoInitStore#58(
   b > CFAV{@NonNull, int}
   cond > CFAV{@NonNull, boolean}
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 b   [ LocalVariable ]    > CFAV{@NonNull, int}
@@ -421,7 +403,6 @@ After: NullnessNoInitStore#71(
   b > CFAV{@NonNull, int}
   cond > CFAV{@NonNull, boolean}
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 
 7:
@@ -432,7 +413,6 @@ Before: NullnessNoInitStore#61(
   b > CFAV{@NonNull, int}
   cond > CFAV{@NonNull, boolean}
   this > CFAV{@NonNull, CfgVizNodeValues}
-  isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
