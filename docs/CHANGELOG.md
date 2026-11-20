@@ -443,11 +443,16 @@ Public and protected API that changed without a deprecation period:
 - The maps of `CFAbstractStore` (`localVariableValues`, `fieldValues`, `arrayValues`,
   `methodCallExpressions`, `classValues`) are `CopyOnWriteMap`s, whose views are unmodifiable.
 - `BaseTypeValidator#areBoundsValid` is `protected`.
+- `DefaultQualifierForUseTypeAnnotator#getDefaultAnnosForUses` is `public`, so an override must be
+  `public`, too.
 - Removed: `AnnotatedTypeMirror#copyIntersectionBoundAnnotations`, `QualifierDefaults#applyDefault`,
   `ValueTreeAnnotator.COVERED_CLASS_STRINGS`, `BaseTypeVisitor.positions` (use
-  `TreeUtils.getStartPosition` and `getEndPosition`). `AnnotationUtils.sameElementValues` is
-  private (use `areSame`). `QualifierDefaults.STANDARD_UNCHECKED_DEFAULTS_TOP` and `_BOTTOM` are
-  renamed `CONSERVATIVE_UNCHECKED_DEFAULTS_TOP` and `_BOTTOM`.
+  `TreeUtils.getStartPosition` and `getEndPosition`),
+  `CheckedExceptionsUtil.thrownCheckedExceptions` (use `thrownCheckedExceptionsATM`),
+  `InitializationStore#isDeclaredInitialized` (which always returned false).
+  `AnnotationUtils.sameElementValues` is private (use `areSame`).
+  `QualifierDefaults.STANDARD_UNCHECKED_DEFAULTS_TOP` and `_BOTTOM` are renamed
+  `CONSERVATIVE_UNCHECKED_DEFAULTS_TOP` and `_BOTTOM`.
 
 When assertions are enabled, `SourceChecker#report` asserts that the reported key has message text
 in a `messages.properties` file that the checker loads. Tests of a checker that reports a key

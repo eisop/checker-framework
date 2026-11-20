@@ -1555,6 +1555,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (parentChecker == null) {
             validateMode(options);
             validateAssumeAssertionsOption(options);
+            validateInferenceWorkBudgetOption();
         }
 
         checkPermissiveAndConservativeDefaults();
@@ -3101,6 +3102,27 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     String.format(
                             "Unsupported mode %s for %s; supported modes: %s.",
                             mode, getClass().getSimpleName(), new TreeSet<>(modes)));
+        }
+    }
+
+    /**
+     * Throws a {@link UserError} if the {@code -AinferenceWorkBudget} command-line option, when
+     * given, is not a positive integer.
+     */
+    private void validateInferenceWorkBudgetOption() {
+        String value = getOption("inferenceWorkBudget");
+        if (value == null) {
+            return;
+        }
+        int budget;
+        try {
+            budget = Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            budget = 0;
+        }
+        if (budget <= 0) {
+            throw new UserError(
+                    "Value of -AinferenceWorkBudget must be a positive integer, not " + value);
         }
     }
 
