@@ -22,8 +22,9 @@ import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 
 /**
- * Calls {@link QualifierDefaults#addElementDefault} directly on package {@code elementdefault.pkg}
- * and on two of its classes, rather than through a written {@code @DefaultQualifier} annotation.
+ * Calls {@link QualifierDefaults#addElementDefault} directly on packages {@code elementdefault.pkg}
+ * and {@code elementdefault.nonpropagating} and on two classes, rather than through a written
+ * {@code @DefaultQualifier} annotation.
  *
  * <p>All the calls happen while this factory is being initialized, but they are deliberately
  * interleaved with queries that populate {@code QualifierDefaults}' memoization caches, so that the
@@ -92,6 +93,14 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         defs.annotate(requirePackage("elementdefault.pkg.sub"), dummyType());
 
         defs.addElementDefault(requirePackage("elementdefault.pkg"), bottom, TypeUseLocation.FIELD);
+
+        // The same, but with a default that does not apply to subpackages.
+        defs.annotate(requirePackage("elementdefault.nonpropagating.sub"), dummyType());
+        defs.addElementDefault(
+                requirePackage("elementdefault.nonpropagating"),
+                bottom,
+                TypeUseLocation.FIELD,
+                false);
 
         // OrderBeforeClass: nothing queries the class's defaults before the programmatic default
         // is added.

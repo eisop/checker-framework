@@ -542,9 +542,10 @@ compound checker shares them with its subcheckers.
 
 New `@ProgrammaticDefaultLocations` permits a programmatic default at a location its
 `@TargetLocations` prohibits. `QualifierDefaults.addElementDefault` throws `TypeSystemError` after
-type checking begins, and registered defaults combine instead of replacing. `QualifierDefaults`
-keeps permissive unchecked-code defaults alongside the conservative ones
-(`addPermissiveUncheckedCodeDefault` and `addConservativeUncheckedCodeDefault`).
+type checking begins, and registered defaults combine instead of replacing. A new overload of
+`addElementDefault` takes `applyToSubpackages`, for a package default that does not apply to
+subpackages. `QualifierDefaults` keeps permissive unchecked-code defaults alongside the
+conservative ones (`addPermissiveUncheckedCodeDefault` and `addConservativeUncheckedCodeDefault`).
 `AnnotatedTypeFactory.getRoot()` is now `public`. A checker declares custom `-Amode` values with
 `@SupportedModes` and `addOptionsForMode`. Diagnostics go through `DiagnosticSink`;
 `reportError`/`reportWarning` accept a null source for positionless messages.

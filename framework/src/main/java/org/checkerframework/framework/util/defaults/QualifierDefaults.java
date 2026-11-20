@@ -612,8 +612,9 @@ public class QualifierDefaults {
                     "The default qualifier %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
                     absoluteDefaultAnno, location);
         }
-        checkDuplicates(checkedCodeDefaults, absoluteDefaultAnno, location);
-        checkedCodeDefaults.add(new Default(absoluteDefaultAnno, location, true));
+        Default d = new Default(absoluteDefaultAnno, location, true);
+        checkDuplicates(checkedCodeDefaults, d);
+        checkedCodeDefaults.add(d);
         invalidateFusedDefaults();
     }
 
@@ -675,9 +676,10 @@ public class QualifierDefaults {
                     uncheckedDefaultAnno, location);
         }
         DefaultSet defaults = defaultsFor(mode);
-        checkDuplicates(defaults, uncheckedDefaultAnno, location);
+        Default d = new Default(uncheckedDefaultAnno, location, true);
+        checkDuplicates(defaults, d);
         checkIsValidUncheckedCodeLocation(uncheckedDefaultAnno, location);
-        defaults.add(new Default(uncheckedDefaultAnno, location, true));
+        defaults.add(d);
         invalidateFusedDefaults();
     }
 
@@ -796,6 +798,10 @@ public class QualifierDefaults {
      * Only one qualifier from a hierarchy can be the default for a location, so a type system must
      * not register one that contradicts what a user is permitted to write.
      *
+     * <p>A default on a package also applies to its subpackages; use {@link
+     * #addElementDefault(Element, AnnotationMirror, TypeUseLocation, boolean)} for one that does
+     * not.
+     *
      * @param elem the scope to set the default within
      * @param elementDefaultAnno the default to set
      * @param location the location to apply the default to
@@ -803,6 +809,26 @@ public class QualifierDefaults {
      */
     public void addElementDefault(
             Element elem, AnnotationMirror elementDefaultAnno, TypeUseLocation location) {
+        addElementDefault(elem, elementDefaultAnno, location, true);
+    }
+
+    /**
+     * Sets the default annotations for a certain Element, like {@link #addElementDefault(Element,
+     * AnnotationMirror, TypeUseLocation)}, and says whether a default on a package also applies to
+     * its subpackages, like the {@code applyToSubpackages} element of {@code @DefaultQualifier}.
+     *
+     * @param elem the scope to set the default within
+     * @param elementDefaultAnno the default to set
+     * @param location the location to apply the default to
+     * @param applyToSubpackages whether the default also applies to the subpackages of {@code
+     *     elem}, if {@code elem} is a package; ignored otherwise
+     * @throws TypeSystemError if called after type checking has begun
+     */
+    public void addElementDefault(
+            Element elem,
+            AnnotationMirror elementDefaultAnno,
+            TypeUseLocation location,
+            boolean applyToSubpackages) {
         if (!permittedAtProgrammaticLocation(elementDefaultAnno, location)) {
             throw new TypeSystemError(
                     "The default qualifier %s on %s %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
@@ -821,15 +847,14 @@ public class QualifierDefaults {
                             + " added now would apply to only part of the program.",
                     elem, elementDefaultAnno, location);
         }
+        Default d = new Default(elementDefaultAnno, location, applyToSubpackages);
         DefaultSet progSet = programmaticElementDefaults.get(elem);
         if (progSet != null) {
-            checkDuplicates(progSet, elementDefaultAnno, location);
+            checkDuplicates(progSet, d);
         } else {
             progSet = new DefaultSet();
             programmaticElementDefaults.put(elem, progSet);
         }
-        // TODO: expose applyToSubpackages
-        Default d = new Default(elementDefaultAnno, location, true);
         progSet.add(d);
         // Clear cached element defaults so subsequent queries recompute and merge with written
         // annotations and enclosing/parent defaults.
@@ -868,23 +893,20 @@ public class QualifierDefaults {
     }
 
     /**
-     * Throws {@link BugInCF} if making {@code newAnno} the default at {@code newLoc} would conflict
-     * with one of {@code previousDefaults}, as {@link #findConflictingDefault} defines conflict:
-     * only one qualifier from a hierarchy can be the default for a location.
+     * Throws {@link BugInCF} if adding {@code newDefault} would conflict with one of {@code
+     * previousDefaults}, as {@link #findConflictingDefault} defines conflict: only one qualifier
+     * from a hierarchy can be the default for a location.
      *
-     * @param previousDefaults the defaults that {@code newAnno} is about to be added to
-     * @param newAnno the annotation to make the default
-     * @param newLoc the location to make it the default for
+     * @param previousDefaults the defaults that {@code newDefault} is about to be added to
+     * @param newDefault the default to add
      */
-    private void checkDuplicates(
-            DefaultSet previousDefaults, AnnotationMirror newAnno, TypeUseLocation newLoc) {
-        if (conflictsWithExistingDefaults(previousDefaults, newAnno, newLoc)) {
+    private void checkDuplicates(DefaultSet previousDefaults, Default newDefault) {
+        if (conflictsWithExistingDefaults(previousDefaults, newDefault.anno, newDefault.location)) {
             throw new BugInCF(
                     "Only one qualifier from a hierarchy can be the default. Existing: "
                             + previousDefaults
                             + " and new: "
-                            // TODO: expose applyToSubpackages
-                            + new Default(newAnno, newLoc, true));
+                            + newDefault);
         }
     }
 
