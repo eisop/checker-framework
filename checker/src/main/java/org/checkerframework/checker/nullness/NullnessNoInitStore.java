@@ -35,7 +35,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
     /**
      * True if, at this point, the current invocation is known to instantiate {@link PolyNull} as
      * {@link Nullable}, because a {@link PolyNull} expression was found to be null. False if that
-     * is not known. No knowledge of an instantiation as {@link NonNull} is tracked: the current
+     * is not known. No knowledge of an instantiation as {@code @NonNull} is tracked: the current
      * values of the parameters would show it only if no {@link PolyNull} parameter were reassigned
      * and none had a nested {@link PolyNull}.
      */
