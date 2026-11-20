@@ -21,7 +21,6 @@ import org.checkerframework.dataflow.cfg.node.MethodAccessNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.NullLiteralNode;
-import org.checkerframework.dataflow.cfg.node.ReturnNode;
 import org.checkerframework.dataflow.cfg.node.ThrowNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.LocalVariable;
@@ -47,8 +46,6 @@ import java.util.Queue;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 
 /**
@@ -61,7 +58,7 @@ import javax.lang.model.util.Elements;
  *   <li>If an expression is dereferenced, then it can safely be assumed to non-null in the future.
  *       If it would not be, then the dereference would have raised a {@link NullPointerException}.
  *   <li>Tracks whether {@link PolyNull} is known to be {@link NonNull} or {@link Nullable} (or not
- *       known to be either).
+ *       known to be either), and resolves {@link PolyNull} in the values it computes accordingly.
  * </ol>
  */
 public class NullnessNoInitTransfer
@@ -206,11 +203,7 @@ public class NullnessNoInitTransfer
     protected @Nullable NullnessNoInitValue finishValue(
             @Nullable NullnessNoInitValue value, NullnessNoInitStore store) {
         value = super.finishValue(value, store);
-        if (value != null) {
-            value.setPolyNullNonNull(store.isPolyNullNonNull());
-            value.setPolyNullNull(store.isPolyNullNull());
-        }
-        return value;
+        return resolvePolyNull(value, store.isPolyNullNonNull(), store.isPolyNullNull());
     }
 
     @Override
@@ -219,12 +212,57 @@ public class NullnessNoInitTransfer
             NullnessNoInitStore thenStore,
             NullnessNoInitStore elseStore) {
         value = super.finishValue(value, thenStore, elseStore);
-        if (value != null) {
-            value.setPolyNullNonNull(
-                    thenStore.isPolyNullNonNull() && elseStore.isPolyNullNonNull());
-            value.setPolyNullNull(thenStore.isPolyNullNull() && elseStore.isPolyNullNull());
+        return resolvePolyNull(
+                value,
+                thenStore.isPolyNullNonNull() && elseStore.isPolyNullNonNull(),
+                thenStore.isPolyNullNull() && elseStore.isPolyNullNull());
+    }
+
+    /**
+     * Resolves {@link PolyNull} in {@code value} according to what is known about it at this point.
+     * Where {@code @PolyNull} is known to be {@code @NonNull}, a {@code @PolyNull} value is
+     * {@code @NonNull}. Where {@code @PolyNull} is known to be {@code @Nullable}, the two
+     * qualifiers denote the same type, and a {@code @Nullable} value is given the {@code @PolyNull}
+     * form so that it is compatible with a {@code @PolyNull} variable, parameter, or return type.
+     * For example:
+     *
+     * <pre>
+     * &#64;PolyNull String foo(@PolyNull String param) {
+     *     if (param == null) {
+     *         // @PolyNull is @Nullable here, so null has type @PolyNull.
+     *         param = null;
+     *     }
+     *     return param;
+     * }
+     * </pre>
+     *
+     * @param value a value, or null
+     * @param polyNullNonNull whether {@code @PolyNull} is known to be {@code @NonNull}
+     * @param polyNullNull whether {@code @PolyNull} is known to be {@code @Nullable}
+     * @return {@code value} with {@code @PolyNull} resolved, which is {@code value} itself if
+     *     nothing is known or nothing changes
+     */
+    private @Nullable NullnessNoInitValue resolvePolyNull(
+            @Nullable NullnessNoInitValue value, boolean polyNullNonNull, boolean polyNullNull) {
+        if (value == null) {
+            return null;
         }
-        return value;
+        AnnotationMirrorSet annos = value.getAnnotations();
+        AnnotationMirror current;
+        AnnotationMirror resolved;
+        if (polyNullNonNull && annos.contains(POLYNULL)) {
+            current = POLYNULL;
+            resolved = NONNULL;
+        } else if (polyNullNull && annos.contains(NULLABLE)) {
+            current = NULLABLE;
+            resolved = POLYNULL;
+        } else {
+            return value;
+        }
+        AnnotationMirrorSet resolvedAnnos = new AnnotationMirrorSet(annos);
+        resolvedAnnos.remove(current);
+        resolvedAnnos.add(resolved);
+        return analysis.createAbstractValue(resolvedAnnos, value.getUnderlyingType());
     }
 
     /**
@@ -590,31 +628,5 @@ public class NullnessNoInitTransfer
         }
         AnnotatedTypeMirror elementType = queueType.getTypeArguments().get(0);
         return elementType.hasEffectiveAnnotation(NONNULL);
-    }
-
-    @Override
-    public TransferResult<NullnessNoInitValue, NullnessNoInitStore> visitReturn(
-            ReturnNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> in) {
-        TransferResult<NullnessNoInitValue, NullnessNoInitStore> result = super.visitReturn(n, in);
-
-        if (result.getResultValue() == null) {
-            // Make sure there is a value for return statements, to record (at this return
-            // statement) the values of isPolyNullNotNull and isPolyNullNull.
-            return recreateTransferResult(createDummyValue(), result);
-        } else {
-            return result;
-        }
-    }
-
-    /**
-     * Creates a dummy abstract value (whose type is not supposed to be looked at).
-     *
-     * @return a dummy abstract value
-     */
-    private NullnessNoInitValue createDummyValue() {
-        TypeMirror dummy = analysis.getEnv().getTypeUtils().getPrimitiveType(TypeKind.BOOLEAN);
-        AnnotationMirrorSet annos = new AnnotationMirrorSet();
-        annos.addAll(nullnessTypeFactory.getQualifierHierarchy().getBottomAnnotations());
-        return new NullnessNoInitValue(analysis, annos, dummy);
     }
 }
