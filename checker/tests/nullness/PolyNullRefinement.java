@@ -7,6 +7,10 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
+
 class PolyNullRefinement {
     static @PolyNull String id2(@PolyNull String a, @PolyNull String b) {
         return a;
@@ -90,5 +94,94 @@ class PolyNullRefinement {
             // :: error: (dereference.of.nullable)
             p.toString();
         }
+    }
+
+    // The argument of b is kept in a list before b is reassigned.
+    @PolyNull String viaList(@PolyNull String a, @PolyNull String b) {
+        List<@PolyNull String> l = new ArrayList<>();
+        l.add(b);
+        b = "";
+        if (a != null) {
+            // :: error: (dereference.of.nullable)
+            l.get(0).length();
+        }
+        return b;
+    }
+
+    // The argument of b is captured by a lambda before b is reassigned.
+    @PolyNull String viaLambda(@PolyNull String a, @PolyNull String b) {
+        @PolyNull String x = b;
+        b = "";
+        if (a != null) {
+            // :: error: (dereference.of.nullable)
+            Supplier<Integer> s = () -> x.length();
+        }
+        return x;
+    }
+
+    // A single parameter, reassigned to a non-null value on the path where it was null.
+    @PolyNull String reassignedSingle(@PolyNull String p, @Nullable String n) {
+        @PolyNull String r = p;
+        if (p == null) {
+            p = "";
+            r = n;
+        }
+        // p is non-null here on every path.
+        // :: error: (dereference.of.nullable)
+        r.length();
+        return r;
+    }
+
+    // The merge with the p != null path is @PolyNull, not @NonNull.
+    @NonNull String mergeToNonNull(@PolyNull String p, @Nullable String n) {
+        if (p != null) {
+            n = "";
+        }
+        // :: error: (return.type.incompatible)
+        return n;
+    }
+
+    // A merge with a path where nothing is known about @PolyNull drops the knowledge.
+    @PolyNull String mergeDrops(@PolyNull String p, @Nullable String n, boolean b) {
+        if (p == null || b) {}
+        // :: error: (return.type.incompatible)
+        return n;
+    }
+
+    // A lambda created before the comparison does not have the knowledge.
+    Supplier<@PolyNull String> lambdaOutside(@PolyNull String p, @Nullable String n) {
+        // :: error: (return.type.incompatible)
+        Supplier<@PolyNull String> s = () -> n;
+        if (p == null) {
+            return s;
+        }
+        return () -> p;
+    }
+
+    @PolyNull String polyToPoly(@PolyNull String p, @PolyNull String q) {
+        @PolyNull String r = q;
+        if (p != null && q != null) {
+            @PolyNull String s = r;
+            return s;
+        }
+        return q;
+    }
+
+    @PolyNull String nested(List<@PolyNull String> l, @Nullable String n) {
+        if (l.get(0) == null) {
+            return n;
+        }
+        return l.get(0);
+    }
+
+    Supplier<@PolyNull String> lambdaInBranch(@PolyNull String p, @Nullable String n) {
+        if (p == null) {
+            return () -> n;
+        }
+        return () -> p;
+    }
+
+    Supplier<@PolyNull String> lambdaCompare(@PolyNull String p, @Nullable String n) {
+        return () -> p == null ? n : p;
     }
 }
