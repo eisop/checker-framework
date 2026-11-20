@@ -1,0 +1,2 @@
+- compiler.err.proc.messager: Value of -AinferenceWorkBudget must be a positive integer, not 0
+1 error
