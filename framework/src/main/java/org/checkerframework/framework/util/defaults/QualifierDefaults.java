@@ -798,9 +798,8 @@ public class QualifierDefaults {
      * Only one qualifier from a hierarchy can be the default for a location, so a type system must
      * not register one that contradicts what a user is permitted to write.
      *
-     * <p>A default on a package also applies to its subpackages; use {@link
-     * #addElementDefault(Element, AnnotationMirror, TypeUseLocation, boolean)} for one that does
-     * not.
+     * <p>A default on a package also applies to its subpackages; use {@link #addPackageDefault} for
+     * one that does not.
      *
      * @param elem the scope to set the default within
      * @param elementDefaultAnno the default to set
@@ -809,22 +808,43 @@ public class QualifierDefaults {
      */
     public void addElementDefault(
             Element elem, AnnotationMirror elementDefaultAnno, TypeUseLocation location) {
-        addElementDefault(elem, elementDefaultAnno, location, true);
+        addProgrammaticElementDefault(
+                "addElementDefault", elem, elementDefaultAnno, location, true);
     }
 
     /**
-     * Sets the default annotations for a certain Element, like {@link #addElementDefault(Element,
-     * AnnotationMirror, TypeUseLocation)}, and says whether a default on a package also applies to
-     * its subpackages, like the {@code applyToSubpackages} element of {@code @DefaultQualifier}.
+     * Sets the default annotations for a package, like {@link #addElementDefault}, and says whether
+     * the default also applies to the package's subpackages, like the {@code applyToSubpackages}
+     * element of {@code @DefaultQualifier}.
      *
+     * @param pkg the package to set the default within
+     * @param packageDefaultAnno the default to set
+     * @param location the location to apply the default to
+     * @param applyToSubpackages whether the default also applies to the subpackages of {@code pkg}
+     * @throws TypeSystemError if called after type checking has begun
+     */
+    public void addPackageDefault(
+            PackageElement pkg,
+            AnnotationMirror packageDefaultAnno,
+            TypeUseLocation location,
+            boolean applyToSubpackages) {
+        addProgrammaticElementDefault(
+                "addPackageDefault", pkg, packageDefaultAnno, location, applyToSubpackages);
+    }
+
+    /**
+     * Implements {@link #addElementDefault} and {@link #addPackageDefault}.
+     *
+     * @param method the name of the public method that was called, for error messages
      * @param elem the scope to set the default within
      * @param elementDefaultAnno the default to set
      * @param location the location to apply the default to
      * @param applyToSubpackages whether the default also applies to the subpackages of {@code
-     *     elem}, if {@code elem} is a package; ignored otherwise
+     *     elem}; true unless {@code elem} is a package
      * @throws TypeSystemError if called after type checking has begun
      */
-    public void addElementDefault(
+    private void addProgrammaticElementDefault(
+            String method,
             Element elem,
             AnnotationMirror elementDefaultAnno,
             TypeUseLocation location,
@@ -839,13 +859,13 @@ public class QualifierDefaults {
             // (including while annotation files are parsed) and becomes non-null when the first
             // compilation unit is handed to AnnotatedTypeFactory#setRoot.
             throw new TypeSystemError(
-                    "QualifierDefaults.addElementDefault(%s, %s, %s) was called after type"
+                    "QualifierDefaults.%s(%s, %s, %s) was called after type"
                             + " checking began. Programmatic element defaults must be registered"
                             + " while the type factory is being initialized: already-computed"
                             + " types and already-computed dataflow results are not recomputed"
                             + " and already-issued diagnostics cannot be retracted, so a default"
                             + " added now would apply to only part of the program.",
-                    elem, elementDefaultAnno, location);
+                    method, elem, elementDefaultAnno, location);
         }
         Default d = new Default(elementDefaultAnno, location, applyToSubpackages);
         DefaultSet progSet = programmaticElementDefaults.get(elem);
