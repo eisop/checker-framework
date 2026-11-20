@@ -198,14 +198,15 @@ public class QualifierDefaults {
             new IdentityHashMap<>();
 
     /**
-     * Defaults added via {@link #addElementDefault}, tracked separately from the {@link
-     * #elementDefaults} memoization cache so that {@link #defaultsAtDirect} can treat a
-     * programmatically-added default as part of an element's own direct contribution -- the same
-     * way it treats a written {@code @DefaultQualifier} -- rather than it being visible only
-     * through {@link #elementDefaults}, which {@link #propagatingDefaultsAt} does not consult (see
-     * that method). Without this, a default added on a package would apply to that package's own
-     * elements but silently fail to reach any of its subpackages, and adding a default on any
-     * element would bypass written annotations and parent defaults.
+     * Defaults added via {@link #addElementDefault} and {@link #addPackageDefault}, tracked
+     * separately from the {@link #elementDefaults} memoization cache so that {@link
+     * #defaultsAtDirect} can treat a programmatically-added default as part of an element's own
+     * direct contribution -- the same way it treats a written {@code @DefaultQualifier} -- rather
+     * than it being visible only through {@link #elementDefaults}, which {@link
+     * #propagatingDefaultsAt} does not consult (see that method). Without this, a default added on
+     * a package would apply to that package's own elements but silently fail to reach any of its
+     * subpackages, and adding a default on any element would bypass written annotations and parent
+     * defaults.
      */
     private final IdentityHashMap<Element, DefaultSet> programmaticElementDefaults =
             new IdentityHashMap<>();
@@ -476,7 +477,7 @@ public class QualifierDefaults {
                 if (conflictsWithExistingDefaults(defaults, qualifier, location)) {
                     continue;
                 }
-                addUncheckedCodeDefault(mode, qualifier, location, true);
+                addUncheckedCodeDefault(mode, qualifier, location);
             }
         }
     }
@@ -504,8 +505,8 @@ public class QualifierDefaults {
 
     /**
      * Returns true if {@code anno} may be applied at {@code location} as a programmatic default
-     * (e.g., via {@link #addCheckedCodeDefault}, {@link #addUncheckedCodeDefault}, or {@link
-     * #addElementDefault}).
+     * (e.g., via {@link #addCheckedCodeDefault}, {@link #addUncheckedCodeDefault}, {@link
+     * #addElementDefault}, or {@link #addPackageDefault}).
      *
      * <p>If {@code anno} carries a {@link ProgrammaticDefaultLocations} meta-annotation, its
      * locations are checked. Otherwise, falls back to {@link #permittedAtLocation(AnnotationMirror,
@@ -597,37 +598,44 @@ public class QualifierDefaults {
     }
 
     /**
-     * Adds a default annotation. A programmer may override this by writing the @DefaultQualifier
-     * annotation on an element.
+     * Adds a default annotation for checked code. A programmer may override this by writing the
+     * {@code @DefaultQualifier} annotation on an element.
      *
-     * @param absoluteDefaultAnno the default annotation mirror
-     * @param location the type use location
-     * @param applyToSubpackages whether the default should be inherited by subpackages
-     */
-    public void addCheckedCodeDefault(
-            AnnotationMirror absoluteDefaultAnno,
-            TypeUseLocation location,
-            boolean applyToSubpackages) {
-        if (!permittedAtProgrammaticLocation(absoluteDefaultAnno, location)) {
-            throw new TypeSystemError(
-                    "The default qualifier %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
-                    absoluteDefaultAnno, location);
-        }
-        checkDuplicates(checkedCodeDefaults, absoluteDefaultAnno, location);
-        checkedCodeDefaults.add(new Default(absoluteDefaultAnno, location, applyToSubpackages));
-        invalidateFusedDefaults();
-    }
-
-    /**
-     * Adds a default annotation that also applies to subpackages, if applicable. A programmer may
-     * override this by writing the @DefaultQualifier annotation on an element.
+     * <p>A checked-code default applies to all checked code; it is not scoped to a package.
      *
      * @param absoluteDefaultAnno the default annotation mirror
      * @param location the type use location
      */
     public void addCheckedCodeDefault(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation location) {
-        addCheckedCodeDefault(absoluteDefaultAnno, location, true);
+        if (!permittedAtProgrammaticLocation(absoluteDefaultAnno, location)) {
+            throw new TypeSystemError(
+                    "The default qualifier %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
+                    absoluteDefaultAnno, location);
+        }
+        Default d = new Default(absoluteDefaultAnno, location, true);
+        checkDuplicates(checkedCodeDefaults, d);
+        checkedCodeDefaults.add(d);
+        invalidateFusedDefaults();
+    }
+
+    /**
+     * Adds a default annotation for checked code.
+     *
+     * @param absoluteDefaultAnno the default annotation mirror
+     * @param location the type use location
+     * @param applyToSubpackages ignored
+     * @deprecated {@code applyToSubpackages} has no effect, because a checked-code default is not
+     *     scoped to a package. Use {@link #addCheckedCodeDefault(AnnotationMirror,
+     *     TypeUseLocation)}, or {@link #addPackageDefault} for a default of one package that need
+     *     not apply to its subpackages.
+     */
+    @Deprecated // 2026-11-19
+    public void addCheckedCodeDefault(
+            AnnotationMirror absoluteDefaultAnno,
+            TypeUseLocation location,
+            boolean applyToSubpackages) {
+        addCheckedCodeDefault(absoluteDefaultAnno, location);
     }
 
     /**
@@ -635,29 +643,10 @@ public class QualifierDefaults {
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
-     * @param applyToSubpackages whether the default should be inherited by subpackages
-     */
-    public void addConservativeUncheckedCodeDefault(
-            AnnotationMirror uncheckedDefaultAnno,
-            TypeUseLocation location,
-            boolean applyToSubpackages) {
-        addUncheckedCodeDefault(
-                UncheckedDefaultsMode.CONSERVATIVE,
-                uncheckedDefaultAnno,
-                location,
-                applyToSubpackages);
-    }
-
-    /**
-     * Add a conservative default annotation for unchecked elements that also applies to
-     * subpackages, if applicable.
-     *
-     * @param uncheckedDefaultAnno the default annotation mirror
-     * @param location the type use location
      */
     public void addConservativeUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
-        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+        addUncheckedCodeDefault(UncheckedDefaultsMode.CONSERVATIVE, uncheckedDefaultAnno, location);
     }
 
     /**
@@ -665,53 +654,34 @@ public class QualifierDefaults {
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
-     * @param applyToSubpackages whether the default should be inherited by subpackages
-     */
-    public void addPermissiveUncheckedCodeDefault(
-            AnnotationMirror uncheckedDefaultAnno,
-            TypeUseLocation location,
-            boolean applyToSubpackages) {
-        addUncheckedCodeDefault(
-                UncheckedDefaultsMode.PERMISSIVE,
-                uncheckedDefaultAnno,
-                location,
-                applyToSubpackages);
-    }
-
-    /**
-     * Add a permissive default annotation for unchecked elements that also applies to subpackages,
-     * if applicable.
-     *
-     * @param uncheckedDefaultAnno the default annotation mirror
-     * @param location the type use location
      */
     public void addPermissiveUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
-        addPermissiveUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+        addUncheckedCodeDefault(UncheckedDefaultsMode.PERMISSIVE, uncheckedDefaultAnno, location);
     }
 
     /**
-     * Adds an unchecked-code default for a mode.
+     * Adds an unchecked-code default for a mode. Like a checked-code default, it is not scoped to a
+     * package.
      *
      * @param mode the unchecked defaulting mode
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
-     * @param applyToSubpackages whether the default should be inherited by subpackages
      */
     private void addUncheckedCodeDefault(
             UncheckedDefaultsMode mode,
             AnnotationMirror uncheckedDefaultAnno,
-            TypeUseLocation location,
-            boolean applyToSubpackages) {
+            TypeUseLocation location) {
         if (!permittedAtProgrammaticLocation(uncheckedDefaultAnno, location)) {
             throw new TypeSystemError(
                     "The unchecked code default qualifier %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
                     uncheckedDefaultAnno, location);
         }
         DefaultSet defaults = defaultsFor(mode);
-        checkDuplicates(defaults, uncheckedDefaultAnno, location);
+        Default d = new Default(uncheckedDefaultAnno, location, true);
+        checkDuplicates(defaults, d);
         checkIsValidUncheckedCodeLocation(uncheckedDefaultAnno, location);
-        defaults.add(new Default(uncheckedDefaultAnno, location, applyToSubpackages));
+        defaults.add(d);
         invalidateFusedDefaults();
     }
 
@@ -743,27 +713,26 @@ public class QualifierDefaults {
     }
 
     /**
-     * Add an unchecked-code default annotation for unchecked elements that also applies to
-     * subpackages, if applicable.
+     * Add an unchecked-code default annotation for unchecked elements.
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
-     * @param applyToSubpackages whether the default should be inherited by subpackages
+     * @param applyToSubpackages ignored, because an unchecked-code default is not scoped to a
+     *     package
      * @deprecated Use {@link #addConservativeUncheckedCodeDefault(AnnotationMirror,
-     *     TypeUseLocation, boolean)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
-     *     TypeUseLocation, boolean)}.
+     *     TypeUseLocation)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
+     *     TypeUseLocation)}.
      */
     @Deprecated // 2026-09-25
     public void addUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
-        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, applyToSubpackages);
+        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location);
     }
 
     /**
-     * Add an unchecked-code default annotation for unchecked elements that also applies to
-     * subpackages.
+     * Add an unchecked-code default annotation for unchecked elements.
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
@@ -774,7 +743,7 @@ public class QualifierDefaults {
     @Deprecated // 2026-09-25
     public void addUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
-        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location);
     }
 
     /**
@@ -831,6 +800,9 @@ public class QualifierDefaults {
      * Only one qualifier from a hierarchy can be the default for a location, so a type system must
      * not register one that contradicts what a user is permitted to write.
      *
+     * <p>A default on a package also applies to its subpackages; use {@link #addPackageDefault} for
+     * one that does not.
+     *
      * @param elem the scope to set the default within
      * @param elementDefaultAnno the default to set
      * @param location the location to apply the default to
@@ -838,6 +810,47 @@ public class QualifierDefaults {
      */
     public void addElementDefault(
             Element elem, AnnotationMirror elementDefaultAnno, TypeUseLocation location) {
+        addProgrammaticElementDefault(
+                "addElementDefault", elem, elementDefaultAnno, location, true);
+    }
+
+    /**
+     * Sets the default annotations for a package, like {@link #addElementDefault}, and says whether
+     * the default also applies to the package's subpackages, like the {@code applyToSubpackages}
+     * element of {@code @DefaultQualifier}.
+     *
+     * @param pkg the package to set the default within
+     * @param packageDefaultAnno the default to set
+     * @param location the location to apply the default to
+     * @param applyToSubpackages whether the default also applies to the subpackages of {@code pkg}
+     * @throws TypeSystemError if called after type checking has begun
+     */
+    public void addPackageDefault(
+            PackageElement pkg,
+            AnnotationMirror packageDefaultAnno,
+            TypeUseLocation location,
+            boolean applyToSubpackages) {
+        addProgrammaticElementDefault(
+                "addPackageDefault", pkg, packageDefaultAnno, location, applyToSubpackages);
+    }
+
+    /**
+     * Implements {@link #addElementDefault} and {@link #addPackageDefault}.
+     *
+     * @param method the name of the public method that was called, for error messages
+     * @param elem the scope to set the default within
+     * @param elementDefaultAnno the default to set
+     * @param location the location to apply the default to
+     * @param applyToSubpackages whether the default also applies to the subpackages of {@code
+     *     elem}; true unless {@code elem} is a package
+     * @throws TypeSystemError if called after type checking has begun
+     */
+    private void addProgrammaticElementDefault(
+            String method,
+            Element elem,
+            AnnotationMirror elementDefaultAnno,
+            TypeUseLocation location,
+            boolean applyToSubpackages) {
         if (!permittedAtProgrammaticLocation(elementDefaultAnno, location)) {
             throw new TypeSystemError(
                     "The default qualifier %s on %s %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
@@ -848,23 +861,22 @@ public class QualifierDefaults {
             // (including while annotation files are parsed) and becomes non-null when the first
             // compilation unit is handed to AnnotatedTypeFactory#setRoot.
             throw new TypeSystemError(
-                    "QualifierDefaults.addElementDefault(%s, %s, %s) was called after type"
+                    "QualifierDefaults.%s(%s, %s, %s) was called after type"
                             + " checking began. Programmatic element defaults must be registered"
                             + " while the type factory is being initialized: already-computed"
                             + " types and already-computed dataflow results are not recomputed"
                             + " and already-issued diagnostics cannot be retracted, so a default"
                             + " added now would apply to only part of the program.",
-                    elem, elementDefaultAnno, location);
+                    method, elem, elementDefaultAnno, location);
         }
+        Default d = new Default(elementDefaultAnno, location, applyToSubpackages);
         DefaultSet progSet = programmaticElementDefaults.get(elem);
         if (progSet != null) {
-            checkDuplicates(progSet, elementDefaultAnno, location);
+            checkDuplicates(progSet, d);
         } else {
             progSet = new DefaultSet();
             programmaticElementDefaults.put(elem, progSet);
         }
-        // TODO: expose applyToSubpackages
-        Default d = new Default(elementDefaultAnno, location, true);
         progSet.add(d);
         // Clear cached element defaults so subsequent queries recompute and merge with written
         // annotations and enclosing/parent defaults.
@@ -903,23 +915,20 @@ public class QualifierDefaults {
     }
 
     /**
-     * Throws {@link BugInCF} if making {@code newAnno} the default at {@code newLoc} would conflict
-     * with one of {@code previousDefaults}, as {@link #findConflictingDefault} defines conflict:
-     * only one qualifier from a hierarchy can be the default for a location.
+     * Throws {@link BugInCF} if adding {@code newDefault} would conflict with one of {@code
+     * previousDefaults}, as {@link #findConflictingDefault} defines conflict: only one qualifier
+     * from a hierarchy can be the default for a location.
      *
-     * @param previousDefaults the defaults that {@code newAnno} is about to be added to
-     * @param newAnno the annotation to make the default
-     * @param newLoc the location to make it the default for
+     * @param previousDefaults the defaults that {@code newDefault} is about to be added to
+     * @param newDefault the default to add
      */
-    private void checkDuplicates(
-            DefaultSet previousDefaults, AnnotationMirror newAnno, TypeUseLocation newLoc) {
-        if (conflictsWithExistingDefaults(previousDefaults, newAnno, newLoc)) {
+    private void checkDuplicates(DefaultSet previousDefaults, Default newDefault) {
+        if (conflictsWithExistingDefaults(previousDefaults, newDefault.anno, newDefault.location)) {
             throw new BugInCF(
                     "Only one qualifier from a hierarchy can be the default. Existing: "
                             + previousDefaults
                             + " and new: "
-                            // TODO: expose applyToSubpackages
-                            + new Default(newAnno, newLoc, true));
+                            + newDefault);
         }
     }
 
@@ -1450,8 +1459,9 @@ public class QualifierDefaults {
      * annotations that apply to {@code elt}, the one appearing first in the source wins and each
      * later one is discarded. An annotation that is an alias for {@code @DefaultQualifier} (such as
      * {@code @NullMarked}) participates at its own source position, so reordering the annotations
-     * on a declaration changes which one wins. Written against {@link #addElementDefault} is a
-     * {@link TypeSystemError}, since only a type system, not a user, can cause it.
+     * on a declaration changes which one wins. Written against {@link #addElementDefault} or {@link
+     * #addPackageDefault} is a {@link TypeSystemError}, since only a type system, not a user, can
+     * cause it.
      *
      * @param elt the element
      * @return the defaults that apply directly to {@code elt}, or null if it has none
@@ -1642,9 +1652,9 @@ public class QualifierDefaults {
      * avoiding costly content-based hashing of the set.
      *
      * <p>A {@code DefaultSet} that reaches this cache must never be mutated afterwards. The sets in
-     * {@link #programmaticElementDefaults} are mutated in place, by {@link #addElementDefault}, but
-     * they never reach it: {@link #defaultsAtDirect} copies their contents into a set of its own
-     * rather than handing one of them out.
+     * {@link #programmaticElementDefaults} are mutated in place, by {@link #addElementDefault} and
+     * {@link #addPackageDefault}, but they never reach it: {@link #defaultsAtDirect} copies their
+     * contents into a set of its own rather than handing one of them out.
      *
      * @param defaults the scope's defaults
      * @param mode which set of unchecked-code defaults to include, or null for none
