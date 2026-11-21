@@ -228,8 +228,7 @@ public class NullnessNoInitTransfer
         if (!polyNullNull || value == null || !value.getAnnotations().contains(NULLABLE)) {
             return value;
         }
-        AnnotationMirrorSet annos = value.getAnnotations();
-        AnnotationMirrorSet resolvedAnnos = new AnnotationMirrorSet(annos);
+        AnnotationMirrorSet resolvedAnnos = new AnnotationMirrorSet(value.getAnnotations());
         resolvedAnnos.remove(NULLABLE);
         resolvedAnnos.add(POLYNULL);
         return analysis.createAbstractValue(resolvedAnnos, value.getUnderlyingType());
@@ -261,8 +260,6 @@ public class NullnessNoInitTransfer
             for (Node secondPart : secondParts) {
                 JavaExpression secondInternal = JavaExpression.fromNode(secondPart);
                 if (CFAbstractStore.canInsertJavaExpression(secondInternal)) {
-                    thenStore = thenStore == null ? res.getThenStore() : thenStore;
-                    elseStore = elseStore == null ? res.getElseStore() : elseStore;
                     if (notEqualTo) {
                         thenStore.insertValue(secondInternal, NONNULL);
                     } else {
@@ -274,8 +271,6 @@ public class NullnessNoInitTransfer
             if (secondValue != null
                     && nullnessTypeFactory.containsSameByClass(
                             secondValue.getAnnotations(), PolyNull.class)) {
-                thenStore = thenStore == null ? res.getThenStore() : thenStore;
-                elseStore = elseStore == null ? res.getElseStore() : elseStore;
                 if (notEqualTo) {
                     elseStore.setPolyNullNull(true);
                 } else {
@@ -283,9 +278,7 @@ public class NullnessNoInitTransfer
                 }
             }
 
-            if (thenStore != null) {
-                return new ConditionalTransferResult<>(res.getResultValue(), thenStore, elseStore);
-            }
+            return new ConditionalTransferResult<>(res.getResultValue(), thenStore, elseStore);
         }
         return res;
     }
