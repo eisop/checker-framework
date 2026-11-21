@@ -250,11 +250,8 @@ public class BinaryStubWriter {
      * BinaryStubDiffChecker} filters the same annotation out of the text-parsed side.
      *
      * <p>Must stay a compile-time constant (hence the literal, rather than {@code
-     * CFComment.class.getCanonicalName()}): it is the one thing the {@code framework} source sets
-     * read from this class, and a constant is inlined by javac, so no code outside this source set
-     * acquires a runtime dependency on it. See {@code framework/build.gradle}'s {@code stubifier}
-     * source set. Interned by javac, so the reference-equality check in {@code
-     * BinaryStubDiffChecker} works.
+     * CFComment.class.getCanonicalName()}): javac interns it, so the reference-equality check in
+     * {@code BinaryStubDiffChecker} works.
      */
     public static final String CF_COMMENT = "org.checkerframework.framework.qual.CFComment";
 

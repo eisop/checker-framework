@@ -51,9 +51,8 @@ import java.util.zip.GZIPInputStream;
 public class BinaryStubData {
 
     /**
-     * Magic number identifying the Checker Framework binary stub format. The value is defined once
-     * in {@link BinaryStubWriter#MAGIC} and referenced here (the constant is inlined at compile
-     * time, so there is no runtime dependency on the stubifier).
+     * Magic number identifying the Checker Framework binary stub format. Defined once in {@link
+     * BinaryStubWriter#MAGIC}.
      */
     public static final int MAGIC = BinaryStubWriter.MAGIC;
 

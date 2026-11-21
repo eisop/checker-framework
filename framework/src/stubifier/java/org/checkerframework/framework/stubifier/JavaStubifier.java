@@ -73,9 +73,8 @@ public class JavaStubifier {
      * built-in {@code .astub} files (by {@link BinaryStubFileGenerator}, which reuses this
      * constant). Intentionally duplicates {@code JavaParserUtil.DEFAULT_LANGUAGE_LEVEL}, which the
      * text parser uses at checker runtime: {@code JavaParserUtil} lives in framework main, which
-     * this stubifier source set cannot depend on (the dependency runs the other way — framework
-     * main depends on this source set's output — and framework.jar ships no stubifier classes), so
-     * the constant can't be unified further.
+     * this stubifier source set cannot depend on (the dependency runs the other way: framework main
+     * depends on this source set's output), so the constant can't be unified further.
      */
     public static final LanguageLevel DEFAULT_LANGUAGE_LEVEL = LanguageLevel.JAVA_21;
 
@@ -96,6 +95,9 @@ public class JavaStubifier {
      * problems.
      */
     public static final String SKIP_UNLOADABLE_ANNOTATIONS_FLAG = "--skipUnloadableAnnotations";
+
+    /** Do not instantiate; this is a main class. */
+    private JavaStubifier() {}
 
     /**
      * Processes each provided command-line argument; see class documentation for details.
