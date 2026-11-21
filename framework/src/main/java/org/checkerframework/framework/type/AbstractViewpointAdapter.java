@@ -205,6 +205,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         // 5. Update target method type in place with adapted components.
         methodType.setReturnType(unsubstitutedMethodType.getReturnType());
         methodType.setReceiverType(unsubstitutedMethodType.getReceiverType());
+        methodType.computeVarargType();
         methodType.setParameterTypes(unsubstitutedMethodType.getParameterTypes());
         methodType.setTypeVariables(unsubstitutedMethodType.getTypeVariables());
         // Recompute the vararg type to ensure it corresponds to the newly updated parameter list.
