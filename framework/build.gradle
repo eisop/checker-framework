@@ -282,6 +282,7 @@ tasks.register("allSourcesJar", Jar) {
     archiveFileName = "framework-source.jar"
     archiveClassifier = "sources"
     from (project(":framework").sourceSets.main.java,
+            project(":framework").sourceSets.stubifier.allJava,
             project(":dataflow").sourceSets.main.allJava,
             project(":javacutil").sourceSets.main.allJava)
 }

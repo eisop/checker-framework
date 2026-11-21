@@ -868,8 +868,11 @@ project(":checker").afterEvaluate {
     ]
 }
 
+// The stubifier source set is declared in framework/build.gradle, so it is not yet defined when
+// javadocDirs above is built; allJavadoc adds it as well.
 project(":framework").afterEvaluate {
     requireJavadocDirs += [
+        project(":framework").sourceSets.stubifier.allJava,
         project(":framework").sourceSets.testannotations.allJava
     ]
 }
@@ -907,6 +910,7 @@ tasks.register("allJavadoc", Javadoc) {
     dependsOn(":checker:shadowJar", "getPlumeScripts")
     destinationDir = file("${rootDir}/docs/api")
     source javadocDirs
+    source project(":framework").sourceSets.stubifier.allJava
 
     // Similar test further up and in framework-test/build.gradle
     def tagletVersion = isJava8 ? "tagletJdk8" : "taglet"

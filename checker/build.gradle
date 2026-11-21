@@ -262,6 +262,9 @@ tasks.register("allSourcesJar", Jar) {
     from (sourceSets.main.java, project(":framework").sourceSets.main.allJava,
             project(":dataflow").sourceSets.main.allJava, project(":javacutil").sourceSets.main.allJava,
             project(":checker-qual").sourceSets.main.allJava, project(":checker-util").sourceSets.main.allJava)
+    // A closure, since the stubifier source set is declared in framework/build.gradle, which is
+    // evaluated after this file.
+    from { project(":framework").sourceSets.stubifier.allJava }
 }
 
 tasks.register("allJavadocJar", Jar) {

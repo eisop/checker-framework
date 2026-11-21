@@ -461,7 +461,10 @@ public class BinaryStubWriter {
 
     /** Unique structural annotation pool to avoid duplicate records. */
     private static class AnnotationPool {
+        /** The serialized annotations, in index order. */
         private final List<byte[]> serializedAnnos = new ArrayList<>();
+
+        /** Maps the source text of a fully-qualified annotation to its index in the pool. */
         private final Map<String, Integer> annoToIdx = new LinkedHashMap<>();
 
         /**
