@@ -7,7 +7,8 @@ plugins {
 }
 
 // allSourcesJar below reads framework's stubifier source set, which framework/build.gradle
-// declares. framework is evaluated after checker in settings.gradle's include order.
+// declares. Gradle evaluates sibling projects in alphabetical order, not in settings.gradle's
+// include order, so this is the way to evaluate framework first.
 evaluationDependsOn(":framework")
 
 sourceSets {
