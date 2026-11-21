@@ -5,7 +5,7 @@ public class Issue2074 {
 
     static void set(@PolyVP Issue2074 c, @PolyVP Object o) {
         // PolyVP may be instantiated to Top, so PolyVP |> ReceiverDependentQual == Lost.
-        // :: error: (assignment.type.incompatible)
+        // :: error: (assignment.type.incompatible) :: error: (viewpointtest.lost.lhs)
         c.f = o;
     }
 

@@ -18,7 +18,7 @@ public class VarargsConstructor {
         @A Object a = new @A VarargsConstructor(aObj);
         @B Object b = new @B VarargsConstructor(bObj);
         // :: error: (argument.type.incompatible) :: error: (new.class.type.invalid) :: error:
-        // (varargs.type.incompatible)
+        // (viewpointtest.lost.parameter)
         @Top Object top = new @Top VarargsConstructor(topObj);
         // :: error: (argument.type.incompatible)
         new @A VarargsConstructor(bObj);
@@ -44,7 +44,7 @@ public class VarargsConstructor {
             @A Object a = new @A Inner(aObj);
             @B Object b = new @B Inner(bObj);
             // :: error: (argument.type.incompatible) :: error: (new.class.type.invalid) :: error:
-            // (varargs.type.incompatible)
+            // (viewpointtest.lost.parameter)
             @Top Object top = new @Top Inner(topObj);
             // :: error: (argument.type.incompatible)
             new @A Inner(bObj);
@@ -66,7 +66,7 @@ public class VarargsConstructor {
         @A Object a = new @A VarargsConstructor(aObj) {};
         @B Object b = new @B VarargsConstructor(bObj) {};
         // :: error: (argument.type.incompatible) :: error: (new.class.type.invalid) :: error:
-        // (varargs.type.incompatible)
+        // (viewpointtest.lost.parameter)
         @Top Object top = new @Top VarargsConstructor(topObj) {};
         // :: error: (argument.type.incompatible)
         new @A VarargsConstructor(bObj) {};

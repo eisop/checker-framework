@@ -19,8 +19,8 @@ public class PolyWithVPA {
         // :: error: (assignment.type.incompatible)
         @B Object anotherBObj = poly.foo(bObj);
         @Top Object topObj = poly.foo(bObj);
-        // Lost is not reflexive, so even assigning Lost to Lost is an error.
-        // :: error: (assignment.type.incompatible)
+        // Lost is invalid as an assignment target.
+        // :: error: (viewpointtest.lost.lhs)
         @Lost Object lostObj = poly.foo(bObj);
     }
 }
