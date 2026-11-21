@@ -405,6 +405,18 @@ Javadoc, and the zip files of master, built nightly from a master that passed CI
 
 ### Implementation details
 
+Where the Nullness Checker knows that the current invocation instantiates `@PolyNull` as
+`@Nullable`, `NullnessNoInitTransfer` gives `@Nullable` dataflow values the `@PolyNull` form,
+instead of the visitor replacing `@PolyNull` in the target type. Removed:
+
+- `NullnessNoInitStore#isPolyNullNonNull` and `#setPolyNullNonNull`;
+- `NullnessNoInitValue`; the Nullness Checker's dataflow uses `CFValue`;
+- `NullnessNoInitAnnotatedTypeFactory#replacePolyQualifier`;
+- the overrides `NullnessNoInitAnnotatedTypeFactory#getMethodReturnType(MethodTree, ReturnTree)`,
+  `NullnessNoInitTransfer#visitReturn`, `NullnessNoInitVisitor#visitConditionalExpression`, and
+  `NullnessNoInitVisitor#commonAssignmentCheck(AnnotatedTypeMirror, ExpressionTree, String,
+  Object...)`.
+
 The validation of qualifier target locations moved from `BaseTypeVisitor` to `BaseTypeValidator`.
 `BaseTypeVisitor#validateTargetLocation` and `#validateVariablesTargetLocation` are now
 `BaseTypeValidator#validateTargetLocation` and `#validateVariableTargetLocation`, with the type
@@ -738,6 +750,12 @@ Other improvements and bug fixes:
   annotation processor path than `checker.jar`, as Error Prone's configuration
   can arrange, is now reported once, with the jar it was loaded from, instead
   of every compilation unit failing with a `NoSuchFieldError`.
+- The Nullness Checker no longer reports a false positive for a `@PolyNull`
+  conditional or lambda whose non-null operand does not depend on `@PolyNull`,
+  such as `return p == null ? null : "x";` when the method has a second
+  `@PolyNull` parameter, or `node -> node == null ? null : node.toString()`.
+  Its error messages now show the declared `@PolyNull` type, not `@NonNull` or
+  `@Nullable`.
 
 ### Closed issues
 
@@ -912,6 +930,7 @@ eisop#2640,
 eisop#2641,
 eisop#2642,
 eisop#2655,
+eisop#2662,
 typetools#399,
 typetools#602,
 typetools#2816,

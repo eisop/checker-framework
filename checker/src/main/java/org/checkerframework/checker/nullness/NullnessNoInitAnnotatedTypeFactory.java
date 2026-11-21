@@ -14,7 +14,6 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ParenthesizedTree;
-import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.UnaryTree;
@@ -39,6 +38,7 @@ import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
+import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
@@ -91,10 +91,7 @@ import javax.lang.model.util.ElementFilter;
 /** The annotated type factory for the nullness type-system. */
 public class NullnessNoInitAnnotatedTypeFactory
         extends GenericAnnotatedTypeFactory<
-                NullnessNoInitValue,
-                NullnessNoInitStore,
-                NullnessNoInitTransfer,
-                NullnessNoInitAnalysis> {
+                CFValue, NullnessNoInitStore, NullnessNoInitTransfer, NullnessNoInitAnalysis> {
 
     /** The @{@link NonNull} annotation. */
     protected final AnnotationMirror NONNULL = AnnotationBuilder.fromClass(elements, NonNull.class);
@@ -580,37 +577,6 @@ public class NullnessNoInitAnnotatedTypeFactory
                         Nullable.class, MonotonicNonNull.class, NonNull.class, PolyNull.class));
     }
 
-    /**
-     * For types of left-hand side of an assignment, this method replaces {@link PolyNull} with
-     * {@link Nullable} (or with {@link NonNull} if the org.checkerframework.dataflow analysis has
-     * determined that this is allowed soundly. For example:
-     *
-     * <pre> @PolyNull String foo(@PolyNull String param) {
-     *    if (param == null) {
-     *        //  @PolyNull is really @Nullable, so change
-     *        // the type of param to @Nullable.
-     *        param = null;
-     *    }
-     *    return param;
-     * }
-     * </pre>
-     *
-     * @param lhsType type to replace whose polymorphic qualifier will be replaced
-     * @param context tree used to get dataflow value
-     */
-    protected void replacePolyQualifier(AnnotatedTypeMirror lhsType, Tree context) {
-        if (lhsType.hasAnnotation(PolyNull.class)) {
-            NullnessNoInitValue inferred = getInferredValueFor(context);
-            if (inferred != null) {
-                if (inferred.isPolyNullNonNull()) {
-                    lhsType.replaceAnnotation(NONNULL);
-                } else if (inferred.isPolyNullNull()) {
-                    lhsType.replaceAnnotation(NULLABLE);
-                }
-            }
-        }
-    }
-
     @Override
     protected NullnessNoInitAnalysis createFlowAnalysis() {
         return new NullnessNoInitAnalysis(checker, this);
@@ -618,8 +584,7 @@ public class NullnessNoInitAnnotatedTypeFactory
 
     @Override
     public NullnessNoInitTransfer createFlowTransferFunction(
-            CFAbstractAnalysis<NullnessNoInitValue, NullnessNoInitStore, NullnessNoInitTransfer>
-                    analysis) {
+            CFAbstractAnalysis<CFValue, NullnessNoInitStore, NullnessNoInitTransfer> analysis) {
         return new NullnessNoInitTransfer((NullnessNoInitAnalysis) analysis);
     }
 
@@ -658,13 +623,6 @@ public class NullnessNoInitAnnotatedTypeFactory
         List<AnnotatedTypeMirror> typeArgs = returnAdt.getTypeArguments();
         AnnotatedTypeVariable classWildcardArg = (AnnotatedTypeVariable) typeArgs.get(0);
         classWildcardArg.getUpperBound().replaceAnnotation(NONNULL);
-    }
-
-    @Override
-    public AnnotatedTypeMirror getMethodReturnType(MethodTree m, ReturnTree r) {
-        AnnotatedTypeMirror result = super.getMethodReturnType(m, r);
-        replacePolyQualifier(result, r);
-        return result;
     }
 
     @Override
