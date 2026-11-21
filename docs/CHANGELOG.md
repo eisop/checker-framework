@@ -34,7 +34,8 @@ generated) files:
 
 The annotated JDK and built-in stub files are distributed as pre-parsed binary files, so checker
 startup no longer runs JavaParser. A missing or stale binary stub falls back to text parsing with a
-warning (suppressible via `-AsuppressWarnings=text.parsing`); `-AmergeStubsWithSource`,
+warning (suppressible via `-AsuppressWarnings=text.parsing` for a missing one and
+`-AsuppressWarnings=stale.binary.stub` for a stale one); `-AmergeStubsWithSource`,
 `-AstubWarnIfNotFound`, and `-AstubDebug` use text parsing. `BinaryStubFileGenerator` pre-parses a
 custom `-Astubs` file, directory (`--bundle`), or jar; `JavaStubifier`, which generates the
 annotated JDK's stub files, names the source file on failure and has a new
