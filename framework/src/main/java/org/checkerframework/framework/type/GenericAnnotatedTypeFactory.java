@@ -3143,6 +3143,9 @@ public abstract class GenericAnnotatedTypeFactory<
     protected @Nullable CFGVisualizer<Value, Store, TransferFunction> createCFGVisualizer() {
         if (checker.hasOption("flowdotdir")) {
             String flowdotdir = checker.getOption("flowdotdir");
+            if (flowdotdir == null) {
+                throw new UserError("Option -Aflowdotdir requires a value.");
+            }
             if (flowdotdir.isEmpty()) {
                 throw new UserError("Empty string provided for -Aflowdotdir command-line argument");
             }
