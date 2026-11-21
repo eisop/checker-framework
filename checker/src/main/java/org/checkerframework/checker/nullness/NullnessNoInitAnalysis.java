@@ -3,7 +3,7 @@ package org.checkerframework.checker.nullness;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
-import org.checkerframework.framework.flow.CFAbstractValue;
+import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import javax.lang.model.type.TypeMirror;
@@ -13,8 +13,7 @@ import javax.lang.model.type.TypeMirror;
  * stores and abstract values.
  */
 public class NullnessNoInitAnalysis
-        extends CFAbstractAnalysis<
-                NullnessNoInitValue, NullnessNoInitStore, NullnessNoInitTransfer> {
+        extends CFAbstractAnalysis<CFValue, NullnessNoInitStore, NullnessNoInitTransfer> {
 
     /**
      * Creates a new {@code NullnessAnalysis}.
@@ -38,11 +37,8 @@ public class NullnessNoInitAnalysis
     }
 
     @Override
-    public @Nullable NullnessNoInitValue createAbstractValue(
+    public @Nullable CFValue createAbstractValue(
             AnnotationMirrorSet annotations, TypeMirror underlyingType) {
-        if (!CFAbstractValue.validateSet(annotations, underlyingType, atypeFactory)) {
-            return null;
-        }
-        return new NullnessNoInitValue(this, annotations, underlyingType);
+        return defaultCreateAbstractValue(this, annotations, underlyingType);
     }
 }

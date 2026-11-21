@@ -38,6 +38,7 @@ import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
+import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
@@ -90,10 +91,7 @@ import javax.lang.model.util.ElementFilter;
 /** The annotated type factory for the nullness type-system. */
 public class NullnessNoInitAnnotatedTypeFactory
         extends GenericAnnotatedTypeFactory<
-                NullnessNoInitValue,
-                NullnessNoInitStore,
-                NullnessNoInitTransfer,
-                NullnessNoInitAnalysis> {
+                CFValue, NullnessNoInitStore, NullnessNoInitTransfer, NullnessNoInitAnalysis> {
 
     /** The @{@link NonNull} annotation. */
     protected final AnnotationMirror NONNULL = AnnotationBuilder.fromClass(elements, NonNull.class);
@@ -586,8 +584,7 @@ public class NullnessNoInitAnnotatedTypeFactory
 
     @Override
     public NullnessNoInitTransfer createFlowTransferFunction(
-            CFAbstractAnalysis<NullnessNoInitValue, NullnessNoInitStore, NullnessNoInitTransfer>
-                    analysis) {
+            CFAbstractAnalysis<CFValue, NullnessNoInitStore, NullnessNoInitTransfer> analysis) {
         return new NullnessNoInitTransfer((NullnessNoInitAnalysis) analysis);
     }
 

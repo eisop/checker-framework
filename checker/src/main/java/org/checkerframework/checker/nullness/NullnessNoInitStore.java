@@ -13,6 +13,7 @@ import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.util.PurityUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFAbstractStore;
+import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.qual.MonotonicQualifier;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.TreeUtils;
@@ -30,7 +31,7 @@ import javax.lang.model.element.ExecutableElement;
  * instantiate {@link PolyNull} as {@link Nullable}, and tracks which queue or deque receiver
  * expressions are known to be non-empty.
  */
-public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, NullnessNoInitStore> {
+public class NullnessNoInitStore extends CFAbstractStore<CFValue, NullnessNoInitStore> {
 
     /**
      * True if, at this point, the current invocation is known to instantiate {@link PolyNull} as
@@ -44,8 +45,8 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
     /**
      * Maps each field that is known to be initialized along the current flow path to the value it
      * takes on after a non-pure method call, namely its declared type. Used by {@link
-     * #newFieldValueAfterMethodCall(FieldAccess, GenericAnnotatedTypeFactory, NullnessNoInitValue)}
-     * to avoid re-evaluating the expensive {@link
+     * #newFieldValueAfterMethodCall(FieldAccess, GenericAnnotatedTypeFactory, CFValue)} to avoid
+     * re-evaluating the expensive {@link
      * InitializationAnnotatedTypeFactory#isInitialized(org.checkerframework.framework.type.GenericAnnotatedTypeFactory,
      * org.checkerframework.framework.flow.CFAbstractValue,
      * javax.lang.model.element.VariableElement)} check once a field is known to be initialized.
@@ -54,7 +55,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
      * deliberately excluded from {@link #leastUpperBound}, {@link #equals}, and {@link #hashCode}.
      * See those methods for why the exclusion is sound.
      */
-    private @Nullable Map<FieldAccess, NullnessNoInitValue> initializedFieldValueCache;
+    private @Nullable Map<FieldAccess, CFValue> initializedFieldValueCache;
 
     /**
      * Receivers that are currently known to be non-empty queues.
@@ -71,7 +72,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
      *     that only one thread is running at all times)?
      */
     public NullnessNoInitStore(
-            CFAbstractAnalysis<NullnessNoInitValue, NullnessNoInitStore, ?> analysis,
+            CFAbstractAnalysis<CFValue, NullnessNoInitStore, ?> analysis,
             boolean sequentialSemantics) {
         super(analysis, sequentialSemantics);
         isPolyNullNull = false;
@@ -119,7 +120,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
     }
 
     @Override
-    public void updateForAssignment(Node n, @Nullable NullnessNoInitValue val) {
+    public void updateForAssignment(Node n, @Nullable CFValue val) {
         super.updateForAssignment(n, val);
         if (nonEmptyQueueReceivers != null && !nonEmptyQueueReceivers.isEmpty()) {
             JavaExpression expr = JavaExpression.fromNode(n);
@@ -138,9 +139,8 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
     @Override
     public void updateForMethodCall(
             MethodInvocationNode methodInvocationNode,
-            GenericAnnotatedTypeFactory<NullnessNoInitValue, NullnessNoInitStore, ?, ?>
-                    atypeFactory,
-            NullnessNoInitValue val) {
+            GenericAnnotatedTypeFactory<CFValue, NullnessNoInitStore, ?, ?> atypeFactory,
+            CFValue val) {
         super.updateForMethodCall(methodInvocationNode, atypeFactory, val);
 
         // Conservatively invalidate all non-empty queue information for side-effecting method
@@ -159,11 +159,10 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
     }
 
     @Override
-    protected NullnessNoInitValue newFieldValueAfterMethodCall(
+    protected CFValue newFieldValueAfterMethodCall(
             FieldAccess fieldAccess,
-            GenericAnnotatedTypeFactory<NullnessNoInitValue, NullnessNoInitStore, ?, ?>
-                    atypeFactory,
-            NullnessNoInitValue value) {
+            GenericAnnotatedTypeFactory<CFValue, NullnessNoInitStore, ?, ?> atypeFactory,
+            CFValue value) {
         // If the field is unassignable, it cannot change, so keep its current value. Unassignable
         // fields are handled before initialized ones because a field that is both unassignable and
         // initialized may have a stale, less-refined value in the cache.
@@ -185,7 +184,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
                         .getAnnotationWithMetaAnnotation(
                                 fieldAccess.getField(), MonotonicQualifier.class)
                         .isEmpty()) {
-            NullnessNoInitValue newValue =
+            CFValue newValue =
                     analysis.createAbstractValue(
                             atypeFactory.getAnnotatedType(fieldAccess.getField()).getAnnotations(),
                             value.getUnderlyingType());
@@ -220,7 +219,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
     }
 
     @Override
-    protected boolean supersetOf(CFAbstractStore<NullnessNoInitValue, NullnessNoInitStore> o) {
+    protected boolean supersetOf(CFAbstractStore<CFValue, NullnessNoInitStore> o) {
         if (!(o instanceof NullnessNoInitStore)) {
             return false;
         }
@@ -238,8 +237,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
     }
 
     @Override
-    protected String internalVisualize(
-            CFGVisualizer<NullnessNoInitValue, NullnessNoInitStore, ?> viz) {
+    protected String internalVisualize(CFGVisualizer<CFValue, NullnessNoInitStore, ?> viz) {
         String res =
                 super.internalVisualize(viz)
                         + viz.getSeparator()

@@ -25,6 +25,7 @@ import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.util.PurityUtils;
 import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.flow.CFAbstractTransfer;
+import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
@@ -58,8 +59,7 @@ import javax.lang.model.util.Elements;
  * </ol>
  */
 public class NullnessNoInitTransfer
-        extends CFAbstractTransfer<
-                NullnessNoInitValue, NullnessNoInitStore, NullnessNoInitTransfer> {
+        extends CFAbstractTransfer<CFValue, NullnessNoInitStore, NullnessNoInitTransfer> {
 
     /** The @{@link NonNull} annotation. */
     protected final AnnotationMirror NONNULL;
@@ -167,8 +167,7 @@ public class NullnessNoInitTransfer
      * @param result the transfer result
      * @param node the node to make non-null
      */
-    protected void makeNonNull(
-            TransferResult<NullnessNoInitValue, NullnessNoInitStore> result, Node node) {
+    protected void makeNonNull(TransferResult<CFValue, NullnessNoInitStore> result, Node node) {
         if (result.containsTwoStores()) {
             makeNonNull(result.getThenStore(), node);
             makeNonNull(result.getElseStore(), node);
@@ -182,27 +181,23 @@ public class NullnessNoInitTransfer
      *
      * @param result the result to refine
      */
-    protected void refineToNonNull(
-            TransferResult<NullnessNoInitValue, NullnessNoInitStore> result) {
-        NullnessNoInitValue oldResultValue = result.getResultValue();
-        NullnessNoInitValue refinedResultValue =
+    protected void refineToNonNull(TransferResult<CFValue, NullnessNoInitStore> result) {
+        CFValue oldResultValue = result.getResultValue();
+        CFValue refinedResultValue =
                 analysis.createSingleAnnotationValue(NONNULL, oldResultValue.getUnderlyingType());
-        NullnessNoInitValue newResultValue = refinedResultValue.mostSpecific(oldResultValue, null);
+        CFValue newResultValue = refinedResultValue.mostSpecific(oldResultValue, null);
         result.setResultValue(newResultValue);
     }
 
     @Override
-    protected @Nullable NullnessNoInitValue finishValue(
-            @Nullable NullnessNoInitValue value, NullnessNoInitStore store) {
+    protected @Nullable CFValue finishValue(@Nullable CFValue value, NullnessNoInitStore store) {
         value = super.finishValue(value, store);
         return resolvePolyNull(value, store.isPolyNullNull());
     }
 
     @Override
-    protected @Nullable NullnessNoInitValue finishValue(
-            @Nullable NullnessNoInitValue value,
-            NullnessNoInitStore thenStore,
-            NullnessNoInitStore elseStore) {
+    protected @Nullable CFValue finishValue(
+            @Nullable CFValue value, NullnessNoInitStore thenStore, NullnessNoInitStore elseStore) {
         value = super.finishValue(value, thenStore, elseStore);
         return resolvePolyNull(value, thenStore.isPolyNullNull() && elseStore.isPolyNullNull());
     }
@@ -229,8 +224,7 @@ public class NullnessNoInitTransfer
      * @return {@code value} in the {@code @PolyNull} form if {@code polyNullNull} holds and it is
      *     {@code @Nullable}, otherwise {@code value} itself
      */
-    private @Nullable NullnessNoInitValue resolvePolyNull(
-            @Nullable NullnessNoInitValue value, boolean polyNullNull) {
+    private @Nullable CFValue resolvePolyNull(@Nullable CFValue value, boolean polyNullNull) {
         if (!polyNullNull || value == null || !value.getAnnotations().contains(NULLABLE)) {
             return value;
         }
@@ -249,14 +243,13 @@ public class NullnessNoInitTransfer
      * description).
      */
     @Override
-    protected TransferResult<NullnessNoInitValue, NullnessNoInitStore>
-            strengthenAnnotationOfEqualTo(
-                    TransferResult<NullnessNoInitValue, NullnessNoInitStore> res,
-                    Node firstNode,
-                    Node secondNode,
-                    NullnessNoInitValue firstValue,
-                    NullnessNoInitValue secondValue,
-                    boolean notEqualTo) {
+    protected TransferResult<CFValue, NullnessNoInitStore> strengthenAnnotationOfEqualTo(
+            TransferResult<CFValue, NullnessNoInitStore> res,
+            Node firstNode,
+            Node secondNode,
+            CFValue firstValue,
+            CFValue secondValue,
+            boolean notEqualTo) {
         res =
                 super.strengthenAnnotationOfEqualTo(
                         res, firstNode, secondNode, firstValue, secondValue, notEqualTo);
@@ -298,19 +291,17 @@ public class NullnessNoInitTransfer
     }
 
     @Override
-    public TransferResult<NullnessNoInitValue, NullnessNoInitStore> visitArrayAccess(
-            ArrayAccessNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> p) {
-        TransferResult<NullnessNoInitValue, NullnessNoInitStore> result =
-                super.visitArrayAccess(n, p);
+    public TransferResult<CFValue, NullnessNoInitStore> visitArrayAccess(
+            ArrayAccessNode n, TransferInput<CFValue, NullnessNoInitStore> p) {
+        TransferResult<CFValue, NullnessNoInitStore> result = super.visitArrayAccess(n, p);
         makeNonNull(result, n.getArray());
         return result;
     }
 
     @Override
-    public TransferResult<NullnessNoInitValue, NullnessNoInitStore> visitInstanceOf(
-            InstanceOfNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> p) {
-        TransferResult<NullnessNoInitValue, NullnessNoInitStore> result =
-                super.visitInstanceOf(n, p);
+    public TransferResult<CFValue, NullnessNoInitStore> visitInstanceOf(
+            InstanceOfNode n, TransferInput<CFValue, NullnessNoInitStore> p) {
+        TransferResult<CFValue, NullnessNoInitStore> result = super.visitInstanceOf(n, p);
         NullnessNoInitStore thenStore = result.getThenStore();
         NullnessNoInitStore elseStore = result.getElseStore();
         makeNonNull(thenStore, n.getOperand());
@@ -335,10 +326,9 @@ public class NullnessNoInitTransfer
     }
 
     @Override
-    public TransferResult<NullnessNoInitValue, NullnessNoInitStore> visitMethodAccess(
-            MethodAccessNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> p) {
-        TransferResult<NullnessNoInitValue, NullnessNoInitStore> result =
-                super.visitMethodAccess(n, p);
+    public TransferResult<CFValue, NullnessNoInitStore> visitMethodAccess(
+            MethodAccessNode n, TransferInput<CFValue, NullnessNoInitStore> p) {
+        TransferResult<CFValue, NullnessNoInitStore> result = super.visitMethodAccess(n, p);
         // The receiver of an instance method access is non-null. A static method access does not
         // ensure that the receiver is non-null.
         if (!n.isStatic()) {
@@ -348,10 +338,9 @@ public class NullnessNoInitTransfer
     }
 
     @Override
-    public TransferResult<NullnessNoInitValue, NullnessNoInitStore> visitFieldAccess(
-            FieldAccessNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> p) {
-        TransferResult<NullnessNoInitValue, NullnessNoInitStore> result =
-                super.visitFieldAccess(n, p);
+    public TransferResult<CFValue, NullnessNoInitStore> visitFieldAccess(
+            FieldAccessNode n, TransferInput<CFValue, NullnessNoInitStore> p) {
+        TransferResult<CFValue, NullnessNoInitStore> result = super.visitFieldAccess(n, p);
         // The receiver of an instance field access is non-null. A static field access does not
         // ensure that the receiver is non-null.
         if (!n.isStatic()) {
@@ -361,9 +350,9 @@ public class NullnessNoInitTransfer
     }
 
     @Override
-    public TransferResult<NullnessNoInitValue, NullnessNoInitStore> visitThrow(
-            ThrowNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> p) {
-        TransferResult<NullnessNoInitValue, NullnessNoInitStore> result = super.visitThrow(n, p);
+    public TransferResult<CFValue, NullnessNoInitStore> visitThrow(
+            ThrowNode n, TransferInput<CFValue, NullnessNoInitStore> p) {
+        TransferResult<CFValue, NullnessNoInitStore> result = super.visitThrow(n, p);
         makeNonNull(result, n.getExpression());
         return result;
     }
@@ -396,8 +385,8 @@ public class NullnessNoInitTransfer
      * </ul>
      */
     @Override
-    public TransferResult<NullnessNoInitValue, NullnessNoInitStore> visitMethodInvocation(
-            MethodInvocationNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> in) {
+    public TransferResult<CFValue, NullnessNoInitStore> visitMethodInvocation(
+            MethodInvocationNode n, TransferInput<CFValue, NullnessNoInitStore> in) {
         Node receiver = n.getTarget().getReceiver();
         JavaExpression receiverExpr = JavaExpression.fromNode(receiver);
         // Capture whether the queue is known to be non-empty before the superclass mutates the
@@ -407,8 +396,7 @@ public class NullnessNoInitTransfer
                         && receiverExpr != null
                         && in.getRegularStore().isQueueNonEmpty(receiverExpr);
 
-        TransferResult<NullnessNoInitValue, NullnessNoInitStore> result =
-                super.visitMethodInvocation(n, in);
+        TransferResult<CFValue, NullnessNoInitStore> result = super.visitMethodInvocation(n, in);
 
         MethodInvocationTree tree = n.getTree();
         ExecutableElement method = TreeUtils.elementFromUse(tree);

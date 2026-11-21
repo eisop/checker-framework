@@ -409,7 +409,7 @@ Where the Nullness Checker knows that the current invocation instantiates `@Poly
 instead of the visitor replacing `@PolyNull` in the target type. Removed:
 
 - `NullnessNoInitStore#isPolyNullNonNull` and `#setPolyNullNonNull`;
-- `NullnessNoInitValue#isPolyNullNonNull`, `#isPolyNullNull`, and their setters;
+- `NullnessNoInitValue`; the Nullness Checker's dataflow uses `CFValue`;
 - `NullnessNoInitAnnotatedTypeFactory#replacePolyQualifier`;
 - the overrides `NullnessNoInitAnnotatedTypeFactory#getMethodReturnType(MethodTree, ReturnTree)`,
   `NullnessNoInitTransfer#visitReturn`, `NullnessNoInitVisitor#visitConditionalExpression`, and
