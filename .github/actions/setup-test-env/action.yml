@@ -49,14 +49,14 @@ runs:
         fi
 
     - name: Set up primary JDK ${{ inputs.primary-jdk }}
-      uses: actions/setup-java@v6.2.0
+      uses: actions/setup-java@v6.3.0
       with:
         java-version: ${{ inputs.primary-jdk }}
         distribution: 'zulu'
 
     - name: Set up stable target JDK ${{ inputs.target-jdk }}
       if: ${{ inputs.target-jdk != inputs.primary-jdk && inputs.target-jdk != inputs.jdk-ea-major }}
-      uses: actions/setup-java@v6.2.0
+      uses: actions/setup-java@v6.3.0
       with:
         java-version: ${{ inputs.target-jdk }}
         distribution: 'zulu'
