@@ -1,12 +1,5 @@
 package org.checkerframework.framework.stub;
 
-// WARNING: framework.jar must work standalone, but stubifier classes are not bundled into it
-// (they ship only inside checker.jar's minimized shadow jar; see framework/build.gradle's
-// `implementation sourceSets.stubifier.output` dependency). Only reference compile-time
-// constants of BinaryStubWriter from here (static final primitive/String fields with a constant
-// initializer) -- javac inlines those into this class's own bytecode, so no runtime dependency
-// on the stubifier is created. Never call a BinaryStubWriter method or read a non-constant field
-// from this class or from BinaryStubReader; doing so would break framework.jar used on its own.
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.stubifier.BinaryStubWriter;
 
