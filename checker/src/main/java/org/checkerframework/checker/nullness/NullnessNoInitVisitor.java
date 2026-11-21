@@ -283,23 +283,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     @Override
-    protected boolean commonAssignmentCheck(
-            AnnotatedTypeMirror varType,
-            ExpressionTree valueExp,
-            @CompilerMessageKey String errorKey,
-            Object... extraArgs) {
-        // Use the valueExp as the context because data flow will have a value for that tree.  It
-        // might not have a value for the var tree.  This is sound because if data flow has
-        // determined @PolyNull is @Nullable at the RHS, then it is also @Nullable for the LHS.
-        // TODO: A visitor should not change types, so this call to replacePolyQualifier is a hack.
-        // To work around this hack here, NullnessVisitor#visitConditionalExpression needs a further
-        // hack. Both should be undone, by properly resolving polymorphic qualifiers in the
-        // ATF/transfer.
-        atypeFactory.replacePolyQualifier(varType, valueExp);
-        return super.commonAssignmentCheck(varType, valueExp, errorKey, extraArgs);
-    }
-
-    @Override
     @FormatMethod
     protected boolean commonAssignmentCheck(
             AnnotatedTypeMirror varType,
@@ -1381,34 +1364,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             checker.reportError(tree, "nullness.on.new.object");
         }
         return super.visitNewClass(tree, p);
-    }
-
-    @Override
-    public Void visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
-        // As in the super method, the operands of a poly conditional expression are checked against
-        // the target type in #commonAssignmentCheck (JLS 15.25.3), not against the conditional's
-        // own type: in an invocation context, that is the captured parameter type, which neither
-        // operand need be a subtype of.
-        if (!TreeUtils.isPolyExpression(tree)) {
-            // Because of the hack in NullnessVisitor#commonAssignmentCheck, this code needs to use
-            // a copy of the type for each of the two invocations of #commonAssignmentCheck. These
-            // hacks should be undone, by properly resolving polymorphic qualifiers in the
-            // ATF/transfer. As this code is mostly duplicated from the super method, this code
-            // needs to be kept in sync.
-            AnnotatedTypeMirror condThen = atypeFactory.getAnnotatedType(tree);
-            AnnotatedTypeMirror condElse = condThen.deepCopy();
-            this.commonAssignmentCheck(
-                    condThen, tree.getTrueExpression(), "conditional.type.incompatible");
-            this.commonAssignmentCheck(
-                    condElse, tree.getFalseExpression(), "conditional.type.incompatible");
-        }
-        // Avoid calling super, as the super method does not handle conditional branches correctly.
-        // Instead, manually implement the logic from TreeScanner#visitConditionalExpression to
-        // traverse the subtree.
-        Void r = scan(tree.getCondition(), p);
-        r = reduce(scan(tree.getTrueExpression(), p), r);
-        r = reduce(scan(tree.getFalseExpression(), p), r);
-        return r;
     }
 
     @Override

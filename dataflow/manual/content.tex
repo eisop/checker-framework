@@ -307,18 +307,7 @@ abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements Abstract
 class CFValue extends CFAbstractValue<CFValue>
 \end{verbatim}
 
-For the Nullness Checker, abstract values additionally track the
-meaning of PolyNull, which may be either Nullable or NonNull.  The
-meaning of PolyNull can change when a PolyNull value is compared to
-the null literal, which is specific to the Nullness Checker.  Other
-checkers often also support a Poly* qualifier, but only the
-Nullness Checker tracks the meaning of its poly qualifier using the
-dataflow analysis.
-
-\begin{verbatim}
-package org.checkerframework.checker.nullness;
-class NullnessValue extends CFAbstractValue<NullnessValue>
-\end{verbatim}
+Most checkers, including the Nullness Checker, use CFValue.
 
 \subsubsection{UnusedAbstractValue}
 \label{sec:unused_abstract_value_class}
@@ -369,16 +358,19 @@ have been initialized.
 
 \begin{verbatim}
 package org.checkerframework.checker.initialization;
-class InitializationStore<V extends CFAbstractValue<V>,
-        S extends InitializationStore<V, S>>
-    extends CFAbstractStore<V, S>
+class InitializationStore extends CFAbstractStore<CFValue, InitializationStore>
 \end{verbatim}
 
-A NullnessStore additionally tracks the meaning of PolyNull.
+A NullnessNoInitStore additionally tracks whether the current
+invocation is known to instantiate PolyNull as Nullable, which it is
+after a PolyNull expression was found to be null.  Other checkers
+often also support a Poly* qualifier, but only the Nullness Checker
+tracks the instantiation of its poly qualifier using the dataflow
+analysis.
 
 \begin{verbatim}
 package org.checkerframework.checker.nullness;
-class NullnessStore extends InitializationStore<NullnessValue, NullnessStore>
+class NullnessNoInitStore extends CFAbstractStore<CFValue, NullnessNoInitStore>
 \end{verbatim}
 
 
@@ -465,10 +457,8 @@ the ``self'' reference have been initialized.
 
 \begin{verbatim}
 package org.checkerframework.checker.initialization;
-class InitializationTransfer<V extends CFAbstractValue<V>,
-        T extends InitializationTransfer<V, T, S>,
-        S extends InitializationStore<V, S>>
-    extends CFAbstractTransfer<V, S, T>
+class InitializationTransfer
+    extends CFAbstractTransfer<CFValue, InitializationStore, InitializationTransfer>
 \end{verbatim}
 
 The Regex Checker's transfer function overrides visitMethodInvocation
@@ -476,7 +466,7 @@ to special-case the \code{isRegex} and \code{asRegex} methods.
 
 \begin{verbatim}
 package org.checkerframework.checker.regex;
-class RegexTransfer extends CFAbstractTransfer<CFValue, CFStore, RegexTransfer>
+class RegexTransfer extends CFTransfer
 \end{verbatim}
 
 
@@ -521,21 +511,13 @@ abstract class CFAbstractAnalysis<V extends CFAbstractValue<V>,
 class CFAnalysis extends CFAbstractAnalysis<CFValue, CFStore, CFTransfer>
 \end{verbatim}
 
-The Nullness Checkers' analysis overrides the factory methods for
-abstract values, stores, and the transfer function.
+The Nullness Checker's analysis overrides the factory methods for
+abstract values and stores.
 
 \begin{verbatim}
 package org.checkerframework.checker.nullness;
-class NullnessAnalysis extends CFAbstractAnalysis<NullnessValue,
-        NullnessStore, NullnessTransfer>
-\end{verbatim}
-
-The RegexChecker's analysis overrides the factory methods for abstract
-values, stores, and the transfer function.
-
-\begin{verbatim}
-package org.checkerframework.checker.regex;
-class RegexAnalysis extends CFAbstractAnalysis<CFValue, CFStore, RegexTransfer>
+class NullnessNoInitAnalysis extends CFAbstractAnalysis<CFValue,
+        NullnessNoInitStore, NullnessNoInitTransfer>
 \end{verbatim}
 
 
@@ -1519,7 +1501,7 @@ What information is tracked in the store depends on the analysis to be
  performed.  Some examples of stores include
 \begin{verbatim}
 org.checkerframework.checker.initialization.InitializationStore
-org.checkerframework.checker.nullness.NullnessStore
+org.checkerframework.checker.nullness.NullnessNoInitStore
 \end{verbatim}
 
 Every store is associated with a particular point in the control-flow
@@ -2063,7 +2045,7 @@ and $<:$ denotes standard Java subtyping.
 
 
 %  LocalWords: pre cfg javacutils InternalUtils DivideByZero BlockImpl se SingleSuccessorBlock RegularBlock SingleSuccessorBlockImpl ExceptionBlock SpecialBlock ConditionalBlock SpecialBlocks
-%  LocalWords: ControlFlowGraph ControlFlowGraphs CFGBuilder ast CFValue JavaExpressions AbstractValue AbstractValues PolyNull Poly AnnotatedTypeMirrors CFAbstractValue NullnessValue CFStore
+%  LocalWords: ControlFlowGraph ControlFlowGraphs CFGBuilder ast CFValue JavaExpressions AbstractValue AbstractValues PolyNull Poly AnnotatedTypeMirrors CFAbstractValue CFStore
 %  LocalWords: NullnessCheckers CFAbstractStore InitializationStore Regex NullnessStore TransferInput TransferResult TransferInputs ConditionalTransferResult RegularTransferResult CFTransfer
 %  LocalWords: TransferFunction NodeVisitor TransferResults isRegex lst CFAbstractTransfer AbstractNodeVisitor asRegex ClassTree InitializationTransfer visitMethodInvocation RegexTransfer
 %  LocalWords: CFAbstractAnalysis NullnessTransfer RegexChecker's lp AnalysisResult AnnotatedTypeFactory AnnotatedTypeFactorys AnnotationProvider getAnnotatedType BaseTypeChecker
