@@ -59,6 +59,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
@@ -328,7 +329,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         if (ElementUtils.isBindingVariable(varElt)) {
             // The variable of a nested pattern that matches null is bound to the value of a record
             // component, which must be compatible with the nullness written on the pattern.
-            AnnotatedTypeMirror componentType = atypeFactory.getNullMatchingComponentType(tree);
+            AnnotatedTypeMirror componentType =
+                    AnnotatedTypes.getNullMatchingComponentType(atypeFactory, tree);
             if (componentType != null) {
                 AnnotatedTypeMirror varType = atypeFactory.getAnnotatedTypeLhs(tree);
                 AnnotationMirror componentAnno =
@@ -780,7 +782,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             Tree typeTree = variableTree.getType();
             // A nested pattern that matches null binds a variable that may be null, so the root
             // of its type is like that of any other variable declaration, not a root annotation.
-            if (atypeFactory.getNullMatchingComponentType(variableTree) != null) {
+            if (AnnotatedTypes.getNullMatchingComponentType(atypeFactory, variableTree) != null) {
                 rootAnnos = nestedAnnos;
             }
             if (variableTree.getModifiers() != null) {

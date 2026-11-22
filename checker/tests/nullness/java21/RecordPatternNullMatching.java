@@ -132,4 +132,37 @@ public class RecordPatternNullMatching {
         if (o instanceof @Nullable String s) {}
         return 0;
     }
+
+    // A record pattern that does not write the record's type arguments infers them from the type
+    // of the value that it is matched against, including their nullness.
+
+    int inferredTypeArguments(G<@Nullable String> nullable, G<String> nonNull) {
+        if (nullable instanceof G(String t)) {
+            // :: error: (dereference.of.nullable)
+            return t.length();
+        }
+        if (nonNull instanceof G(String t)) {
+            return t.length();
+        }
+        return 0;
+    }
+
+    int inferredTypeArgumentsSwitch(G<@Nullable String> nullable) {
+        return switch (nullable) {
+            case G(String t) ->
+                    // :: error: (dereference.of.nullable)
+                    t.length();
+        };
+    }
+
+    int inferredTypeArgumentsNested(G<G<@Nullable String>> nullable, G<G<String>> nonNull) {
+        if (nullable instanceof G(G(String t))) {
+            // :: error: (dereference.of.nullable)
+            return t.length();
+        }
+        if (nonNull instanceof G(G(String t))) {
+            return t.length();
+        }
+        return 0;
+    }
 }

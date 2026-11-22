@@ -265,6 +265,9 @@ Nullness Checker improvements:
   record component, such as `String b` or `var b` in `o instanceof P(String a,
   String b)`, matches null. Its variable now has the nullness of the record
   component, and `@Nullable` on it is no longer reported as `instanceof.nullable`.
+  A record pattern that does not write a generic record's type arguments, such
+  as `g instanceof G(String t)`, takes them, and their nullness, from the type
+  of the value it is matched against.
 - `nullness.on.outer` is reported once, not twice, for an annotation within a
   declaration's type, such as `Outer.@Nullable Inner.Deep f`.
 - `dereference.of.nullable` is reported at the member select or `new`
@@ -406,6 +409,9 @@ The development version of the web site, <https://eisop.github.io/cf/dev/>, has 
 Javadoc, and the zip files of master, built nightly from a master that passed CI.
 
 ### Implementation details
+
+New `AnnotatedTypes#getNullMatchingComponentType` returns the record component type of a binding
+variable whose type pattern, nested in a record pattern, matches null.
 
 Where the Nullness Checker knows that the current invocation instantiates `@PolyNull` as
 `@Nullable`, `NullnessNoInitTransfer` gives `@Nullable` dataflow values the `@PolyNull` form,
