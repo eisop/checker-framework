@@ -1,12 +1,5 @@
 package org.checkerframework.framework.stub;
 
-// WARNING: framework.jar must work standalone, but stubifier classes are not bundled into it
-// (they ship only inside checker.jar's minimized shadow jar; see framework/build.gradle's
-// `implementation sourceSets.stubifier.output` dependency). Only reference compile-time
-// constants of BinaryStubWriter from here (static final primitive/String fields with a constant
-// initializer) -- javac inlines those into this class's own bytecode, so no runtime dependency
-// on the stubifier is created. Never call a BinaryStubWriter method or read a non-constant field
-// from this class or from BinaryStubReader; doing so would break framework.jar used on its own.
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.stubifier.BinaryStubWriter;
 
@@ -14,8 +7,6 @@ import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,9 +49,8 @@ import java.util.zip.GZIPInputStream;
 public class BinaryStubData {
 
     /**
-     * Magic number identifying the Checker Framework binary stub format. The value is defined once
-     * in {@link BinaryStubWriter#MAGIC} and referenced here (the constant is inlined at compile
-     * time, so there is no runtime dependency on the stubifier).
+     * Magic number identifying the Checker Framework binary stub format. Defined once in {@link
+     * BinaryStubWriter#MAGIC}.
      */
     public static final int MAGIC = BinaryStubWriter.MAGIC;
 
@@ -917,24 +907,7 @@ public class BinaryStubData {
     public boolean matchesSource(byte[] sourceBytes) {
         return sourceLength == sourceBytes.length
                 && sourceDigest != null
-                && Arrays.equals(sha256(sourceBytes), sourceDigest);
-    }
-
-    /**
-     * Computes the SHA-256 digest of {@code bytes}. Duplicated in {@code BinaryStubWriter#sha256},
-     * which cannot be called from here (see the warning at the top of this file).
-     *
-     * @param bytes the bytes to digest
-     * @return the 32-byte SHA-256 digest of {@code bytes}
-     */
-    static byte[] sha256(byte[] bytes) {
-        try {
-            return MessageDigest.getInstance("SHA-256").digest(bytes);
-        } catch (NoSuchAlgorithmException e) {
-            // Every JDK implementation is required to support SHA-256; see the java.security.
-            // MessageDigest class specification.
-            throw new AssertionError(e);
-        }
+                && Arrays.equals(BinaryStubWriter.sha256(sourceBytes), sourceDigest);
     }
 
     /**

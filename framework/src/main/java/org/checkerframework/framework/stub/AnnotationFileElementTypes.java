@@ -11,6 +11,7 @@ import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.stub.AnnotationFileParser.AnnotationFileAnnotations;
 import org.checkerframework.framework.stub.AnnotationFileParser.RecordComponentStub;
 import org.checkerframework.framework.stub.AnnotationFileUtil.AnnotationFileType;
+import org.checkerframework.framework.stubifier.BinaryStubFileGenerator;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
@@ -28,7 +29,6 @@ import org.plumelib.util.SystemPlume;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -944,26 +944,6 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Reads all of {@code in}'s remaining bytes. Equivalent to {@code InputStream.readAllBytes()}
-     * (Java 9+), avoided because this project is meant to run under a Java 8 runtime. Duplicated in
-     * {@code org.checkerframework.framework.stubifier.BinaryStubFileGenerator}, which cannot be
-     * called from here (see the warning at the top of {@link BinaryStubData}).
-     *
-     * @param in the stream to read
-     * @return the bytes read
-     * @throws IOException if reading fails
-     */
-    private static byte[] readAllBytes(InputStream in) throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        byte[] buffer = new byte[8192];
-        int n;
-        while ((n = in.read(buffer)) != -1) {
-            out.write(buffer, 0, n);
-        }
-        return out.toByteArray();
-    }
-
-    /**
      * Per-compilation cache of everything {@link #parseCommandLineStubLocation} computes for one
      * top-level {@code -Astubs} location: its bundle (if any), the resources found under it, its
      * root, and each file's resolved binary-or-text decision. Keyed by the location's resolved
@@ -1236,7 +1216,7 @@ public class AnnotationFileElementTypes {
             }
             byte[] sourceBytes;
             try (InputStream in = jarFile.getInputStream(astubEntry)) {
-                sourceBytes = readAllBytes(in);
+                sourceBytes = BinaryStubFileGenerator.readAllBytes(in);
             } catch (IOException e) {
                 noteCouldNotReadResource(resource);
                 return false;

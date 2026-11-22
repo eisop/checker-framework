@@ -491,15 +491,7 @@ public class BinaryStubFileGenerator {
         try {
             // Mirror JavaParserUtil.parseStubUnit: a stub file may contain several `package`
             // sections, which the stub parser represents as several compilation units.
-            ParserConfiguration configuration = new ParserConfiguration();
-            // Same language level as JavaStubifier and JavaParserUtil. The constant duplication
-            // can't be unified because JavaParserUtil is not on the stubifier classpath.
-            configuration.setLanguageLevel(JavaStubifier.DEFAULT_LANGUAGE_LEVEL);
-            configuration.setStoreTokens(false);
-            configuration.setLexicalPreservationEnabled(false);
-            configuration.setAttributeComments(false);
-            configuration.setDetectOriginalLineSeparator(false);
-            configuration.setPreprocessUnicodeEscapes(true);
+            ParserConfiguration configuration = JavaStubifier.newStubParserConfiguration(false);
             ParseResult<StubUnit> parseResult =
                     new JavaParser(configuration)
                             .parseStubUnit(new ByteArrayInputStream(sourceBytes));
@@ -531,16 +523,14 @@ public class BinaryStubFileGenerator {
 
     /**
      * Reads all of {@code in}'s remaining bytes. Equivalent to {@code InputStream.readAllBytes()}
-     * (Java 9+), avoided because this project is meant to run under a Java 8 runtime. Duplicated in
-     * {@code org.checkerframework.framework.stub.AnnotationFileElementTypes}, which cannot call
-     * this class's methods (see the warning at the top of {@code
-     * org.checkerframework.framework.stub.BinaryStubData}).
+     * (Java 9+), avoided because this project is meant to run under a Java 8 runtime. Also used by
+     * {@code org.checkerframework.framework.stub.AnnotationFileElementTypes}.
      *
      * @param in the stream to read
      * @return the bytes read
      * @throws IOException if reading fails
      */
-    private static byte[] readAllBytes(InputStream in) throws IOException {
+    public static byte[] readAllBytes(InputStream in) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         byte[] buffer = new byte[8192];
         int n;

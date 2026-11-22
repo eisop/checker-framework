@@ -1,7 +1,5 @@
 package org.checkerframework.framework.stub;
 
-// WARNING: only reference compile-time constants of BinaryStubWriter from here; never call a
-// method or read a non-constant field. See the warning at the top of BinaryStubData.
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.stubifier.BinaryStubWriter;
 

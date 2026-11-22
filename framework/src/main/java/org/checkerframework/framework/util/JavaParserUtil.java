@@ -20,6 +20,7 @@ import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
+import org.checkerframework.framework.stubifier.JavaStubifier;
 import org.checkerframework.javacutil.BugInCF;
 
 import java.io.File;
@@ -44,9 +45,11 @@ public class JavaParserUtil {
 
     /**
      * The Language Level to use when parsing if a specific level isn't applied. This should be the
-     * highest version of Java that the Checker Framework can process.
+     * highest version of Java that the Checker Framework can process. Defined in {@link
+     * JavaStubifier#DEFAULT_LANGUAGE_LEVEL}, which also generates the annotated JDK and the binary
+     * stub files.
      */
-    public static final LanguageLevel DEFAULT_LANGUAGE_LEVEL = LanguageLevel.JAVA_21;
+    public static final LanguageLevel DEFAULT_LANGUAGE_LEVEL = JavaStubifier.DEFAULT_LANGUAGE_LEVEL;
 
     //
     // Replacements for StaticJavaParser
@@ -183,17 +186,10 @@ public class JavaParserUtil {
      * @throws ParseProblemException if the source code has parser errors
      */
     private static StubUnit parseStubUnit(InputStream inputStream, boolean storeTokens) {
-        // The ParserConfiguration accumulates data each time parse is called, so create a new one
-        // each time.  There's no method to set the ParserConfiguration used by a JavaParser, so a
-        // JavaParser has to be created each time.
-        ParserConfiguration configuration = new ParserConfiguration();
-        configuration.setLanguageLevel(DEFAULT_LANGUAGE_LEVEL);
-        configuration.setStoreTokens(storeTokens);
-        configuration.setLexicalPreservationEnabled(false);
-        configuration.setAttributeComments(false);
-        configuration.setDetectOriginalLineSeparator(false);
-        configuration.setPreprocessUnicodeEscapes(true);
-        JavaParser javaParser = new JavaParser(configuration);
+        // There's no method to set the ParserConfiguration used by a JavaParser, so a JavaParser
+        // has to be created each time.
+        JavaParser javaParser =
+                new JavaParser(JavaStubifier.newStubParserConfiguration(storeTokens));
         ParseResult<StubUnit> parseResult = javaParser.parseStubUnit(inputStream);
         if (parseResult.isSuccessful() && parseResult.getResult().isPresent()) {
             return parseResult.getResult().get();
