@@ -144,6 +144,11 @@ public class RecordPatternNullMatching {
         if (nonNull instanceof G(String t)) {
             return t.length();
         }
+        if (nonNull instanceof G(@NonNull String t)) {
+            return t.length();
+        }
+        // :: error: (assignment.type.incompatible)
+        if (nullable instanceof G(@NonNull String t)) {}
         return 0;
     }
 
