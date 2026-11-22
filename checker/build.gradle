@@ -7,8 +7,9 @@ plugins {
 }
 
 // allSourcesJar below reads framework's stubifier source set, which framework/build.gradle
-// declares. Gradle evaluates sibling projects in alphabetical order, not in settings.gradle's
-// include order, so this is the way to evaluate framework first.
+// declares, and the checker publication creates allSourcesJar while this file is evaluated.
+// Gradle evaluates sibling projects in alphabetical order, not in settings.gradle's include
+// order, so this is the way to evaluate framework first.
 evaluationDependsOn(":framework")
 
 sourceSets {
@@ -264,12 +265,6 @@ tasks.register("allJavadocJar", Jar) {
 // Shadowing Test Sources and Dependencies
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
-// The stubifier tool's compiled classes (JavaStubifier, BinaryStubWriter,
-// BinaryStubFileGenerator). They reach checker.jar through framework's "api" dependency; the
-// shadow jars below make them minimize() roots, so that all three ship for external checkers to
-// build their own binary annotated JDK or .astub files with.
-def stubifierClasses = project(":framework").sourceSets.stubifier.output.classesDirs
-
 tasks.register("checkerJar", ShadowJar) {
     dependsOn("compileJava")
     group = "Build"
@@ -293,8 +288,6 @@ tasks.register("checkerJar", ShadowJar) {
     exclude("org/checkerframework/checker/**/util/*")
     relocators = shadowJar.getRelocators()
 
-    // Same minimize() roots as shadowJar's; see there.
-    sourceSetsClassesDirs.from(stubifierClasses)
 
     // Without this the published artifact ships ~1240 classes, about 2 MB, that nothing in it
     // can reach -- shadowJar has always minimized, and this jar differs from it only by the
@@ -318,12 +311,6 @@ tasks.named("shadowJar") {
     // doFirst { println sourceSets.main.runtimeClasspath.asPath }
     archiveClassifier = "all"
 
-    // Make the stubifier classes minimize() roots, alongside checker's own source sets (this
-    // appends to sourceSetsClassesDirs' convention rather than replacing it). They are main
-    // classes and API for external checkers, so they must ship whether or not code in the jar
-    // happens to call them. This must not be done by adding a second entry to `configurations`:
-    // Shadow's minimize() then corrupts its analysis for the whole jar (see commit 8396efab63).
-    sourceSetsClassesDirs.from(stubifierClasses)
 
     minimize {
         // Keep all classes from checker-qual and checker-util rather than
