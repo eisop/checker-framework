@@ -268,9 +268,6 @@ public class BinaryStubWriter {
      * Package prefixes of annotations that the Java platform itself declares. An annotation in one
      * of these packages that the running JVM cannot load is omitted from the binary format rather
      * than failing the stubifier; see {@link #isUnloadablePlatformAnnotation}.
-     *
-     * <p>If you update this list, also update {@link
-     * org.checkerframework.framework.stub.BinaryStubDiffChecker#isPlatformAnnotationName}.
      */
     private static final String[] PLATFORM_PACKAGE_PREFIXES = {
         "java.", "javax.", "jdk.", "sun.", "com.sun."
@@ -280,12 +277,13 @@ public class BinaryStubWriter {
     private final Set<String> reportedUnloadableAnnotations = new HashSet<>();
 
     /**
-     * Returns true if {@code name} is in a package that the Java platform declares.
+     * Returns true if {@code name} is in a package that the Java platform declares. Also used by
+     * {@code org.checkerframework.framework.stub.BinaryStubDiffChecker}.
      *
      * @param name a fully-qualified annotation name, or a package name with a trailing {@code "."}
      * @return true if the name is in a Java platform package
      */
-    private static boolean isPlatformPackage(String name) {
+    public static boolean isPlatformPackage(String name) {
         for (String prefix : PLATFORM_PACKAGE_PREFIXES) {
             if (name.startsWith(prefix)) {
                 return true;
@@ -399,14 +397,14 @@ public class BinaryStubWriter {
     }
 
     /**
-     * Computes the SHA-256 digest of {@code bytes}. Duplicated in {@code
-     * org.checkerframework.framework.stub.BinaryStubData#sha256}, so that the reader and the writer
-     * of the binary format do not depend on each other's source set in either direction.
+     * Computes the SHA-256 digest of {@code bytes}. Also used by {@code
+     * org.checkerframework.framework.stub.BinaryStubData}, to check that a binary stub file matches
+     * its source.
      *
      * @param bytes the bytes to digest
      * @return the 32-byte SHA-256 digest of {@code bytes}
      */
-    static byte[] sha256(byte[] bytes) {
+    public static byte[] sha256(byte[] bytes) {
         try {
             return MessageDigest.getInstance("SHA-256").digest(bytes);
         } catch (NoSuchAlgorithmException e) {

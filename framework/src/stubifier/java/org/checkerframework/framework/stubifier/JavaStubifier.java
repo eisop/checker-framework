@@ -1,6 +1,7 @@
 package org.checkerframework.framework.stubifier;
 
 import com.github.javaparser.ParseResult;
+import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ParserConfiguration.LanguageLevel;
 import com.github.javaparser.ast.AccessSpecifier;
 import com.github.javaparser.ast.CompilationUnit;
@@ -69,14 +70,36 @@ import java.util.regex.Pattern;
  */
 public class JavaStubifier {
     /**
-     * The language level used to parse both the annotated JDK sources (by this class) and the
-     * built-in {@code .astub} files (by {@link BinaryStubFileGenerator}, which reuses this
-     * constant). Intentionally duplicates {@code JavaParserUtil.DEFAULT_LANGUAGE_LEVEL}, which the
-     * text parser uses at checker runtime: {@code JavaParserUtil} lives in framework main, which
-     * this stubifier source set cannot depend on (the dependency runs the other way: framework main
-     * depends on this source set's output), so the constant can't be unified further.
+     * The language level used to parse the annotated JDK sources (by this class), the built-in
+     * {@code .astub} files (by {@link BinaryStubFileGenerator}), and stub and Java files at checker
+     * runtime ({@code JavaParserUtil.DEFAULT_LANGUAGE_LEVEL} is this constant). This should be the
+     * highest version of Java that the Checker Framework can process.
      */
     public static final LanguageLevel DEFAULT_LANGUAGE_LEVEL = LanguageLevel.JAVA_21;
+
+    /**
+     * Returns a new configuration for parsing a stub file. Both {@link BinaryStubFileGenerator} and
+     * the text stub parser ({@code JavaParserUtil.parseStubUnit}) use it, so that a binary stub
+     * file is generated from the same parse that the text parser would produce.
+     *
+     * <p>A {@link ParserConfiguration} accumulates data each time it is used to parse, so callers
+     * create a new one for each parse.
+     *
+     * @param storeTokens whether JavaParser should retain {@link com.github.javaparser.JavaToken
+     *     JavaToken} objects on the parsed AST, which precise diagnostics for malformed stub files
+     *     need
+     * @return a new stub-file parser configuration
+     */
+    public static ParserConfiguration newStubParserConfiguration(boolean storeTokens) {
+        ParserConfiguration configuration = new ParserConfiguration();
+        configuration.setLanguageLevel(DEFAULT_LANGUAGE_LEVEL);
+        configuration.setStoreTokens(storeTokens);
+        configuration.setLexicalPreservationEnabled(false);
+        configuration.setAttributeComments(false);
+        configuration.setDetectOriginalLineSeparator(false);
+        configuration.setPreprocessUnicodeEscapes(true);
+        return configuration;
+    }
 
     /**
      * Command-line flag that makes an unloadable annotation a dropped-and-warned event rather than

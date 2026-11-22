@@ -7,8 +7,6 @@ import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -909,24 +907,7 @@ public class BinaryStubData {
     public boolean matchesSource(byte[] sourceBytes) {
         return sourceLength == sourceBytes.length
                 && sourceDigest != null
-                && Arrays.equals(sha256(sourceBytes), sourceDigest);
-    }
-
-    /**
-     * Computes the SHA-256 digest of {@code bytes}. Duplicated in {@code BinaryStubWriter#sha256},
-     * which cannot be called from here (see the warning at the top of this file).
-     *
-     * @param bytes the bytes to digest
-     * @return the 32-byte SHA-256 digest of {@code bytes}
-     */
-    static byte[] sha256(byte[] bytes) {
-        try {
-            return MessageDigest.getInstance("SHA-256").digest(bytes);
-        } catch (NoSuchAlgorithmException e) {
-            // Every JDK implementation is required to support SHA-256; see the java.security.
-            // MessageDigest class specification.
-            throw new AssertionError(e);
-        }
+                && Arrays.equals(BinaryStubWriter.sha256(sourceBytes), sourceDigest);
     }
 
     /**

@@ -116,11 +116,12 @@ dependencies {
     stubifierImplementation(libs.stubparser)
     stubifierImplementation(project(":checker-qual"))
     // Lets main sourceSet code (e.g. BinaryStubData, RemoveAnnotationsForInference) use the
-    // stubifier classes, which the jar task above bundles into the framework artifact.
+    // stubifier classes, which the jar task above bundles into the framework artifact. "api", like
+    // the artifact, so that dependent projects (e.g. framework-test) can use them too.
     //
     // Only the class directories: the source set has no resources, so its resources directory
     // never exists, and ShadowJar fails on a classpath entry that is neither file nor directory.
-    implementation(sourceSets.stubifier.output.classesDirs)
+    api(sourceSets.stubifier.output.classesDirs)
 
     /* NO-AFU
      // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.

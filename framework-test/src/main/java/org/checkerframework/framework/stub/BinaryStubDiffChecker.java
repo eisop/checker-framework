@@ -3,6 +3,7 @@ package org.checkerframework.framework.stub;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.stub.AnnotationFileParser.AnnotationFileAnnotations;
+import org.checkerframework.framework.stubifier.BinaryStubWriter;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -1224,7 +1225,7 @@ public class BinaryStubDiffChecker {
             // annotation out of any package, including the platform's own (the Signedness
             // Checker aliases jdk.jfr.Unsigned, the Interning Checker
             // com.sun.istack.internal.Interned).
-            if (isPlatformAnnotationName(name)
+            if (BinaryStubWriter.isPlatformPackage(name)
                     && !atypeFactory.isSupportedQualifier(am)
                     && AnnotationUtils.areSame(atypeFactory.canonicalAnnotation(am), am)) {
                 continue;
@@ -1232,23 +1233,6 @@ public class BinaryStubDiffChecker {
             names.add(describe(am));
         }
         return names;
-    }
-
-    /**
-     * Returns true if {@code name} names an annotation declared by the Java platform itself.
-     *
-     * <p>If you update this list, also update {@link
-     * org.checkerframework.framework.stubifier.BinaryStubWriter#PLATFORM_PACKAGE_PREFIXES}.
-     *
-     * @param name the fully-qualified name of an annotation
-     * @return true if the annotation is the Java platform's own
-     */
-    private static boolean isPlatformAnnotationName(String name) {
-        return name.startsWith("java.")
-                || name.startsWith("javax.")
-                || name.startsWith("jdk.")
-                || name.startsWith("sun.")
-                || name.startsWith("com.sun.");
     }
 
     /**
