@@ -133,6 +133,21 @@ check_afu_jar() {
 check_afu_jar "$AFU_HOME/dist/annotation-file-utilities.jar"
 check_afu_jar "$AFU_HOME/dist/annotation-file-utilities-all.jar"
 
+# The stubifier source set is compiled separately from framework's main source set, and each jar
+# gets it by its own route.  Checks that a jar has each entry point of the stubifier tool exactly
+# once; the second argument is the file extension: class, java (a sources jar), or html (Javadoc).
+check_stubifier_jar() {
+  jar="$1"
+  ext="$2"
+  [ -f "$jar" ] || fail "$jar does not exist."
+  entries="$(unzip -Z1 "$jar")"
+  for c in JavaStubifier BinaryStubWriter BinaryStubFileGenerator; do
+    count="$(grep -cx "org/checkerframework/framework/stubifier/$c\.$ext" <<< "$entries" || true)"
+    [ "$count" = 1 ] || fail "$jar contains org/checkerframework/framework/stubifier/$c.$ext $count times, not once."
+  done
+}
+check_stubifier_jar "$CF_HOME/checker/dist/checker.jar" class
+
 ## Check the links of the pages that the zip ships.  The check of external links is online, so it
 ## is left to the release build (release_build.py); here they are only checked for syntax.
 checker/bin-devel/check-release-links.py "$CF_HOME"
@@ -167,6 +182,12 @@ for artifact in annotation-file-utilities checker checker-qual checker-util fram
   for suffix in .pom .jar .jar.asc .pom.asc; do
     [ -f "$dir/$artifact-${VERSION}$suffix" ] || fail "Maven publication is missing $dir/$artifact-${VERSION}$suffix."
   done
+done
+for artifact in framework framework-all checker; do
+  prefix="$MAVEN_LOCAL/$artifact/${VERSION}/$artifact-${VERSION}"
+  check_stubifier_jar "$prefix.jar" class
+  check_stubifier_jar "$prefix-sources.jar" java
+  check_stubifier_jar "$prefix-javadoc.jar" html
 done
 # The Annotation File Utilities do not depend on the checkers.
 if grep -E '<artifactId>(checker|framework)</artifactId>' \
