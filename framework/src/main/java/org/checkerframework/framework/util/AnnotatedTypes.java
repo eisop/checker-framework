@@ -688,17 +688,10 @@ public class AnnotatedTypes {
      */
     public static @Nullable AnnotatedTypeMirror getNullMatchingComponentType(
             AnnotatedTypeFactory atypeFactory, VariableTree bindingVariable) {
-        Element varElt = TreeUtils.elementFromDeclaration(bindingVariable);
-        if (varElt == null || !ElementUtils.isBindingVariable(varElt)) {
+        TreePath bindingPatternPath = nestedBindingPatternPath(atypeFactory, bindingVariable);
+        if (bindingPatternPath == null) {
             return null;
         }
-        TreePath path = atypeFactory.getPath(bindingVariable);
-        if (path == null
-                || path.getParentPath() == null
-                || !TreeUtils.isBindingPatternTree(path.getParentPath().getLeaf())) {
-            return null;
-        }
-        TreePath bindingPatternPath = path.getParentPath();
         ExecutableElement accessor = recordComponentAccessor(bindingPatternPath);
         if (accessor == null) {
             return null;
@@ -716,6 +709,64 @@ public class AnnotatedTypes {
             return null;
         }
         return recordComponentType(atypeFactory, bindingPatternPath, accessor);
+    }
+
+    /**
+     * If {@code bindingVariable} is the variable of a type pattern that is nested in a record
+     * pattern, returns the type of the record component that the pattern is matched against,
+     * whether or not the pattern matches null. Otherwise, returns null.
+     *
+     * <p>If the record pattern does not write the record's type arguments, as in {@code o
+     * instanceof Box(String s)}, they are inferred from the type of the value that the record
+     * pattern is matched against (JLS 18.5.5), and so is the component type returned here.
+     *
+     * @param atypeFactory the type factory
+     * @param bindingVariable the declaration of a variable
+     * @return the type of the record component that {@code bindingVariable} is bound to, if the
+     *     pattern that declares it is nested in a record pattern; otherwise null
+     * @see #getNullMatchingComponentType
+     */
+    public static @Nullable AnnotatedTypeMirror getRecordComponentType(
+            AnnotatedTypeFactory atypeFactory, VariableTree bindingVariable) {
+        TreePath bindingPatternPath = nestedBindingPatternPath(atypeFactory, bindingVariable);
+        if (bindingPatternPath == null) {
+            return null;
+        }
+        ExecutableElement accessor = recordComponentAccessor(bindingPatternPath);
+        if (accessor == null) {
+            return null;
+        }
+        return recordComponentType(atypeFactory, bindingPatternPath, accessor);
+    }
+
+    /**
+     * If {@code bindingVariable} is the variable of a type pattern that is nested in a record
+     * pattern, returns the path to that type pattern. Otherwise, returns null.
+     *
+     * @param atypeFactory the type factory
+     * @param bindingVariable the declaration of a variable
+     * @return the path to the type pattern that declares {@code bindingVariable}, if that pattern
+     *     is nested in a record pattern; otherwise null
+     */
+    private static @Nullable TreePath nestedBindingPatternPath(
+            AnnotatedTypeFactory atypeFactory, VariableTree bindingVariable) {
+        Element varElt = TreeUtils.elementFromDeclaration(bindingVariable);
+        if (varElt == null || !ElementUtils.isBindingVariable(varElt)) {
+            return null;
+        }
+        TreePath path = atypeFactory.getPath(bindingVariable);
+        if (path == null
+                || path.getParentPath() == null
+                || !TreeUtils.isBindingPatternTree(path.getParentPath().getLeaf())) {
+            return null;
+        }
+        TreePath bindingPatternPath = path.getParentPath();
+        TreePath recordPatternPath = bindingPatternPath.getParentPath();
+        if (recordPatternPath == null
+                || !TreeUtils.isDeconstructionPatternTree(recordPatternPath.getLeaf())) {
+            return null;
+        }
+        return bindingPatternPath;
     }
 
     /**
