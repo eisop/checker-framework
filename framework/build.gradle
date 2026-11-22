@@ -6,12 +6,6 @@ plugins {
     id("java-test-fixtures")
 }
 
-// allSourcesJar (below) reads the source sets of dataflow and javacutil. Gradle evaluates sibling
-// projects in alphabetical order, not in settings.gradle's include order, so these evaluate them
-// first.
-evaluationDependsOn(":dataflow")
-evaluationDependsOn(":javacutil")
-
 ext {
     // Location of the annotated JDK clone, relative to this directory by default. Overridable
     // (-PannotatedJdkHome=/abs/path) so a build that needs this project's own default JDK
