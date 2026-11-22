@@ -310,8 +310,9 @@ Command-line option additions and changes:
   `default.qualifier.prohibited.location`.
 - Checker-prefixed options (e.g. `-ANullnessChecker_lint=...`) are inherited
   by subcheckers; more specific options take precedence.
-- Invalid option arguments (e.g. malformed regex) now produce compiler errors
-  instead of stack traces.
+- Invalid option arguments (e.g. malformed regex), and `-AaliasedTypeAnnos`,
+  `-AaliasedDeclAnnos`, or `-Aflowdotdir` given without a value, now produce
+  compiler errors instead of stack traces.
 - `-AqualDirs` (Subtyping and Fenum Checkers) and `-AunitsDirs` split on the
   platform's path separator, so they accept Windows paths such as `D:/quals`;
   the Fenum Checker had split `-AqualDirs` on commas.

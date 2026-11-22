@@ -846,6 +846,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // for @Regex(value = 5).
         if (checker.hasOption("aliasedTypeAnnos")) {
             String aliasesOption = checker.getOption("aliasedTypeAnnos");
+            if (aliasesOption == null) {
+                throw new UserError("Option -AaliasedTypeAnnos requires a value.");
+            }
             // Use limit -1 so a trailing ";" produces an empty token and triggers a UserError
             // from parseAliasesFromString rather than silently being ignored.
             String[] annos = aliasesOption.split(";", -1);
@@ -881,6 +884,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // e.g. this will not be usable to declare an alias for @EnsuresNonNull(...).
         if (checker.hasOption("aliasedDeclAnnos")) {
             String aliasesOption = checker.getOption("aliasedDeclAnnos");
+            if (aliasesOption == null) {
+                throw new UserError("Option -AaliasedDeclAnnos requires a value.");
+            }
             // Use limit -1 so a trailing ";" produces an empty token and triggers a UserError
             // from parseAliasesFromString rather than silently being ignored.
             String[] annos = aliasesOption.split(";", -1);
