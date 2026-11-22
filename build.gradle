@@ -1775,7 +1775,11 @@ subprojects {
             description = "Generates Javadoc API documentation, including private members."
             group = "Documentation"
             source = sourceSets.main.allJava
-            classpath += sourceSets.main.output + sourceSets.main.compileClasspath
+            // Ahead of the fat checker.jar that every Javadoc task's classpath already holds (see
+            // above): checker.jar relocates its dependencies, so a class that this project's
+            // sources use with an unrelocated type in its signature (e.g. framework's stubifier
+            // classes, which are not among the sources here) must be found here first.
+            classpath = sourceSets.main.output + sourceSets.main.compileClasspath + classpath
             // Match the build's other Javadoc tasks (checker-qual's regular "javadoc" and the
             // aggregate javadoc tasks): do not infer a module path. Otherwise checker-qual's
             // module-info.class on the classpath makes Javadoc attempt module-path inference and
