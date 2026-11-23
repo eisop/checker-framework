@@ -95,6 +95,9 @@ Type-checking and subtyping improvements:
   bound, and the type arguments of either bound. Previously only the qualifier
   on the extends bound was compared, so `Box<List<? super String>>` accepted a
   `Box<List<? super @Nullable String>>`.
+- The variable of a type pattern nested in a record pattern, such as `s` in
+  `o instanceof Box(String s)`, is refined to the qualifiers of the record
+  component instead of those of the `instanceof` operand.
 - `-AcheckCastElementType` now requires array components to be invariant in
   array casts and `instanceof` binding patterns, closing an unsoundness:
   array components are mutable and qualifiers are not reified. It no longer
@@ -410,8 +413,9 @@ Javadoc, and the zip files of master, built nightly from a master that passed CI
 
 ### Implementation details
 
-New `AnnotatedTypes#getNullMatchingComponentType` returns the record component type of a binding
-variable whose type pattern, nested in a record pattern, matches null.
+New `AnnotatedTypes#getRecordComponentType` returns the record component type of a binding
+variable whose type pattern is nested in a record pattern, and
+`AnnotatedTypes#getNullMatchingComponentType` returns it only if that pattern matches null.
 
 Where the Nullness Checker knows that the current invocation instantiates `@PolyNull` as
 `@Nullable`, `NullnessNoInitTransfer` gives `@Nullable` dataflow values the `@PolyNull` form,

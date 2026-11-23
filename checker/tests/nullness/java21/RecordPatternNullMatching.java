@@ -170,4 +170,47 @@ public class RecordPatternNullMatching {
         }
         return 0;
     }
+
+    // The record pattern's type arguments are also inferred from a raw type, a wildcard
+    // parameterization, and a type variable.
+
+    @SuppressWarnings("rawtypes")
+    void inferredFromRaw(G raw) {
+        if (raw instanceof G(var t)) {
+            // :: error: (dereference.of.nullable)
+            t.toString();
+        }
+    }
+
+    int inferredFromWildcard(
+            G<? extends @Nullable String> nullable, G<? extends String> nonNull, G<?> unknown) {
+        if (unknown instanceof G(var t)) {
+            // :: error: (dereference.of.nullable)
+            t.toString();
+        }
+        if (nonNull instanceof G(String t)) {
+            return t.length();
+        }
+        if (nullable instanceof G(String t)) {
+            // :: error: (dereference.of.nullable)
+            return t.length();
+        }
+        return switch (nullable) {
+            case G(String t) ->
+                    // :: error: (dereference.of.nullable)
+                    t.length();
+        };
+    }
+
+    <N extends G<@Nullable String>, M extends G<String>> int inferredFromTypeVariable(
+            N nullable, M nonNull) {
+        if (nonNull instanceof G(String t)) {
+            return t.length();
+        }
+        if (nullable instanceof G(String t)) {
+            // :: error: (dereference.of.nullable)
+            return t.length();
+        }
+        return 0;
+    }
 }

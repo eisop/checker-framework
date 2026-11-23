@@ -8,6 +8,7 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.InternedDistinct;
@@ -63,6 +64,7 @@ import org.checkerframework.framework.source.DiagMessage;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.Contract;
 import org.checkerframework.framework.util.Contract.ConditionalPostcondition;
 import org.checkerframework.framework.util.Contract.Postcondition;
@@ -1292,15 +1294,33 @@ public abstract class CFAbstractTransfer<
         return createTransferResult(value, in);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Refines each binding variable of the pattern, if any, with the qualifiers of the value
+     * that its type pattern is matched against: the operand of the {@code instanceof} for a
+     * top-level type pattern, and the record component for a type pattern that is nested in a
+     * record pattern.
+     */
     @Override
     public TransferResult<V, S> visitInstanceOf(InstanceOfNode node, TransferInput<V, S> in) {
         TransferResult<V, S> result = super.visitInstanceOf(node, in);
         ExpressionTree exprTree = node.getTree().getExpression();
         AnnotatedTypeMirror exprType = analysis.atypeFactory.getAnnotatedType(exprTree);
-        for (LocalVariableNode bindingVar : node.getBindingVariables()) {
-            JavaExpression expr = JavaExpression.fromNode(bindingVar);
-            for (AnnotationMirror anno : exprType.getAnnotations()) {
-                in.getRegularStore().insertOrRefine(expr, anno);
+        Node patternNode = node.getPatternNode();
+        if (patternNode instanceof LocalVariableNode) {
+            refineBindingVariable((LocalVariableNode) patternNode, exprType, in.getRegularStore());
+        } else if (patternNode instanceof DeconstructorPatternNode) {
+            for (LocalVariableNode bindingVar :
+                    ((DeconstructorPatternNode) patternNode).getBindingVariables()) {
+                if (bindingVar.getTree() instanceof VariableTree) {
+                    AnnotatedTypeMirror componentType =
+                            AnnotatedTypes.getRecordComponentType(
+                                    analysis.atypeFactory, (VariableTree) bindingVar.getTree());
+                    if (componentType != null) {
+                        refineBindingVariable(bindingVar, componentType, in.getRegularStore());
+                    }
+                }
             }
         }
 
@@ -1319,6 +1339,22 @@ public abstract class CFAbstractTransfer<
             }
         }
         return result;
+    }
+
+    /**
+     * Refines {@code bindingVar} in {@code store} with the primary qualifiers of {@code
+     * matchedType}, the type of the value that the variable's type pattern is matched against.
+     *
+     * @param bindingVar a binding variable
+     * @param matchedType the type of the value that the variable's type pattern is matched against
+     * @param store the store to refine
+     */
+    private void refineBindingVariable(
+            LocalVariableNode bindingVar, AnnotatedTypeMirror matchedType, S store) {
+        JavaExpression expr = JavaExpression.fromNode(bindingVar);
+        for (AnnotationMirror anno : matchedType.getAnnotations()) {
+            store.insertOrRefine(expr, anno);
+        }
     }
 
     /* NO-AFU
