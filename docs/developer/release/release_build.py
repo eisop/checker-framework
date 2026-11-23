@@ -101,15 +101,9 @@ def build_and_locally_deploy_maven() -> None:
     execute("./gradlew publishToMavenLocal -Prelease=true", working_dir=CHECKER_FRAMEWORK)
 
 
-def build_checker_framework_release(version: str, old_cf_version: str) -> None:
-    """Build the release files for the Checker Framework project and run tests.
-
-    The release files are the zip file of the Checker Framework and the zip file of the
-    Annotation File Utilities.  They are put in RELEASE_FILES_DIR.
-    """
+def update_version_numbers(old_cf_version: str) -> None:
+    """Update the version numbers and release dates in the documentation for the release."""
     execute("./gradlew clean", working_dir=CHECKER_FRAMEWORK)
-
-    # update versions
     execute("./gradlew updateVersionNumbers", working_dir=CHECKER_FRAMEWORK)
 
     # Check that updating versions didn't overlook anything.
@@ -121,6 +115,16 @@ def build_checker_framework_release(version: str, old_cf_version: str) -> None:
         ' "updateVersionNumbers" in file release.gradle, and start over.'
     )
 
+
+def build_checker_framework_release(version: str) -> None:
+    """Build the release files for the Checker Framework project and run tests.
+
+    The release files are the zip file of the Checker Framework and the zip file of the
+    Annotation File Utilities.  They are put in RELEASE_FILES_DIR.
+
+    Raises:
+        ReleaseError: If the build changed a file that the release commit tracks.
+    """
     # Build the Checker Framework binaries and documents.  Tests are run by release_push.py.
     # Every Gradle command that builds release artifacts passes -Prelease=true; otherwise the
     # build's version is a -SNAPSHOT version.
@@ -153,6 +157,13 @@ def build_checker_framework_release(version: str, old_cf_version: str) -> None:
     execute("make clean", checker_tutorial_dir)
 
     build_and_locally_deploy_maven()
+
+    # The jars record the release commit, so a file that the build changes would be missing from
+    # it.
+    if execute_status("git diff-index --quiet HEAD", working_dir=CHECKER_FRAMEWORK) != 0:
+        execute("git status --short --untracked-files=no", working_dir=CHECKER_FRAMEWORK)
+        msg = "The build changed the files above, which the release commit does not contain."
+        raise ReleaseError(msg)
 
 
 def main(argv: list[str]) -> None:
@@ -210,19 +221,23 @@ def main(argv: list[str]) -> None:
     # whole build.  Update releaseVersion in release.gradle and start over.
     check_release_version(old_cf_version, cf_version)
 
-    # The Checker Framework and the Annotation File Utilities are built together.  This is the most
-    # time-consuming piece of the release.  After the prompt about occurrences of the old version
-    # number, there are no prompts; you might want to get a cup of coffee and do something else
-    # until it is done.
-
-    print_step("Build Step 4: Build the Checker Framework and the Annotation File Utilities.")
-    build_checker_framework_release(cf_version, old_cf_version)
+    print_step("Build Step 4: Update the version numbers.")  # MANUAL
+    update_version_numbers(old_cf_version)
 
     # The files updated for the release, usually with the new release date and version, are
-    # committed, and the commit is tagged.  release_push.py pushes both.
+    # committed, and the commit is tagged.  release_push.py pushes both.  The release is committed
+    # before it is built, so that the jars record the release commit.  If the build fails, clone
+    # the repository from scratch before running this script again.
 
     print_step("Build Step 5: Commit and tag the release.")  # AUTO
     commit_and_tag(cf_version, CHECKER_FRAMEWORK, f"checker-framework-{cf_version}")
+
+    # The Checker Framework and the Annotation File Utilities are built together.  This is the most
+    # time-consuming piece of the release.  There are no more prompts; you might want to get a cup
+    # of coffee and do something else until it is done.
+
+    print_step("Build Step 6: Build the Checker Framework and the Annotation File Utilities.")
+    build_checker_framework_release(cf_version)
 
     create_empty_file(RELEASE_BUILD_COMPLETED_FLAG_FILE)
 
