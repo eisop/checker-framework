@@ -1,14 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Installed as ~/.m2/settings.xml by the setup-test-env action; see maven-central-mirror.gradle. -->
+<!-- Installed as ~/.m2/settings.xml by the setup-test-env action; see maven-central-mirror.gradle.
+     Maven looks in the repositories of an active settings profile before the repositories of the
+     project and before Maven Central, so Maven Central is asked only for an artifact that Google's
+     mirror does not have yet. -->
 <settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
-  <mirrors>
-    <mirror>
+  <profiles>
+    <profile>
       <id>google-maven-central</id>
-      <name>Google's mirror of Maven Central</name>
-      <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
-      <mirrorOf>central</mirrorOf>
-    </mirror>
-  </mirrors>
+      <repositories>
+        <repository>
+          <id>google-maven-central</id>
+          <name>Google's mirror of Maven Central</name>
+          <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>google-maven-central</id>
+          <name>Google's mirror of Maven Central</name>
+          <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+  <activeProfiles>
+    <activeProfile>google-maven-central</activeProfile>
+  </activeProfiles>
 </settings>

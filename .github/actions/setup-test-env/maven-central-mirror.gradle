@@ -6,15 +6,33 @@
 // Maven Central points to the mirror instead.  Without a pluginManagement repository, Gradle uses
 // the Gradle Plugin Portal, which itself fetches many plugins' dependencies from Maven Central, so
 // the plugin repositories start with the mirror, followed by the portal.
+//
+// The mirror lags Maven Central by hours or days, so a new release can be missing from it.  Maven
+// Central itself is therefore added as the last repository wherever the mirror replaced it.  Gradle
+// asks it only for an artifact that no earlier repository has.
 
 String mirror = "https://maven-central.storage-download.googleapis.com/maven2/"
 List<String> centralUrls = ["https://repo.maven.apache.org/maven2", "https://repo1.maven.org/maven2"]
+String fallbackName = "MavenCentralFallback"
 
 def useMirror = { RepositoryHandler repositories ->
     repositories.withType(MavenArtifactRepository).configureEach { repository ->
         String url = repository.url.toString()
-        if (centralUrls.any { url.startsWith(it) }) {
+        if (repository.name != fallbackName && centralUrls.any { url.startsWith(it) }) {
             repository.url = mirror
+        }
+    }
+}
+
+// Call this after all other repositories have been added to the given ones.
+def addFallback = { RepositoryHandler repositories ->
+    boolean usesMirror = repositories.withType(MavenArtifactRepository).any {
+        it.url.toString() == mirror
+    }
+    if (usesMirror && repositories.findByName(fallbackName) == null) {
+        repositories.maven {
+            name = fallbackName
+            url = centralUrls[0]
         }
     }
 }
@@ -31,7 +49,15 @@ beforeSettings { settings ->
     useMirror(settings.dependencyResolutionManagement.repositories)
 }
 
+settingsEvaluated { settings ->
+    addFallback(settings.pluginManagement.repositories)
+    addFallback(settings.dependencyResolutionManagement.repositories)
+}
+
 allprojects {
     useMirror(buildscript.repositories)
     useMirror(repositories)
+    afterEvaluate {
+        addFallback(repositories)
+    }
 }
