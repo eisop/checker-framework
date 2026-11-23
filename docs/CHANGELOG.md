@@ -768,6 +768,9 @@ Other improvements and bug fixes:
   `@PolyNull` parameter, or `node -> node == null ? null : node.toString()`.
   Its error messages now show the declared `@PolyNull` type, not `@NonNull` or
   `@Nullable`.
+- No longer crashes with an `IndexOutOfBoundsException` on a method reference to a varargs
+  method whose functional interface has a parameter that is incompatible with the varargs element
+  type, such as `@Nullable String` for `String...`; reports `methodref.param.invalid` instead.
 
 ### Closed issues
 
@@ -924,6 +927,7 @@ eisop#2485,
 eisop#2490,
 eisop#2491,
 eisop#2499,
+eisop#2524,
 eisop#2574,
 eisop#2582,
 eisop#2590,

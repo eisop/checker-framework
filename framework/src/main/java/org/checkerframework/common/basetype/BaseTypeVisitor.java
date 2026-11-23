@@ -6014,7 +6014,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 checker.reportError(
                         posTree,
                         msgKey,
-                        overrider.getElement().getParameters().get(index).toString(),
+                        overriderParameterName(index),
                         pair.found,
                         pair.required,
                         overriderType,
@@ -6022,6 +6022,21 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         overriddenType,
                         overridden);
             }
+        }
+
+        /**
+         * Returns the name of the overrider's parameter that corresponds to the parameter at {@code
+         * index} of the compared parameter types. For a method reference to a varargs method, the
+         * compared parameter types are expanded to the functional interface method's arity, so
+         * {@code index} can exceed the number of declared parameters; the varargs parameter is
+         * returned then.
+         *
+         * @param index an index into the compared parameter types
+         * @return the name of the corresponding parameter of the overrider
+         */
+        private String overriderParameterName(int index) {
+            List<? extends VariableElement> params = overrider.getElement().getParameters();
+            return params.get(Math.min(index, params.size() - 1)).toString();
         }
 
         /**
