@@ -180,6 +180,10 @@ jobs:
           echo "::remove-matcher owner=javac::"
           echo "::remove-matcher owner=maven-javac::"
 
+      # After setup-java, which writes its own ~/.m2/settings.xml.
+      - name: Use Google's mirror of Maven Central
+        uses: ./.github/actions/maven-central-mirror
+
       - name: Setup Gradle
         timeout-minutes: 10
         uses: gradle/actions/setup-gradle@v6.4.1
