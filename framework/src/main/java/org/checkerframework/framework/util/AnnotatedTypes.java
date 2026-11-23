@@ -1,10 +1,15 @@
 package org.checkerframework.framework.util;
 
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.InstanceOfTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.ParameterizedTypeTree;
+import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
+import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
@@ -32,6 +37,9 @@ import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.DeconstructionPatternUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.PatternCaseLabelUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
@@ -53,9 +61,11 @@ import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
@@ -654,6 +664,199 @@ public class AnnotatedTypes {
         }
 
         return memberType;
+    }
+
+    /**
+     * If {@code bindingVariable} is the variable of a type pattern that is nested in a record
+     * pattern and that matches null, returns the type of the record component that the pattern is
+     * matched against. Otherwise, returns null.
+     *
+     * <p>A nested type pattern that is unconditional for the type of its record component, such as
+     * {@code String b} or {@code var b} for a component of type {@code String}, matches every value
+     * of the component, including null (JLS 14.30.1 and 14.30.2). A nested type pattern that is not
+     * unconditional, and a type pattern that is not nested in a record pattern, does not match
+     * null.
+     *
+     * <p>If the record pattern does not write the record's type arguments, as in {@code o
+     * instanceof Box(String s)}, they are inferred from the type of the value that the record
+     * pattern is matched against (JLS 18.5.5), and so is the component type returned here.
+     *
+     * @param atypeFactory the type factory
+     * @param bindingVariable the declaration of a variable
+     * @return the type of the record component that {@code bindingVariable} is bound to, if the
+     *     pattern that declares it matches null; otherwise null
+     */
+    public static @Nullable AnnotatedTypeMirror getNullMatchingComponentType(
+            AnnotatedTypeFactory atypeFactory, VariableTree bindingVariable) {
+        Element varElt = TreeUtils.elementFromDeclaration(bindingVariable);
+        if (varElt == null || !ElementUtils.isBindingVariable(varElt)) {
+            return null;
+        }
+        TreePath path = atypeFactory.getPath(bindingVariable);
+        if (path == null
+                || path.getParentPath() == null
+                || !TreeUtils.isBindingPatternTree(path.getParentPath().getLeaf())) {
+            return null;
+        }
+        TreePath bindingPatternPath = path.getParentPath();
+        ExecutableElement accessor = recordComponentAccessor(bindingPatternPath);
+        if (accessor == null) {
+            return null;
+        }
+
+        // The pattern is unconditional if the erasure of the component type is a subtype of the
+        // erasure of the pattern type (JLS 14.30.3).  A "var" pattern has the component type.
+        Types types = atypeFactory.types;
+        DeclaredType recordTM =
+                (DeclaredType) TreeUtils.typeOf(bindingPatternPath.getParentPath().getLeaf());
+        TypeMirror componentTM =
+                ((ExecutableType) types.asMemberOf(recordTM, accessor)).getReturnType();
+        TypeMirror patternTM = TreeUtils.typeOf(bindingVariable);
+        if (!types.isSubtype(types.erasure(componentTM), types.erasure(patternTM))) {
+            return null;
+        }
+        return recordComponentType(atypeFactory, bindingPatternPath, accessor);
+    }
+
+    /**
+     * If {@code nestedPatternPath} leads to a pattern that is nested in a record pattern, returns
+     * the accessor of the record component that the pattern is matched against. Otherwise, returns
+     * null.
+     *
+     * @param nestedPatternPath the path to a pattern
+     * @return the accessor of the record component that the pattern is matched against, or null
+     */
+    private static @Nullable ExecutableElement recordComponentAccessor(TreePath nestedPatternPath) {
+        TreePath recordPatternPath = nestedPatternPath.getParentPath();
+        if (recordPatternPath == null
+                || !TreeUtils.isDeconstructionPatternTree(recordPatternPath.getLeaf())) {
+            return null;
+        }
+        Tree recordPattern = recordPatternPath.getLeaf();
+        Tree nestedPattern = nestedPatternPath.getLeaf();
+        List<? extends Tree> nestedPatterns =
+                DeconstructionPatternUtils.getNestedPatterns(recordPattern);
+        int index = -1;
+        for (int i = 0; i < nestedPatterns.size(); i++) {
+            @SuppressWarnings("interning:not.interned") // Looking for the exact tree.
+            boolean found = nestedPatterns.get(i) == nestedPattern;
+            if (found) {
+                index = i;
+                break;
+            }
+        }
+        TypeMirror recordTM = TreeUtils.typeOf(recordPattern);
+        if (index < 0 || recordTM.getKind() != TypeKind.DECLARED) {
+            return null;
+        }
+        TypeElement recordElt = (TypeElement) ((DeclaredType) recordTM).asElement();
+        List<? extends Element> components = ElementUtils.getRecordComponents(recordElt);
+        if (index >= components.size()) {
+            return null;
+        }
+        Name componentName = components.get(index).getSimpleName();
+        for (ExecutableElement method : ElementFilter.methodsIn(recordElt.getEnclosedElements())) {
+            if (method.getParameters().isEmpty() && method.getSimpleName() == componentName) {
+                return method;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns the type of the record component, whose accessor is {@code accessor}, that the
+     * pattern at {@code nestedPatternPath} is matched against.
+     *
+     * @param atypeFactory the type factory
+     * @param nestedPatternPath the path to a pattern that is nested in a record pattern
+     * @param accessor the accessor of the record component that the pattern is matched against
+     * @return the type of the record component
+     */
+    private static AnnotatedTypeMirror recordComponentType(
+            AnnotatedTypeFactory atypeFactory,
+            TreePath nestedPatternPath,
+            ExecutableElement accessor) {
+        AnnotatedTypeMirror recordType =
+                recordPatternType(atypeFactory, nestedPatternPath.getParentPath());
+        return asMemberOf(atypeFactory.types, atypeFactory, recordType, accessor).getReturnType();
+    }
+
+    /**
+     * Returns the type of the record that the record pattern at {@code recordPatternPath}
+     * deconstructs. If the pattern does not write the type arguments of a generic record, they are
+     * taken from the type of the value that the pattern is matched against, from which javac infers
+     * them (JLS 18.5.5).
+     *
+     * @param atypeFactory the type factory
+     * @param recordPatternPath the path to a record pattern
+     * @return the type of the record that the record pattern deconstructs
+     */
+    private static AnnotatedTypeMirror recordPatternType(
+            AnnotatedTypeFactory atypeFactory, TreePath recordPatternPath) {
+        Tree recordPattern = recordPatternPath.getLeaf();
+        Tree deconstructor = DeconstructionPatternUtils.getDeconstructor(recordPattern);
+        AnnotatedTypeMirror writtenType = atypeFactory.getAnnotatedTypeFromTypeTree(deconstructor);
+        TypeMirror recordTM = TreeUtils.typeOf(recordPattern);
+        if (deconstructor instanceof ParameterizedTypeTree
+                || recordTM.getKind() != TypeKind.DECLARED
+                || ((TypeElement) ((DeclaredType) recordTM).asElement())
+                        .getTypeParameters()
+                        .isEmpty()) {
+            return writtenType;
+        }
+        AnnotatedTypeMirror matchedType = matchedType(atypeFactory, recordPatternPath);
+        Types types = atypeFactory.types;
+        if (matchedType == null
+                || !types.isSubtype(
+                        types.erasure(matchedType.getUnderlyingType()), types.erasure(recordTM))) {
+            return writtenType;
+        }
+        AnnotatedTypeMirror recordType =
+                AnnotatedTypeMirror.createType(recordTM, atypeFactory, false);
+        return asSuper(atypeFactory, matchedType, recordType);
+    }
+
+    /**
+     * Returns the type of the value that the pattern at {@code patternPath} is matched against: the
+     * operand of an {@code instanceof}, the selector of a {@code switch}, or a record component for
+     * a pattern nested in a record pattern. Returns null for a pattern elsewhere.
+     *
+     * @param atypeFactory the type factory
+     * @param patternPath the path to a pattern
+     * @return the type of the value that the pattern is matched against, or null
+     */
+    private static @Nullable AnnotatedTypeMirror matchedType(
+            AnnotatedTypeFactory atypeFactory, TreePath patternPath) {
+        TreePath parentPath = patternPath.getParentPath();
+        if (parentPath == null) {
+            return null;
+        }
+        Tree parent = parentPath.getLeaf();
+        if (parent instanceof InstanceOfTree) {
+            return atypeFactory.getAnnotatedType(((InstanceOfTree) parent).getExpression());
+        }
+        if (TreeUtils.isDeconstructionPatternTree(parent)) {
+            ExecutableElement accessor = recordComponentAccessor(patternPath);
+            return accessor == null
+                    ? null
+                    : recordComponentType(atypeFactory, patternPath, accessor);
+        }
+        if (PatternCaseLabelUtils.isPatternCaseLabelTree(parent)) {
+            TreePath casePath = parentPath.getParentPath();
+            TreePath switchPath = casePath == null ? null : casePath.getParentPath();
+            if (switchPath == null) {
+                return null;
+            }
+            Tree switchTree = switchPath.getLeaf();
+            if (switchTree instanceof SwitchTree) {
+                return atypeFactory.getAnnotatedType(((SwitchTree) switchTree).getExpression());
+            }
+            if (TreeUtils.isSwitchExpression(switchTree)) {
+                return atypeFactory.getAnnotatedType(
+                        SwitchExpressionUtils.getExpression(switchTree));
+            }
+        }
+        return null;
     }
 
     /**

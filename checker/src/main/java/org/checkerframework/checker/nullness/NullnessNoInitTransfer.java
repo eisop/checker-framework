@@ -306,8 +306,8 @@ public class NullnessNoInitTransfer
             for (LocalVariableNode bindingVar :
                     ((DeconstructorPatternNode) pattern).getBindingVariables()) {
                 if (bindingVar.getTree() instanceof VariableTree
-                        && nullnessTypeFactory.getNullMatchingComponentType(
-                                        (VariableTree) bindingVar.getTree())
+                        && AnnotatedTypes.getNullMatchingComponentType(
+                                        nullnessTypeFactory, (VariableTree) bindingVar.getTree())
                                 != null) {
                     JavaExpression bindingExpr = JavaExpression.fromNode(bindingVar);
                     thenStore.clearValue(bindingExpr);
