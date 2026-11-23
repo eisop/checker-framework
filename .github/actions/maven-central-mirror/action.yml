@@ -1,0 +1,16 @@
+name: 'Use Google''s mirror of Maven Central'
+description: 'Makes Gradle and Maven download from Google''s mirror of Maven Central, falling back to Maven Central'
+
+# Other repositories, such as eisop/jspecify-reference-checker, use this action, too:
+#   uses: eisop/checker-framework/.github/actions/maven-central-mirror@<ref>
+# It replaces ~/.m2/settings.xml, so run it after actions/setup-java, which writes its own.
+
+runs:
+  using: composite
+  steps:
+    - name: Use Google's mirror of Maven Central
+      shell: bash
+      run: |
+        mkdir -p ~/.gradle/init.d ~/.m2
+        cp "${{ github.action_path }}/maven-central-mirror.gradle" ~/.gradle/init.d/
+        cp "${{ github.action_path }}/maven-settings.xml" ~/.m2/settings.xml

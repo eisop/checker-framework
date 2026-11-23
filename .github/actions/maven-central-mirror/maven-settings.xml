@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Installed as ~/.m2/settings.xml by the setup-test-env action; see maven-central-mirror.gradle.
+<!-- Installed as ~/.m2/settings.xml by the maven-central-mirror action; see
+     maven-central-mirror.gradle.
      Maven looks in the repositories of an active settings profile before the repositories of the
      project and before Maven Central, so Maven Central is asked only for an artifact that Google's
      mirror does not have yet. -->
