@@ -59,6 +59,26 @@ public class RecordPatternBinding {
         }
     }
 
+    void inferredFromWildcard(
+            G<? extends @Untainted String> untainted, G<? extends @Tainted String> tainted) {
+        if (untainted instanceof G(String s)) {
+            @Untainted String u = s;
+        }
+        if (untainted instanceof G(var v)) {
+            @Untainted String u = v;
+        }
+        if (tainted instanceof G(String s)) {
+            // :: error: (assignment.type.incompatible)
+            @Untainted String u = s;
+        }
+    }
+
+    <U extends G<@Untainted String>> void inferredFromTypeVariable(U untainted) {
+        if (untainted instanceof G(String s)) {
+            @Untainted String u = s;
+        }
+    }
+
     void negated(@Tainted Object o) {
         if (!(o instanceof UBox(Object c))) {
             return;

@@ -688,7 +688,7 @@ public class AnnotatedTypes {
      */
     public static @Nullable AnnotatedTypeMirror getNullMatchingComponentType(
             AnnotatedTypeFactory atypeFactory, VariableTree bindingVariable) {
-        TreePath bindingPatternPath = nestedBindingPatternPath(atypeFactory, bindingVariable);
+        TreePath bindingPatternPath = bindingPatternPath(atypeFactory, bindingVariable);
         if (bindingPatternPath == null) {
             return null;
         }
@@ -728,7 +728,7 @@ public class AnnotatedTypes {
      */
     public static @Nullable AnnotatedTypeMirror getRecordComponentType(
             AnnotatedTypeFactory atypeFactory, VariableTree bindingVariable) {
-        TreePath bindingPatternPath = nestedBindingPatternPath(atypeFactory, bindingVariable);
+        TreePath bindingPatternPath = bindingPatternPath(atypeFactory, bindingVariable);
         if (bindingPatternPath == null) {
             return null;
         }
@@ -740,15 +740,14 @@ public class AnnotatedTypes {
     }
 
     /**
-     * If {@code bindingVariable} is the variable of a type pattern that is nested in a record
-     * pattern, returns the path to that type pattern. Otherwise, returns null.
+     * If {@code bindingVariable} is the variable of a type pattern, returns the path to that type
+     * pattern. Otherwise, returns null.
      *
      * @param atypeFactory the type factory
      * @param bindingVariable the declaration of a variable
-     * @return the path to the type pattern that declares {@code bindingVariable}, if that pattern
-     *     is nested in a record pattern; otherwise null
+     * @return the path to the type pattern that declares {@code bindingVariable}, or null
      */
-    private static @Nullable TreePath nestedBindingPatternPath(
+    private static @Nullable TreePath bindingPatternPath(
             AnnotatedTypeFactory atypeFactory, VariableTree bindingVariable) {
         Element varElt = TreeUtils.elementFromDeclaration(bindingVariable);
         if (varElt == null || !ElementUtils.isBindingVariable(varElt)) {
@@ -760,13 +759,7 @@ public class AnnotatedTypes {
                 || !TreeUtils.isBindingPatternTree(path.getParentPath().getLeaf())) {
             return null;
         }
-        TreePath bindingPatternPath = path.getParentPath();
-        TreePath recordPatternPath = bindingPatternPath.getParentPath();
-        if (recordPatternPath == null
-                || !TreeUtils.isDeconstructionPatternTree(recordPatternPath.getLeaf())) {
-            return null;
-        }
-        return bindingPatternPath;
+        return path.getParentPath();
     }
 
     /**
