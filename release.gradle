@@ -15,7 +15,7 @@ ext {
     // A build is a snapshot of this release, with version "${releaseVersion}-SNAPSHOT", unless it
     // is run with -Prelease=true.  To make a snapshot release: ./gradlew publish
     // To make a release: see docs/developer/release/README-release-process.html.
-    releaseVersion = "3.55.1-eisop1"
+    releaseVersion = "3.55.1-eisop2"
 
     // Matches a released version, including EISOP's "-eisopN" suffix: 1.2.3, 1.2.3.4, 1.2.3-eisop4.
     releaseVersionRegex = "\\d\\.\\d+\\.\\d+(?:\\.\\d)?(?:-eisop\\d+)?"
@@ -33,7 +33,7 @@ ext {
 // docs/examples is deliberately not touched here.  Renovate bumps the Checker Framework version in
 // those builds once the release is on Maven Central; see .github/renovate.json.  Doing it in both
 // places would fight: Renovate rewrites a pom property in place and drops any marker comments
-// around it.  BazelExample is a further exception, as its files also carry checksums; re-run `pin`.
+// around it.
 
 tasks.register("updateVersionNumbers", Copy) {
     description = "Updates the version number and release date in the documentation to releaseVersion."

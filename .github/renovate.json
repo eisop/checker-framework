@@ -85,6 +85,17 @@
     },
     {
       "customType": "regex",
+      "description": "Update the Checker Framework version in the Maven artifacts of the BazelExample. The example does not pin them in a maven_install.json lock file, which Renovate cannot regenerate.",
+      "managerFilePatterns": ["/^docs/examples/BazelExample/MODULE\\.bazel$/"],
+      "matchStrings": [
+        "\"io\\.github\\.eisop:(?<depName>[^:\"]+):(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "maven",
+      "packageNameTemplate": "io.github.eisop:{{{depName}}}",
+      "depNameTemplate": "io.github.eisop:{{{depName}}}"
+    },
+    {
+      "customType": "regex",
       "description": "Update USE_BAZEL_VERSION in GitHub Actions",
       "managerFilePatterns": ["/^\\.github/workflows/.*\\.yml$/"],
       "matchStrings": ["USE_BAZEL_VERSION: \"(?<currentValue>.*?)\""],

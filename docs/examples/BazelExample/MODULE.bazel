@@ -6,7 +6,6 @@ maven.install(
         "io.github.eisop:checker-qual:3.49.1-eisop1",
         "io.github.eisop:checker:3.49.1-eisop1",
     ],
-    lock_file = "//:maven_install.json",
 )
 
 use_repo(maven, "maven")
