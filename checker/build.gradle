@@ -252,9 +252,6 @@ tasks.register("allJavadocJar", Jar) {
     description = "Creates javadoc jar including Javadoc for all of the Checker Framework"
     def allJavadoc = rootProject.tasks.named("allJavadoc", Javadoc)
     dependsOn(allJavadoc)
-    // TODO: This should not be required, but without it the addFavicon task is sometimes not run
-    // before this one.
-    dependsOn(rootProject.tasks.named("addFavicon"))
 
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = "checker-javadoc.jar"
