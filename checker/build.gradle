@@ -148,6 +148,16 @@ tasks.named("generateGitProperties") {
 }
 gitProperties {
     dotGitDirectory = project.rootProject.layout.projectDirectory.dir(".git")
+    // Only what the commit determines, so that the jar does not depend on who builds it, on which
+    // machine, or on the depth of the clone: the release's jars can be rebuilt from its tag.
+    keys = [
+        "git.build.version",
+        "git.commit.id",
+        "git.commit.id.abbrev",
+        "git.commit.time",
+        "git.dirty",
+        "git.tags",
+    ]
 }
 
 tasks.named("jar") {
