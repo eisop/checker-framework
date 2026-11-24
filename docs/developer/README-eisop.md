@@ -209,10 +209,8 @@ filled paragraph, adding one number reflows the whole paragraph and *every*
 concurrent pair conflicts -- which, in one busy week, meant resolving the same
 conflict by hand seven times.
 
-Markdown joins lines within a paragraph, so both forms render identically.
-Reflowing the list to filled lines when a release is finalized is therefore
-optional tidiness, not a required step: a released section left one per line is
-correct as it stands.
+`release_build.py` reflows the list of the version it releases into filled
+lines, in the release commit.
 
 Entries stay in ascending numeric order, `eisop#NNNN` before `typetools#NNNN`.
 Refer to another project's issue in prose as plain text -- "typetools issue

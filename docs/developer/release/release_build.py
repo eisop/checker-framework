@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 from pathlib import Path
 
 from release_errors import ReleaseError
@@ -175,6 +176,30 @@ def check_changelog_date(changelog: Path, version: str) -> None:
         raise ReleaseError(msg)
 
 
+def reflow_closed_issues(changelog: Path, version: str) -> None:
+    """Reflow the "### Closed issues" list of the changelog's section for the given version.
+
+    While a release is unreleased, its list has one issue per line, so that pull requests that add
+    issues do not conflict.  The release fills the list into lines of at most 100 characters.
+    """
+    text = changelog.read_text(encoding="utf-8")
+    section = re.compile(
+        "^## Version " + re.escape(version) + r" \(.*?(?=^## Version |\Z)", re.MULTILINE | re.DOTALL
+    ).search(text)
+    if section is None:
+        msg = f"{changelog} has no section for version {version}."
+        raise ReleaseError(msg)
+    issues = re.compile(
+        r"^### Closed issues\n\n(.+?)(?=\n\n|\n*\Z)", re.MULTILINE | re.DOTALL
+    ).search(text, section.start(), section.end())
+    if issues is None:
+        return
+    filled = textwrap.fill(
+        " ".join(issues.group(1).split()), width=100, break_long_words=False, break_on_hyphens=False
+    )
+    changelog.write_text(text[: issues.start(1)] + filled + text[issues.end(1) :], encoding="utf-8")
+
+
 def build_and_locally_deploy_maven() -> None:
     """Run `./gradlew publishToMavenLocal -Prelease=true`.
 
@@ -310,6 +335,7 @@ def main(argv: list[str]) -> None:
 
     print_step("Build Step 4: Update the version numbers.")  # MANUAL
     update_version_numbers(old_cf_version)
+    reflow_closed_issues(Path(CHECKER_FRAMEWORK) / "docs" / "CHANGELOG.md", cf_version)
 
     # The files updated for the release, usually with the new release date and version, are
     # committed, and the commit is tagged.  release_push.py pushes both.  The release is committed

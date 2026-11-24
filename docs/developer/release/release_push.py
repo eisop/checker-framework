@@ -362,29 +362,11 @@ def main(argv: list[str]) -> None:
 
         print_step("Push Step 10. Prep for next Checker Framework release.")  # MANUAL
         continue_or_exit(
-            "Change releaseVersion in release.gradle to the version of the next release,\n"
-            "for example by incrementing the -eisopN suffix.  Builds without -Prelease=true\n"
-            "then produce -SNAPSHOT versions of that release.\n"
-        )
-
-        print_step("Push Step 11. Update the Checker Framework Gradle plugin.")  # MANUAL
-        print(
-            "Do this after publishing to Maven Central (see the release process README), once\n"
-            "Maven Central has propagated the release.\n"
-        )
-        continue_or_exit(
-            "Please update the Checker Framework Gradle plugin:\n"
-            "https://github.com/kelloggm/checkerframework-gradle-plugin/blob/master/RELEASE.md#updating-the-checker-framework-version\n"
-        )
-        continue_or_exit(
-            "Make a pull request to the Checker Framework that\n"
-            "updates the version number of the Checker Framework\n"
-            "Gradle Plugin in docs/examples/lombok and docs/examples/errorprone .\n"
-            "The pull request's tests will fail; you will merge it in a day."
-        )
-        continue_or_exit(
-            "Make a pull request to the Checker Framework that\n"
-            "updates the CF version number in the BazelExample, by re-pinning the versions."
+            "Make a pull request that changes releaseVersion in release.gradle to the version\n"
+            "of the next release, for example by incrementing the -eisopN suffix, and adds its\n"
+            "section to docs/CHANGELOG.md.  Builds without -Prelease=true then produce -SNAPSHOT\n"
+            "versions of that release.  Renovate updates the version in docs/examples once the\n"
+            "release is on Maven Central.\n"
         )
 
     if not test_mode:

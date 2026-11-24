@@ -553,7 +553,8 @@ python3 release_build.py</pre>
               Maven Central token is set, and that you can push to GitHub.</li>
             <li>Determine the versions: the latest GitHub release and <code>releaseVersion</code>.
               Check that the changelog date is not a placeholder.</li>
-            <li>Update the version numbers: <code>updateVersionNumbers</code>.</li>
+            <li>Update the version numbers: <code>updateVersionNumbers</code>.  Reflow the
+              changelog's &quot;Closed issues&quot; list into filled lines.</li>
             <li>Commit and tag the release.</li>
             <li>Build: <code>buildAll</code>, the tutorial,
               <code>./gradlew zip annotationFileUtilitiesZip -Prelease=true</code>; copy both zip files
@@ -580,8 +581,9 @@ python3 release_build.py</pre>
             <li>Publish the web site: dispatch the &quot;Publish website&quot; workflow with <code>gh</code> after you confirm; you check
               <a href="https://eisop.github.io/cf/">https://eisop.github.io/cf/</a>.</li>
             <li>Announce the release.</li>
-            <li>Change <code>releaseVersion</code> to the next release.</li>
-            <li>Update the Checker Framework Gradle plugin and the examples that use it, and the BazelExample.</li>
+            <li>Change <code>releaseVersion</code> to the next release.  Renovate updates the
+              Checker Framework version in <code>docs/examples</code> once the release is on Maven
+              Central.</li>
           </ol>
         </td>
       </tr>
