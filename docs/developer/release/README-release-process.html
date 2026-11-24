@@ -243,8 +243,9 @@ TreeAnnotator
       <p>
         Pushing master and the tag to GitHub (step 5) is the first irreversible step;
         answering &quot;no&quot; there stops the script.
-        Afterwards the script posts the GitHub release with the two zip files attached, and starts
-        publishing the web site, which is generated from that release, both with <code>gh</code>.
+        Afterwards the script asks before it posts the GitHub release with the two zip files
+        attached, and before it starts publishing the web site, which is generated from that
+        release; it does both with <code>gh</code>.
         See <a href="#release_scripts">Release Scripts</a> for all steps.
       </p>
   </li>
@@ -573,9 +574,10 @@ python3 release_build.py</pre>
               and inspect the generated pages.</li>
             <li>Push master and the tag to GitHub, atomically.  This is irreversible.</li>
             <li>Post the GitHub release, with both zip files attached and the changelog section as its
-              description, with <code>gh release create</code>; by hand if that fails.</li>
+              description, with <code>gh release create</code> after you confirm; by hand if you
+              decline or it fails.</li>
             <li>Check that the files attached to the GitHub release are the ones that were built.</li>
-            <li>Publish the web site: dispatch the &quot;Publish website&quot; workflow with <code>gh</code>; you check
+            <li>Publish the web site: dispatch the &quot;Publish website&quot; workflow with <code>gh</code> after you confirm; you check
               <a href="https://eisop.github.io/cf/">https://eisop.github.io/cf/</a>.</li>
             <li>Announce the release.</li>
             <li>Change <code>releaseVersion</code> to the next release.</li>

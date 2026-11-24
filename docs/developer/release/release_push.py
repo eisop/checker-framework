@@ -285,11 +285,18 @@ def main(argv: list[str]) -> None:
         print_step(
             "Push Step 6. Post the Checker Framework release, with the Annotation File Utilities,"
             " on GitHub."
-        )  # AUTO
+        )  # SEMIAUTO
 
-        # The web site is generated from this release.  If gh fails, the release is posted, or
-        # fixed, by hand.
-        if not create_github_release(tag, new_cf_version):
+        # The web site is generated from this release.  If you decline, or gh fails, the release
+        # is posted, or fixed, by hand.
+        if not (
+            prompt_yes_no(
+                f"Create the GitHub release for {tag} with gh, with the changelog section as its"
+                " description and both zip files attached?  It is public.",
+                True,
+            )
+            and create_github_release(tag, new_cf_version)
+        ):
             release_files = "".join(
                 f"  {RELEASE_FILES_DIR / name}\n" for name in release_file_names(new_cf_version)
             )
@@ -311,9 +318,7 @@ def main(argv: list[str]) -> None:
                 " takes it from here.\n"
                 '* Click on the green "Publish release" button.\n'
             )
-            continue_or_exit(
-                "gh could not create the release.  Create it, or fix it, by hand." + msg
-            )
+            continue_or_exit("Create the release, or fix it, by hand." + msg)
 
         print_step("Push Step 7. Check the files attached to the GitHub release.")  # AUTO
         check_github_release_files(new_cf_version)
@@ -330,10 +335,17 @@ def main(argv: list[str]) -> None:
             "--field",
             "dry_run=false",
         ]
-        if execute_status(publish_website) != 0:
+        if (
+            not prompt_yes_no(
+                f'Publish the web site for {new_cf_version} now, with the "Publish website"'
+                " workflow?",
+                True,
+            )
+            or execute_status(publish_website) != 0
+        ):
             print(
-                'gh could not start the "Publish website" workflow.  Run it with dry_run'
-                " unchecked:\n"
+                'The "Publish website" workflow was not started.  To publish now, run it with'
+                " dry_run unchecked:\n"
                 "  https://github.com/eisop/eisop.github.io/actions/workflows/publish-website.yml"
             )
         continue_or_exit(
