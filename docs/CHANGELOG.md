@@ -3,7 +3,7 @@
 <!-- markdownlint-disable no-duplicate-heading -->
 <!-- pyml disable no-duplicate-heading -->
 
-## Version 3.55.1-eisop1 (June ?, 2026)
+## Version 3.55.1-eisop1 (November 24, 2026)
 
 ### User-visible changes
 
