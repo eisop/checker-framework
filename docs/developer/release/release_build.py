@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import base64
 import os
 import re
 import shutil
@@ -12,6 +13,8 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from release_errors import ReleaseError
@@ -93,6 +96,33 @@ def gradle_user_properties() -> dict[str, str]:
     return properties
 
 
+def check_central_token(username: str, password: str) -> str | None:
+    """Check that Maven Central accepts the given user token.
+
+    The Central Portal answers a query of the publisher API only for a valid token.
+
+    Returns:
+        a description of the problem, or None if Maven Central accepts the token
+    """
+    token = base64.b64encode(f"{username}:{password}".encode()).decode()
+    request = urllib.request.Request(
+        "https://central.sonatype.com/api/v1/publisher/published"
+        "?namespace=io.github.eisop&name=checker&version=" + CF_VERSION,
+        headers={"Authorization": "Bearer " + token},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60):
+            return None
+    except urllib.error.HTTPError as e:
+        return (
+            f"Maven Central rejects the user token in SONATYPE_NEXUS_USERNAME and"
+            f" SONATYPE_NEXUS_PASSWORD (HTTP {e.code}); generate a new one at"
+            " https://central.sonatype.com/usertoken."
+        )
+    except OSError as e:
+        return f"Could not reach Maven Central to check the user token: {e}"
+
+
 def check_prerequisites() -> None:
     """Check what the release needs from the user's setup, before anything slow runs.
 
@@ -125,12 +155,17 @@ def check_prerequisites() -> None:
                 f"{gpg} cannot sign with {key}: {sign.stderr.decode(errors='replace').strip()}"
             )
 
+    token_names = ("SONATYPE_NEXUS_USERNAME", "SONATYPE_NEXUS_PASSWORD")
     problems.extend(
         f"{name} is not set in ~/.gradle/gradle.properties; the publish to Maven Central needs"
         " your Central user token."
-        for name in ("SONATYPE_NEXUS_USERNAME", "SONATYPE_NEXUS_PASSWORD")
+        for name in token_names
         if not properties.get(name)
     )
+    if all(properties.get(name) for name in token_names):
+        token_problem = check_central_token(*(properties[name] for name in token_names))
+        if token_problem:
+            problems.append(token_problem)
 
     javac = Path(os.environ["JAVA_HOME"]) / "bin" / "javac"
     if not javac.exists():
