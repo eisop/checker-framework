@@ -209,7 +209,10 @@ TreeAnnotator
       (for the Maven sanity check in release_push) with <code>-Prelease=true</code>, which signs
       the artifacts.  Set up your signing key, as for the Maven Central publish step below,
       before running it.<br/><br/>
-      It also stops while the date in the release's section of the changelog is a placeholder.
+      It also stops while the date in the release's section of the changelog is a placeholder.<br/><br/>
+      If release_build fails, fix the problem and run it again.  It resets
+      <code>build/checker-framework</code> to master, discarding the release commit and tag of the
+      failed run, and it retries the downloads, which it does before committing the release.
   </li>
   <li>
       <strong>Run release_push</strong> to test the release, push it to GitHub, and guide you through
@@ -223,8 +226,8 @@ TreeAnnotator
       <p>
         Pushing master and the tag to GitHub (step 5) is the first irreversible step;
         answering &quot;no&quot; there stops the script.
-        Afterwards you post the GitHub release with the two zip files attached
-        and publish the web site, which is generated from that release.
+        Afterwards the script offers to post the GitHub release with the two zip files attached,
+        using <code>gh</code>, and you publish the web site, which is generated from that release.
         See <a href="#release_scripts">Release Scripts</a> for all steps.
       </p>
   </li>
@@ -442,8 +445,8 @@ git clone git@github.com:eisop/checker-framework.git checker-framework</pre>
         by following the initial steps of the <a href="#step_by_step">Step by Step</a> section.
         <code>release_build.py</code> still needs to be re-run on release day (even if no changes
         were pushed to any repositories since the last run of <code>release_build.py</code>) in
-        order for the release date to be correct in all documents.  Answer &quot;yes&quot; to
-        clone from scratch, because the earlier run committed and tagged a release.
+        order for the release date to be correct in all documents.  It discards the release commit
+        and tag of the earlier run.
         <pre>
 cd /tmp/$USER/cf-release/checker-framework/docs/developer/release
 python3 release_build.py</pre>
@@ -477,6 +480,11 @@ python3 release_build.py</pre>
         <td>The clone in which release_build builds, commits, and tags the release.
           release_push pushes master and the tag from it.
         </td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>build/jdk</td>
+        <td>A shallow clone of the annotated JDK, which the build reads.</td>
       </tr>
       <tr>
         <td></td>
@@ -518,15 +526,18 @@ python3 release_build.py</pre>
         <td>Builds the release in <code>build/checker-framework</code>, commits it, and tags it, without pushing.
           Steps:
           <ol>
-            <li>Clone or update the repository (1a), and verify that it is clean (1b).</li>
+            <li>Clone the repository and the annotated JDK, or reset existing clones to master (1a);
+              verify that the repository is clean (1b); download the dependencies (1c).
+              Downloads are tried up to three times.</li>
             <li>Check that the required tools are installed.</li>
             <li>Determine the versions: the latest GitHub release and <code>releaseVersion</code>.
               Check that the changelog date is not a placeholder.</li>
-            <li>Build: <code>updateVersionNumbers</code>, <code>buildAll</code>, the tutorial,
+            <li>Update the version numbers: <code>updateVersionNumbers</code>.</li>
+            <li>Commit and tag the release.</li>
+            <li>Build: <code>buildAll</code>, the tutorial,
               <code>./gradlew zip annotationFileUtilitiesZip -Prelease=true</code>; copy both zip files
               to <code>release-files</code>; run <code>check-release-links.py --online</code> on the unpacked zip;
               <code>publishToMavenLocal</code>.</li>
-            <li>Commit and tag the release.</li>
           </ol>
         </td>
       </tr>
@@ -541,7 +552,9 @@ python3 release_build.py</pre>
             <li>Manual: run the web site generator with <code>--local-release</code> on the zip
               and inspect the generated pages.</li>
             <li>Push master and the tag to GitHub, atomically.  This is irreversible.</li>
-            <li>Manual: post the GitHub release, with both zip files attached.</li>
+            <li>Post the GitHub release, with both zip files attached and the changelog section as its
+              description: with <code>gh release create</code> if <code>gh</code> is installed and you agree,
+              by hand otherwise.</li>
             <li>Check that the files attached to the GitHub release are the ones that were built.</li>
             <li>Manual: publish the web site (dispatch the &quot;Publish website&quot; workflow), and check
               <a href="https://eisop.github.io/cf/">https://eisop.github.io/cf/</a>.</li>
@@ -678,7 +691,7 @@ python3 release_build.py</pre>
   <ul>
     <li><strong>Before release_push step 5</strong><br/>
       Nothing is on GitHub yet.  Delete the build clone (<code>build/checker-framework</code>),
-      or rerun release_build.py and answer &quot;yes&quot; to clone from scratch.
+      or rerun release_build.py, which resets it.
     </li>
     <li><strong>Drop the deployment from Central</strong><br/>
       If you have already run <code>./gradlew publish -Prelease=true</code> but have not released the

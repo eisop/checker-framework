@@ -17,18 +17,20 @@ from release_utils import (
     check_release_version,
     check_repo,
     check_tools,
-    clone_from_scratch_or_update,
+    clone_or_reset,
     commit_and_tag,
     continue_or_exit,
     create_empty_file,
     current_release_version,
     delete_directory_if_exists,
     delete_if_exists,
+    execute_with_retries,
     has_command_line_option,
     print_step,
-    prompt_yes_no,
 )
 from release_vars import (
+    ANNOTATED_JDK_REPO,
+    BUILD_DIR,
     CF_VERSION,
     CHECKER_FRAMEWORK,
     LIVE_CHECKER_REPO,
@@ -49,28 +51,19 @@ def print_usage() -> None:
     print("\n  --debug  turns on debugging mode which produces verbose output")
 
 
-def clone_or_update_repo() -> None:
-    """Clone the Checker Framework from scratch or update it if it exists.
+def clone_or_reset_repos() -> None:
+    """Clone the Checker Framework and the annotated JDK, or reset the existing clones.
 
-    The action taken depends on a user query.
+    The annotated JDK is cloned here, rather than by the build, so that a failure to download it
+    happens before the release is committed, and is retried.
     """
-    message = f"""Before building the release, we clone or update the Checker Framework in
-{CHECKER_FRAMEWORK}
-However, if you have had to run the script multiple times today and no files
-have changed since the last attempt, you may skip this step.
-WARNING: IF THIS IS YOUR FIRST RUN OF THE RELEASE ON RELEASE DAY, DO NOT SKIP THIS STEP.
-If an earlier run committed and tagged a release that was not pushed, clone from scratch.
-Clone the repository from scratch (answer no to get a chance to update it instead)?"""
+    clone_or_reset(LIVE_CHECKER_REPO, CHECKER_FRAMEWORK)
+    clone_or_reset(ANNOTATED_JDK_REPO, BUILD_DIR / "jdk", shallow=True)
 
-    clone_from_scratch = True
 
-    if not prompt_yes_no(message, True):
-        clone_from_scratch = False
-        if not prompt_yes_no("Update the repository without cloning it from scratch?", True):
-            print("WARNING: Continuing without refreshing the repository.\n")
-            return
-
-    clone_from_scratch_or_update(LIVE_CHECKER_REPO, CHECKER_FRAMEWORK, clone_from_scratch)
+def download_dependencies() -> None:
+    """Download the dependencies of the build, before the release is committed."""
+    execute_with_retries(["./gradlew", "resolveDependencies"], CHECKER_FRAMEWORK)
 
 
 def check_changelog_date(changelog: Path, version: str) -> None:
@@ -185,20 +178,24 @@ def main(argv: list[str]) -> None:
     print("\nPATH:\n" + os.environ["PATH"] + "\n")
 
     # The release is built, committed, and tagged in a clone of the GitHub repository, but nothing
-    # is pushed until release_push.py.  If we are running the build script multiple times without
-    # pushing the release, the clone must be cleaned before we run the release_build script again.
-    # The "Clone/update repository" step updates the clone with respect to the GitHub repository,
-    # but it is the "Verify repository" step that ensures that it is clean, i.e. indistinguishable
-    # from a freshly cloned repository.
+    # is pushed until release_push.py.  This step resets the clone, so that the script can be run
+    # again after any failure before the push: a clone with an unpushed release commit and tag is
+    # indistinguishable from a fresh clone afterwards.  The annotated JDK is cloned or reset, too.
 
-    print_step("Build Step 1a: Clone/update repository.")  # MANUAL
-    clone_or_update_repo()
+    print_step("Build Step 1a: Clone or reset the repositories.")  # AUTO
+    clone_or_reset_repos()
 
     # This step ensures the previous step worked. It checks to see if we have any modified files,
     # untracked files, or outgoing changesets. If so, it fails.
 
-    print_step("Build Step 1b: Verify repository.")  # MANUAL
+    print_step("Build Step 1b: Verify repository.")  # AUTO
     check_repo(CHECKER_FRAMEWORK)
+
+    # Downloading the dependencies now, with retries, keeps a network problem from failing the
+    # build after the release is committed.
+
+    print_step("Build Step 1c: Download the dependencies.")  # AUTO
+    download_dependencies()
 
     # The release script requires a number of common tools (Maven, make, etc...). This step
     # checks to make sure all tools are available on the command line in order to avoid wasting time
@@ -226,8 +223,8 @@ def main(argv: list[str]) -> None:
 
     # The files updated for the release, usually with the new release date and version, are
     # committed, and the commit is tagged.  release_push.py pushes both.  The release is committed
-    # before it is built, so that the jars record the release commit.  If the build fails, clone
-    # the repository from scratch before running this script again.
+    # before it is built, so that the jars record the release commit.  If the build fails, run
+    # this script again; Step 1a discards the commit and the tag.
 
     print_step("Build Step 5: Commit and tag the release.")  # AUTO
     commit_and_tag(cf_version, CHECKER_FRAMEWORK, f"checker-framework-{cf_version}")

@@ -4,6 +4,7 @@
 # See README-release-process.html for more information
 
 import filecmp
+import shutil
 import sys
 import tempfile
 import urllib.error
@@ -28,6 +29,7 @@ from release_vars import (
     RELEASE_BUILD_COMPLETED_FLAG_FILE,
     RELEASE_FILES_DIR,
     execute,
+    execute_status,
 )
 from sanity_checks import (
     javac_sanity_check,
@@ -93,6 +95,47 @@ def check_github_release_files(cf_version: str) -> None:
         print(problem)
         if not prompt_yes_no("Fix the GitHub release, then try again?", True):
             raise ReleaseError(problem)
+
+
+def changelog_section(cf_version: str) -> str:
+    """Return the section of the changelog for the given version, including its heading line.
+
+    Returns:
+        the section of docs/CHANGELOG.md for the given version
+    """
+    changelog = (CHECKER_FRAMEWORK / "docs" / "CHANGELOG.md").read_text(encoding="utf-8")
+    start = changelog.index(f"## Version {cf_version} (")
+    end = changelog.find("\n## Version ", start)
+    return changelog[start:] if end == -1 else changelog[start : end + 1]
+
+
+def create_github_release(tag: str, cf_version: str) -> bool:
+    """Create the GitHub release for the given tag with gh, with both release files attached.
+
+    Its description is the changelog section of the release.
+
+    Returns:
+        true if gh created the release
+    """
+    with tempfile.TemporaryDirectory() as notes_dir:
+        notes = Path(notes_dir) / "notes.md"
+        notes.write_text(changelog_section(cf_version), encoding="utf-8")
+        command = [
+            "gh",
+            "release",
+            "create",
+            tag,
+            "--repo",
+            "eisop/checker-framework",
+            # Fail, rather than create the tag on the head of master, if the tag is not on GitHub.
+            "--verify-tag",
+            "--title",
+            f"Checker Framework {cf_version}",
+            "--notes-file",
+            str(notes),
+            *(str(RELEASE_FILES_DIR / name) for name in release_file_names(cf_version)),
+        ]
+        return execute_status(command) == 0
 
 
 def validate_args(argv: list[str]) -> None:
@@ -240,7 +283,7 @@ def main(argv: list[str]) -> None:
         print_step(
             "Push Step 6. Post the Checker Framework release, with the Annotation File Utilities,"
             " on GitHub."
-        )  # MANUAL
+        )  # SEMIAUTO
 
         release_files = "".join(
             f"  {RELEASE_FILES_DIR / name}\n" for name in release_file_names(new_cf_version)
@@ -265,7 +308,16 @@ def main(argv: list[str]) -> None:
             '* Click on the green "Publish release" button.\n'
         )
 
-        continue_or_exit(msg)
+        if shutil.which("gh") is None or not prompt_yes_no(
+            f"Create the GitHub release for {tag} with gh, with the changelog section as its"
+            " description and both files attached?  Otherwise you post it by hand.",
+            True,
+        ):
+            continue_or_exit(msg)
+        elif not create_github_release(tag, new_cf_version):
+            continue_or_exit(
+                "gh could not create the release.  Create it, or fix it, by hand." + msg
+            )
 
         print_step("Push Step 7. Check the files attached to the GitHub release.")  # AUTO
         check_github_release_files(new_cf_version)

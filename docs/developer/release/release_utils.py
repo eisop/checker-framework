@@ -16,6 +16,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import time
 import urllib.request
 from pathlib import Path
 
@@ -223,11 +224,6 @@ def git_repo_exists_at_path(repo_root: Path) -> bool:
     return (repo_root / ".git").is_dir()
 
 
-def update_repo(path: Path) -> None:
-    """Pull the latest changes to the given repo."""
-    execute("git pull --ff-only", working_dir=path)
-
-
 def commit_and_tag(version: str, path: Path, tag: str) -> None:
     """Commit the changes made for this release and add a tag.
 
@@ -261,23 +257,51 @@ def push_release(repo_root: Path, tag: str) -> None:
             raise ReleaseError("Could not push the release.")
 
 
-def clone_from_scratch_or_update(
-    src_repo: str, dst_repo_dir: Path, clone_from_scratch: bool
-) -> None:
-    """Clone or update the repo.
+def execute_with_retries(command: list[str], working_dir: Path | None = None) -> None:
+    """Execute the given command, which downloads something, trying it up to three times.
 
-    If the clone_from_scratch flag is True, clone the given git
-    repo from scratch into the filesystem path specified by dst_repo_dir,
-    deleting it first if the repo is present on the filesystem.
-    Otherwise, if a repo exists at the filesystem path given by dst_repo_dir, pull
-    the latest changes to it and update it. If the repo does not exist, clone it
-    from scratch.
+    Raises:
+        ReleaseError: If the command fails three times.
     """
-    if clone_from_scratch or not pathlib.Path(dst_repo_dir).exists():
-        delete_directory_if_exists(dst_repo_dir)
-        execute(f"git clone --quiet {src_repo} {dst_repo_dir}")
-    else:
-        update_repo(dst_repo_dir)
+    for attempt in range(1, 4):
+        if execute_status(command, working_dir) == 0:
+            return
+        if attempt < 3:
+            print("Trying again in 1 minute, in case the failure was a network problem.")
+            time.sleep(60)
+    msg = f"{' '.join(command)} failed 3 times."
+    raise ReleaseError(msg)
+
+
+def clone_or_reset(src_repo: str, dst_repo_dir: Path, shallow: bool = False) -> None:
+    """Make dst_repo_dir a clone of the master branch of src_repo, as if it had just been cloned.
+
+    An existing clone is reset, which discards whatever an earlier run of the release scripts
+    left in it, such as an unpushed release commit and tag, modified files, and build outputs.  If
+    there is no clone, or the reset fails, the repository is cloned from scratch.
+
+    Args:
+        src_repo: the URL of the repository
+        dst_repo_dir: the directory of the clone
+        shallow: whether to fetch only the latest commit of the master branch
+    """
+    if git_repo_exists_at_path(dst_repo_dir):
+        # A shallow clone fetches only master; a full clone also fetches the tags, and
+        # --prune-tags deletes the local tags that are not on GitHub, such as an unpushed release
+        # tag.
+        fetch = ["--depth", "1"] if shallow else ["--prune", "--prune-tags"]
+        commands = [
+            ["git", "fetch", "--quiet", *fetch, "origin"],
+            ["git", "checkout", "--quiet", "--force", "master"],
+            ["git", "reset", "--quiet", "--hard", "origin/master"],
+            ["git", "clean", "--quiet", "-ffdx"],
+        ]
+        if all(execute_status(command, dst_repo_dir) == 0 for command in commands):
+            return
+        print(f"Could not reset {dst_repo_dir}, so it is cloned from scratch.")
+    delete_directory_if_exists(dst_repo_dir)
+    depth = ["--depth", "1"] if shallow else []
+    execute_with_retries(["git", "clone", "--quiet", *depth, src_repo, str(dst_repo_dir)])
 
 
 def is_repo_cleaned_and_updated(repo_dir: Path) -> bool:
@@ -308,10 +332,10 @@ def check_repo(repo: Path) -> None:
         ReleaseError: If the repository is not clean and up to date.
     """
     if not git_repo_exists_at_path(repo):
-        msg = f"There is no repository at {repo}.  Clone it from scratch and start over."
+        msg = f"There is no repository at {repo}.  Delete it and run release_build.py again."
         raise ReleaseError(msg)
     if not is_repo_cleaned_and_updated(repo):
-        msg = f"repo {repo} is not cleaned and updated!  Clone it from scratch and start over."
+        msg = f"repo {repo} is not cleaned and updated!  Delete it and run release_build.py again."
         raise ReleaseError(msg)
 
 

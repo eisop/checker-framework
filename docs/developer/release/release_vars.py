@@ -93,6 +93,9 @@ RELEASE_BUILD_COMPLETED_FLAG_FILE = TMP_DIR / "release-build-completed"
 # The GitHub repository of the Checker Framework, which includes the AFU.
 LIVE_CHECKER_REPO = "git@github.com:eisop/checker-framework.git"
 
+# The annotated JDK, which the build expects next to the Checker Framework, in BUILD_DIR.
+ANNOTATED_JDK_REPO = "https://github.com/eisop/jdk.git"
+
 # The clone in which release_build.py builds, commits, and tags the release, and from which
 # release_push.py pushes it to LIVE_CHECKER_REPO.
 BUILD_DIR = TMP_DIR / "build"
