@@ -9,6 +9,7 @@ import tempfile
 import urllib.error
 from pathlib import Path
 
+from maven_central import DEPLOYMENTS_URL, publish_deployment, upload_to_maven_central
 from release_errors import ReleaseError
 from release_utils import (
     check_release_version,
@@ -323,7 +324,29 @@ def main(argv: list[str]) -> None:
         print_step("Push Step 7. Check the files attached to the GitHub release.")  # AUTO
         check_github_release_files(new_cf_version)
 
-        print_step("Push Step 8. Publish the web site.")  # SEMIAUTO
+        print_step("Push Step 8. Publish the Maven artifacts on Maven Central.")  # SEMIAUTO
+        # The upload is validated by the Portal before anything is published.  If you decline, or
+        # a request fails, the deployment is published, or dropped, by hand.
+        deployment_id = None
+        if prompt_yes_no(
+            "Upload the Maven artifacts to Maven Central, for validation?  They are not published"
+            " until you confirm again.",
+            True,
+        ):
+            deployment_id = upload_to_maven_central(new_cf_version)
+        if not (
+            deployment_id
+            and prompt_yes_no(
+                f"Publish {new_cf_version} on Maven Central?  This is irreversible.", True
+            )
+            and publish_deployment(deployment_id)
+        ):
+            continue_or_exit(
+                "Publish the Maven artifacts by hand; see the release process README.\n"
+                f"A deployment that was uploaded is at {DEPLOYMENTS_URL}.\n"
+            )
+
+        print_step("Push Step 9. Publish the web site.")  # SEMIAUTO
         # The web site is also published daily at 20:00 UTC.
         publish_website = [
             "gh",
@@ -354,13 +377,13 @@ def main(argv: list[str]) -> None:
             f"When it is done, check that https://eisop.github.io/cf/ shows {new_cf_version}.\n"
         )
 
-        print_step("Push Step 9. Announce the release.")  # MANUAL
+        print_step("Push Step 10. Announce the release.")  # MANUAL
         continue_or_exit(
             "Please announce the release using the email structure below.\n"
             + get_announcement_email(new_cf_version)
         )
 
-        print_step("Push Step 10. Prep for next Checker Framework release.")  # MANUAL
+        print_step("Push Step 11. Prep for next Checker Framework release.")  # MANUAL
         continue_or_exit(
             "Make a pull request that changes releaseVersion in release.gradle to the version\n"
             "of the next release, for example by incrementing the -eisopN suffix, and adds its\n"

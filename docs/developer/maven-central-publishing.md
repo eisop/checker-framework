@@ -1,7 +1,7 @@
 # Publishing to Maven Central
 
-How publishing is wired, what a releaser still does by hand, and what it would
-take to automate the rest.
+How publishing is wired, how a release gets from the build to Maven Central, and
+what it would take to publish nightly snapshots.
 
 ## What the build does today
 
@@ -24,8 +24,9 @@ A release is made with
 `releaseVersion` (in [`release.gradle`](../../release.gradle)) followed by
 `-SNAPSHOT`.
 
-The command uploads to a staging repository. The release is **not** live until a human
-opens <https://central.sonatype.com/publishing/deployments> and clicks Publish.
+The command uploads to a staging repository. `release_push.py` (step 8) runs it,
+moves the upload to the Central Portal, waits for the Portal's validation, and
+asks before it publishes; see below.
 
 Snapshots need no publishing configuration of their own: the snapshot URL is
 already the Central Portal snapshot repository, and snapshots are deliberately
@@ -65,33 +66,39 @@ If signed CI publishing is ever wanted, the way to do it is an in-memory
 ASCII-armored key (`signing.key` / `signing.password`) from a dedicated project
 key held in repository secrets — not a maintainer's personal key.
 
-## Why the manual click exists, and how to remove it
+## From staging repository to Maven Central
 
 `ossrh-staging-api.central.sonatype.com` is Sonatype's **compatibility layer**
 for publishers whose build plugins predate the Central Portal API. It accepts
-the old OSSRH staging upload, and then leaves the deployment sitting in the
-Portal for a human to release.
-
-The compatibility service has its own API for that last step, so the click is
-avoidable without changing how the build uploads anything:
+the old OSSRH staging upload and keeps it in a staging repository, which does
+**not** show up in the Portal until a request moves it there. That request must
+come from the machine that uploaded, as the staging repository is tied to its IP:
 
 ````text
-POST https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.eisop?publishing_type=automatic
+POST https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.eisop?publishing_type=user_managed
 Authorization: Bearer <base64 of user-token-name:user-token-password>
 ````
 
-`publishing_type=automatic` uploads the staging repository to the Portal and
-releases it to Maven Central if validation passes. `publishing_type=portal_api`
-does the upload but leaves it for a status poll, which is the better choice for
-a large deployment.
+With `publishing_type=user_managed`, the Portal validates the deployment and
+leaves it for a human, or a request, to publish. (`automatic` would publish it
+as soon as it is valid, without a chance to look at it.)
 
-There is also a native Portal API — `POST /api/v1/publisher/upload` with
-`publishingType=AUTOMATIC` — but it takes a pre-built bundle, which is a
-different upload path than the build currently uses.
+[`release/maven_central.py`](release/maven_central.py), which `release_push.py`
+calls, does the rest with the APIs:
 
-So the recommended change is small: keep `./gradlew publish -Prelease=true`
-exactly as it is, and follow it with the one `POST` above. That is the whole
-difference between today's release and a hands-off one.
+1. `GET /manual/search/repositories?profile_id=io.github.eisop` on the staging
+   API gives the `portal_deployment_id` of the moved repository.
+2. `POST https://central.sonatype.com/api/v1/publisher/status?id=<deployment id>`
+   until `deploymentState` is `VALIDATED` (or `FAILED`, with `errors`). The
+   response lists the components as `purls`, which must all be the release
+   version.
+3. After the releaser confirms,
+   `POST https://central.sonatype.com/api/v1/publisher/deployment/<deployment id>`
+   publishes the deployment. This cannot be undone.
+
+By hand, the last step is the Publish button at
+<https://central.sonatype.com/publishing/deployments>; Drop there discards an
+unpublished deployment.
 
 ## Nightly snapshots
 

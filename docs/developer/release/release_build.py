@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import base64
 import os
 import re
 import shutil
@@ -13,10 +12,9 @@ import subprocess
 import sys
 import tempfile
 import textwrap
-import urllib.error
-import urllib.request
 from pathlib import Path
 
+from maven_central import check_central_token, gradle_user_properties
 from release_errors import ReleaseError
 from release_utils import (
     check_release_version,
@@ -70,57 +68,6 @@ def clone_or_reset_repos() -> None:
 def download_dependencies() -> None:
     """Download the dependencies of the build, before the release is committed."""
     execute_with_retries(["./gradlew", "resolveDependencies"], CHECKER_FRAMEWORK)
-
-
-def gradle_user_properties() -> dict[str, str]:
-    """Return the Gradle properties of the user, which the release build reads.
-
-    They are the properties in gradle.properties in the Gradle user home, and the properties set by
-    ORG_GRADLE_PROJECT_ environment variables, which take precedence.
-
-    Returns:
-        the Gradle properties of the user
-    """
-    properties = {}
-    gradle_user_home = Path(os.environ.get("GRADLE_USER_HOME", Path.home() / ".gradle"))
-    properties_file = gradle_user_home / "gradle.properties"
-    if properties_file.exists():
-        for line in properties_file.read_text(encoding="utf-8").splitlines():
-            match = re.match(r"\s*([^#!\s=:][^\s=:]*)\s*[=:\s]\s*(.*)", line)
-            if match:
-                properties[match.group(1)] = match.group(2).strip()
-    prefix = "ORG_GRADLE_PROJECT_"
-    for name, value in os.environ.items():
-        if name.startswith(prefix):
-            properties[name[len(prefix) :]] = value
-    return properties
-
-
-def check_central_token(username: str, password: str) -> str | None:
-    """Check that Maven Central accepts the given user token.
-
-    The Central Portal answers a query of the publisher API only for a valid token.
-
-    Returns:
-        a description of the problem, or None if Maven Central accepts the token
-    """
-    token = base64.b64encode(f"{username}:{password}".encode()).decode()
-    request = urllib.request.Request(
-        "https://central.sonatype.com/api/v1/publisher/published"
-        "?namespace=io.github.eisop&name=checker&version=" + CF_VERSION,
-        headers={"Authorization": "Bearer " + token},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=60):
-            return None
-    except urllib.error.HTTPError as e:
-        return (
-            f"Maven Central rejects the user token in SONATYPE_NEXUS_USERNAME and"
-            f" SONATYPE_NEXUS_PASSWORD (HTTP {e.code}); generate a new one at"
-            " https://central.sonatype.com/usertoken."
-        )
-    except OSError as e:
-        return f"Could not reach Maven Central to check the user token: {e}"
 
 
 def check_prerequisites() -> None:

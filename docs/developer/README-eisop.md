@@ -220,9 +220,8 @@ which make GitHub post a cross-reference into that project's tracker.
 ## Release process
 
 See [`maven-central-publishing.md`](maven-central-publishing.md) for how
-publishing is wired, why a release currently ends with a manual click on the
-Central Portal website, and what it would take to remove that step and to
-publish nightly snapshots.
+publishing is wired, how `release_push.py` publishes a release on Maven Central,
+and what it would take to publish nightly snapshots.
 
 TODO: the release process contains many buffalo-specific paths, which still needs to be cleaned up.
 Most of the instructions can be followed, ignoring certain steps.
@@ -241,11 +240,12 @@ message if that property is unset.  See
 [`maven-central-publishing.md`](maven-central-publishing.md#signing-any-maintainer-can-sign-a-release)
 for what a new releaser has to set up.
 
-That uploads to a staging repository. The release is **not** live until it is
-published from the Central Portal, which today means opening
-<https://central.sonatype.com/publishing/deployments> and clicking Publish.
-[`maven-central-publishing.md`](maven-central-publishing.md) describes the
-single API call that would remove that step.
+That uploads to a staging repository. The release is **not** live until the
+upload is moved to the Central Portal, with the request in
+[`maven-central-publishing.md`](maven-central-publishing.md), and published
+there: open <https://central.sonatype.com/publishing/deployments>, wait until the
+deployment is VALIDATED, and click Publish.  `release_push.py` does all of this,
+and asks before it publishes.
 
 The version is `releaseVersion` in `release.gradle`.  A build's version is
 `releaseVersion` followed by `-SNAPSHOT`, unless Gradle is run with
