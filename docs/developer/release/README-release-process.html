@@ -586,7 +586,8 @@ python3 release_build.py</pre>
               validated them, and publish them after you confirm.</li>
             <li>Publish the web site: dispatch the &quot;Publish website&quot; workflow with <code>gh</code> after you confirm; you check
               <a href="https://eisop.github.io/cf/">https://eisop.github.io/cf/</a>.</li>
-            <li>Announce the release.</li>
+            <li>Write the announcement e-mail, with the release's changelog section, to
+              <code>/tmp/$USER/cf-release/announcement-VERSION.txt</code>, for you to send.</li>
             <li>Open a pull request, after you confirm, that sets <code>releaseVersion</code> to
               the next release and adds its changelog section.  Renovate updates the Checker
               Framework version in <code>docs/examples</code> once the release is on Maven

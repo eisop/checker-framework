@@ -366,34 +366,6 @@ def print_step(step: str) -> None:
     print("-" * len(step))
 
 
-def get_announcement_email(version: str) -> str:
-    """Return the template for the e-mail announcing a new release of the Checker Framework.
-
-    Returns:
-        the template for the e-mail announcing a new release of the Checker Framework.
-    """
-    # These are variables only to keep the source lines short.
-    description = (
-        "The Checker Framework lets you create and/or run pluggable type checkers,"
-        " in order to detect and prevent bugs in your code."
-    )
-    changelog = f"https://github.com/{GITHUB_REPO}/blob/master/docs/CHANGELOG.md"
-    return f"""
-To:  checker-framework-discuss@googlegroups.com
-Subject: Release {version} of the Checker Framework
-
-We have released a new version of the Checker Framework.
-{description}
-
-You can find documentation and download links at:
-https://eisop.github.io/
-
-Changes for Checker Framework version {version}:
-
-<<Insert latest Checker Framework changelog entry from {changelog}, preserving its formatting.>>
-"""
-
-
 # =========================================================================================
 # Testing
 

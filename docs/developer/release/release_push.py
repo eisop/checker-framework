@@ -18,7 +18,6 @@ from release_utils import (
     continue_or_exit,
     current_release_version,
     delete_if_exists,
-    get_announcement_email,
     has_command_line_option,
     print_step,
     prompt_w_default,
@@ -113,6 +112,28 @@ def changelog_section(cf_version: str) -> str:
     start = changelog.index(f"## Version {cf_version} (")
     end = changelog.find("\n## Version ", start)
     return changelog[start:] if end == -1 else changelog[start : end + 1]
+
+
+def announcement_email(cf_version: str) -> str:
+    """Return the e-mail that announces the given release, with its changelog section.
+
+    Returns:
+        the e-mail, with its recipient and subject
+    """
+    return (
+        "To: checker-framework-discuss@googlegroups.com\n"
+        f"Subject: Release {cf_version} of the Checker Framework\n"
+        "\n"
+        "We have released a new version of the Checker Framework.  The Checker Framework lets you"
+        " create and/or run pluggable type checkers, in order to detect and prevent bugs in your"
+        " code.\n"
+        "\n"
+        "You can find documentation and download links at:\n"
+        "https://eisop.github.io/\n"
+        "\n"
+        f"Changes for Checker Framework version {cf_version}:\n"
+        "\n" + changelog_section(cf_version)
+    )
 
 
 def create_github_release(tag: str, cf_version: str) -> bool:
@@ -501,9 +522,11 @@ def main(argv: list[str]) -> None:
         )
 
         print_step("Push Step 10. Announce the release.")  # MANUAL
+        email = TMP_DIR / f"announcement-{new_cf_version}.txt"
+        email.write_text(announcement_email(new_cf_version), encoding="utf-8")
         continue_or_exit(
-            "Please announce the release using the email structure below.\n"
-            + get_announcement_email(new_cf_version)
+            f"Send the announcement e-mail in {email}; its first lines are the recipient and the"
+            " subject.\n"
         )
 
         print_step("Push Step 11. Prepare the next Checker Framework release.")  # SEMIAUTO
