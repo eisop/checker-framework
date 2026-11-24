@@ -96,7 +96,7 @@ def check_prerequisites() -> None:
     """Check what the release needs from the user's setup, before anything slow runs.
 
     The checks cover the signing key, the Maven Central token, the JDK, the git identity, and
-    permission to push to GitHub.  gh is optional, so a problem with it is only reported.
+    permission to push to GitHub, and that gh, which posts the GitHub release, is logged in.
 
     Raises:
         ReleaseError: If anything that the release needs is missing.
@@ -147,10 +147,8 @@ def check_prerequisites() -> None:
     if execute_status(dry_run, CHECKER_FRAMEWORK) != 0:
         problems.append(f"You cannot push to {LIVE_CHECKER_REPO}; release_push pushes the release.")
 
-    if shutil.which("gh") is None:
-        print("gh is not installed, so you will post the GitHub release by hand.")
-    elif execute_status(["gh", "auth", "status"]) != 0:
-        print("gh is not logged in (gh auth login), so you would post the GitHub release by hand.")
+    if execute_status(["gh", "auth", "status"]) != 0:
+        problems.append("gh is not logged in; run gh auth login.  release_push uses it.")
 
     if problems:
         msg = "The release cannot proceed:\n" + "\n".join(f"* {p}" for p in problems)

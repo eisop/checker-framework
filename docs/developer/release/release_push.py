@@ -4,7 +4,6 @@
 # See README-release-process.html for more information
 
 import filecmp
-import shutil
 import sys
 import tempfile
 import urllib.error
@@ -212,6 +211,9 @@ def main(argv: list[str]) -> None:
     # version.
 
     print_step("Push Step 1: Checking release versions")  # SEMIAUTO
+    # Step 6 posts the GitHub release with gh.
+    if execute_status(["gh", "auth", "status"]) != 0:
+        raise ReleaseError("gh is not logged in; run gh auth login.")
     check_release_version(current_cf_version, new_cf_version)
 
     print(
@@ -283,38 +285,32 @@ def main(argv: list[str]) -> None:
         print_step(
             "Push Step 6. Post the Checker Framework release, with the Annotation File Utilities,"
             " on GitHub."
-        )  # SEMIAUTO
+        )  # AUTO
 
-        release_files = "".join(
-            f"  {RELEASE_FILES_DIR / name}\n" for name in release_file_names(new_cf_version)
-        )
-        msg = (
-            "\n"
-            "The web site is generated from this GitHub release.  Its files are in "
-            f"{RELEASE_FILES_DIR}; if this script runs on another machine, copy them to yours:\n"
-            + release_files
-            + "\n"
-            "To post the Checker Framework release on GitHub:\n"
-            "\n"
-            f"* Browse to https://github.com/eisop/checker-framework/releases/new?tag={tag}\n"
-            f"* For the release title, enter: Checker Framework {new_cf_version}\n"
-            "* For the description, insert the latest Checker Framework changelog entry "
-            f"(in {CHECKER_FRAMEWORK}/docs/CHANGELOG.md). Please include the first "
-            "line with the release version and date.\n"
-            '* Find the link below "Attach binaries by dropping them here or selecting them." '
-            'Click on "selecting them" and upload both files from your machine.\n'
-            "  The Annotation File Utilities zip must be attached to this release: the web site"
-            " takes it from here.\n"
-            '* Click on the green "Publish release" button.\n'
-        )
-
-        if shutil.which("gh") is None or not prompt_yes_no(
-            f"Create the GitHub release for {tag} with gh, with the changelog section as its"
-            " description and both files attached?  Otherwise you post it by hand.",
-            True,
-        ):
-            continue_or_exit(msg)
-        elif not create_github_release(tag, new_cf_version):
+        # The web site is generated from this release.  If gh fails, the release is posted, or
+        # fixed, by hand.
+        if not create_github_release(tag, new_cf_version):
+            release_files = "".join(
+                f"  {RELEASE_FILES_DIR / name}\n" for name in release_file_names(new_cf_version)
+            )
+            msg = (
+                "\n"
+                "The web site is generated from this GitHub release.  Its files are in "
+                f"{RELEASE_FILES_DIR}; if this script runs on another machine, copy them to"
+                " yours:\n" + release_files + "\n"
+                "To post the Checker Framework release on GitHub:\n"
+                "\n"
+                f"* Browse to https://github.com/eisop/checker-framework/releases/new?tag={tag}\n"
+                f"* For the release title, enter: Checker Framework {new_cf_version}\n"
+                "* For the description, insert the latest Checker Framework changelog entry "
+                f"(in {CHECKER_FRAMEWORK}/docs/CHANGELOG.md). Please include the first "
+                "line with the release version and date.\n"
+                '* Find the link below "Attach binaries by dropping them here or selecting them." '
+                'Click on "selecting them" and upload both files from your machine.\n'
+                "  The Annotation File Utilities zip must be attached to this release: the web site"
+                " takes it from here.\n"
+                '* Click on the green "Publish release" button.\n'
+            )
             continue_or_exit(
                 "gh could not create the release.  Create it, or fix it, by hand." + msg
             )
@@ -322,13 +318,27 @@ def main(argv: list[str]) -> None:
         print_step("Push Step 7. Check the files attached to the GitHub release.")  # AUTO
         check_github_release_files(new_cf_version)
 
-        print_step("Push Step 8. Publish the web site.")  # MANUAL
+        print_step("Push Step 8. Publish the web site.")  # SEMIAUTO
+        # The web site is also published daily at 20:00 UTC.
+        publish_website = [
+            "gh",
+            "workflow",
+            "run",
+            "publish-website.yml",
+            "--repo",
+            "eisop/eisop.github.io",
+            "--field",
+            "dry_run=false",
+        ]
+        if execute_status(publish_website) != 0:
+            print(
+                'gh could not start the "Publish website" workflow.  Run it with dry_run'
+                " unchecked:\n"
+                "  https://github.com/eisop/eisop.github.io/actions/workflows/publish-website.yml"
+            )
         continue_or_exit(
-            "The web site is published daily at 20:00 UTC.  To publish it now, run the\n"
-            '"Publish website" workflow with dry_run unchecked:\n'
+            "The workflow runs at\n"
             "  https://github.com/eisop/eisop.github.io/actions/workflows/publish-website.yml\n"
-            "or:\n"
-            "  gh workflow run publish-website.yml -R eisop/eisop.github.io -f dry_run=false\n"
             f"When it is done, check that https://eisop.github.io/cf/ shows {new_cf_version}.\n"
         )
 

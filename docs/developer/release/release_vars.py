@@ -137,4 +137,5 @@ TOOLS = [
     "mvn",
     "git",
     "dot",
+    "gh",
 ]
