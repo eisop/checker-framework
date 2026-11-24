@@ -38,6 +38,7 @@ jgit-ssh-apache = { group = "org.eclipse.jgit", name = "org.eclipse.jgit.ssh.apa
 #  * Temporarily comment out "-Werror" in build.gradle files.
 #  * Repeatedly run `./gradlew clean compileJava` and fix all errors.
 #  * Uncomment "-Werror".
+#  * Update the version in docs/manual/external-tools.tex, which Renovate does not update.
 # https://mvnrepository.com/artifact/com.google.errorprone/error_prone_core
 error-prone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "error-prone" }
 
