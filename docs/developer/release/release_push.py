@@ -5,12 +5,22 @@
 
 import filecmp
 import re
+import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 from pathlib import Path
 
-from maven_central import DEPLOYMENTS_URL, publish_deployment, upload_to_maven_central
+from maven_central import (
+    DEPLOYMENTS_URL,
+    on_maven_central,
+    publish_deployment,
+    saved_deployment,
+    upload_to_maven_central,
+    verify_local_artifacts,
+    wait_until_published,
+)
 from release_errors import ReleaseError
 from release_utils import (
     check_release_dir,
@@ -23,6 +33,7 @@ from release_utils import (
     prompt_w_default,
     prompt_yes_no,
     push_release,
+    version_number_to_array,
 )
 from release_vars import (
     CF_VERSION,
@@ -35,6 +46,7 @@ from release_vars import (
     execute,
     execute_output,
     execute_status,
+    gradle_release,
 )
 from sanity_checks import (
     javac_sanity_check,
@@ -59,7 +71,7 @@ def download_github_release_file(url: str, destination: Path) -> str | None:
         why the file could not be downloaded, or None if it was.
     """
     try:
-        with urllib.request.urlopen(url) as response:
+        with urllib.request.urlopen(url, timeout=300) as response:
             destination.write_bytes(response.read())
     except OSError as e:
         return f"Could not download {url}: {e}"
@@ -209,11 +221,13 @@ def tests_passed_in_ci() -> bool:
 def next_release_version(version: str) -> str:
     """Return the likely version of the release after the given one: its -eisopN suffix incremented.
 
+    A version without the suffix, a typetools version, is followed by its -eisop1.
+
     Returns:
         the version of the next release
     """
     match = re.fullmatch(r"(.*-eisop)(\d+)", version)
-    return f"{match.group(1)}{int(match.group(2)) + 1}" if match else version
+    return f"{match.group(1)}{int(match.group(2)) + 1}" if match else f"{version}-eisop1"
 
 
 def open_next_release_pr(released_version: str, next_version: str) -> bool:
@@ -278,6 +292,90 @@ def open_next_release_pr(released_version: str, next_version: str) -> bool:
     finally:
         # Leave the clone at the release commit.
         execute_status(["git", "switch", "--quiet", "--force", "master"], CHECKER_FRAMEWORK)
+
+
+WEBSITE = "https://eisop.github.io/cf/"
+
+
+def tag_on_github(tag: str) -> str | None:
+    """Return the commit that the given tag names on GitHub.
+
+    Returns:
+        the commit, or None if the tag is not on GitHub
+    """
+    lines = execute_output(
+        ["git", "ls-remote", "--tags", "origin", f"refs/tags/{tag}", f"refs/tags/{tag}^{{}}"],
+        CHECKER_FRAMEWORK,
+    ).split("\n")
+    commits = {ref: sha for sha, _, ref in (line.partition("\t") for line in lines) if ref}
+    return commits.get(f"refs/tags/{tag}^{{}}") or commits.get(f"refs/tags/{tag}")
+
+
+def check_release_commit(tag: str, pushed: bool) -> None:
+    """Check that the build clone is at the release commit, and that it can be pushed.
+
+    Raises:
+        ReleaseError: If the clone is not at the release commit, if the tag on GitHub names
+            another commit, or if master on GitHub has moved since release_build.py, so that the
+            release commit cannot be pushed.
+    """
+    head = execute_output(["git", "rev-parse", "HEAD"], CHECKER_FRAMEWORK).strip()
+    local_tag = execute_output(["git", "rev-parse", f"{tag}^{{commit}}"], CHECKER_FRAMEWORK).strip()
+    if local_tag != head:
+        msg = f"{CHECKER_FRAMEWORK} is not at {tag}; run release_build.py."
+        raise ReleaseError(msg)
+    if pushed:
+        if tag_on_github(tag) != head:
+            msg = f"{tag} on GitHub is not the release commit {head} in {CHECKER_FRAMEWORK}."
+            raise ReleaseError(msg)
+        return
+    execute(["git", "fetch", "--quiet", "origin", "master"], CHECKER_FRAMEWORK)
+    parent = execute_output(["git", "rev-parse", "HEAD~1"], CHECKER_FRAMEWORK).strip()
+    master = execute_output(["git", "rev-parse", "origin/master"], CHECKER_FRAMEWORK).strip()
+    if master != parent:
+        msg = (
+            "master on GitHub has moved since release_build.py, so the release commit cannot be"
+            " pushed.  Run release_build.py again, which builds the release from the new master."
+        )
+        raise ReleaseError(msg)
+
+
+def github_release_exists(tag: str) -> bool:
+    """Return true if the GitHub release of the given tag exists, as a draft or published.
+
+    Returns:
+        true if the GitHub release exists
+    """
+    view = ["gh", "release", "view", tag, "--repo", GITHUB_REPO, "--json", "tagName"]
+    return subprocess.run(view, capture_output=True, check=False).returncode == 0
+
+
+def website_shows(version: str) -> bool:
+    """Return true if the web site shows the given version.
+
+    Returns:
+        true if the front page of the web site names the given version
+    """
+    try:
+        with urllib.request.urlopen(WEBSITE, timeout=60) as response:
+            return version in response.read().decode(errors="replace")
+    except OSError:
+        return False
+
+
+def wait_for_website(version: str) -> bool:
+    """Wait, for up to half an hour, until the web site shows the given version.
+
+    Returns:
+        true if the web site shows the version
+    """
+    print(f"Waiting until {WEBSITE} shows {version}.")
+    deadline = time.monotonic() + 30 * 60
+    while not website_shows(version):
+        if time.monotonic() > deadline:
+            return False
+        time.sleep(60)
+    return True
 
 
 def validate_args(argv: list[str]) -> None:
@@ -349,25 +447,27 @@ def main(argv: list[str]) -> None:
             "been run."
         )
 
-    # The release script checks that the new release version is greater than the previous release
-    # version.
+    # A rerun continues a release that an earlier run left unfinished: each step that changes
+    # something public first checks whether it is done already.
+    tag = f"checker-framework-{new_cf_version}"
+    pushed = tag_on_github(tag) is not None
+    if pushed:
+        print(f"{tag} is on GitHub already; the steps that are done are skipped.")
 
-    print_step("Push Step 1: Checking release versions")  # SEMIAUTO
-    # Step 6 posts the GitHub release with gh.
-    if execute_status(["gh", "auth", "status"]) != 0:
+    print_step("Push Step 1: Check the release versions and that master has not moved")  # AUTO
+    # Steps 8 and 10 use gh.
+    if execute_status(["gh", "auth", "status", "--hostname", "github.com"]) != 0:
         raise ReleaseError("gh is not logged in; run gh auth login.")
-    check_release_version(current_cf_version, new_cf_version)
-
-    print(
-        f"Checker Framework and AFU:  current-version={current_cf_version}"
-        f"    new-version={new_cf_version}"
-    )
+    if not (pushed and current_cf_version == new_cf_version):
+        check_release_version(current_cf_version, new_cf_version)
+    print(f"Latest release: {current_cf_version}    this release: {new_cf_version}")
+    check_release_commit(tag, pushed)
 
     # Runs sanity tests on the release files that release_build.py built.  release_build.py
     # already checked the links of the pages in the Checker Framework zip file.
 
     print_step("Push Step 2: Run sanity tests")  # SEMIAUTO
-    if prompt_yes_no("Perform this step?", True):
+    if prompt_yes_no("Perform this step?", not pushed):
         print_step("2a: Run javac sanity test on the release zip file.")
         if prompt_yes_no("Run javac sanity test on the release zip file?", True):
             javac_sanity_check(
@@ -378,15 +478,14 @@ def main(argv: list[str]) -> None:
         if prompt_yes_no("Run Maven sanity test on the local Maven repository?", True):
             maven_sanity_check("maven-dev")
 
-    # Runs all tests on the release.
+    # Runs all tests on the release build, with -Prelease=true, which leaves the release's jars
+    # as they are.
 
     print_step("Push Step 3: Run all tests (takes a long time)")
-    if prompt_yes_no("Run all tests?  With few cores, this takes hours.", not tests_passed_in_ci()):
-        gradle_cmd = "./gradlew allTests --console=plain"
-        execute(gradle_cmd, CHECKER_FRAMEWORK)
-
-        gradle_cmd = "./gradlew :annotation-file-utilities:allTests --console=plain"
-        execute(gradle_cmd, CHECKER_FRAMEWORK)
+    if prompt_yes_no(
+        "Run all tests?  With few cores, this takes hours.", not (pushed or tests_passed_in_ci())
+    ):
+        execute(gradle_release("allTests"), CHECKER_FRAMEWORK)
 
     # The web site is generated from the GitHub release.  Running the generator on the release zip
     # file shows problems with the generated pages before anything is published: every internal
@@ -405,73 +504,28 @@ def main(argv: list[str]) -> None:
     else:
         print(f"The links of the web site generated in {GENERATED_SITE} work.")
 
-    # This step pushes the release commit and its tag to GitHub. This is the first irreversible
-    # change. After this point, you can no longer backout changes and should do another release
-    # in case of critical errors.
+    # Maven Central validates the release before anything is public: a deployment that is not
+    # published can be dropped.  Everything after this step is public or irreversible.
 
-    tag = f"checker-framework-{new_cf_version}"
-    print_step("Push Step 5. Push the release to GitHub")  # SEMIAUTO
-    # This step could be performed without asking for user input but I think we should err on the
-    # side of caution.
-    if not test_mode:
-        if not prompt_yes_no(f"Push master and {tag} to GitHub?  This is irreversible.", True):
-            # Posting a GitHub release for a tag that is not on GitHub would create the tag on
-            # the head of master, which is not the release commit.
-            raise ReleaseError("The release was not pushed, so it cannot be posted.")
-        push_release(CHECKER_FRAMEWORK, tag)
-        print("Pushed to GitHub")
-    else:
-        print("Test mode: Skipping push to GitHub!")
-
+    print_step("Push Step 5: Upload the Maven artifacts to Maven Central, for validation")
+    deployment_id, deployment_state = saved_deployment(new_cf_version)
+    central_done = deployment_state in {"PUBLISHING", "PUBLISHED"} or on_maven_central(
+        new_cf_version
+    )
     if test_mode:
+        problems = verify_local_artifacts(new_cf_version)
+        for problem in problems:
+            print("  " + problem)
+        if problems:
+            raise ReleaseError("The artifacts are not ready for Maven Central.")
+        print("Test mode: the artifacts are ready for Maven Central; nothing is uploaded.")
         print("Test complete")
+        return
+    if central_done:
+        print(f"{new_cf_version} is on Maven Central already.")
+    elif deployment_state == "VALIDATED":
+        print(f"Deployment {deployment_id}, uploaded earlier, is validated.")
     else:
-        print_step(
-            "Push Step 6. Post the Checker Framework release, with the Annotation File Utilities,"
-            " on GitHub."
-        )  # SEMIAUTO
-
-        # The web site is generated from this release.  If you decline, or gh fails, the release
-        # is posted, or fixed, by hand.
-        if not (
-            prompt_yes_no(
-                f"Create the GitHub release for {tag} with gh, with the changelog section as its"
-                " description and both zip files attached?  It is public.",
-                True,
-            )
-            and create_github_release(tag, new_cf_version)
-        ):
-            release_files = "".join(
-                f"  {RELEASE_FILES_DIR / name}\n" for name in release_file_names(new_cf_version)
-            )
-            msg = (
-                "\n"
-                "The web site is generated from this GitHub release.  Its files are in "
-                f"{RELEASE_FILES_DIR}; if this script runs on another machine, copy them to"
-                " yours:\n" + release_files + "\n"
-                "To post the Checker Framework release on GitHub:\n"
-                "\n"
-                f"* Browse to https://github.com/{GITHUB_REPO}/releases/new?tag={tag}\n"
-                f"* For the release title, enter: Checker Framework {new_cf_version}\n"
-                "* For the description, insert the latest Checker Framework changelog entry "
-                f"(in {CHECKER_FRAMEWORK}/docs/CHANGELOG.md). Please include the first "
-                "line with the release version and date.\n"
-                '* Find the link below "Attach binaries by dropping them here or selecting them." '
-                'Click on "selecting them" and upload both files from your machine.\n'
-                "  The Annotation File Utilities zip must be attached to this release: the web site"
-                " takes it from here.\n"
-                '* Click on the green "Publish release" button.\n'
-            )
-            continue_or_exit("Create the release, or fix it, by hand." + msg)
-
-        print_step("Push Step 7. Check the files attached to the GitHub release.")  # AUTO
-        check_github_release_files(new_cf_version)
-
-        print_step("Push Step 8. Publish the Maven artifacts on Maven Central.")  # SEMIAUTO
-        # The artifacts that release_build.py published to the local Maven repository, and checked
-        # there, are checked again and uploaded as they are.  The Portal validates them before
-        # anything is published.  If you decline, or a request fails, the deployment is
-        # published, or dropped, by hand.
         deployment_id = None
         if prompt_yes_no(
             "Upload the Maven artifacts from the local Maven repository to Maven Central, for"
@@ -479,85 +533,155 @@ def main(argv: list[str]) -> None:
             True,
         ):
             deployment_id = upload_to_maven_central(new_cf_version)
-        if not (
-            deployment_id
-            and prompt_yes_no(
-                f"Publish {new_cf_version} on Maven Central?  This is irreversible.", True
-            )
-            and publish_deployment(deployment_id)
-        ):
-            continue_or_exit(
-                "Publish the Maven artifacts by hand; see the release process README.\n"
-                f"A deployment that was uploaded is at {DEPLOYMENTS_URL}.\n"
-                f"The checked artifacts are in {TMP_DIR}/central-bundle-{new_cf_version}.zip,"
-                " which you can upload there.\n"
+        if deployment_id is None:
+            raise ReleaseError(
+                "The Maven artifacts are not validated, so nothing is pushed or published.  Fix"
+                " the problem and run release_push.py again, or publish by hand; see the release"
+                " process README."
             )
 
-        print_step("Push Step 9. Publish the web site.")  # SEMIAUTO
-        # The web site is also published daily at 20:00 UTC.
-        publish_website = [
-            "gh",
-            "workflow",
-            "run",
-            "publish-website.yml",
-            "--repo",
-            "eisop/eisop.github.io",
-            "--field",
-            "dry_run=false",
-        ]
-        if (
-            not prompt_yes_no(
-                f'Publish the web site for {new_cf_version} now, with the "Publish website"'
-                " workflow?",
-                True,
-            )
-            or execute_status(publish_website) != 0
-        ):
-            print(
-                'The "Publish website" workflow was not started.  To publish now, run it with'
-                " dry_run unchecked:\n"
-                "  https://github.com/eisop/eisop.github.io/actions/workflows/publish-website.yml"
-            )
+    print_step("Push Step 6. Push the release to GitHub")  # SEMIAUTO
+    if pushed:
+        print(f"{tag} is on GitHub already.")
+    else:
+        if not prompt_yes_no(f"Push master and {tag} to GitHub?  This is irreversible.", False):
+            # Posting a GitHub release for a tag that is not on GitHub would create the tag on
+            # the head of master, which is not the release commit.
+            raise ReleaseError("The release was not pushed.  Run release_push.py again to push it.")
+        push_release(CHECKER_FRAMEWORK, tag)
+        print("Pushed to GitHub")
+
+    print_step("Push Step 7. Publish the Maven artifacts on Maven Central.")  # SEMIAUTO
+    # Before the GitHub release, from which the web site is generated, so that the web site does
+    # not offer a version that is not on Maven Central.
+    if not central_done and not (
+        deployment_id is not None
+        and prompt_yes_no(
+            f"Publish {new_cf_version} on Maven Central?  This is irreversible.", False
+        )
+        and publish_deployment(deployment_id)
+    ):
         continue_or_exit(
-            "The workflow runs at\n"
+            f"Publish deployment {deployment_id} by hand at {DEPLOYMENTS_URL}, or run"
+            " release_push.py again.\n"
+        )
+
+    print_step(
+        "Push Step 8. Post the Checker Framework release, with the Annotation File Utilities,"
+        " on GitHub."
+    )  # SEMIAUTO
+    # The web site is generated from this release.  If you decline, or gh fails, the release is
+    # posted, or fixed, by hand.
+    if github_release_exists(tag):
+        print(f"The GitHub release {tag} exists already.")
+    elif not (
+        prompt_yes_no(
+            f"Create the GitHub release for {tag} with gh, with the changelog section as its"
+            " description and both zip files attached?  It is public, and the web site shows it"
+            " by its next daily update.",
+            False,
+        )
+        and create_github_release(tag, new_cf_version)
+    ):
+        release_files = "".join(
+            f"  {RELEASE_FILES_DIR / name}\n" for name in release_file_names(new_cf_version)
+        )
+        msg = (
+            "\n"
+            "The web site is generated from this GitHub release.  Its files are in "
+            f"{RELEASE_FILES_DIR}; if this script runs on another machine, copy them to"
+            " yours:\n" + release_files + "\n"
+            "To post the Checker Framework release on GitHub:\n"
+            "\n"
+            f"* Browse to https://github.com/{GITHUB_REPO}/releases/new?tag={tag}, or, if a"
+            f" draft exists, edit it: gh release view {tag} --repo {GITHUB_REPO}\n"
+            f"* For the release title, enter: Checker Framework {new_cf_version}\n"
+            "* For the description, insert the latest Checker Framework changelog entry "
+            f"(in {CHECKER_FRAMEWORK}/docs/CHANGELOG.md). Please include the first "
+            "line with the release version and date.\n"
+            '* Find the link below "Attach binaries by dropping them here or selecting them." '
+            'Click on "selecting them" and upload both files from your machine.\n'
+            "  The Annotation File Utilities zip must be attached to this release: the web site"
+            " takes it from here.\n"
+            '* Click on the green "Publish release" button.\n'
+        )
+        continue_or_exit("Create the release, or fix it, by hand." + msg)
+
+    print_step("Push Step 9. Check the files attached to the GitHub release.")  # AUTO
+    check_github_release_files(new_cf_version)
+
+    print_step("Push Step 10. Publish the web site.")  # SEMIAUTO
+    # The web site is also published daily at 20:00 UTC.
+    publish_website = [
+        "gh",
+        "workflow",
+        "run",
+        "publish-website.yml",
+        "--repo",
+        "eisop/eisop.github.io",
+        "--field",
+        "dry_run=false",
+    ]
+    if website_shows(new_cf_version):
+        print(f"{WEBSITE} shows {new_cf_version} already.")
+    elif (
+        prompt_yes_no(
+            f'Publish the web site for {new_cf_version} now, with the "Publish website" workflow?',
+            True,
+        )
+        and execute_status(publish_website) == 0
+        and wait_for_website(new_cf_version)
+    ):
+        print(f"{WEBSITE} shows {new_cf_version}.")
+    else:
+        continue_or_exit(
+            f"{WEBSITE} does not show {new_cf_version} yet.  Run the workflow with dry_run"
+            " unchecked, and check the site:\n"
             "  https://github.com/eisop/eisop.github.io/actions/workflows/publish-website.yml\n"
-            f"When it is done, check that https://eisop.github.io/cf/ shows {new_cf_version}.\n"
         )
 
-        print_step("Push Step 10. Announce the release.")  # MANUAL
-        email = TMP_DIR / f"announcement-{new_cf_version}.txt"
-        email.write_text(announcement_email(new_cf_version), encoding="utf-8")
-        continue_or_exit(
-            f"Send the announcement e-mail in {email}; its first lines are the recipient and the"
-            " subject.\n"
-        )
+    print_step("Push Step 11. Announce the release.")  # MANUAL
+    # Announce only what users can download.
+    if not on_maven_central(new_cf_version):
+        print(f"Waiting until Maven Central has published {new_cf_version}.")
+        if deployment_id is None or not wait_until_published(deployment_id):
+            continue_or_exit(f"Check that Maven Central has published {new_cf_version}.")
+    email = TMP_DIR / f"announcement-{new_cf_version}.txt"
+    email.write_text(announcement_email(new_cf_version), encoding="utf-8")
+    continue_or_exit(
+        f"Send the announcement e-mail in {email}; its first lines are the recipient and the"
+        " subject.\n"
+    )
 
-        print_step("Push Step 11. Prepare the next Checker Framework release.")  # SEMIAUTO
-        # Until releaseVersion is the next version, snapshots have the version just released.
-        # Renovate updates the version in docs/examples once the release is on Maven Central.
+    print_step("Push Step 12. Prepare the next Checker Framework release.")  # SEMIAUTO
+    # Until releaseVersion is the next version, snapshots have the version just released.
+    # Renovate updates the version in docs/examples once the release is on Maven Central.
+    next_version = new_cf_version
+    while version_number_to_array(next_version) <= version_number_to_array(new_cf_version):
         next_version = prompt_w_default(
-            "Version of the next release",
+            f"Version of the next release, after {new_cf_version}",
             next_release_version(new_cf_version),
             r"^\d+\.\d+\.\d+(-eisop\d+)?$",
         )
-        if not (
-            prompt_yes_no(
-                f"Open a pull request that sets releaseVersion to {next_version} and adds its"
-                " changelog section?",
-                True,
-            )
-            and open_next_release_pr(new_cf_version, next_version)
-        ):
-            continue_or_exit(
-                f"Make a pull request that changes releaseVersion in release.gradle to"
-                f" {next_version}, and adds its section to docs/CHANGELOG.md.\n"
-            )
+    if not (
+        prompt_yes_no(
+            f"Open a pull request that sets releaseVersion to {next_version} and adds its"
+            " changelog section?",
+            True,
+        )
+        and open_next_release_pr(new_cf_version, next_version)
+    ):
+        continue_or_exit(
+            f"Make a pull request that changes releaseVersion in release.gradle to"
+            f" {next_version}, and adds its section to docs/CHANGELOG.md.\n"
+        )
 
-    if not test_mode:
-        delete_if_exists(RELEASE_BUILD_COMPLETED_FLAG_FILE)
-
+    delete_if_exists(RELEASE_BUILD_COMPLETED_FLAG_FILE)
     print("Done with release_push.py.\n")
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    try:
+        main(sys.argv)
+    except ReleaseError as e:
+        sys.exit(f"\nrelease_push.py stopped: {e}")

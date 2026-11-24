@@ -113,6 +113,15 @@ if not (SCRIPTS_CLONE / "gradlew").is_file():
         " the Step by Step section of docs/developer/release/README-release-process.html."
     )
     raise ReleaseError(msg)
+
+os.environ["CHECKERFRAMEWORK"] = str(CHECKER_FRAMEWORK)
+os.environ["TEXINPUTS"] = ".:..:"
+# The JDK of the release build, also for the Gradle command below; the environment variable
+# JAVA_21_HOME overrides the default.
+os.environ.setdefault("JAVA_21_HOME", "/usr/lib/jvm/java-21-openjdk/")
+os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
+os.environ["PATH"] = os.environ["JAVA_HOME"] + "/bin:" + os.environ["PATH"]
+
 execute("./gradlew version -q -Prelease=true", SCRIPTS_CLONE)
 CF_VERSION = execute_output("./gradlew version -q -Prelease=true", SCRIPTS_CLONE).strip()
 
@@ -120,16 +129,22 @@ CF_VERSION = execute_output("./gradlew version -q -Prelease=true", SCRIPTS_CLONE
 # which are attached to the GitHub release.  The web site is generated from them.
 RELEASE_FILES_DIR = TMP_DIR / "release-files"
 
-os.environ["CHECKERFRAMEWORK"] = str(CHECKER_FRAMEWORK)
-os.environ["TEXINPUTS"] = ".:..:"
-# The JDK of the release build; the environment variable JAVA_21_HOME overrides the default.
-os.environ.setdefault("JAVA_21_HOME", "/usr/lib/jvm/java-21-openjdk/")
-os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
+# The options of the Gradle commands that build, test, and publish the release.  -Prelease=true
+# makes the version releaseVersion rather than a -SNAPSHOT version.  Without
+# -x :framework:cloneAnnotatedJdk, every Gradle command would pull the annotated JDK again, and a
+# change to it between two commands would change the jars; Build Step 1 clones it once, and the
+# release tag records its commit.
+GRADLE_RELEASE_OPTIONS = ["-Prelease=true", "--console=plain", "-x", ":framework:cloneAnnotatedJdk"]
 
-PATH = os.environ["JAVA_HOME"] + "/bin:" + os.environ["PATH"]
-PATH = PATH + ":/usr/bin"
-PATH = PATH + ":."
-os.environ["PATH"] = PATH
+
+def gradle_release(*tasks: str) -> list[str]:
+    """Return the Gradle command that runs the given tasks for the release.
+
+    Returns:
+        the Gradle command
+    """
+    return ["./gradlew", *tasks, *GRADLE_RELEASE_OPTIONS]
+
 
 # Tools that must be on your PATH (besides common Unix ones like grep)
 TOOLS = [
@@ -140,4 +155,6 @@ TOOLS = [
     "git",
     "dot",
     "gh",
+    "make",
+    "unzip",
 ]

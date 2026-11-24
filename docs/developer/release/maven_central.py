@@ -72,8 +72,9 @@ POM_NAMESPACE = "{http://maven.apache.org/POM/4.0.0}"
 # Files that are checksums of other files, which the bundle for the Portal gets fresh.
 CHECKSUM_SUFFIXES = {".md5", ".sha1", ".sha256", ".sha512"}
 
-# How long to wait for the Portal to validate a deployment, and how often to ask.
+# How long to wait for the Portal to validate, or to publish, a deployment, and how often to ask.
 VALIDATION_TIMEOUT_SECONDS = 30 * 60
+PUBLICATION_TIMEOUT_SECONDS = 60 * 60
 POLL_SECONDS = 30
 
 
@@ -522,6 +523,71 @@ def deployment_status(deployment_id: str, headers: dict[str, str]) -> dict:
     return json.loads(body)
 
 
+def deployment_file(version: str) -> Path:
+    """Return the file that holds the ID of the deployment of the given version.
+
+    A rerun of release_push.py uses it to find the deployment that an earlier run uploaded.
+
+    Returns:
+        the file that holds the deployment ID
+    """
+    return TMP_DIR / f"central-deployment-{version}.txt"
+
+
+def saved_deployment(version: str) -> tuple[str | None, str | None]:
+    """Return the deployment of the given version that an earlier run uploaded, and its state.
+
+    Returns:
+        the deployment ID and its deploymentState, or None for each that is unknown
+    """
+    if not deployment_file(version).exists():
+        return None, None
+    deployment_id = deployment_file(version).read_text(encoding="utf-8").strip()
+    try:
+        state = deployment_status(deployment_id, user_authorization()).get("deploymentState")
+    except (OSError, ValueError) as e:
+        print(f"Could not get the state of deployment {deployment_id}: {e}")
+        return deployment_id, None
+    return deployment_id, state
+
+
+def on_maven_central(version: str) -> bool:
+    """Return true if Maven Central serves the given version of the checker artifact.
+
+    Returns:
+        true if the version's POM of the checker artifact can be downloaded from Maven Central
+    """
+    path = "/".join([*NAMESPACE.split("."), "checker", version, f"checker-{version}.pom"])
+    try:
+        with urllib.request.urlopen(f"https://repo1.maven.org/maven2/{path}", timeout=60):
+            return True
+    except OSError:
+        return False
+
+
+def wait_until_published(deployment_id: str) -> bool:
+    """Wait until Maven Central has published the given deployment.
+
+    Returns:
+        true if the deployment is published; otherwise the reason is printed
+    """
+    deadline = time.monotonic() + PUBLICATION_TIMEOUT_SECONDS
+    try:
+        while True:
+            status = deployment_status(deployment_id, user_authorization())
+            state = status.get("deploymentState")
+            print(f"  {state}")
+            if state == "PUBLISHED":
+                return True
+            if state == "FAILED" or time.monotonic() > deadline:
+                print(json.dumps(status.get("errors", status), indent=2))
+                return False
+            time.sleep(POLL_SECONDS)
+    except (OSError, ValueError) as e:
+        print(f"Could not get the state of deployment {deployment_id}: {e}")
+        return False
+
+
 def upload_to_maven_central(version: str) -> str | None:
     """Upload the checked release artifacts to Maven Central, and wait until they are validated.
 
@@ -545,6 +611,7 @@ def upload_to_maven_central(version: str) -> str | None:
         bundle = make_bundle(version)
         print(f"Uploading {bundle} ({bundle.stat().st_size // 1_000_000} MB).")
         deployment_id = upload_bundle(bundle, version, headers)
+        deployment_file(version).write_text(deployment_id + "\n", encoding="utf-8")
         print(f"Deployment {deployment_id} is in the Portal; waiting for its validation.")
         deadline = time.monotonic() + VALIDATION_TIMEOUT_SECONDS
         while True:
@@ -588,6 +655,5 @@ def publish_deployment(deployment_id: str) -> bool:
     except OSError as e:
         print(f"The request to publish the deployment failed: {e}")
         return False
-    print(f"Maven Central is publishing the deployment (HTTP {status}).  It is on Maven Central")
-    print(f"within about half an hour; see {DEPLOYMENTS_URL}.")
+    print(f"Maven Central is publishing the deployment (HTTP {status}); see {DEPLOYMENTS_URL}.")
     return True

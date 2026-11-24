@@ -75,13 +75,9 @@ def prompt_w_default(msg: str, default: str, valid_regex: str | None = None) -> 
         else:
             answer = answer.strip()
 
-            if valid_regex is not None:
-                m = re.match(valid_regex, answer)
-                if m is None:
-                    answer = None
-                    print("Invalid answer.  Validating regex: " + valid_regex)
-            else:
-                answer = default
+            if valid_regex is not None and re.match(valid_regex, answer) is None:
+                answer = None
+                print("Invalid answer.  Validating regex: " + valid_regex)
 
     return answer
 
@@ -161,7 +157,7 @@ def current_release_version() -> str:
     """
     url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
     print(f"Looking up the latest release at {url}\n")
-    with urllib.request.urlopen(url=url) as response:
+    with urllib.request.urlopen(url=url, timeout=60) as response:
         tag = json.load(response)["tag_name"]
     prefix = "checker-framework-"
     if not tag.startswith(prefix):
@@ -183,10 +179,13 @@ def git_repo_exists_at_path(repo_root: Path) -> bool:
     return (repo_root / ".git").is_dir()
 
 
-def commit_and_tag(version: str, path: Path, tag: str) -> None:
-    """Commit the changes made for this release and add a tag.
+def commit_and_tag(
+    version: str, path: Path, tag: str, message: str, signing_key: str | None
+) -> None:
+    """Commit the changes made for this release and add an annotated tag with the given message.
 
-    release_push.py pushes the commit and the tag; see push_release.
+    The tag is signed with the given key, if there is one.  release_push.py pushes the commit and
+    the tag; see push_release.
     """
     # Remove the pre-commit hook because it can cause errors.
     execute("rm -f .git/hooks/pre-commit", working_dir=path)
@@ -194,7 +193,8 @@ def commit_and_tag(version: str, path: Path, tag: str) -> None:
     # Do nothing (instead of erring) if there is nothing to commit.
     if execute_status("git diff-index --quiet HEAD", working_dir=path) != 0:
         execute(f'git commit -a -m "new release {version}"', working_dir=path)
-    execute(f"git tag {tag}", working_dir=path)
+    sign = ["--local-user", signing_key] if signing_key else []
+    execute(["git", "tag", "--annotate", *sign, "--message", message, tag], working_dir=path)
 
 
 def push_release(repo_root: Path, tag: str) -> None:
@@ -322,7 +322,8 @@ def clone_or_reset(src_repo: str, dst_repo_dir: Path, shallow: bool = False) -> 
         # A shallow clone fetches only master; a full clone also fetches the tags, and
         # --prune-tags deletes the local tags that are not on GitHub, such as an unpushed release
         # tag.
-        fetch = ["--depth", "1"] if shallow else ["--prune", "--prune-tags"]
+        # --force updates a tag that moved on GitHub, such as nightly; git refuses otherwise.
+        fetch = ["--depth", "1"] if shallow else ["--force", "--prune", "--prune-tags"]
         commands = [
             ["git", "fetch", "--quiet", *fetch, "origin"],
             ["git", "checkout", "--quiet", "--force", "master"],

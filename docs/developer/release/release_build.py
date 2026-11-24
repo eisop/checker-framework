@@ -46,11 +46,13 @@ from release_vars import (
     LIVE_CHECKER_REPO,
     RELEASE_BUILD_COMPLETED_FLAG_FILE,
     RELEASE_FILES_DIR,
+    SCRIPTS_CLONE,
     TMP_DIR,
     TOOLS,
     execute,
     execute_output,
     execute_status,
+    gradle_release,
 )
 
 # Turned on by the --debug command-line option.
@@ -144,6 +146,14 @@ def check_prerequisites() -> None:
     javac = Path(os.environ["JAVA_HOME"]) / "bin" / "javac"
     if not javac.exists():
         problems.append(f"{javac} does not exist; set JAVA_21_HOME to a JDK 21 or later.")
+    else:
+        # A publish on an older JDK would leave out framework-errorprone; see settings.gradle.
+        javac_version = subprocess.run(
+            [str(javac), "-version"], capture_output=True, text=True, check=False
+        )
+        match = re.search(r"javac (\d+)", javac_version.stdout + javac_version.stderr)
+        if match is None or int(match.group(1)) < 21:
+            problems.append(f"{javac} is not a JDK 21 or later; set JAVA_21_HOME to one.")
 
     problems.extend(
         f"git config {name} is not set; the release commit needs it."
@@ -157,11 +167,35 @@ def check_prerequisites() -> None:
     if execute_status(dry_run, CHECKER_FRAMEWORK) != 0:
         problems.append(f"You cannot push to {LIVE_CHECKER_REPO}; release_push pushes the release.")
 
-    if execute_status(["gh", "auth", "status"]) != 0:
+    if execute_status(["gh", "auth", "status", "--hostname", "github.com"]) != 0:
         problems.append("gh is not logged in; run gh auth login.  release_push uses it.")
 
     if problems:
         msg = "The release cannot proceed:\n" + "\n".join(f"* {p}" for p in problems)
+        raise ReleaseError(msg)
+
+
+def check_versions(old_cf_version: str, cf_version: str) -> None:
+    """Check that the given version can be released, after the given latest release.
+
+    Raises:
+        ReleaseError: If the version is not greater than the latest release, if the build clone
+            has another version, or if the version's tag is already on GitHub.
+    """
+    # A version that is not greater would otherwise be noticed only by release_push.py, after the
+    # whole build.  Update releaseVersion in release.gradle and start over.
+    check_release_version(old_cf_version, cf_version)
+    # The version comes from the clone that runs the scripts; the release is built from master.
+    built_version = execute_output("./gradlew version -q -Prelease=true", CHECKER_FRAMEWORK).strip()
+    if built_version != cf_version:
+        msg = (
+            f"master would release {built_version}, but the release scripts are for {cf_version}."
+            f"  Update {SCRIPTS_CLONE} with git pull, and run release_build.py again."
+        )
+        raise ReleaseError(msg)
+    tag = f"checker-framework-{cf_version}"
+    if execute_output(["git", "ls-remote", "--tags", "origin", tag], CHECKER_FRAMEWORK).strip():
+        msg = f"{tag} is already on GitHub; continue the release with release_push.py."
         raise ReleaseError(msg)
 
 
@@ -220,10 +254,7 @@ def build_and_locally_deploy_maven(version: str) -> None:
     """
     # Only the files of this build may be uploaded, not those of an earlier one.
     clear_local_artifacts(version)
-    execute(
-        "./gradlew publishToMavenLocal -Prelease=true --console=plain",
-        working_dir=CHECKER_FRAMEWORK,
-    )
+    execute(gradle_release("publishToMavenLocal"), working_dir=CHECKER_FRAMEWORK)
     problems = verify_local_artifacts(version)
     if problems:
         msg = "The artifacts are not ready for Maven Central:\n" + "\n".join(
@@ -235,8 +266,8 @@ def build_and_locally_deploy_maven(version: str) -> None:
 
 def update_version_numbers(old_cf_version: str) -> None:
     """Update the version numbers and release dates in the documentation for the release."""
-    execute("./gradlew clean", working_dir=CHECKER_FRAMEWORK)
-    execute("./gradlew updateVersionNumbers --console=plain", working_dir=CHECKER_FRAMEWORK)
+    execute(gradle_release("clean"), working_dir=CHECKER_FRAMEWORK)
+    execute(gradle_release("updateVersionNumbers"), working_dir=CHECKER_FRAMEWORK)
 
     # Check that updating versions didn't overlook anything.
     print("Here are occurrences of the old version number, " + old_cf_version + ":")
@@ -260,8 +291,7 @@ def build_checker_framework_release(version: str) -> None:
     # Build the Checker Framework binaries and documents.  Tests are run by release_push.py.
     # Every Gradle command that builds release artifacts passes -Prelease=true; otherwise the
     # build's version is a -SNAPSHOT version.
-    gradle_cmd = "./gradlew buildAll -Prelease=true --console=plain"
-    execute(gradle_cmd, CHECKER_FRAMEWORK)
+    execute(gradle_release("buildAll"), CHECKER_FRAMEWORK)
 
     # make the checker framework tutorial
     checker_tutorial_dir = Path(CHECKER_FRAMEWORK) / "docs" / "tutorial"
@@ -269,9 +299,7 @@ def build_checker_framework_release(version: str) -> None:
 
     # Create checker-framework-X.Y.Z.zip and annotation-file-utilities-X.Y.Z.zip, which also makes
     # the manuals, and put them in RELEASE_FILES_DIR.
-    execute(
-        "./gradlew zip annotationFileUtilitiesZip -Prelease=true --console=plain", CHECKER_FRAMEWORK
-    )
+    execute(gradle_release("zip", "annotationFileUtilitiesZip"), CHECKER_FRAMEWORK)
     delete_directory_if_exists(RELEASE_FILES_DIR)
     RELEASE_FILES_DIR.mkdir(parents=True)
     for name in (f"checker-framework-{version}.zip", f"annotation-file-utilities-{version}.zip"):
@@ -324,14 +352,8 @@ def main(argv: list[str]) -> None:
     # again after any failure before the push: a clone with an unpushed release commit and tag is
     # indistinguishable from a fresh clone afterwards.  The annotated JDK is cloned or reset, too.
 
-    print_step("Build Step 1a: Clone or reset the repositories.")  # AUTO
+    print_step("Build Step 1: Clone or reset the repositories.")  # AUTO
     clone_or_reset_repos()
-
-    # Downloading the dependencies now, with retries, keeps a network problem from failing the
-    # build after the release is committed.
-
-    print_step("Build Step 1b: Download the dependencies.")  # AUTO
-    download_dependencies()
 
     # The release script requires a number of common tools (Maven, make, etc...), a signing key,
     # and permission to push.  This step checks them, to avoid wasting time in the event one is
@@ -341,20 +363,23 @@ def main(argv: list[str]) -> None:
     check_tools(TOOLS)
     check_prerequisites()
 
+    # Downloading the dependencies now, with retries, keeps a network problem from failing the
+    # build after the release is committed.
+
+    print_step("Build Step 3: Download the dependencies.")  # AUTO
+    download_dependencies()
+
     # The release script reads the current version of the Checker Framework from the latest GitHub
     # release.  The new version is releaseVersion in release.gradle, and must be greater.
 
-    print_step("Build Step 3: Determine release versions.")  # MANUAL
+    print_step("Build Step 4: Determine release versions.")  # AUTO
 
     old_cf_version = current_release_version()
     cf_version = CF_VERSION
     print("Version: " + cf_version + "\n")
+    check_versions(old_cf_version, cf_version)
 
-    # A version that is not greater would otherwise be noticed only by release_push.py, after the
-    # whole build.  Update releaseVersion in release.gradle and start over.
-    check_release_version(old_cf_version, cf_version)
-
-    print_step("Build Step 4: Update the version numbers.")  # MANUAL
+    print_step("Build Step 5: Update the version numbers.")  # MANUAL
     update_version_numbers(old_cf_version)
     set_changelog_date(CHANGELOG, cf_version)
     reflow_closed_issues(CHANGELOG, cf_version)
@@ -362,20 +387,30 @@ def main(argv: list[str]) -> None:
     # The files updated for the release, usually with the new release date and version, are
     # committed, and the commit is tagged.  release_push.py pushes both.  The release is committed
     # before it is built, so that the jars record the release commit.  If the build fails, run
-    # this script again; Step 1a discards the commit and the tag.
+    # this script again; Step 1 discards the commit and the tag.
 
-    print_step("Build Step 5: Commit and tag the release.")  # AUTO
-    commit_and_tag(cf_version, CHECKER_FRAMEWORK, f"checker-framework-{cf_version}")
+    print_step("Build Step 6: Commit and tag the release.")  # AUTO
+    jdk_commit = execute_output(["git", "rev-parse", "HEAD"], BUILD_DIR / "jdk").strip()
+    commit_and_tag(
+        cf_version,
+        CHECKER_FRAMEWORK,
+        f"checker-framework-{cf_version}",
+        f"Checker Framework {cf_version}\n\nAnnotated JDK: {ANNOTATED_JDK_REPO} {jdk_commit}\n",
+        gradle_user_properties().get("signing.gnupg.keyName"),
+    )
 
     # The Checker Framework and the Annotation File Utilities are built together.  This is the most
     # time-consuming piece of the release.  There are no more prompts; you might want to get a cup
     # of coffee and do something else until it is done.
 
-    print_step("Build Step 6: Build the Checker Framework and the Annotation File Utilities.")
+    print_step("Build Step 7: Build the Checker Framework and the Annotation File Utilities.")
     build_checker_framework_release(cf_version)
 
     RELEASE_BUILD_COMPLETED_FLAG_FILE.touch()
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    try:
+        main(sys.argv)
+    except ReleaseError as e:
+        sys.exit(f"\nrelease_build.py stopped: {e}")

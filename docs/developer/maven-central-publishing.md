@@ -81,7 +81,7 @@ checks what it published, with
 
 A problem stops the build, before anything is pushed or uploaded.
 
-`release_push.py` (step 8) checks the files again and puts exactly those files
+`release_push.py` (step 5, before anything is pushed) checks the files again and puts exactly those files
 into a bundle in the layout of a Maven repository, with an MD5 and SHA-1
 checksum of each, which it uploads with the Portal's publisher API:
 
@@ -91,8 +91,9 @@ checksum of each, which it uploads with the Portal's publisher API:
    is `VALIDATED` (or `FAILED`, with `errors`). The response lists the
    components as `purls`, which must be exactly the expected artifacts at the
    release version.
-3. After the releaser confirms, `POST …/api/v1/publisher/deployment/<deployment id>`
-   publishes the deployment. This cannot be undone.
+3. After the push to GitHub (step 6), and after the releaser confirms (step 7),
+   `POST …/api/v1/publisher/deployment/<deployment id>` publishes the deployment.
+   This cannot be undone. Step 11 waits until its state is `PUBLISHED`.
 
 All requests carry `Authorization: Bearer <base64 of user-token-name:user-token-password>`.
 

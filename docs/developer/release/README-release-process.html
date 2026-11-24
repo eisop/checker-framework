@@ -243,16 +243,18 @@ TreeAnnotator
         and the script will run its checks and prompts but will not push or post anything.
       </p>
       <p>
-        Pushing master and the tag to GitHub (step 5) is the first irreversible step;
-        answering &quot;no&quot; there stops the script.
-        Afterwards the script asks before it posts the GitHub release with the two zip files
-        attached, before it publishes the Maven artifacts on Maven Central, and before it starts
-        publishing the web site, which is generated from that release.
+        Before anything is public, the script uploads the Maven artifacts to Maven Central and
+        waits until they are validated.  Pushing master and the tag to GitHub (step 6) is the
+        first irreversible step; answering &quot;no&quot; there stops the script.  Afterwards the
+        script asks before it publishes the Maven artifacts on Maven Central, before it posts the
+        GitHub release with the two zip files attached, from which the web site is generated, and
+        before it starts publishing the web site.  If the script stops, for any reason, run it
+        again: it skips the steps that are done.
         See <a href="#release_scripts">Release Scripts</a> for all steps.
       </p>
   </li>
   <li>
-      <strong>Publish to Maven Central.</strong>  release_push.py does this in step 8: it checks
+      <strong>Publish to Maven Central.</strong>  release_push.py does this in steps 5 and 7: it checks
       the artifacts that release_build.py published to the local Maven repository again, uploads
       exactly those files, waits until the Central Portal has validated them, and asks before it
       publishes them.  If you decline or a step fails, do it by hand, on the machine that ran
@@ -548,29 +550,40 @@ python3 release_build.py</pre>
           Steps:
           <ol>
             <li>Clone the repository and the annotated JDK, or reset existing clones to master,
-              after asking if that would discard work other than a release commit (1a); download the
-              dependencies (1b).  Downloads are tried up to three times.</li>
-            <li>Check that the required tools are installed, that gpg can sign with your key and the
-              key on <code>keyserver.ubuntu.com</code> verifies the signature, that Maven Central
-              accepts your token, and that you can push to GitHub.</li>
-            <li>Determine the versions: the latest GitHub release and <code>releaseVersion</code>.</li>
+              after asking if that would discard work other than a release commit.</li>
+            <li>Check that the required tools are installed, that the JDK is 21 or later, that gpg
+              can sign with your key and the key on <code>keyserver.ubuntu.com</code> verifies the
+              signature, that Maven Central accepts your token, and that you can push to
+              GitHub.</li>
+            <li>Download the dependencies, trying up to three times.</li>
+            <li>Determine the versions: the latest GitHub release and <code>releaseVersion</code>,
+              which must be greater, and which master must have, too; its tag must not be on
+              GitHub yet.</li>
             <li>Update the version numbers: <code>updateVersionNumbers</code>.  Set the date of the
               release's changelog section, and reflow its &quot;Closed issues&quot; list into filled
               lines.</li>
-            <li>Commit and tag the release.</li>
+            <li>Commit the release, and tag it with an annotated tag, signed with your key, that
+              records the commit of the annotated JDK.</li>
             <li>Build: <code>buildAll</code>, the tutorial,
               <code>./gradlew zip annotationFileUtilitiesZip -Prelease=true</code>; copy both zip files
-              to <code>release-files</code>; run <code>check-release-links.py --online</code> on the unpacked zip;
-              <code>publishToMavenLocal</code>.</li>
+              to <code>release-files</code>; run <code>check-release-links.py --online</code> on the
+              unpacked zip; <code>publishToMavenLocal</code>, and check the artifacts there (see
+              <a href="../maven-central-publishing.md">Maven Central publishing</a>).  Every Gradle
+              command uses the annotated JDK of step 1, without updating it.</li>
           </ol>
         </td>
       </tr>
       <tr>
         <td>release_push.py</td>
-        <td>Tests the release, pushes it, and guides you through the remaining steps.
+        <td>Tests the release, publishes it, and guides you through the remaining steps.  Run it
+          on the machine that ran release_build.py.  It asks before each public or irreversible
+          step, with &quot;no&quot; as the default for the push, the publish on Maven Central, and
+          the GitHub release.  If it stops, run it again: it skips the steps that are done.
           Steps:
           <ol>
-            <li>Check that the new version is greater than the latest release.</li>
+            <li>Check that the new version is greater than the latest release, and that master on
+              GitHub has not moved since release_build.py (otherwise, run release_build.py
+              again).</li>
             <li>Sanity tests: javac sanity check on the local release zip; Maven sanity check on <code>~/.m2</code>.</li>
             <li>Run <code>allTests</code>.  If CI passed on the commit the release is based on, and
               the release commit changes only files in <code>docs/</code>, the default answer is
@@ -579,16 +592,21 @@ python3 release_build.py</pre>
               <code>eisop/eisop.github.io</code>, in <code>/tmp/$USER/cf-release/website</code>, and
               check that every internal link of its pages works; on a problem, you decide whether
               to continue.</li>
+            <li>Check the Maven artifacts again, upload them to Maven Central, and wait until the
+              Central Portal has validated them.  Nothing is public yet; an unpublished deployment
+              can be dropped.  In test mode, the artifacts are only checked, and the script stops
+              here.</li>
             <li>Push master and the tag to GitHub, atomically.  This is irreversible.</li>
+            <li>Publish the Maven artifacts on Maven Central.  This is irreversible.</li>
             <li>Post the GitHub release, with both zip files attached and the changelog section as its
-              description, with <code>gh release create</code> after you confirm; by hand if you
-              decline or it fails.</li>
+              description, with <code>gh release create</code>; by hand if you decline or it
+              fails.  The daily update of the web site shows it.</li>
             <li>Check that the files attached to the GitHub release are the ones that were built.</li>
-            <li>Upload the Maven artifacts to Maven Central, wait until the Central Portal has
-              validated them, and publish them after you confirm.</li>
-            <li>Publish the web site: dispatch the &quot;Publish website&quot; workflow with <code>gh</code> after you confirm; you check
-              <a href="https://eisop.github.io/cf/">https://eisop.github.io/cf/</a>.</li>
-            <li>Write the announcement e-mail, with the release's changelog section, to
+            <li>Publish the web site with the &quot;Publish website&quot; workflow, and wait until
+              <a href="https://eisop.github.io/cf/">https://eisop.github.io/cf/</a> shows the
+              release.</li>
+            <li>Wait until Maven Central has published the release, and write the announcement
+              e-mail, with the release's changelog section, to
               <code>/tmp/$USER/cf-release/announcement-VERSION.txt</code>, for you to send.</li>
             <li>Open a pull request, after you confirm, that sets <code>releaseVersion</code> to
               the next release and adds its changelog section.  Renovate updates the Checker
@@ -714,14 +732,14 @@ python3 release_build.py</pre>
     </ul>
 
   <h2 id="backing_out">Backing Out an Uncommitted Release</h2>
-  <p>Two steps cannot be reverted: the push of master and the tag to GitHub (release_push step 5),
-    and publishing to Maven Central (release_push step 8).</p>
+  <p>Two steps cannot be reverted: the push of master and the tag to GitHub (release_push step 6),
+    and publishing to Maven Central (release_push step 7).</p>
   <p> If you have executed either of those and then realized there is a breaking error, you should do another
     release.
   </p>
   <h3 id="backing_out_steps">Manual Steps to Back Out a Release</h3>
   <ul>
-    <li><strong>Before release_push step 5</strong><br/>
+    <li><strong>Before release_push step 6</strong><br/>
       Nothing is on GitHub yet.  Delete the build clone (<code>build/checker-framework</code>),
       or rerun release_build.py, which resets it.
     </li>
