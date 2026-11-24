@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -38,6 +39,7 @@ from release_vars import (
     RELEASE_FILES_DIR,
     TOOLS,
     execute,
+    execute_output,
     execute_status,
 )
 
@@ -64,6 +66,95 @@ def clone_or_reset_repos() -> None:
 def download_dependencies() -> None:
     """Download the dependencies of the build, before the release is committed."""
     execute_with_retries(["./gradlew", "resolveDependencies"], CHECKER_FRAMEWORK)
+
+
+def gradle_user_properties() -> dict[str, str]:
+    """Return the Gradle properties of the user, which the release build reads.
+
+    They are the properties in gradle.properties in the Gradle user home, and the properties set by
+    ORG_GRADLE_PROJECT_ environment variables, which take precedence.
+
+    Returns:
+        the Gradle properties of the user
+    """
+    properties = {}
+    gradle_user_home = Path(os.environ.get("GRADLE_USER_HOME", Path.home() / ".gradle"))
+    properties_file = gradle_user_home / "gradle.properties"
+    if properties_file.exists():
+        for line in properties_file.read_text(encoding="utf-8").splitlines():
+            match = re.match(r"\s*([^#!\s=:][^\s=:]*)\s*[=:\s]\s*(.*)", line)
+            if match:
+                properties[match.group(1)] = match.group(2).strip()
+    prefix = "ORG_GRADLE_PROJECT_"
+    for name, value in os.environ.items():
+        if name.startswith(prefix):
+            properties[name[len(prefix) :]] = value
+    return properties
+
+
+def check_prerequisites() -> None:
+    """Check what the release needs from the user's setup, before anything slow runs.
+
+    The checks cover the signing key, the Maven Central token, the JDK, the git identity, and
+    permission to push to GitHub.  gh is optional, so a problem with it is only reported.
+
+    Raises:
+        ReleaseError: If anything that the release needs is missing.
+    """
+    problems = []
+    properties = gradle_user_properties()
+
+    key = properties.get("signing.gnupg.keyName")
+    if not key:
+        problems.append(
+            "signing.gnupg.keyName is not set in ~/.gradle/gradle.properties; set it to your GPG"
+            " key, which signs the release."
+        )
+    else:
+        gpg = properties.get("signing.gnupg.executable", "gpg")
+        print(f"Signing a test message with {key}; gpg may ask for the passphrase.")
+        sign = subprocess.run(
+            [gpg, "--local-user", key, "--armor", "--detach-sign"],
+            input=b"test",
+            capture_output=True,
+            check=False,
+        )
+        if sign.returncode != 0:
+            problems.append(
+                f"{gpg} cannot sign with {key}: {sign.stderr.decode(errors='replace').strip()}"
+            )
+
+    problems.extend(
+        f"{name} is not set in ~/.gradle/gradle.properties; the publish to Maven Central needs"
+        " your Central user token."
+        for name in ("SONATYPE_NEXUS_USERNAME", "SONATYPE_NEXUS_PASSWORD")
+        if not properties.get(name)
+    )
+
+    javac = Path(os.environ["JAVA_HOME"]) / "bin" / "javac"
+    if not javac.exists():
+        problems.append(f"{javac} does not exist; set JAVA_21_HOME to a JDK 21 or later.")
+
+    problems.extend(
+        f"git config {name} is not set; the release commit needs it."
+        for name in ("user.name", "user.email")
+        if not execute_output(["git", "config", name], CHECKER_FRAMEWORK).strip()
+    )
+
+    # A dry run still connects to GitHub and checks the permission to push.  Pushing the master
+    # that was just fetched never fails for another reason.
+    dry_run = ["git", "push", "--dry-run", "origin", "origin/master:refs/heads/master"]
+    if execute_status(dry_run, CHECKER_FRAMEWORK) != 0:
+        problems.append(f"You cannot push to {LIVE_CHECKER_REPO}; release_push pushes the release.")
+
+    if shutil.which("gh") is None:
+        print("gh is not installed, so you will post the GitHub release by hand.")
+    elif execute_status(["gh", "auth", "status"]) != 0:
+        print("gh is not logged in (gh auth login), so you would post the GitHub release by hand.")
+
+    if problems:
+        msg = "The release cannot proceed:\n" + "\n".join(f"* {p}" for p in problems)
+        raise ReleaseError(msg)
 
 
 def check_changelog_date(changelog: Path, version: str) -> None:
@@ -197,12 +288,13 @@ def main(argv: list[str]) -> None:
     print_step("Build Step 1c: Download the dependencies.")  # AUTO
     download_dependencies()
 
-    # The release script requires a number of common tools (Maven, make, etc...). This step
-    # checks to make sure all tools are available on the command line in order to avoid wasting time
-    # in the event a tool is missing late in execution.
+    # The release script requires a number of common tools (Maven, make, etc...), a signing key,
+    # and permission to push.  This step checks them, to avoid wasting time in the event one is
+    # missing late in execution.
 
-    print_step("Build Step 2: Check tools.")  # AUTO
+    print_step("Build Step 2: Check tools, the signing key, and access to GitHub.")  # AUTO
     check_tools(TOOLS)
+    check_prerequisites()
 
     # The release script reads the current version of the Checker Framework from the latest GitHub
     # release.  The new version is releaseVersion in release.gradle, and must be greater.

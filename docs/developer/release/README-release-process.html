@@ -192,6 +192,22 @@ TreeAnnotator
       picks up every subproject that has a publishing block.
   </li>
   <li>
+      <strong>Check your setup on the machine that runs the release.</strong>
+      Do this even if you have released before, especially on a new machine.  It needs, as in the
+      <a href="#pre_release_checklist">Pre-release Checklist</a>:
+      <ul>
+        <li><code>signing.gnupg.keyName</code>, <code>SONATYPE_NEXUS_USERNAME</code>, and
+          <code>SONATYPE_NEXUS_PASSWORD</code> in <code>~/.gradle/gradle.properties</code>,
+          and the secret key in gpg;</li>
+        <li>permission to push to <code>git@github.com:eisop/checker-framework.git</code>,
+          and <code>git config user.name</code> and <code>user.email</code>;</li>
+        <li>JDK 21 or later at <code>$JAVA_21_HOME</code>;</li>
+        <li>optionally, <code>gh</code>, logged in, to post the GitHub release.</li>
+      </ul>
+      release_build checks all of these in its step 2, before the build, and stops if one is
+      missing; gpg may ask for your passphrase there.
+  </li>
+  <li>
       <strong>In a user-specific temporary directory, clone/update the Checker Framework repository (it contains the release scripts).</strong><br/>
       <!-- This isn't a <pre> block because that formats differently than commands. -->
       <code>mkdir -p /tmp/$USER/cf-release<br/></code>
@@ -416,6 +432,7 @@ SONATYPE_NEXUS_PASSWORD=your_tokenkey</pre>
       <td>5.</td>
       <td><strong>Add GitHub SSH keys to your <a href="#release_docker">Release Docker image</a></strong><br/>
       See <a href="https://help.github.com/articles/connecting-to-github-with-ssh/">GitHub docs</a>.
+      Also log in with <code>gh auth login</code>, so that release_push can post the GitHub release.
       </td>
     </tr>
     <tr>
@@ -529,7 +546,8 @@ python3 release_build.py</pre>
             <li>Clone the repository and the annotated JDK, or reset existing clones to master (1a);
               verify that the repository is clean (1b); download the dependencies (1c).
               Downloads are tried up to three times.</li>
-            <li>Check that the required tools are installed.</li>
+            <li>Check that the required tools are installed, that gpg can sign with your key, that the
+              Maven Central token is set, and that you can push to GitHub.</li>
             <li>Determine the versions: the latest GitHub release and <code>releaseVersion</code>.
               Check that the changelog date is not a placeholder.</li>
             <li>Update the version numbers: <code>updateVersionNumbers</code>.</li>
