@@ -40,6 +40,7 @@ from sanity_checks import (
     javac_sanity_check,
     maven_sanity_check,
 )
+from website_check import GENERATED_SITE, check_website
 
 
 def release_file_names(cf_version: str) -> list[str]:
@@ -388,19 +389,21 @@ def main(argv: list[str]) -> None:
         execute(gradle_cmd, CHECKER_FRAMEWORK)
 
     # The web site is generated from the GitHub release.  Running the generator on the release zip
-    # file shows problems with the generated pages before anything is published.
+    # file shows problems with the generated pages before anything is published: every internal
+    # link of the generated pages must work.
 
     release_zip = RELEASE_FILES_DIR / f"checker-framework-{new_cf_version}.zip"
-    print_step("Push Step 4: Check the web site that will be generated")  # MANUAL
-    continue_or_exit(
-        "In a clone of https://github.com/eisop/eisop.github.io, run the web site generator on\n"
-        'the release zip file and look at the generated pages (see its README, "Pre-release\n'
-        'validation"):\n'
-        "  mvn -q package\n"
-        "  java -cp target/eisop.github.io-1.0-SNAPSHOT-jar-with-dependencies.jar \\\n"
-        "    io.github.eisop.website.EisopSiteGenerator \\\n"
-        f"    --local-release {release_zip} --only-latest\n"
-    )
+    print_step("Push Step 4: Check the web site that will be generated")  # AUTO
+    website_problems = check_website(release_zip)
+    for problem in website_problems:
+        print("  " + problem)
+    if website_problems:
+        continue_or_exit(
+            f"The web site generated from {release_zip.name} has the problems above.  It is in"
+            f" {GENERATED_SITE}; serve that directory with python3 -m http.server to look at it.\n"
+        )
+    else:
+        print(f"The links of the web site generated in {GENERATED_SITE} work.")
 
     # This step pushes the release commit and its tag to GitHub. This is the first irreversible
     # change. After this point, you can no longer backout changes and should do another release

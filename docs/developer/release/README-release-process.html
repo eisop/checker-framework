@@ -575,8 +575,10 @@ python3 release_build.py</pre>
             <li>Run <code>allTests</code>.  If CI passed on the commit the release is based on, and
               the release commit changes only files in <code>docs/</code>, the default answer is
               to skip it.</li>
-            <li>Manual: run the web site generator with <code>--local-release</code> on the zip
-              and inspect the generated pages.</li>
+            <li>Generate the web site from the release zip file with the generator of
+              <code>eisop/eisop.github.io</code>, in <code>/tmp/$USER/cf-release/website</code>, and
+              check that every internal link of its pages works; on a problem, you decide whether
+              to continue.</li>
             <li>Push master and the tag to GitHub, atomically.  This is irreversible.</li>
             <li>Post the GitHub release, with both zip files attached and the changelog section as its
               description, with <code>gh release create</code> after you confirm; by hand if you
