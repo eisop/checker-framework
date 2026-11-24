@@ -84,7 +84,10 @@ def request(method: str, url: str, headers: dict[str, str]) -> tuple[int, str]:
     Returns:
         the HTTP status and the body of the response
     """
-    req = urllib.request.Request(url, method=method, headers=headers)
+    req = urllib.request.Request(url, method=method)
+    # Unredirected headers are not sent on to the target of a redirect, which may be another host.
+    for name, value in headers.items():
+        req.add_unredirected_header(name, value)
     with urllib.request.urlopen(req, timeout=300) as response:
         return response.status, response.read().decode()
 
