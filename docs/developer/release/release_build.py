@@ -20,13 +20,12 @@ from pathlib import Path
 from maven_central import check_central_token, gradle_user_properties
 from release_errors import ReleaseError
 from release_utils import (
+    check_release_dir,
     check_release_version,
-    check_repo,
     check_tools,
     clone_or_reset,
     commit_and_tag,
     continue_or_exit,
-    create_empty_file,
     current_release_version,
     delete_directory_if_exists,
     delete_if_exists,
@@ -38,10 +37,12 @@ from release_vars import (
     ANNOTATED_JDK_REPO,
     BUILD_DIR,
     CF_VERSION,
+    CHANGELOG,
     CHECKER_FRAMEWORK,
     LIVE_CHECKER_REPO,
     RELEASE_BUILD_COMPLETED_FLAG_FILE,
     RELEASE_FILES_DIR,
+    TMP_DIR,
     TOOLS,
     execute,
     execute_output,
@@ -343,6 +344,7 @@ def main(argv: list[str]) -> None:
     # MANUAL Indicates a manual step
     # AUTO Indicates the step is fully automated.
 
+    check_release_dir(TMP_DIR)
     delete_if_exists(RELEASE_BUILD_COMPLETED_FLAG_FILE)
 
     global debug
@@ -360,16 +362,10 @@ def main(argv: list[str]) -> None:
     print_step("Build Step 1a: Clone or reset the repositories.")  # AUTO
     clone_or_reset_repos()
 
-    # This step ensures the previous step worked. It checks to see if we have any modified files,
-    # untracked files, or outgoing changesets. If so, it fails.
-
-    print_step("Build Step 1b: Verify repository.")  # AUTO
-    check_repo(CHECKER_FRAMEWORK)
-
     # Downloading the dependencies now, with retries, keeps a network problem from failing the
     # build after the release is committed.
 
-    print_step("Build Step 1c: Download the dependencies.")  # AUTO
+    print_step("Build Step 1b: Download the dependencies.")  # AUTO
     download_dependencies()
 
     # The release script requires a number of common tools (Maven, make, etc...), a signing key,
@@ -395,9 +391,8 @@ def main(argv: list[str]) -> None:
 
     print_step("Build Step 4: Update the version numbers.")  # MANUAL
     update_version_numbers(old_cf_version)
-    changelog = Path(CHECKER_FRAMEWORK) / "docs" / "CHANGELOG.md"
-    set_changelog_date(changelog, cf_version)
-    reflow_closed_issues(changelog, cf_version)
+    set_changelog_date(CHANGELOG, cf_version)
+    reflow_closed_issues(CHANGELOG, cf_version)
 
     # The files updated for the release, usually with the new release date and version, are
     # committed, and the commit is tagged.  release_push.py pushes both.  The release is committed
@@ -414,7 +409,7 @@ def main(argv: list[str]) -> None:
     print_step("Build Step 6: Build the Checker Framework and the Annotation File Utilities.")
     build_checker_framework_release(cf_version)
 
-    create_empty_file(RELEASE_BUILD_COMPLETED_FLAG_FILE)
+    RELEASE_BUILD_COMPLETED_FLAG_FILE.touch()
 
 
 if __name__ == "__main__":

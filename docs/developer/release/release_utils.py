@@ -10,18 +10,23 @@ Copyright (c) 2012 University of Washington
 
 from __future__ import annotations
 
+import grp
 import json
-import pathlib
+import os
+import pwd
 import re
-import shlex
 import shutil
+import stat
 import subprocess
 import time
 import urllib.request
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from release_errors import ReleaseError
-from release_vars import execute, execute_output, execute_status
+from release_vars import GITHUB_REPO, execute, execute_output, execute_status
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # =========================================================================================
 # Parse Args Utils # TODO: Perhaps use argparse module
@@ -40,39 +45,6 @@ def has_command_line_option(argv: list[str], argument: str) -> bool:
 # Command utils
 
 
-def execute_write_to_file(
-    command_args: str,
-    output_file_path: Path,
-    halt_if_fail: bool = True,
-    working_dir: Path | None = None,
-) -> None:
-    """Execute the given command, capturing the output to the given file.
-
-    Raises:
-        ReleaseError: If the command fails.
-    """
-    print(f"Executing: {command_args}")
-
-    args = shlex.split(command_args) if isinstance(command_args, str) else command_args
-
-    with Path.open(output_file_path, "w+") as output_file:
-        process = subprocess.Popen(args, stdout=output_file, stderr=output_file, cwd=working_dir)
-        process.communicate()
-        process.wait()
-
-    if process.returncode != 0 and halt_if_fail:
-        msg = f"Error {process.returncode} while executing {command_args}"
-        raise ReleaseError(msg)
-
-
-def check_command(command: str) -> None:
-    """Throw an exception if the command is not on the PATH."""
-    p = execute_status(["which", command])
-    if p:
-        raise AssertionError("command not found: " + command)
-    print()
-
-
 def prompt_yes_no(msg: str, default: bool = False) -> bool:
     """Print the given message and continually prompt the user until they answer yes or no.
 
@@ -86,20 +58,6 @@ def prompt_yes_no(msg: str, default: bool = False) -> bool:
     result = prompt_w_default(msg, default_str, "^(Yes|yes|No|no)$")
 
     return result in {"yes", "Yes"}
-
-
-def prompt_yn(msg: str) -> bool:
-    """Print the given message and continually prompts the user until they answer y or n.
-
-    Returns:
-        true if the answer was y, false otherwise.
-    """
-    y_or_n = "z"
-    while y_or_n not in {"y", "n"}:
-        print(msg + " [y|n]")
-        y_or_n = input().lower()
-
-    return y_or_n == "y"
 
 
 def prompt_w_default(msg: str, default: str, valid_regex: str | None = None) -> str:
@@ -129,19 +87,20 @@ def prompt_w_default(msg: str, default: str, valid_regex: str | None = None) -> 
 
 
 def check_tools(tools: list[str]) -> None:
-    """Verify that each tools is on the PATH."""
-    print("\nChecking to make sure the following programs are installed:")
-    print(", ".join(tools))
-    list(map(check_command, tools))
-    print()
+    """Verify that each tool is on the PATH.
+
+    Raises:
+        ReleaseError: If a tool is not on the PATH.
+    """
+    missing = [tool for tool in tools if shutil.which(tool) is None]
+    if missing:
+        msg = "These programs are not installed, or not on the PATH: " + ", ".join(missing)
+        raise ReleaseError(msg)
 
 
 def continue_or_exit(msg: str) -> None:
     """Prompts the user whether to continue executing the script."""
-    continue_script = prompt_w_default(
-        msg + " Continue ('no' will exit the script)?", "yes", "^(Yes|yes|No|no)$"
-    )
-    if continue_script == "no" or continue_script == "No":
+    if not prompt_yes_no(msg + " Continue ('no' will exit the script)?", True):
         raise ReleaseError("User elected NOT to continue at prompt: " + msg)
 
 
@@ -200,7 +159,7 @@ def current_release_version() -> str:
     Raises:
         ReleaseError: if the latest release's tag is not checker-framework-VERSION
     """
-    url = "https://api.github.com/repos/eisop/checker-framework/releases/latest"
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
     print(f"Looking up the latest release at {url}\n")
     with urllib.request.urlopen(url=url) as response:
         tag = json.load(response)["tag_name"]
@@ -253,7 +212,7 @@ def push_release(repo_root: Path, tag: str) -> None:
         if result.returncode == 0:
             return
         print(f"Could not push from {repo_root}; result={result.returncode} for {' '.join(cmd)}")
-        if not prompt_yn("Try again (responding 'n' will exit the script)?"):
+        if not prompt_yes_no("Try again ('no' will exit the script)?", True):
             raise ReleaseError("Could not push the release.")
 
 
@@ -273,18 +232,92 @@ def execute_with_retries(command: list[str], working_dir: Path | None = None) ->
     raise ReleaseError(msg)
 
 
+def check_release_dir(release_dir: Path) -> None:
+    """Check that no other user can change the release directory.
+
+    The release is built and signed in this directory.  It, and each directory that contains it,
+    must belong to you or root, and must not be writable by other users, unless it is a sticky
+    directory such as /tmp, in which they cannot rename or delete your files.  A directory that
+    only its group can write is fine if that is your own group, with no other members, as with
+    umask 002.
+
+    Raises:
+        ReleaseError: If another user can change the release directory.
+    """
+    user = pwd.getpwuid(os.geteuid()).pw_name
+    for path in [release_dir, *release_dir.parents]:
+        if not path.exists():
+            continue
+        status = path.stat()
+        if status.st_uid not in (os.geteuid(), 0):
+            msg = f"{path} belongs to another user, who could change the release built in it."
+            raise ReleaseError(msg)
+        own_group = status.st_gid == os.getegid() and set(grp.getgrgid(status.st_gid).gr_mem) <= {
+            user
+        }
+        writable_by_others = status.st_mode & 0o002 or (status.st_mode & 0o020 and not own_group)
+        if writable_by_others and not status.st_mode & stat.S_ISVTX:
+            msg = f"Other users can write {path}, so they could change the release built in it."
+            raise ReleaseError(msg)
+
+
+def discardable_work(repo_dir: Path) -> list[str]:
+    """Return the work in the given directory that resetting it to a fresh clone would discard.
+
+    That is modified and untracked files, stashes, and commits on no remote branch, other than a
+    release commit of an earlier run of the release scripts.  Ignored files, such as build outputs,
+    are not work.  A directory that is not a git repository is all work, unless it is empty.
+
+    Returns:
+        a description of each piece of work, or an empty list if there is none
+    """
+    if not any(repo_dir.iterdir()):
+        return []
+    status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo_dir, capture_output=True, check=False
+    )
+    if not git_repo_exists_at_path(repo_dir) or status.returncode != 0:
+        return [f"all of {repo_dir}, which is not a usable git repository"]
+    work = [f"file {line}" for line in status.stdout.decode().splitlines()]
+    work += [
+        f"stash {line}" for line in execute_output(["git", "stash", "list"], repo_dir).splitlines()
+    ]
+    commits = execute_output(
+        ["git", "log", "--branches", "--not", "--remotes", "--format=%h %s"], repo_dir
+    )
+    work += [
+        f"commit {line}"
+        for line in commits.splitlines()
+        if not line.split(" ", 1)[-1].startswith("new release ")
+    ]
+    return work
+
+
 def clone_or_reset(src_repo: str, dst_repo_dir: Path, shallow: bool = False) -> None:
     """Make dst_repo_dir a clone of the master branch of src_repo, as if it had just been cloned.
 
-    An existing clone is reset, which discards whatever an earlier run of the release scripts
-    left in it, such as an unpushed release commit and tag, modified files, and build outputs.  If
-    there is no clone, or the reset fails, the repository is cloned from scratch.
+    An existing clone is reset, which discards what an earlier run of the release scripts left in
+    it, such as an unpushed release commit and tag, and build outputs.  If it also holds other work,
+    such as a fix made by hand, you are asked first.  If there is no clone, or the reset fails, the
+    repository is cloned from scratch.
 
     Args:
         src_repo: the URL of the repository
         dst_repo_dir: the directory of the clone
         shallow: whether to fetch only the latest commit of the master branch
+
+    Raises:
+        ReleaseError: If the directory has other work, which you decide not to discard.
     """
+    if dst_repo_dir.exists():
+        work = discardable_work(dst_repo_dir)
+        if work:
+            print(f"Resetting {dst_repo_dir} would discard:")
+            for item in work:
+                print("  " + item)
+            if not prompt_yes_no("Discard it?", False):
+                msg = "Keep that work elsewhere, then run release_build.py again."
+                raise ReleaseError(msg)
     if git_repo_exists_at_path(dst_repo_dir):
         # A shallow clone fetches only master; a full clone also fetches the tags, and
         # --prune-tags deletes the local tags that are not on GitHub, such as an unpushed release
@@ -304,91 +337,22 @@ def clone_or_reset(src_repo: str, dst_repo_dir: Path, shallow: bool = False) -> 
     execute_with_retries(["git", "clone", "--quiet", *depth, src_repo, str(dst_repo_dir)])
 
 
-def is_repo_cleaned_and_updated(repo_dir: Path) -> bool:
-    """Return true if the repository at the given filesystem path is clean and up-to-date.
-
-    Clean means there are no committed changes and no untracked files in the working tree.
-
-    IMPORTANT: this function is not known to be fully reliable in ensuring
-    that a repo is fully clean of all changes, such as committed tags. To be
-    certain of success throughout the release_build and release_push process,
-    the best option is to clone repositories from scratch.
-
-    Returns:
-        true if the repository at the given filesystem path is clean and up-to-date.
-    """
-    # The idiom "not execute_output(...)" evaluates to True when the captured output is empty.
-    # Could add "--untracked-files=no" to this command
-    is_clean = not execute_output("git status --porcelain", working_dir=repo_dir)
-    execute("git fetch origin", working_dir=repo_dir)
-    is_updated = not execute_output("git diff origin/master..master", working_dir=repo_dir)
-    return is_clean and is_updated
-
-
-def check_repo(repo: Path) -> None:
-    """Fail if the repository is not clean and up to date.
-
-    Raises:
-        ReleaseError: If the repository is not clean and up to date.
-    """
-    if not git_repo_exists_at_path(repo):
-        msg = f"There is no repository at {repo}.  Delete it and run release_build.py again."
-        raise ReleaseError(msg)
-    if not is_repo_cleaned_and_updated(repo):
-        msg = f"repo {repo} is not cleaned and updated!  Delete it and run release_build.py again."
-        raise ReleaseError(msg)
-
-
 # =========================================================================================
 # File Utils
 
 
-def download_binary(source_url: str, destination: Path) -> None:
-    """Download a file from the given URL and save its contents to the destination filename."""
-    http_response = urllib.request.urlopen(url=source_url)
-    content_length = http_response.headers["content-length"]
-
-    if content_length is None:
-        raise ReleaseError("No content-length when downloading: " + source_url)
-
-    with Path.open(destination, "wb") as dest_file:
-        dest_file.write(http_response.read())
-
-
-def ensure_writeable(path: Path) -> None:
-    """Permit user and group to read/write everything under the specified path."""
-    # Errs for any file not owned by this user, so ignore the exit status.
-    # But, the point is to set group writeability of any *new* files.
-    execute_status(f"chmod -f -R ug+rw {path}")
-
-
-def delete(file_to_delete: Path) -> None:
-    """Delete the specified file."""
-    pathlib.Path(file_to_delete).unlink()
-
-
 def delete_if_exists(file_to_delete: Path) -> None:
-    """Check if the specified file exists, and if so, delete it."""
-    if pathlib.Path(file_to_delete).exists():
-        delete(file_to_delete)
-
-
-def delete_directory(path: Path) -> None:
-    """Delete all files and directories under the specified path."""
-    ensure_writeable(path)
-    shutil.rmtree(path)
+    """Delete the given file, if it exists."""
+    file_to_delete.unlink(missing_ok=True)
 
 
 def delete_directory_if_exists(path: Path) -> None:
-    """Delete all files and directories under the specified path, if it exists."""
-    if pathlib.Path(path).exists():
-        delete_directory(path)
-
-
-def create_empty_file(file_path: Path) -> None:
-    """Create an empty file with the given filename."""
-    dest_file = Path.open(file_path, "wb")
-    dest_file.close()
+    """Delete the given directory and everything in it, if it exists."""
+    if path.exists():
+        # Make read-only files, such as those of a Gradle or Go cache, deletable.  This fails for a
+        # file of another user, so the exit status is ignored.
+        execute_status(["chmod", "-f", "-R", "u+rw", str(path)])
+        shutil.rmtree(path)
 
 
 # =========================================================================================
@@ -399,11 +363,7 @@ def print_step(step: str) -> None:
     """Print a step in the release_build or release_push script."""
     print("\n")
     print(step)
-
-    dash_str = ""
-    for _dummy in range(len(step)):
-        dash_str += "-"
-    print(dash_str)
+    print("-" * len(step))
 
 
 def get_announcement_email(version: str) -> str:
@@ -417,7 +377,7 @@ def get_announcement_email(version: str) -> str:
         "The Checker Framework lets you create and/or run pluggable type checkers,"
         " in order to detect and prevent bugs in your code."
     )
-    changelog = "https://github.com/eisop/checker-framework/blob/master/docs/CHANGELOG.md"
+    changelog = f"https://github.com/{GITHUB_REPO}/blob/master/docs/CHANGELOG.md"
     return f"""
 To:  checker-framework-discuss@googlegroups.com
 Subject: Release {version} of the Checker Framework

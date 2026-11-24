@@ -229,6 +229,9 @@ TreeAnnotator
       If release_build fails, fix the problem and run it again.  It resets
       <code>build/checker-framework</code> to master, discarding the release commit and tag of the
       failed run, and it retries the downloads, which it does before committing the release.
+      If the clone holds anything else that the reset would discard, such as a fix you made by
+      hand, a commit, or a stash, it lists it and asks first.  Both scripts stop if another user
+      could change <code>/tmp/$USER/cf-release</code>.
   </li>
   <li>
       <strong>Run release_push</strong> to test the release, push it to GitHub, and guide you through
@@ -549,9 +552,9 @@ python3 release_build.py</pre>
         <td>Builds the release in <code>build/checker-framework</code>, commits it, and tags it, without pushing.
           Steps:
           <ol>
-            <li>Clone the repository and the annotated JDK, or reset existing clones to master (1a);
-              verify that the repository is clean (1b); download the dependencies (1c).
-              Downloads are tried up to three times.</li>
+            <li>Clone the repository and the annotated JDK, or reset existing clones to master,
+              after asking if that would discard work other than a release commit (1a); download the
+              dependencies (1b).  Downloads are tried up to three times.</li>
             <li>Check that the required tools are installed, that gpg can sign with your key and the
               key on <code>keyserver.ubuntu.com</code> verifies the signature, that Maven Central
               accepts your token, and that you can push to GitHub.</li>

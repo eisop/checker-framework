@@ -8,17 +8,12 @@ Created by Jonathan Burke 11/21/2012
 Copyright (c) 2012 University of Washington
 """
 
-import os
-import pathlib
 import re
+import subprocess
 from pathlib import Path
 
 from release_errors import ReleaseError
-from release_utils import (
-    delete_directory,
-    delete_directory_if_exists,
-    execute_write_to_file,
-)
+from release_utils import delete_directory_if_exists
 from release_vars import (
     CHECKER_FRAMEWORK,
     SANITY_DIR,
@@ -32,14 +27,14 @@ def javac_sanity_check(release_zip: Path, release_version: str) -> None:
     Run it on the NullnessExampleWithWarnings.java that the zip file contains, and verify the
     output.  Fails if the expected errors are not found in the output.
     """
-    javac_sanity_dir = Path(SANITY_DIR) / "javac"
+    javac_sanity_dir = SANITY_DIR / "javac"
     delete_directory_if_exists(javac_sanity_dir)
-    execute(f"mkdir -p {javac_sanity_dir}")
+    javac_sanity_dir.mkdir(parents=True)
 
     # unzip, unlike zipfile, keeps the permissions, so checker/bin/javac stays executable.
     execute(f"unzip -q {release_zip} -d {javac_sanity_dir}")
 
-    deploy_dir = Path(javac_sanity_dir) / f"checker-framework-{release_version}"
+    deploy_dir = javac_sanity_dir / f"checker-framework-{release_version}"
     nullness_example = deploy_dir / "docs" / "examples" / "NullnessExampleWithWarnings.java"
 
     sanity_script = Path(__file__).resolve().parent / "javac-sanity-check.sh"
@@ -51,14 +46,12 @@ def maven_sanity_check(sub_sanity_dir_name: str) -> None:
 
     It uses the artifacts that release_build.py deployed to the local Maven repository.
     """
-    maven_sanity_dir = Path(SANITY_DIR) / sub_sanity_dir_name
-    if pathlib.Path(maven_sanity_dir).is_dir():
-        delete_directory(maven_sanity_dir)
+    maven_sanity_dir = SANITY_DIR / sub_sanity_dir_name
+    delete_directory_if_exists(maven_sanity_dir)
+    maven_sanity_dir.mkdir(parents=True)
 
-    execute(f"mkdir -p {maven_sanity_dir}")
-
-    maven_example_dir = Path(maven_sanity_dir) / "MavenExample"
-    output_log = Path(maven_example_dir) / "output.log"
+    maven_example_dir = maven_sanity_dir / "MavenExample"
+    output_log = maven_example_dir / "output.log"
 
     # -Prelease=true makes the example use the release version rather than a -SNAPSHOT version.
     get_example_dir_cmd = (
@@ -68,9 +61,13 @@ def maven_sanity_check(sub_sanity_dir_name: str) -> None:
 
     execute(get_example_dir_cmd, CHECKER_FRAMEWORK)
 
-    os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
-    # The example's build is supposed to fail with the example's expected error.
-    execute_write_to_file("mvn compile", output_log, False, maven_example_dir)
+    # The example's build is supposed to fail with the example's expected error.  JAVA_HOME is
+    # the release's JDK; see release_vars.py.
+    print(f"Executing in {maven_example_dir}: mvn compile > {output_log}")
+    with output_log.open("w") as log:
+        subprocess.run(
+            ["mvn", "compile"], cwd=maven_example_dir, stdout=log, stderr=log, check=False
+        )
     expected_error = re.compile(
         r"MavenExample\.java:\[30,(29|30)\] \[assignment\.type\.incompatible\]"
         r" incompatible types in assignment\."

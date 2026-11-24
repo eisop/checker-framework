@@ -7,17 +7,17 @@ import filecmp
 import re
 import sys
 import tempfile
-import urllib.error
+import urllib.request
 from pathlib import Path
 
 from maven_central import DEPLOYMENTS_URL, publish_deployment, upload_to_maven_central
 from release_errors import ReleaseError
 from release_utils import (
+    check_release_dir,
     check_release_version,
     continue_or_exit,
     current_release_version,
     delete_if_exists,
-    download_binary,
     get_announcement_email,
     has_command_line_option,
     print_step,
@@ -27,9 +27,12 @@ from release_utils import (
 )
 from release_vars import (
     CF_VERSION,
+    CHANGELOG,
     CHECKER_FRAMEWORK,
+    GITHUB_REPO,
     RELEASE_BUILD_COMPLETED_FLAG_FILE,
     RELEASE_FILES_DIR,
+    TMP_DIR,
     execute,
     execute_output,
     execute_status,
@@ -56,8 +59,9 @@ def download_github_release_file(url: str, destination: Path) -> str | None:
         why the file could not be downloaded, or None if it was.
     """
     try:
-        download_binary(url, destination)
-    except urllib.error.URLError as e:
+        with urllib.request.urlopen(url) as response:
+            destination.write_bytes(response.read())
+    except OSError as e:
         return f"Could not download {url}: {e}"
     return None
 
@@ -69,8 +73,7 @@ def github_release_files_problem(cf_version: str) -> str | None:
         why the files attached to the GitHub release are not the built ones, or None if they are.
     """
     download_url = (
-        "https://github.com/eisop/checker-framework/releases/download/"
-        f"checker-framework-{cf_version}"
+        f"https://github.com/{GITHUB_REPO}/releases/download/checker-framework-{cf_version}"
     )
     with tempfile.TemporaryDirectory() as download_dir:
         for name in release_file_names(cf_version):
@@ -106,7 +109,7 @@ def changelog_section(cf_version: str) -> str:
     Returns:
         the section of docs/CHANGELOG.md for the given version
     """
-    changelog = (CHECKER_FRAMEWORK / "docs" / "CHANGELOG.md").read_text(encoding="utf-8")
+    changelog = CHANGELOG.read_text(encoding="utf-8")
     start = changelog.index(f"## Version {cf_version} (")
     end = changelog.find("\n## Version ", start)
     return changelog[start:] if end == -1 else changelog[start : end + 1]
@@ -129,7 +132,7 @@ def create_github_release(tag: str, cf_version: str) -> bool:
             "create",
             tag,
             "--repo",
-            "eisop/checker-framework",
+            GITHUB_REPO,
             # Fail, rather than create the tag on the head of master, if the tag is not on GitHub.
             "--verify-tag",
             "--title",
@@ -163,7 +166,7 @@ def tests_passed_in_ci() -> bool:
             "run",
             "list",
             "--repo",
-            "eisop/checker-framework",
+            GITHUB_REPO,
             "--workflow",
             "ci.yml",
             "--commit",
@@ -201,13 +204,12 @@ def open_next_release_pr(released_version: str, next_version: str) -> bool:
         true if the pull request was opened
     """
     release_gradle = CHECKER_FRAMEWORK / "release.gradle"
-    changelog = CHECKER_FRAMEWORK / "docs" / "CHANGELOG.md"
     gradle_text = release_gradle.read_text(encoding="utf-8")
     old_setting = f'releaseVersion = "{released_version}"'
-    changelog_text = changelog.read_text(encoding="utf-8")
+    changelog_text = CHANGELOG.read_text(encoding="utf-8")
     first_section = changelog_text.find("\n## Version ")
     if old_setting not in gradle_text or first_section == -1:
-        print(f"Could not find {old_setting} in {release_gradle}, or a section in {changelog}.")
+        print(f"Could not find {old_setting} in {release_gradle}, or a section in {CHANGELOG}.")
         return False
 
     branch = f"prepare-{next_version}"
@@ -223,7 +225,7 @@ def open_next_release_pr(released_version: str, next_version: str) -> bool:
             f"\n## Version {next_version} (TBD)\n\n### User-visible changes\n\n"
             "### Implementation details\n\n### Closed issues\n"
         )
-        changelog.write_text(
+        CHANGELOG.write_text(
             changelog_text[:first_section] + section + changelog_text[first_section:],
             encoding="utf-8",
         )
@@ -239,7 +241,7 @@ def open_next_release_pr(released_version: str, next_version: str) -> bool:
                 "pr",
                 "create",
                 "--repo",
-                "eisop/checker-framework",
+                GITHUB_REPO,
                 "--base",
                 "master",
                 "--head",
@@ -284,15 +286,14 @@ def print_usage() -> None:
 def main(argv: list[str]) -> None:
     """Test the release, push it to GitHub, and guide the user through the manual steps.
 
-    The manual steps include posting the GitHub release, from which the web site is generated,
-    and sending the release announcement e-mail.
-
-    This script does not publish to Maven Central; that is a separate step.
-    See docs/developer/maven-central-publishing.md.
+    It asks before each public or irreversible step: the push, the GitHub release, from which the
+    web site is generated, the publish on Maven Central, the web site, and the pull request that
+    prepares the next release.  The announcement e-mail is sent by hand.
     """
     # MANUAL Indicates a manual step
     # AUTO Indicates the step is fully automated.
 
+    check_release_dir(TMP_DIR)
     current_cf_version = current_release_version()
     new_cf_version = CF_VERSION
     test_mode = not has_command_line_option(argv, "release")
@@ -426,7 +427,7 @@ def main(argv: list[str]) -> None:
                 " yours:\n" + release_files + "\n"
                 "To post the Checker Framework release on GitHub:\n"
                 "\n"
-                f"* Browse to https://github.com/eisop/checker-framework/releases/new?tag={tag}\n"
+                f"* Browse to https://github.com/{GITHUB_REPO}/releases/new?tag={tag}\n"
                 f"* For the release title, enter: Checker Framework {new_cf_version}\n"
                 "* For the description, insert the latest Checker Framework changelog entry "
                 f"(in {CHECKER_FRAMEWORK}/docs/CHANGELOG.md). Please include the first "

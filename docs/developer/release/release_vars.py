@@ -91,7 +91,8 @@ SANITY_DIR = TMP_DIR / "sanity"
 RELEASE_BUILD_COMPLETED_FLAG_FILE = TMP_DIR / "release-build-completed"
 
 # The GitHub repository of the Checker Framework, which includes the AFU.
-LIVE_CHECKER_REPO = "git@github.com:eisop/checker-framework.git"
+GITHUB_REPO = "eisop/checker-framework"
+LIVE_CHECKER_REPO = f"git@github.com:{GITHUB_REPO}.git"
 
 # The annotated JDK, which the build expects next to the Checker Framework, in BUILD_DIR.
 ANNOTATED_JDK_REPO = "https://github.com/eisop/jdk.git"
@@ -100,6 +101,7 @@ ANNOTATED_JDK_REPO = "https://github.com/eisop/jdk.git"
 # release_push.py pushes it to LIVE_CHECKER_REPO.
 BUILD_DIR = TMP_DIR / "build"
 CHECKER_FRAMEWORK = BUILD_DIR / "checker-framework"
+CHANGELOG = CHECKER_FRAMEWORK / "docs" / "CHANGELOG.md"
 
 # The version of the release.  Without -Prelease=true, the build's version is a -SNAPSHOT version.
 # If a new Gradle wrapper was recently installed, the first ./gradlew command may output:
