@@ -53,6 +53,12 @@
       "schedule": ["before 3am on the first day of the month"]
     },
     {
+      "description": "Stay on JUnit 5: JUnit 6 requires Java 17, and the tests that use junit-jupiter-api also run on JDK 8 and 11.",
+      "matchPackageNames": ["/^org\\.junit\\./"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "Never update com.google.errorprone:javac; Renovate proposes 9-dev-r4023-3 as an update to our pinned 9+181-r4173-1, but that is not a version we want.",
       "matchPackageNames": ["com.google.errorprone:javac"],
       "enabled": false
