@@ -252,19 +252,14 @@ TreeAnnotator
       </p>
   </li>
   <li>
-      <strong>Publish to Maven Central.</strong>  release_push.py does this in step 8: it uploads
-      the artifacts, waits until the Central Portal has validated them, lists them, and asks
-      before it publishes them.  If you decline or a step fails, do it by hand, on the machine
-      that ran release_build.py: in the build clone (<code>build/checker-framework</code>, which is
-      at the release commit), run<br/>
-      <code>./gradlew publish -Prelease=true --no-parallel --console=plain</code><br/>
-      (<code>-Prelease=true</code> makes the version <code>releaseVersion</code> from
-      <code>release.gradle</code> rather than a <code>-SNAPSHOT</code> version, and signs the
-      artifacts.)  The upload stays in a staging repository until the request in
-      <a href="../maven-central-publishing.md">Maven Central publishing</a> moves it to the
-      Portal.  Then log in to
-      <a href="https://central.sonatype.com/publishing/deployments">https://central.sonatype.com/publishing/deployments</a>,
-      wait until the deployment is VALIDATED, and click Publish.
+      <strong>Publish to Maven Central.</strong>  release_push.py does this in step 8: it checks
+      the artifacts that release_build.py published to the local Maven repository again, uploads
+      exactly those files, waits until the Central Portal has validated them, and asks before it
+      publishes them.  If you decline or a step fails, do it by hand, on the machine that ran
+      release_build.py: upload <code>/tmp/$USER/cf-release/central-bundle-VERSION.zip</code> at
+      <a href="https://central.sonatype.com/publishing/deployments">https://central.sonatype.com/publishing/deployments</a>
+      with &quot;Publish Component&quot;, wait until the deployment is VALIDATED, and click Publish.
+      See <a href="../maven-central-publishing.md">Maven Central publishing</a>.
   </li>
   <li> <strong>Update list of qualifiers in Project Lombok.</strong>
     Follow the instructions in <a href="https://github.com/projectlombok/lombok/blob/master/src/core/lombok/core/handlers/HandlerUtil.java#L108">HandlerUtil.java</a>.

@@ -244,8 +244,10 @@ That uploads to a staging repository. The release is **not** live until the
 upload is moved to the Central Portal, with the request in
 [`maven-central-publishing.md`](maven-central-publishing.md), and published
 there: open <https://central.sonatype.com/publishing/deployments>, wait until the
-deployment is VALIDATED, and click Publish.  `release_push.py` does all of this,
-and asks before it publishes.
+deployment is VALIDATED, and click Publish.  The release scripts do not use this
+path: `release_build.py` checks the signed artifacts in the local Maven
+repository, and `release_push.py` uploads exactly those, and asks before it
+publishes.
 
 The version is `releaseVersion` in `release.gradle`.  A build's version is
 `releaseVersion` followed by `-SNAPSHOT`, unless Gradle is run with

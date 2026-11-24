@@ -13,11 +13,15 @@ import subprocess
 import sys
 import tempfile
 import textwrap
-import urllib.error
-import urllib.request
 from pathlib import Path
 
-from maven_central import check_central_token, gradle_user_properties
+from maven_central import (
+    check_central_token,
+    clear_local_artifacts,
+    gradle_user_properties,
+    verify_local_artifacts,
+    verify_with_published_key,
+)
 from release_errors import ReleaseError
 from release_utils import (
     check_release_dir,
@@ -77,67 +81,15 @@ def download_dependencies() -> None:
 def check_public_key(gpg: str, signature: bytes) -> str | None:
     """Check that the published public key verifies the given signature of "test".
 
-    Users of the release, and Maven Central, fetch the public key from a keyserver.  A copy there
-    that has expired, or that lacks the key's user ID, makes the release's signatures look invalid,
-    even though the local key is fine.  The signature is verified against the copy on
-    keyserver.ubuntu.com, in a temporary keyring.
-
     Returns:
         a description of the problem, or None if the published key verifies the signature
     """
-    packets = subprocess.run(
-        [gpg, "--list-packets"], input=signature, capture_output=True, check=False
-    ).stdout.decode(errors="replace")
-    match = re.search(r"issuer fpr v\d ([0-9A-F]+)", packets) or re.search(
-        r"keyid ([0-9A-F]+)", packets
-    )
-    if match is None:
-        return "Could not find the key that signed the test message."
-    fingerprint = match.group(1)
-    upload = (
-        f"Upload your current public key: gpg --keyserver hkps://keyserver.ubuntu.com"
-        f" --send-keys {fingerprint}"
-    )
-    url = f"https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x{fingerprint}"
-    try:
-        with urllib.request.urlopen(url, timeout=60) as response:
-            public_key = response.read()
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return f"keyserver.ubuntu.com does not have your key {fingerprint}.  {upload}"
-        return f"Could not get your key {fingerprint} from keyserver.ubuntu.com: {e}"
-    except OSError as e:
-        return f"Could not reach keyserver.ubuntu.com to check your public key: {e}"
-
-    with tempfile.TemporaryDirectory() as home:
-        Path(home).chmod(0o700)
-        (Path(home) / "test.asc").write_bytes(signature)
-        (Path(home) / "test").write_bytes(b"test")
-        (Path(home) / "key.asc").write_bytes(public_key)
-        options = [gpg, "--homedir", home, "--batch", "--no-autostart"]
-        subprocess.run(
-            [*options, "--import", str(Path(home) / "key.asc")], capture_output=True, check=False
-        )
-        status = subprocess.run(
-            [
-                *options,
-                "--status-fd",
-                "1",
-                "--verify",
-                str(Path(home) / "test.asc"),
-                str(Path(home) / "test"),
-            ],
-            capture_output=True,
-            check=False,
-        ).stdout.decode(errors="replace")
-    if "[GNUPG:] GOODSIG" in status:
-        return None
-    if "[GNUPG:] EXPKEYSIG" in status:
-        return f"Your key {fingerprint} on keyserver.ubuntu.com has expired.  {upload}"
-    return (
-        f"Your key {fingerprint} on keyserver.ubuntu.com does not verify your signatures; it may"
-        f" lack its user ID.  {upload}"
-    )
+    with tempfile.TemporaryDirectory() as tmp:
+        test = Path(tmp) / "test"
+        test.write_bytes(b"test")
+        Path(f"{test}.asc").write_bytes(signature)
+        problems = verify_with_published_key(gpg, [test])
+    return problems[0] if problems else None
 
 
 def check_prerequisites() -> None:
@@ -257,15 +209,28 @@ def reflow_closed_issues(changelog: Path, version: str) -> None:
     changelog.write_text(text[: issues.start(1)] + filled + text[issues.end(1) :], encoding="utf-8")
 
 
-def build_and_locally_deploy_maven() -> None:
-    """Run `./gradlew publishToMavenLocal -Prelease=true`.
+def build_and_locally_deploy_maven(version: str) -> None:
+    """Publish the release to the local Maven repository, and check it there.
 
-    The artifacts are signed, as for any release build; see gradle-mvn-push.gradle.
+    The artifacts are signed, as for any release build; see gradle-mvn-push.gradle.  release_push.py
+    uploads exactly these files to Maven Central.
+
+    Raises:
+        ReleaseError: If the artifacts are not ready for Maven Central.
     """
+    # Only the files of this build may be uploaded, not those of an earlier one.
+    clear_local_artifacts(version)
     execute(
         "./gradlew publishToMavenLocal -Prelease=true --console=plain",
         working_dir=CHECKER_FRAMEWORK,
     )
+    problems = verify_local_artifacts(version)
+    if problems:
+        msg = "The artifacts are not ready for Maven Central:\n" + "\n".join(
+            f"* {p}" for p in problems
+        )
+        raise ReleaseError(msg)
+    print(f"The artifacts of {version} are ready for Maven Central.")
 
 
 def update_version_numbers(old_cf_version: str) -> None:
@@ -325,7 +290,7 @@ def build_checker_framework_release(version: str) -> None:
     # clean no longer necessary files left over from building the checker framework tutorial
     execute("make clean", checker_tutorial_dir)
 
-    build_and_locally_deploy_maven()
+    build_and_locally_deploy_maven(version)
 
     # The jars record the release commit, so a file that the build changes would be missing from
     # it.

@@ -14,19 +14,14 @@ publishing plugin. The namespace is `io.github.eisop`.
 | `-SNAPSHOT` version | `https://central.sonatype.com/repository/maven-snapshots/` | no |
 | release version | `https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/` | yes |
 
-A release is made with
-
-````bash
-./gradlew publish -Prelease=true --no-parallel --console=plain
-````
-
-`-Prelease=true` also selects the release version: without it, the version is
+`-Prelease=true` selects the release version: without it, the version is
 `releaseVersion` (in [`release.gradle`](../../release.gradle)) followed by
 `-SNAPSHOT`.
 
-The command uploads to a staging repository. `release_push.py` (step 8) runs it,
-moves the upload to the Central Portal, waits for the Portal's validation, and
-asks before it publishes; see below.
+A release does not use `./gradlew publish`. `release_build.py` runs
+`./gradlew publishToMavenLocal -Prelease=true`, and checks the signed artifacts
+in the local Maven repository; `release_push.py` uploads exactly those files to
+the Central Portal. See below.
 
 Snapshots need no publishing configuration of their own: the snapshot URL is
 already the Central Portal snapshot repository, and snapshots are deliberately
@@ -66,39 +61,58 @@ If signed CI publishing is ever wanted, the way to do it is an in-memory
 ASCII-armored key (`signing.key` / `signing.password`) from a dedicated project
 key held in repository secrets — not a maintainer's personal key.
 
-## From staging repository to Maven Central
+## From the local Maven repository to Maven Central
 
-`ossrh-staging-api.central.sonatype.com` is Sonatype's **compatibility layer**
-for publishers whose build plugins predate the Central Portal API. It accepts
-the old OSSRH staging upload and keeps it in a staging repository, which does
-**not** show up in the Portal until a request moves it there. That request must
-come from the machine that uploaded, as the staging repository is tied to its IP:
+`release_build.py` deletes the release version's artifacts from the local
+Maven repository, runs `./gradlew publishToMavenLocal -Prelease=true`, and
+checks what it published, with
+[`release/maven_central.py`](release/maven_central.py):
+
+- every artifact in its `EXPECTED_ARTIFACTS` is there, and no other, each with
+  its POM, jar, sources jar, and Javadoc jar, and a signature for every file;
+- each POM has the name, description, URL, license, developer, and SCM URL that
+  Maven Central requires, and depends on no snapshot, on its own artifacts of
+  the same version, and on none of their `org.checkerframework` counterparts;
+- every file in the `checker`, `checker-qual`, `checker-util`, and
+  `annotation-file-utilities` jars is in the same jar in the release zip
+  files, with the same contents;
+- every signature verifies with the signer's public key from
+  `keyserver.ubuntu.com`, as users and Central see it, not only the local key.
+
+A problem stops the build, before anything is pushed or uploaded.
+
+`release_push.py` (step 8) checks the files again and puts exactly those files
+into a bundle in the layout of a Maven repository, with an MD5 and SHA-1
+checksum of each, which it uploads with the Portal's publisher API:
+
+1. `POST https://central.sonatype.com/api/v1/publisher/upload?publishingType=USER_MANAGED`
+   (multipart, field `bundle`) returns the deployment ID.
+2. `POST …/api/v1/publisher/status?id=<deployment id>` until `deploymentState`
+   is `VALIDATED` (or `FAILED`, with `errors`). The response lists the
+   components as `purls`, which must be exactly the expected artifacts at the
+   release version.
+3. After the releaser confirms, `POST …/api/v1/publisher/deployment/<deployment id>`
+   publishes the deployment. This cannot be undone.
+
+All requests carry `Authorization: Bearer <base64 of user-token-name:user-token-password>`.
+
+By hand, the bundle (`/tmp/$USER/cf-release/central-bundle-VERSION.zip`) can be
+uploaded at <https://central.sonatype.com/publishing/deployments> with "Publish
+Component", and the deployment published there with Publish; Drop discards an
+unpublished deployment.
+
+`./gradlew publish -Prelease=true` still works, too, through Sonatype's OSSRH
+staging API, a compatibility layer for older build plugins. It keeps the upload
+in a staging repository that does **not** show up in the Portal until a request
+from the uploading machine (the repository is tied to its IP) moves it there:
 
 ````text
 POST https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.eisop?publishing_type=user_managed
 Authorization: Bearer <base64 of user-token-name:user-token-password>
 ````
 
-With `publishing_type=user_managed`, the Portal validates the deployment and
-leaves it for a human, or a request, to publish. (`automatic` would publish it
-as soon as it is valid, without a chance to look at it.)
-
-[`release/maven_central.py`](release/maven_central.py), which `release_push.py`
-calls, does the rest with the APIs:
-
-1. `GET /manual/search/repositories?profile_id=io.github.eisop` on the staging
-   API gives the `portal_deployment_id` of the moved repository.
-2. `POST https://central.sonatype.com/api/v1/publisher/status?id=<deployment id>`
-   until `deploymentState` is `VALIDATED` (or `FAILED`, with `errors`). The
-   response lists the components as `purls`, which must all be the release
-   version.
-3. After the releaser confirms,
-   `POST https://central.sonatype.com/api/v1/publisher/deployment/<deployment id>`
-   publishes the deployment. This cannot be undone.
-
-By hand, the last step is the Publish button at
-<https://central.sonatype.com/publishing/deployments>; Drop there discards an
-unpublished deployment.
+That path uploads what the build produces at that moment, unchecked, so the
+release scripts do not use it.
 
 ## Nightly snapshots
 

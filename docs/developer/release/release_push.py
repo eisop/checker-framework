@@ -444,12 +444,14 @@ def main(argv: list[str]) -> None:
         check_github_release_files(new_cf_version)
 
         print_step("Push Step 8. Publish the Maven artifacts on Maven Central.")  # SEMIAUTO
-        # The upload is validated by the Portal before anything is published.  If you decline, or
-        # a request fails, the deployment is published, or dropped, by hand.
+        # The artifacts that release_build.py published to the local Maven repository, and checked
+        # there, are checked again and uploaded as they are.  The Portal validates them before
+        # anything is published.  If you decline, or a request fails, the deployment is
+        # published, or dropped, by hand.
         deployment_id = None
         if prompt_yes_no(
-            "Upload the Maven artifacts to Maven Central, for validation?  They are not published"
-            " until you confirm again.",
+            "Upload the Maven artifacts from the local Maven repository to Maven Central, for"
+            " validation?  They are not published until you confirm again.",
             True,
         ):
             deployment_id = upload_to_maven_central(new_cf_version)
@@ -463,6 +465,8 @@ def main(argv: list[str]) -> None:
             continue_or_exit(
                 "Publish the Maven artifacts by hand; see the release process README.\n"
                 f"A deployment that was uploaded is at {DEPLOYMENTS_URL}.\n"
+                f"The checked artifacts are in {TMP_DIR}/central-bundle-{new_cf_version}.zip,"
+                " which you can upload there.\n"
             )
 
         print_step("Push Step 9. Publish the web site.")  # SEMIAUTO
