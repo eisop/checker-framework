@@ -62,7 +62,8 @@ def maven_sanity_check(sub_sanity_dir_name: str) -> None:
 
     # -Prelease=true makes the example use the release version rather than a -SNAPSHOT version.
     get_example_dir_cmd = (
-        f"./gradlew updateCopyMavenExample -Prelease=true -PdestDir={maven_sanity_dir}"
+        "./gradlew updateCopyMavenExample -Prelease=true --console=plain"
+        f" -PdestDir={maven_sanity_dir}"
     )
 
     execute(get_example_dir_cmd, CHECKER_FRAMEWORK)

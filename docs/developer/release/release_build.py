@@ -240,13 +240,16 @@ def build_and_locally_deploy_maven() -> None:
 
     The artifacts are signed, as for any release build; see gradle-mvn-push.gradle.
     """
-    execute("./gradlew publishToMavenLocal -Prelease=true", working_dir=CHECKER_FRAMEWORK)
+    execute(
+        "./gradlew publishToMavenLocal -Prelease=true --console=plain",
+        working_dir=CHECKER_FRAMEWORK,
+    )
 
 
 def update_version_numbers(old_cf_version: str) -> None:
     """Update the version numbers and release dates in the documentation for the release."""
     execute("./gradlew clean", working_dir=CHECKER_FRAMEWORK)
-    execute("./gradlew updateVersionNumbers", working_dir=CHECKER_FRAMEWORK)
+    execute("./gradlew updateVersionNumbers --console=plain", working_dir=CHECKER_FRAMEWORK)
 
     # Check that updating versions didn't overlook anything.
     print("Here are occurrences of the old version number, " + old_cf_version + ":")
@@ -270,7 +273,7 @@ def build_checker_framework_release(version: str) -> None:
     # Build the Checker Framework binaries and documents.  Tests are run by release_push.py.
     # Every Gradle command that builds release artifacts passes -Prelease=true; otherwise the
     # build's version is a -SNAPSHOT version.
-    gradle_cmd = "./gradlew buildAll -Prelease=true"
+    gradle_cmd = "./gradlew buildAll -Prelease=true --console=plain"
     execute(gradle_cmd, CHECKER_FRAMEWORK)
 
     # make the checker framework tutorial
@@ -279,7 +282,9 @@ def build_checker_framework_release(version: str) -> None:
 
     # Create checker-framework-X.Y.Z.zip and annotation-file-utilities-X.Y.Z.zip, which also makes
     # the manuals, and put them in RELEASE_FILES_DIR.
-    execute("./gradlew zip annotationFileUtilitiesZip -Prelease=true", CHECKER_FRAMEWORK)
+    execute(
+        "./gradlew zip annotationFileUtilitiesZip -Prelease=true --console=plain", CHECKER_FRAMEWORK
+    )
     delete_directory_if_exists(RELEASE_FILES_DIR)
     RELEASE_FILES_DIR.mkdir(parents=True)
     for name in (f"checker-framework-{version}.zip", f"annotation-file-utilities-{version}.zip"):

@@ -230,7 +230,7 @@ Most of the instructions can be followed, ignoring certain steps.
 Without using the release scripts, you can make a Maven Central release using:
 
 ````bash
-./gradlew publish -Prelease=true --no-parallel
+./gradlew publish -Prelease=true --no-parallel --console=plain
 ````
 
 The build signs releases and refuses to publish unsigned ones.  Any maintainer

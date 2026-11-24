@@ -253,7 +253,7 @@ TreeAnnotator
       <strong>Publish to Maven Central.</strong>  The release scripts do not do this.  In
       the build clone (<code>build/checker-framework</code>, which is at the release commit),
       on JDK 21 or later, run<br/>
-      <code>./gradlew publish -Prelease=true --no-parallel</code><br/>
+      <code>./gradlew publish -Prelease=true --no-parallel --console=plain</code><br/>
       (<code>-Prelease=true</code> makes the version <code>releaseVersion</code> from
       <code>release.gradle</code> rather than a <code>-SNAPSHOT</code> version, and signs the
       artifacts.)<br/><br/>

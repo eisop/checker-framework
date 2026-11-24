@@ -240,10 +240,10 @@ def main(argv: list[str]) -> None:
 
     print_step("Push Step 3: Run all tests (takes a long time)")
     if prompt_yes_no("Perform this step?", True):
-        gradle_cmd = "./gradlew allTests"
+        gradle_cmd = "./gradlew allTests --console=plain"
         execute(gradle_cmd, CHECKER_FRAMEWORK)
 
-        gradle_cmd = "./gradlew :annotation-file-utilities:allTests"
+        gradle_cmd = "./gradlew :annotation-file-utilities:allTests --console=plain"
         execute(gradle_cmd, CHECKER_FRAMEWORK)
 
     # The web site is generated from the GitHub release.  Running the generator on the release zip

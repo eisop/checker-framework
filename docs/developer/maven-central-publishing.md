@@ -17,7 +17,7 @@ publishing plugin. The namespace is `io.github.eisop`.
 A release is made with
 
 ````bash
-./gradlew publish -Prelease=true --no-parallel
+./gradlew publish -Prelease=true --no-parallel --console=plain
 ````
 
 `-Prelease=true` also selects the release version: without it, the version is
