@@ -30,7 +30,6 @@ fail() {
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-
 # The version of the release, which is releaseVersion in release.gradle.
 VERSION="$(sed -n 's/^ *releaseVersion = "\(.*\)"$/\1/p' release.gradle)"
 [ -n "${VERSION}" ] || fail "Could not read releaseVersion from release.gradle."
@@ -211,4 +210,3 @@ fi
 (cd docs/examples/afu-consumer \
   && "$ROOT_DIR/gradlew" -Dmaven.repo.local="$MAVEN_REPO" -PafuVersion="${VERSION}" --console=plain \
     clean smoketest)
-
