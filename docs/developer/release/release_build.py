@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import datetime
 import os
 import re
 import shutil
@@ -12,6 +13,8 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from maven_central import check_central_token, gradle_user_properties
@@ -70,11 +73,78 @@ def download_dependencies() -> None:
     execute_with_retries(["./gradlew", "resolveDependencies"], CHECKER_FRAMEWORK)
 
 
+def check_public_key(gpg: str, signature: bytes) -> str | None:
+    """Check that the published public key verifies the given signature of "test".
+
+    Users of the release, and Maven Central, fetch the public key from a keyserver.  A copy there
+    that has expired, or that lacks the key's user ID, makes the release's signatures look invalid,
+    even though the local key is fine.  The signature is verified against the copy on
+    keyserver.ubuntu.com, in a temporary keyring.
+
+    Returns:
+        a description of the problem, or None if the published key verifies the signature
+    """
+    packets = subprocess.run(
+        [gpg, "--list-packets"], input=signature, capture_output=True, check=False
+    ).stdout.decode(errors="replace")
+    match = re.search(r"issuer fpr v\d ([0-9A-F]+)", packets) or re.search(
+        r"keyid ([0-9A-F]+)", packets
+    )
+    if match is None:
+        return "Could not find the key that signed the test message."
+    fingerprint = match.group(1)
+    upload = (
+        f"Upload your current public key: gpg --keyserver hkps://keyserver.ubuntu.com"
+        f" --send-keys {fingerprint}"
+    )
+    url = f"https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x{fingerprint}"
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            public_key = response.read()
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return f"keyserver.ubuntu.com does not have your key {fingerprint}.  {upload}"
+        return f"Could not get your key {fingerprint} from keyserver.ubuntu.com: {e}"
+    except OSError as e:
+        return f"Could not reach keyserver.ubuntu.com to check your public key: {e}"
+
+    with tempfile.TemporaryDirectory() as home:
+        Path(home).chmod(0o700)
+        (Path(home) / "test.asc").write_bytes(signature)
+        (Path(home) / "test").write_bytes(b"test")
+        (Path(home) / "key.asc").write_bytes(public_key)
+        options = [gpg, "--homedir", home, "--batch", "--no-autostart"]
+        subprocess.run(
+            [*options, "--import", str(Path(home) / "key.asc")], capture_output=True, check=False
+        )
+        status = subprocess.run(
+            [
+                *options,
+                "--status-fd",
+                "1",
+                "--verify",
+                str(Path(home) / "test.asc"),
+                str(Path(home) / "test"),
+            ],
+            capture_output=True,
+            check=False,
+        ).stdout.decode(errors="replace")
+    if "[GNUPG:] GOODSIG" in status:
+        return None
+    if "[GNUPG:] EXPKEYSIG" in status:
+        return f"Your key {fingerprint} on keyserver.ubuntu.com has expired.  {upload}"
+    return (
+        f"Your key {fingerprint} on keyserver.ubuntu.com does not verify your signatures; it may"
+        f" lack its user ID.  {upload}"
+    )
+
+
 def check_prerequisites() -> None:
     """Check what the release needs from the user's setup, before anything slow runs.
 
-    The checks cover the signing key, the Maven Central token, the JDK, the git identity, and
-    permission to push to GitHub, and that gh, which posts the GitHub release, is logged in.
+    The checks cover the signing key and its published public key, the Maven Central token, the
+    JDK, the git identity, and permission to push to GitHub, and that gh, which posts the GitHub
+    release, is logged in.
 
     Raises:
         ReleaseError: If anything that the release needs is missing.
@@ -101,6 +171,10 @@ def check_prerequisites() -> None:
             problems.append(
                 f"{gpg} cannot sign with {key}: {sign.stderr.decode(errors='replace').strip()}"
             )
+        else:
+            key_problem = check_public_key(gpg, sign.stdout)
+            if key_problem:
+                problems.append(key_problem)
 
     token_names = ("SONATYPE_NEXUS_USERNAME", "SONATYPE_NEXUS_PASSWORD")
     problems.extend(
@@ -138,24 +212,24 @@ def check_prerequisites() -> None:
         raise ReleaseError(msg)
 
 
-def check_changelog_date(changelog: Path, version: str) -> None:
-    """Check that the date of the changelog's section for the given version is not a placeholder.
+def set_changelog_date(changelog: Path, version: str) -> None:
+    """Set the date of the changelog's section for the given version to the release date.
 
-    The section's heading is "## Version VERSION (DATE)".  Until release day, DATE may be a
-    placeholder such as "June ?, 2026"; a release must not ship it.
+    The section's heading is "## Version VERSION (DATE)".  Until the release, DATE is usually a
+    placeholder such as "June ?, 2026".  The release date is today's date in UTC, as in the
+    documentation that updateVersionNumbers updates.
 
     Raises:
-        ReleaseError: If the changelog has no section for the version, or its date is a placeholder.
+        ReleaseError: If the changelog has no section for the version.
     """
-    heading = re.compile("^## Version " + re.escape(version) + r" \((.*)\)$", re.MULTILINE)
-    match = heading.search(changelog.read_text(encoding="utf-8"))
-    if match is None:
+    heading = re.compile("^(## Version " + re.escape(version) + r" \().*(\))$", re.MULTILINE)
+    text = changelog.read_text(encoding="utf-8")
+    if heading.search(text) is None:
         msg = f"{changelog} has no section for version {version}."
         raise ReleaseError(msg)
-    date = match.group(1)
-    if "?" in date or "TODO" in date:
-        msg = f"The date of version {version} in {changelog} is a placeholder: {date}"
-        raise ReleaseError(msg)
+    today = datetime.datetime.now(datetime.timezone.utc).date()
+    date = f"{today:%B} {today.day}, {today.year}"
+    changelog.write_text(heading.sub(rf"\g<1>{date}\g<2>", text, count=1), encoding="utf-8")
 
 
 def reflow_closed_issues(changelog: Path, version: str) -> None:
@@ -314,7 +388,6 @@ def main(argv: list[str]) -> None:
     old_cf_version = current_release_version()
     cf_version = CF_VERSION
     print("Version: " + cf_version + "\n")
-    check_changelog_date(Path(CHECKER_FRAMEWORK) / "docs" / "CHANGELOG.md", cf_version)
 
     # A version that is not greater would otherwise be noticed only by release_push.py, after the
     # whole build.  Update releaseVersion in release.gradle and start over.
@@ -322,7 +395,9 @@ def main(argv: list[str]) -> None:
 
     print_step("Build Step 4: Update the version numbers.")  # MANUAL
     update_version_numbers(old_cf_version)
-    reflow_closed_issues(Path(CHECKER_FRAMEWORK) / "docs" / "CHANGELOG.md", cf_version)
+    changelog = Path(CHECKER_FRAMEWORK) / "docs" / "CHANGELOG.md"
+    set_changelog_date(changelog, cf_version)
+    reflow_closed_issues(changelog, cf_version)
 
     # The files updated for the release, usually with the new release date and version, are
     # committed, and the commit is tagged.  release_push.py pushes both.  The release is committed

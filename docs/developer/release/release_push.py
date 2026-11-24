@@ -4,6 +4,7 @@
 # See README-release-process.html for more information
 
 import filecmp
+import re
 import sys
 import tempfile
 import urllib.error
@@ -20,6 +21,7 @@ from release_utils import (
     get_announcement_email,
     has_command_line_option,
     print_step,
+    prompt_w_default,
     prompt_yes_no,
     push_release,
 )
@@ -29,6 +31,7 @@ from release_vars import (
     RELEASE_BUILD_COMPLETED_FLAG_FILE,
     RELEASE_FILES_DIR,
     execute,
+    execute_output,
     execute_status,
 )
 from sanity_checks import (
@@ -138,6 +141,121 @@ def create_github_release(tag: str, cf_version: str) -> bool:
         return execute_status(command) == 0
 
 
+def tests_passed_in_ci() -> bool:
+    """Return true if CI passed on the commit that the release commit is based on.
+
+    The release commit then needs no tests of its own if it changes only files in docs/, such as
+    the version numbers and the changelog date.
+
+    Returns:
+        true if CI passed on the parent of the release commit, and the release commit changes only
+        files in docs/
+    """
+    changed = execute_output(["git", "diff", "--name-only", "HEAD~1", "HEAD"], CHECKER_FRAMEWORK)
+    not_docs = [f for f in changed.split() if not f.startswith("docs/")]
+    if not_docs:
+        print(f"The release commit changes files outside docs/: {not_docs}")
+        return False
+    parent = execute_output(["git", "rev-parse", "HEAD~1"], CHECKER_FRAMEWORK).strip()
+    conclusions = execute_output(
+        [
+            "gh",
+            "run",
+            "list",
+            "--repo",
+            "eisop/checker-framework",
+            "--workflow",
+            "ci.yml",
+            "--commit",
+            parent,
+            "--json",
+            "conclusion",
+            "--jq",
+            ".[].conclusion",
+        ]
+    ).split()
+    if "success" not in conclusions:
+        print(f"CI did not pass on {parent}: {conclusions or 'no CI run'}")
+        return False
+    print(f"CI passed on {parent}, and the release commit changes only files in docs/.")
+    return True
+
+
+def next_release_version(version: str) -> str:
+    """Return the likely version of the release after the given one: its -eisopN suffix incremented.
+
+    Returns:
+        the version of the next release
+    """
+    match = re.fullmatch(r"(.*-eisop)(\d+)", version)
+    return f"{match.group(1)}{int(match.group(2)) + 1}" if match else version
+
+
+def open_next_release_pr(released_version: str, next_version: str) -> bool:
+    """Open a pull request that prepares the next release.
+
+    It sets releaseVersion in release.gradle to the next version and adds the next version's section
+    to the changelog.  release_build.py sets the section's date when the version is released.
+
+    Returns:
+        true if the pull request was opened
+    """
+    release_gradle = CHECKER_FRAMEWORK / "release.gradle"
+    changelog = CHECKER_FRAMEWORK / "docs" / "CHANGELOG.md"
+    gradle_text = release_gradle.read_text(encoding="utf-8")
+    old_setting = f'releaseVersion = "{released_version}"'
+    changelog_text = changelog.read_text(encoding="utf-8")
+    first_section = changelog_text.find("\n## Version ")
+    if old_setting not in gradle_text or first_section == -1:
+        print(f"Could not find {old_setting} in {release_gradle}, or a section in {changelog}.")
+        return False
+
+    branch = f"prepare-{next_version}"
+    title = f"Prepare {next_version}"
+    if execute_status(["git", "switch", "--quiet", "-c", branch], CHECKER_FRAMEWORK) != 0:
+        return False
+    try:
+        release_gradle.write_text(
+            gradle_text.replace(old_setting, f'releaseVersion = "{next_version}"'),
+            encoding="utf-8",
+        )
+        section = (
+            f"\n## Version {next_version} (TBD)\n\n### User-visible changes\n\n"
+            "### Implementation details\n\n### Closed issues\n"
+        )
+        changelog.write_text(
+            changelog_text[:first_section] + section + changelog_text[first_section:],
+            encoding="utf-8",
+        )
+        body = (
+            f"Sets releaseVersion to {next_version} and adds its changelog section, after the"
+            f" release of {released_version}.  Made by release_push.py."
+        )
+        commands = [
+            ["git", "commit", "--quiet", "-a", "-m", title],
+            ["git", "push", "--quiet", "origin", branch],
+            [
+                "gh",
+                "pr",
+                "create",
+                "--repo",
+                "eisop/checker-framework",
+                "--base",
+                "master",
+                "--head",
+                branch,
+                "--title",
+                title,
+                "--body",
+                body,
+            ],
+        ]
+        return all(execute_status(command, CHECKER_FRAMEWORK) == 0 for command in commands)
+    finally:
+        # Leave the clone at the release commit.
+        execute_status(["git", "switch", "--quiet", "--force", "master"], CHECKER_FRAMEWORK)
+
+
 def validate_args(argv: list[str]) -> None:
     """Validate the command-line arguments.
 
@@ -240,7 +358,7 @@ def main(argv: list[str]) -> None:
     # Runs all tests on the release.
 
     print_step("Push Step 3: Run all tests (takes a long time)")
-    if prompt_yes_no("Perform this step?", True):
+    if prompt_yes_no("Run all tests?  With few cores, this takes hours.", not tests_passed_in_ci()):
         gradle_cmd = "./gradlew allTests --console=plain"
         execute(gradle_cmd, CHECKER_FRAMEWORK)
 
@@ -383,14 +501,26 @@ def main(argv: list[str]) -> None:
             + get_announcement_email(new_cf_version)
         )
 
-        print_step("Push Step 11. Prep for next Checker Framework release.")  # MANUAL
-        continue_or_exit(
-            "Make a pull request that changes releaseVersion in release.gradle to the version\n"
-            "of the next release, for example by incrementing the -eisopN suffix, and adds its\n"
-            "section to docs/CHANGELOG.md.  Builds without -Prelease=true then produce -SNAPSHOT\n"
-            "versions of that release.  Renovate updates the version in docs/examples once the\n"
-            "release is on Maven Central.\n"
+        print_step("Push Step 11. Prepare the next Checker Framework release.")  # SEMIAUTO
+        # Until releaseVersion is the next version, snapshots have the version just released.
+        # Renovate updates the version in docs/examples once the release is on Maven Central.
+        next_version = prompt_w_default(
+            "Version of the next release",
+            next_release_version(new_cf_version),
+            r"^\d+\.\d+\.\d+(-eisop\d+)?$",
         )
+        if not (
+            prompt_yes_no(
+                f"Open a pull request that sets releaseVersion to {next_version} and adds its"
+                " changelog section?",
+                True,
+            )
+            and open_next_release_pr(new_cf_version, next_version)
+        ):
+            continue_or_exit(
+                f"Make a pull request that changes releaseVersion in release.gradle to"
+                f" {next_version}, and adds its section to docs/CHANGELOG.md.\n"
+            )
 
     if not test_mode:
         delete_if_exists(RELEASE_BUILD_COMPLETED_FLAG_FILE)

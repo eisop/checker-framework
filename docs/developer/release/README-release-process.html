@@ -123,17 +123,16 @@ Answering 'no' to a prompt does not exit the script unless otherwise indicated.
       <li>
         <b>Update the Checker Framework change log</b>, which also covers the Annotation File Utilities, by following the instructions
         at <a href="#content_guidelines">content guidelines</a>.
-        Replace the placeholder date in the heading of the release's section,
-        <code>## Version VERSION (DATE)</code>, such as <code>June ?, 2026</code>, by the release date:
-        release_build stops while the date is a placeholder.
-        The release date is the date in UTC, which <code>date -u +"%B %-d, %Y"</code> prints,
-        whatever your time zone; the release scripts write the same date into the documentation.
+        Leave the date in the heading of the release's section,
+        <code>## Version VERSION (DATE)</code>, as it is: release_build sets it to the release
+        date, the date in UTC, as in the rest of the documentation.
       </li>
       <li> <b>Update the Checker Framework version number</b>
         in <code>checker-framework/release.gradle</code>,
         in the <code>ext</code> block: set <code>releaseVersion</code> to the version
         being released, such as <code>1.2.3-eisop4</code>, without <code>-SNAPSHOT</code>.
-        (Usually it already is: it is set to the next release after each release.)
+        (Usually it already is: release_push opens a pull request that sets it to the next
+        release after each release.)
         The build's version is <code>releaseVersion</code> when Gradle is run
         with <code>-Prelease=true</code>, as the release scripts do,
         and <code>releaseVersion</code> followed by <code>-SNAPSHOT</code> otherwise.
@@ -198,7 +197,8 @@ TreeAnnotator
       <ul>
         <li><code>signing.gnupg.keyName</code>, <code>SONATYPE_NEXUS_USERNAME</code>, and
           <code>SONATYPE_NEXUS_PASSWORD</code> in <code>~/.gradle/gradle.properties</code>,
-          and the secret key in gpg;</li>
+          and the secret key in gpg, with its current public key on
+          <code>keyserver.ubuntu.com</code>;</li>
         <li>permission to push to <code>git@github.com:eisop/checker-framework.git</code>,
           and <code>git config user.name</code> and <code>user.email</code>;</li>
         <li>JDK 21 or later at <code>$JAVA_21_HOME</code>;</li>
@@ -226,7 +226,6 @@ TreeAnnotator
       (for the Maven sanity check in release_push) with <code>-Prelease=true</code>, which signs
       the artifacts.  Set up your signing key, as for the Maven Central publish step below,
       before running it.<br/><br/>
-      It also stops while the date in the release's section of the changelog is a placeholder.<br/><br/>
       If release_build fails, fix the problem and run it again.  It resets
       <code>build/checker-framework</code> to master, discarding the release commit and tag of the
       failed run, and it retries the downloads, which it does before committing the release.
@@ -392,7 +391,9 @@ configurations.all({
         Maven Central requires signed artifacts, but does not pin a key to a namespace: each
         maintainer signs with their own.  Have a GPG key whose public half is published to a
         keyserver Central queries (<code>keys.openpgp.org</code> or <code>keyserver.ubuntu.com</code>),
-        and name it in <code>~/.gradle/gradle.properties</code>:<br/>
+        and upload it again whenever you extend its expiry date: users who verify the signatures
+        fetch the key from there.  release_build checks the copy on <code>keyserver.ubuntu.com</code>.
+        Name the key in <code>~/.gradle/gradle.properties</code>:<br/>
         <pre>signing.gnupg.keyName=your_key_id_or_email</pre>
         See <a href="../maven-central-publishing.md">Maven Central publishing</a>.<br/>
       </td>
@@ -551,12 +552,13 @@ python3 release_build.py</pre>
             <li>Clone the repository and the annotated JDK, or reset existing clones to master (1a);
               verify that the repository is clean (1b); download the dependencies (1c).
               Downloads are tried up to three times.</li>
-            <li>Check that the required tools are installed, that gpg can sign with your key, that the
-              Maven Central token is set, and that you can push to GitHub.</li>
-            <li>Determine the versions: the latest GitHub release and <code>releaseVersion</code>.
-              Check that the changelog date is not a placeholder.</li>
-            <li>Update the version numbers: <code>updateVersionNumbers</code>.  Reflow the
-              changelog's &quot;Closed issues&quot; list into filled lines.</li>
+            <li>Check that the required tools are installed, that gpg can sign with your key and the
+              key on <code>keyserver.ubuntu.com</code> verifies the signature, that Maven Central
+              accepts your token, and that you can push to GitHub.</li>
+            <li>Determine the versions: the latest GitHub release and <code>releaseVersion</code>.</li>
+            <li>Update the version numbers: <code>updateVersionNumbers</code>.  Set the date of the
+              release's changelog section, and reflow its &quot;Closed issues&quot; list into filled
+              lines.</li>
             <li>Commit and tag the release.</li>
             <li>Build: <code>buildAll</code>, the tutorial,
               <code>./gradlew zip annotationFileUtilitiesZip -Prelease=true</code>; copy both zip files
@@ -572,7 +574,9 @@ python3 release_build.py</pre>
           <ol>
             <li>Check that the new version is greater than the latest release.</li>
             <li>Sanity tests: javac sanity check on the local release zip; Maven sanity check on <code>~/.m2</code>.</li>
-            <li>Run <code>allTests</code>.</li>
+            <li>Run <code>allTests</code>.  If CI passed on the commit the release is based on, and
+              the release commit changes only files in <code>docs/</code>, the default answer is
+              to skip it.</li>
             <li>Manual: run the web site generator with <code>--local-release</code> on the zip
               and inspect the generated pages.</li>
             <li>Push master and the tag to GitHub, atomically.  This is irreversible.</li>
@@ -585,8 +589,9 @@ python3 release_build.py</pre>
             <li>Publish the web site: dispatch the &quot;Publish website&quot; workflow with <code>gh</code> after you confirm; you check
               <a href="https://eisop.github.io/cf/">https://eisop.github.io/cf/</a>.</li>
             <li>Announce the release.</li>
-            <li>Change <code>releaseVersion</code> to the next release.  Renovate updates the
-              Checker Framework version in <code>docs/examples</code> once the release is on Maven
+            <li>Open a pull request, after you confirm, that sets <code>releaseVersion</code> to
+              the next release and adds its changelog section.  Renovate updates the Checker
+              Framework version in <code>docs/examples</code> once the release is on Maven
               Central.</li>
           </ol>
         </td>
