@@ -16,6 +16,7 @@ from release_errors import ReleaseError
 from release_utils import delete_directory_if_exists
 from release_vars import (
     CHECKER_FRAMEWORK,
+    MAVEN_REPO_OPTIONS,
     SANITY_DIR,
     execute,
     gradle_release,
@@ -64,7 +65,11 @@ def maven_sanity_check(sub_sanity_dir_name: str) -> None:
     print(f"Executing in {maven_example_dir}: mvn compile > {output_log}")
     with output_log.open("w") as log:
         subprocess.run(
-            ["mvn", "compile"], cwd=maven_example_dir, stdout=log, stderr=log, check=False
+            ["mvn", "-B", *MAVEN_REPO_OPTIONS, "compile"],
+            cwd=maven_example_dir,
+            stdout=log,
+            stderr=log,
+            check=False,
         )
     expected_error = re.compile(
         r"MavenExample\.java:\[30,(29|30)\] \[assignment\.type\.incompatible\]"

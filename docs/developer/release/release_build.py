@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import os
 import re
 import shutil
@@ -15,6 +16,8 @@ import tempfile
 import textwrap
 from pathlib import Path
 
+import maven_central
+import release_utils
 from maven_central import (
     check_central_token,
     clear_local_artifacts,
@@ -43,6 +46,8 @@ from release_vars import (
     CF_VERSION,
     CHANGELOG,
     CHECKER_FRAMEWORK,
+    GITHUB_REPO,
+    HELPER_CLONES,
     LIVE_CHECKER_REPO,
     RELEASE_BUILD_COMPLETED_FLAG_FILE,
     RELEASE_FILES_DIR,
@@ -55,14 +60,18 @@ from release_vars import (
     gradle_release,
 )
 
-# Turned on by the --debug command-line option.
-debug = False
+# Turned on by the --dry-run command-line option.
+dry_run = False
 
 
 def print_usage() -> None:
     """Print usage information."""
-    print("Usage:    python3 release_build.py [options]")
-    print("\n  --debug  turns on debugging mode which produces verbose output")
+    print("Usage:    python3 release_build.py [--dry-run]")
+    print(
+        "\n  --dry-run  builds the current clone of the release scripts, unattended, without"
+        "\n             credentials: it skips the checks of the signing key, the Maven Central"
+        "\n             token, and access to GitHub, and checks links offline.  CI runs it."
+    )
 
 
 def clone_or_reset_repos() -> None:
@@ -71,13 +80,16 @@ def clone_or_reset_repos() -> None:
     The annotated JDK is cloned here, rather than by the build, so that a failure to download it
     happens before the release is committed, and is retried.
     """
-    clone_or_reset(LIVE_CHECKER_REPO, CHECKER_FRAMEWORK)
+    # A dry run builds the clone that runs the scripts, at its master branch.
+    clone_or_reset(str(SCRIPTS_CLONE) if dry_run else LIVE_CHECKER_REPO, CHECKER_FRAMEWORK)
     clone_or_reset(ANNOTATED_JDK_REPO, BUILD_DIR / "jdk", shallow=True)
 
 
 def download_dependencies() -> None:
     """Download the dependencies of the build, before the release is committed."""
-    execute_with_retries(["./gradlew", "resolveDependencies"], CHECKER_FRAMEWORK)
+    execute_with_retries(
+        ["./gradlew", "resolveDependencies", "getPlumeScripts", "getHtmlTools"], CHECKER_FRAMEWORK
+    )
 
 
 def check_public_key(gpg: str, signature: bytes) -> str | None:
@@ -92,6 +104,26 @@ def check_public_key(gpg: str, signature: bytes) -> str | None:
         Path(f"{test}.asc").write_bytes(signature)
         problems = verify_with_published_key(gpg, [test])
     return problems[0] if problems else None
+
+
+def check_jdk() -> str | None:
+    """Check that the JDK of the release is 21 or later.
+
+    A build on an older JDK would leave out framework-errorprone; see settings.gradle.
+
+    Returns:
+        a description of the problem, or None if the JDK is 21 or later
+    """
+    javac = Path(os.environ["JAVA_HOME"]) / "bin" / "javac"
+    if not javac.exists():
+        return f"{javac} does not exist; set JAVA_21_HOME to a JDK 21 or later."
+    javac_version = subprocess.run(
+        [str(javac), "-version"], capture_output=True, text=True, check=False
+    )
+    match = re.search(r"javac (\d+)", javac_version.stdout + javac_version.stderr)
+    if match is None or int(match.group(1)) < 21:
+        return f"{javac} is not a JDK 21 or later; set JAVA_21_HOME to one."
+    return None
 
 
 def check_prerequisites() -> None:
@@ -143,17 +175,9 @@ def check_prerequisites() -> None:
         if token_problem:
             problems.append(token_problem)
 
-    javac = Path(os.environ["JAVA_HOME"]) / "bin" / "javac"
-    if not javac.exists():
-        problems.append(f"{javac} does not exist; set JAVA_21_HOME to a JDK 21 or later.")
-    else:
-        # A publish on an older JDK would leave out framework-errorprone; see settings.gradle.
-        javac_version = subprocess.run(
-            [str(javac), "-version"], capture_output=True, text=True, check=False
-        )
-        match = re.search(r"javac (\d+)", javac_version.stdout + javac_version.stderr)
-        if match is None or int(match.group(1)) < 21:
-            problems.append(f"{javac} is not a JDK 21 or later; set JAVA_21_HOME to one.")
+    jdk_problem = check_jdk()
+    if jdk_problem:
+        problems.append(jdk_problem)
 
     problems.extend(
         f"git config {name} is not set; the release commit needs it."
@@ -183,8 +207,14 @@ def check_versions(old_cf_version: str, cf_version: str) -> None:
             has another version, or if the version's tag is already on GitHub.
     """
     # A version that is not greater would otherwise be noticed only by release_push.py, after the
-    # whole build.  Update releaseVersion in release.gradle and start over.
-    check_release_version(old_cf_version, cf_version)
+    # whole build.  Update releaseVersion in release.gradle and start over.  A dry run in CI
+    # between a release and the pull request that prepares the next one only warns.
+    try:
+        check_release_version(old_cf_version, cf_version)
+    except ReleaseError as e:
+        if not dry_run:
+            raise
+        print(f"Dry run: {e}")
     # The version comes from the clone that runs the scripts; the release is built from master.
     built_version = execute_output("./gradlew version -q -Prelease=true", CHECKER_FRAMEWORK).strip()
     if built_version != cf_version:
@@ -197,6 +227,77 @@ def check_versions(old_cf_version: str, cf_version: str) -> None:
     if execute_output(["git", "ls-remote", "--tags", "origin", tag], CHECKER_FRAMEWORK).strip():
         msg = f"{tag} is already on GitHub; continue the release with release_push.py."
         raise ReleaseError(msg)
+
+
+def check_master(cf_version: str) -> None:
+    """Check master before it is released, and ask whether to continue on a problem.
+
+    The checks are that CI passed on it, that the changelog names the issues closed since the
+    last release, and that there is no open Dependabot alert.
+    """
+    commit = execute_output(["git", "rev-parse", "HEAD"], CHECKER_FRAMEWORK).strip()
+    runs = json.loads(
+        execute_output(
+            [
+                *["gh", "run", "list", "--repo", GITHUB_REPO, "--workflow", "ci.yml"],
+                *["--commit", commit, "--json", "conclusion,status,url"],
+            ]
+        )
+        or "[]"
+    )
+    if not any(run.get("conclusion") == "success" for run in runs):
+        states = [
+            f"{run.get('status')} {run.get('conclusion') or ''} {run.get('url')}" for run in runs
+        ]
+        continue_or_exit(f"CI has not passed on master, {commit}: {states or 'no run'}.")
+
+    since = execute_output(
+        ["gh", "api", f"repos/{GITHUB_REPO}/releases/latest", "--jq", ".published_at"]
+    ).strip()
+    closed = json.loads(
+        execute_output(
+            [
+                *["gh", "issue", "list", "--repo", GITHUB_REPO, "--state", "closed"],
+                *["--search", f"closed:>={since[:10]}", "--limit", "1000"],
+                *["--json", "number,stateReason,title"],
+            ]
+        )
+        or "[]"
+    )
+    text = CHANGELOG.read_text(encoding="utf-8")
+    start = text.index(f"## Version {cf_version} (")
+    end = text.find("\n## Version ", start)
+    section = text[start:end] if end != -1 else text[start:]
+    listed = {
+        int(n) for n in re.findall(r"eisop#(\d+)", section.rpartition("### Closed issues")[2])
+    }
+    missing = [
+        f"  eisop#{issue['number']}: {issue['title']}"
+        for issue in closed
+        if issue.get("stateReason") == "COMPLETED" and issue["number"] not in listed
+    ]
+    if missing:
+        print(f"Issues completed since {since[:10]} that the changelog does not list:")
+        print("\n".join(missing))
+        continue_or_exit(
+            "Add those that the release fixes to its Closed issues, in a pull request, and run"
+            " release_build.py again; or continue."
+        )
+
+    alerts = execute_output(
+        [
+            "gh",
+            "api",
+            f"repos/{GITHUB_REPO}/dependabot/alerts?state=open&per_page=100",
+            "--jq",
+            "length",
+        ]
+    ).strip()
+    dependabot = f"https://github.com/{GITHUB_REPO}/security/dependabot"
+    if not alerts.isdigit():
+        print(f"Could not read the Dependabot alerts; look at {dependabot}.")
+    elif alerts != "0":
+        continue_or_exit(f"There are {alerts} open Dependabot alerts: {dependabot}.")
 
 
 def set_changelog_date(changelog: Path, version: str) -> None:
@@ -305,13 +406,18 @@ def build_checker_framework_release(version: str) -> None:
     for name in (f"checker-framework-{version}.zip", f"annotation-file-utilities-{version}.zip"):
         shutil.copy2(Path(CHECKER_FRAMEWORK) / "build" / name, RELEASE_FILES_DIR)
 
-    # Check the links of the pages that the zip ships, including the external ones, before
-    # anything is pushed.  Fix a broken link and start over.
+    # Check the links of the pages that the zip ships, including the external ones, except in a
+    # dry run, before anything is pushed.  Fix a broken link and start over.
+    online = [] if dry_run else ["--online"]
     with tempfile.TemporaryDirectory() as unpack_dir:
         execute(f"unzip -q {RELEASE_FILES_DIR}/checker-framework-{version}.zip -d {unpack_dir}")
         execute(
-            f"python3 checker/bin-devel/check-release-links.py --online"
-            f" {unpack_dir}/checker-framework-{version}",
+            [
+                "python3",
+                "checker/bin-devel/check-release-links.py",
+                *online,
+                f"{unpack_dir}/checker-framework-{version}",
+            ],
             working_dir=CHECKER_FRAMEWORK,
         )
 
@@ -322,10 +428,18 @@ def build_checker_framework_release(version: str) -> None:
 
     # The jars record the release commit, so a file that the build changes would be missing from
     # it.
-    if execute_status("git diff-index --quiet HEAD", working_dir=CHECKER_FRAMEWORK) != 0:
-        execute("git status --short --untracked-files=no", working_dir=CHECKER_FRAMEWORK)
+    # git status, unlike git diff-index, ignores a file that was rewritten with the same contents.
+    changed = execute_output(
+        ["git", "status", "--porcelain", "--untracked-files=no"], CHECKER_FRAMEWORK
+    )
+    if changed:
+        print(changed)
         msg = "The build changed the files above, which the release commit does not contain."
-        raise ReleaseError(msg)
+        if not dry_run:
+            raise ReleaseError(msg)
+        # docs/manual/contributors.tex lists the authors in the history, which a shallow clone,
+        # and the dry run's own commit, change.
+        print(f"Dry run: {msg}")
 
 
 def main(argv: list[str]) -> None:
@@ -340,8 +454,11 @@ def main(argv: list[str]) -> None:
     check_release_dir(TMP_DIR)
     delete_if_exists(RELEASE_BUILD_COMPLETED_FLAG_FILE)
 
-    global debug
-    debug = has_command_line_option(argv, "--debug")
+    global dry_run
+    dry_run = has_command_line_option(argv, "--dry-run")
+    if dry_run:
+        release_utils.answer_defaults = True
+        maven_central.verify_with_local_keyring = True
 
     print("Building a new release of the Checker Framework and the Annotation File Utilities!")
 
@@ -360,8 +477,14 @@ def main(argv: list[str]) -> None:
     # missing late in execution.
 
     print_step("Build Step 2: Check tools, the signing key, and access to GitHub.")  # AUTO
-    check_tools(TOOLS)
-    check_prerequisites()
+    if dry_run:
+        check_tools([tool for tool in TOOLS if tool != "gh"])
+        jdk_problem = check_jdk()
+        if jdk_problem:
+            raise ReleaseError(jdk_problem)
+    else:
+        check_tools(TOOLS)
+        check_prerequisites()
 
     # Downloading the dependencies now, with retries, keeps a network problem from failing the
     # build after the release is committed.
@@ -378,6 +501,8 @@ def main(argv: list[str]) -> None:
     cf_version = CF_VERSION
     print("Version: " + cf_version + "\n")
     check_versions(old_cf_version, cf_version)
+    if not dry_run:
+        check_master(cf_version)
 
     print_step("Build Step 5: Update the version numbers.")  # MANUAL
     update_version_numbers(old_cf_version)
@@ -390,12 +515,16 @@ def main(argv: list[str]) -> None:
     # this script again; Step 1 discards the commit and the tag.
 
     print_step("Build Step 6: Commit and tag the release.")  # AUTO
-    jdk_commit = execute_output(["git", "rev-parse", "HEAD"], BUILD_DIR / "jdk").strip()
+    helpers = "".join(
+        f"{execute_output(['git', 'remote', 'get-url', 'origin'], clone).strip()}"
+        f" {execute_output(['git', 'rev-parse', 'HEAD'], clone).strip()}\n"
+        for clone in HELPER_CLONES
+    )
     commit_and_tag(
         cf_version,
         CHECKER_FRAMEWORK,
         f"checker-framework-{cf_version}",
-        f"Checker Framework {cf_version}\n\nAnnotated JDK: {ANNOTATED_JDK_REPO} {jdk_commit}\n",
+        f"Checker Framework {cf_version}\n\nBuilt with:\n{helpers}",
         gradle_user_properties().get("signing.gnupg.keyName"),
     )
 

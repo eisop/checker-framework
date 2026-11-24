@@ -185,28 +185,25 @@ repository content filter so a previously released artifact of the same version
 cannot mask a broken local publish, and type-checks a source set with the Value
 Checker loaded out of the published `framework-all` jar. That last part is what
 catches a POM missing a dependency the artifact needs at run time, which no
-in-repo test can see. But it runs against `publishToMavenLocal` output, via
-`:checker:exampleTests` in `test-cftests-nonjunit.sh` — so it verifies the
-artifacts the build *would* publish, not that what reached Central is what the
-build produced. Once nightly snapshots exist, pointing the same smoke test at
-the published snapshot repository would close that gap, and would fail on the
-day a publication breaks rather than at the next release.
+in-repo test can see. It runs against `publishToMavenLocal` output, via
+`:checker:exampleTests` in `test-cftests-nonjunit.sh`.  For a release, that is
+what reaches Central: `release_push.py` uploads exactly the files that
+`release_build.py` published locally and checked.  Snapshots are uploaded by
+`./gradlew publish`, so pointing the same smoke test at the published snapshot
+repository would still catch a snapshot publication that breaks.
 
 The `annotation-file-utilities` artifact has a check of its own in
 `checker/bin-devel/test-release.sh` (the `release` CI job): its POM and jar
 contents, and a run of the annotator from the locally published artifact by the
-consumer project `docs/examples/afu-consumer/`. It has the same limitation: it
-runs against `publishToMavenLocal` output.
+consumer project `docs/examples/afu-consumer/`.
 
 **The website is generated from the GitHub releases.** The "Publish website"
 workflow of the `eisop.github.io` repository runs `EisopSiteGenerator` daily;
-`release_push.py` asks to run it right after the GitHub release is posted.
+`release_push.py` asks to run it right after the GitHub release is posted, and
+waits until the site shows the release.
 
 ## Open questions
 
 - Should the nightly job run only when master has moved since the last snapshot?
   Publishing an identical snapshot daily costs little, but it does churn the
   90-day window.
-- Should a release use `publishing_type=automatic` or `portal_api` plus a status
-  poll? Automatic is one call; a poll gives a build log that says whether
-  validation passed, rather than an email later.

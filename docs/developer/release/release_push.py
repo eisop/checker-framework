@@ -12,6 +12,8 @@ import time
 import urllib.request
 from pathlib import Path
 
+import maven_central
+import release_utils
 from maven_central import (
     DEPLOYMENTS_URL,
     on_maven_central,
@@ -388,7 +390,7 @@ def validate_args(argv: list[str]) -> None:
         print_usage()
         raise ReleaseError("Invalid arguments. " + ",".join(argv))
     for i in range(1, len(argv)):
-        if argv[i] != "release":
+        if argv[i] not in {"release", "--dry-run"}:
             print_usage()
             raise ReleaseError("Invalid arguments. " + ",".join(argv))
 
@@ -396,10 +398,12 @@ def validate_args(argv: list[str]) -> None:
 def print_usage() -> None:
     """Print instructions on how to use this script, including how to set test or release mode."""
     print(
-        "Usage: python3 release_push.py [release]\n"
+        "Usage: python3 release_push.py [release | --dry-run]\n"
         'If the "release" argument is '
         "NOT specified then the script will execute all steps that checking and prompting "
-        "steps but will NOT actually perform a release.  This is for testing the script."
+        "steps but will NOT actually perform a release.  This is for testing the script.\n"
+        "--dry-run is a test run that answers every question with its default, and skips the"
+        " checks that need gh and the tests; CI runs it after release_build.py --dry-run."
     )
 
 
@@ -416,8 +420,12 @@ def main(argv: list[str]) -> None:
     check_release_dir(TMP_DIR)
     current_cf_version = current_release_version()
     new_cf_version = CF_VERSION
-    test_mode = not has_command_line_option(argv, "release")
+    dry_run = has_command_line_option(argv, "--dry-run")
+    test_mode = dry_run or not has_command_line_option(argv, "release")
     validate_args(argv)
+    if dry_run:
+        release_utils.answer_defaults = True
+        maven_central.verify_with_local_keyring = True
 
     if test_mode:
         msg = (
@@ -456,10 +464,15 @@ def main(argv: list[str]) -> None:
 
     print_step("Push Step 1: Check the release versions and that master has not moved")  # AUTO
     # Steps 8 and 10 use gh.
-    if execute_status(["gh", "auth", "status", "--hostname", "github.com"]) != 0:
+    if not dry_run and execute_status(["gh", "auth", "status", "--hostname", "github.com"]) != 0:
         raise ReleaseError("gh is not logged in; run gh auth login.")
     if not (pushed and current_cf_version == new_cf_version):
-        check_release_version(current_cf_version, new_cf_version)
+        try:
+            check_release_version(current_cf_version, new_cf_version)
+        except ReleaseError as e:
+            if not dry_run:
+                raise
+            print(f"Dry run: {e}")
     print(f"Latest release: {current_cf_version}    this release: {new_cf_version}")
     check_release_commit(tag, pushed)
 
@@ -482,7 +495,7 @@ def main(argv: list[str]) -> None:
     # as they are.
 
     print_step("Push Step 3: Run all tests (takes a long time)")
-    if prompt_yes_no(
+    if not dry_run and prompt_yes_no(
         "Run all tests?  With few cores, this takes hours.", not (pushed or tests_passed_in_ci())
     ):
         execute(gradle_release("allTests"), CHECKER_FRAMEWORK)

@@ -29,7 +29,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
-from release_vars import CF_VERSION, RELEASE_FILES_DIR, TMP_DIR
+from release_vars import CF_VERSION, LOCAL_MAVEN_REPO, RELEASE_FILES_DIR, SIGNING_KEY, TMP_DIR
 
 NAMESPACE = "io.github.eisop"
 PORTAL_API = "https://central.sonatype.com/api/v1/publisher"
@@ -72,6 +72,10 @@ POM_NAMESPACE = "{http://maven.apache.org/POM/4.0.0}"
 # Files that are checksums of other files, which the bundle for the Portal gets fresh.
 CHECKSUM_SUFFIXES = {".md5", ".sha1", ".sha256", ".sha512"}
 
+# Set by --dry-run, which signs with a throw-away key: signatures are verified with the local
+# keyring rather than with the published key.
+verify_with_local_keyring: bool = False
+
 # How long to wait for the Portal to validate, or to publish, a deployment, and how often to ask.
 VALIDATION_TIMEOUT_SECONDS = 30 * 60
 PUBLICATION_TIMEOUT_SECONDS = 60 * 60
@@ -82,7 +86,9 @@ def gradle_user_properties() -> dict[str, str]:
     """Return the Gradle properties of the user, which the release build reads.
 
     They are the properties in gradle.properties in the Gradle user home, and the properties set by
-    ORG_GRADLE_PROJECT_ environment variables, which take precedence.
+    ORG_GRADLE_PROJECT_ environment variables, which take precedence; Gradle ignores such a variable
+    whose name contains a dot.  CF_RELEASE_SIGNING_KEY sets signing.gnupg.keyName; see
+    release_vars.py.
 
     Returns:
         the Gradle properties of the user
@@ -97,8 +103,10 @@ def gradle_user_properties() -> dict[str, str]:
                 properties[match.group(1)] = match.group(2).strip()
     prefix = "ORG_GRADLE_PROJECT_"
     for name, value in os.environ.items():
-        if name.startswith(prefix):
+        if name.startswith(prefix) and "." not in name:
             properties[name[len(prefix) :]] = value
+    if SIGNING_KEY:
+        properties["signing.gnupg.keyName"] = SIGNING_KEY
     return properties
 
 
@@ -270,6 +278,8 @@ def local_repository() -> Path:
     Returns:
         the local Maven repository
     """
+    if LOCAL_MAVEN_REPO:
+        return Path(LOCAL_MAVEN_REPO)
     settings = Path.home() / ".m2" / "settings.xml"
     if settings.exists():
         match = re.search(
@@ -454,9 +464,21 @@ def verify_local_artifacts(version: str) -> list[str]:
                 signed.append(file)
             else:
                 problems.append(f"{file} has no signature {file.name}.asc.")
-    if not problems:
-        problems += verify_with_published_key(gpg_executable(), signed)
-    return problems
+    if problems:
+        return problems
+    if verify_with_local_keyring:
+        problems += [
+            f"The signature {file}.asc does not verify."
+            for file in signed
+            if subprocess.run(
+                [gpg_executable(), "--batch", "--verify", f"{file}.asc", str(file)],
+                capture_output=True,
+                check=False,
+            ).returncode
+            != 0
+        ]
+        return problems
+    return verify_with_published_key(gpg_executable(), signed)
 
 
 # =========================================================================================

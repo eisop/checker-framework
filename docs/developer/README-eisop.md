@@ -223,8 +223,8 @@ See [`maven-central-publishing.md`](maven-central-publishing.md) for how
 publishing is wired, how `release_push.py` publishes a release on Maven Central,
 and what it would take to publish nightly snapshots.
 
-TODO: the release process contains many buffalo-specific paths, which still needs to be cleaned up.
-Most of the instructions can be followed, ignoring certain steps.
+See [`release/README-release-process.html`](release/README-release-process.html) for the
+release process.
 
 Without using the release scripts, you can make a Maven Central release using:
 

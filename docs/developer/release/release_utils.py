@@ -60,12 +60,19 @@ def prompt_yes_no(msg: str, default: bool = False) -> bool:
     return result in {"yes", "Yes"}
 
 
+# Set by --dry-run: every prompt takes its default answer, so that the scripts run unattended.
+answer_defaults: bool = False
+
+
 def prompt_w_default(msg: str, default: str, valid_regex: str | None = None) -> str:
     """Only accept answers that match valid_regex.  If default is None, require an answer.
 
     Returns:
         the user-provided input.
     """
+    if answer_defaults:
+        print(f"{msg} ({default}): {default}")
+        return default
     answer = None
     while answer is None:
         answer = input(msg + f" ({default}): ")
@@ -157,7 +164,11 @@ def current_release_version() -> str:
     """
     url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
     print(f"Looking up the latest release at {url}\n")
-    with urllib.request.urlopen(url=url, timeout=60) as response:
+    request = urllib.request.Request(url)
+    # GitHub limits requests without a token, which CI has.
+    if os.environ.get("GITHUB_TOKEN"):
+        request.add_unredirected_header("Authorization", "Bearer " + os.environ["GITHUB_TOKEN"])
+    with urllib.request.urlopen(request, timeout=60) as response:
         tag = json.load(response)["tag_name"]
     prefix = "checker-framework-"
     if not tag.startswith(prefix):
@@ -190,8 +201,9 @@ def commit_and_tag(
     # Remove the pre-commit hook because it can cause errors.
     execute("rm -f .git/hooks/pre-commit", working_dir=path)
 
-    # Do nothing (instead of erring) if there is nothing to commit.
-    if execute_status("git diff-index --quiet HEAD", working_dir=path) != 0:
+    # Do nothing (instead of erring) if there is nothing to commit.  git status, unlike git
+    # diff-index, ignores a file that was rewritten with the same contents.
+    if execute_output(["git", "status", "--porcelain", "--untracked-files=no"], path):
         execute(f'git commit -a -m "new release {version}"', working_dir=path)
     sign = ["--local-user", signing_key] if signing_key else []
     execute(["git", "tag", "--annotate", *sign, "--message", message, tag], working_dir=path)

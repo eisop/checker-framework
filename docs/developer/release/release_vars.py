@@ -129,12 +129,36 @@ CF_VERSION = execute_output("./gradlew version -q -Prelease=true", SCRIPTS_CLONE
 # which are attached to the GitHub release.  The web site is generated from them.
 RELEASE_FILES_DIR = TMP_DIR / "release-files"
 
+# The repositories that the build clones or updates, besides the Checker Framework, with the
+# Gradle task that does it.  Build Steps 1 and 3 get them once; the release tag records their
+# commits.
+HELPER_CLONES = {
+    BUILD_DIR / "jdk": ":framework:cloneAnnotatedJdk",
+    CHECKER_FRAMEWORK / "checker" / "bin-devel" / ".plume-scripts": ":getPlumeScripts",
+    CHECKER_FRAMEWORK / "checker" / "bin-devel" / ".html-tools": ":getHtmlTools",
+}
+
 # The options of the Gradle commands that build, test, and publish the release.  -Prelease=true
-# makes the version releaseVersion rather than a -SNAPSHOT version.  Without
-# -x :framework:cloneAnnotatedJdk, every Gradle command would pull the annotated JDK again, and a
-# change to it between two commands would change the jars; Build Step 1 clones it once, and the
-# release tag records its commit.
-GRADLE_RELEASE_OPTIONS = ["-Prelease=true", "--console=plain", "-x", ":framework:cloneAnnotatedJdk"]
+# makes the version releaseVersion rather than a -SNAPSHOT version.  Without the -x options, every
+# Gradle command would update the repositories in HELPER_CLONES again, and a change to one of them
+# between two commands would change the release.
+GRADLE_RELEASE_OPTIONS = ["-Prelease=true", "--console=plain"]
+for task in HELPER_CLONES.values():
+    GRADLE_RELEASE_OPTIONS += ["-x", task]
+
+# The local Maven repository to which release_build.py publishes, if not the user's; the
+# environment variable CF_RELEASE_MAVEN_REPO sets it.  CI sets it, so that a test run does not
+# leave a release version in the user's repository.
+LOCAL_MAVEN_REPO = os.environ.get("CF_RELEASE_MAVEN_REPO")
+MAVEN_REPO_OPTIONS = [f"-Dmaven.repo.local={LOCAL_MAVEN_REPO}"] if LOCAL_MAVEN_REPO else []
+GRADLE_RELEASE_OPTIONS += MAVEN_REPO_OPTIONS
+
+# The signing key, if not signing.gnupg.keyName in the user's gradle.properties; the environment
+# variable CF_RELEASE_SIGNING_KEY sets it.  (Gradle ignores an ORG_GRADLE_PROJECT_ environment
+# variable whose name contains a dot, such as one for signing.gnupg.keyName.)
+SIGNING_KEY = os.environ.get("CF_RELEASE_SIGNING_KEY")
+if SIGNING_KEY:
+    GRADLE_RELEASE_OPTIONS.append(f"-Psigning.gnupg.keyName={SIGNING_KEY}")
 
 
 def gradle_release(*tasks: str) -> list[str]:
