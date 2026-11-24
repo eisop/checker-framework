@@ -24,12 +24,6 @@ Use --verbose_failures to see the command lines of failed build steps.
 I used bazelisk from
 <https://github.com/bazelbuild/bazelisk/releases/download/v1.20.0/bazelisk-linux-amd64>
 
-For getting Maven dependencies to work see
-<https://github.com/bazelbuild/rules_jvm_external/blob/master/docs/bzlmod.md>
-
-````bash
-bazel run @maven//:pin
-mv -i rules_jvm_external\~\~maven\~maven_install.json maven_install.json
-````
-
-Moving `maven_install.json` does not seem necessary, just running `pin` seems to update the required files.
+The Maven artifacts are not pinned with a `maven_install.json` lock file, so that Renovate can
+update the Checker Framework version in `MODULE.bazel` once a release is on Maven Central.  See
+<https://github.com/bazelbuild/rules_jvm_external/blob/master/docs/bzlmod.md>.
