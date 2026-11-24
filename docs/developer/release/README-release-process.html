@@ -135,6 +135,8 @@ Answering 'no' to a prompt does not exit the script unless otherwise indicated.
         Replace the placeholder date in the heading of the release's section,
         <code>## Version VERSION (DATE)</code>, such as <code>June ?, 2026</code>, by the release date:
         release_build stops while the date is a placeholder.
+        The release date is the date in UTC, which <code>date -u +"%B %-d, %Y"</code> prints,
+        whatever your time zone; the release scripts write the same date into the documentation.
       </li>
       <li> <b>Update the Checker Framework version number</b>
         in <code>checker-framework/release.gradle</code>,
