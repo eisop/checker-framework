@@ -7,6 +7,11 @@
 
 ### User-visible changes
 
+The dataflow framework builds the control flow graph of a method with less work. With the
+`dataflow-nullaway` artifact, NullAway's JMH benchmarks that compile Caffeine and NullAway itself
+run about 2% faster and allocate about 2% less; the effect on the checkers of the Checker Framework
+is within measurement noise.
+
 ### Implementation details
 
 ### Closed issues
