@@ -1,4 +1,5 @@
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 ext {
@@ -14,12 +15,13 @@ ext {
     // A build is a snapshot of this release, with version "${releaseVersion}-SNAPSHOT", unless it
     // is run with -Prelease=true.  To make a snapshot release: ./gradlew publish
     // To make a release: see docs/developer/release/README-release-process.html.
-    releaseVersion = "3.55.1-eisop1"
+    releaseVersion = "3.55.1-eisop2"
 
     // Matches a released version, including EISOP's "-eisopN" suffix: 1.2.3, 1.2.3.4, 1.2.3-eisop4.
     releaseVersionRegex = "\\d\\.\\d+\\.\\d+(?:\\.\\d)?(?:-eisop\\d+)?"
 
-    // The format of the release date in the documentation, e.g. "22 Apr 2026".
+    // The format of the release date in the documentation, e.g. "22 Apr 2026".  The release date is
+    // the date in UTC, so that it does not depend on the time zone of whoever makes the release.
     releaseDatePattern = "d MMM yyyy"
 }
 
@@ -31,7 +33,7 @@ ext {
 // docs/examples is deliberately not touched here.  Renovate bumps the Checker Framework version in
 // those builds once the release is on Maven Central; see .github/renovate.json.  Doing it in both
 // places would fight: Renovate rewrites a pom property in place and drops any marker comments
-// around it.  BazelExample is a further exception, as its files also carry checksums; re-run `pin`.
+// around it.
 
 tasks.register("updateVersionNumbers", Copy) {
     description = "Updates the version number and release date in the documentation to releaseVersion."
@@ -90,7 +92,7 @@ tasks.register("updateVersionNumbersInDocs", Copy) {
                 "manual/introduction.tex")
 
         filter { String line ->
-            String date = LocalDate.now().format(DateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH))
+            String date = LocalDate.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH))
             line = line.replaceAll("checker-framework-${versionRegex}", "checker-framework-${version}")
             line = line.replaceAll("annotation-file-utilities-${versionRegex}", "annotation-file-utilities-${version}")
             String releaseDatePrefix = "<!-- checker-framework-date -->"
@@ -116,7 +118,7 @@ tasks.register("updateVersionNumbersInDocs", Copy) {
         include("manual/manual.tex")
 
         filter { String line ->
-            String date = LocalDate.now().format(DateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH))
+            String date = LocalDate.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH))
             line = line.replaceAll("ReleaseInfo\\}\\{(.*)\\}", "ReleaseInfo}{${version} (${date})}")
             line.replaceAll("ReleaseVersion\\}\\{(.*)\\}", "ReleaseVersion}{${version}}")
         }

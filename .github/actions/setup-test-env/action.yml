@@ -119,11 +119,7 @@ runs:
 
     # After setup-java, which writes its own ~/.m2/settings.xml.
     - name: Use Google's mirror of Maven Central
-      shell: bash
-      run: |
-        mkdir -p ~/.gradle/init.d ~/.m2
-        cp "${{ github.action_path }}/maven-central-mirror.gradle" ~/.gradle/init.d/
-        cp "${{ github.action_path }}/maven-settings.xml" ~/.m2/settings.xml
+      uses: ./.github/actions/maven-central-mirror
 
     - name: Pin Gradle to primary JDK via gradle.properties
       if: ${{ inputs.target-jdk != inputs.primary-jdk }}

@@ -53,6 +53,12 @@
       "schedule": ["before 3am on the first day of the month"]
     },
     {
+      "description": "Stay on JUnit 5: JUnit 6 requires Java 17, and the tests that use junit-jupiter-api also run on JDK 8 and 11.",
+      "matchPackageNames": ["/^org\\.junit\\./"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "Never update com.google.errorprone:javac; Renovate proposes 9-dev-r4023-3 as an update to our pinned 9+181-r4173-1, but that is not a version we want.",
       "matchPackageNames": ["com.google.errorprone:javac"],
       "enabled": false
@@ -76,6 +82,17 @@
       ],
       "datasourceTemplate": "maven",
       "depNameTemplate": "io.github.eisop:checker-qual"
+    },
+    {
+      "customType": "regex",
+      "description": "Update the Checker Framework version in the Maven artifacts of the BazelExample. The example does not pin them in a maven_install.json lock file, which Renovate cannot regenerate.",
+      "managerFilePatterns": ["/^docs/examples/BazelExample/MODULE\\.bazel$/"],
+      "matchStrings": [
+        "\"io\\.github\\.eisop:(?<depName>[^:\"]+):(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "maven",
+      "packageNameTemplate": "io.github.eisop:{{{depName}}}",
+      "depNameTemplate": "io.github.eisop:{{{depName}}}"
     },
     {
       "customType": "regex",
