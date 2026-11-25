@@ -7,9 +7,15 @@
 
 ### User-visible changes
 
+- No longer crashes with an `IndexOutOfBoundsException` on a method reference to a varargs
+  method whose functional interface has a parameter that is incompatible with the varargs element
+  type, such as `@Nullable String` for `String...`; reports `methodref.param.invalid` instead.
+
 ### Implementation details
 
 ### Closed issues
+
+eisop#2524
 
 ## Version 3.55.1-eisop1 (November 24, 2026)
 
