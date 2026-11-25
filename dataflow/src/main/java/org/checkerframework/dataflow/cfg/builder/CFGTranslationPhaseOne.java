@@ -1410,13 +1410,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         boolean isLeftPrimitive = TypesUtils.isPrimitive(varType);
         // boolean isLeftBoxed = TypesUtils.isBoxedPrimitive(varType);
         boolean isLeftReference = varType instanceof ReferenceType;
-        boolean isSubtype = types.isSubtype(nodeType, varType);
 
-        if (isRightNumeric && isLeftNumeric && isSubtype) {
+        if (isRightNumeric && isLeftNumeric && types.isSubtype(nodeType, varType)) {
             node = widen(node, varType);
-        } else if (isRightReference && isLeftReference && isSubtype) {
-            // widening reference conversion is a no-op, but if it
-            // applies, then later conversions do not.
+        } else if (isRightReference && isLeftReference) {
+            // Widening reference conversion is a no-op.  No other conversion applies to two
+            // reference types, so whether the conversion is widening is not computed.
         } else if (isRightPrimitive && isLeftReference) {
             if (contextAllowsNarrowing && conversionRequiresNarrowing(varType, node)) {
                 node = narrowAndBox(node, varType);
