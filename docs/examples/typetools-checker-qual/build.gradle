@@ -10,7 +10,7 @@ plugins {
 
 ext {
     versions = [
-        eisopVersion: "3.49.5-eisop1",
+        eisopVersion: "3.55.1-eisop1",
         typetoolsQualVersion: "4.4.0",
     ]
 }
