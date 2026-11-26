@@ -7,6 +7,9 @@
 
 ### User-visible changes
 
+Subtype checks of two declared types copy fewer types: for the Nullness Checker on the Guava
+33.5.0 sources, 3% less time and 5% less allocation.
+
 ### Implementation details
 
 ### Closed issues
