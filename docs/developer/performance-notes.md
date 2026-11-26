@@ -2887,11 +2887,61 @@ run for few trees, mostly in switch and pattern handling, and are left to eisop#
 
 `ElementUtils.qualifiedNameCache` was audited and left as is; see the Short list entry.
 
+### Key For Checker: no dataflow analysis for methods without keys (November 2026)
+
+The Nullness Checker runs the Key For Checker as a subchecker, and its dataflow analysis ran for
+every method although most methods never see a map key: every value that the analysis computes
+there is `@UnknownKeyFor`, which is what the type factory computes without the analysis.
+`GenericAnnotatedTypeFactory.isFlowAnalysisRedundant` lets a type factory say so for a method;
+`analyze` then builds the CFG (other checkers share it, and the tree-to-node lookup is still
+recorded) but does not run the analysis for the method or for the lambdas in it. The framework
+never asks for initialization code, for an AST with a captured store, for a method of a local or
+anonymous class whose enclosing method has final local variables with values, or with `-Acfgviz`
+or `-Aflowdotdir`.
+
+`KeyForFlowRelevance` implements the rule: a method is relevant if a qualifier other than
+`@UnknownKeyFor` can flow into it or it can establish a key. It scans the method once, stopping at
+the first relevant construct: a Key For annotation or `@DefaultQualifier`; a use of a field, method,
+constructor, method reference, or lambda function type whose type mentions such a qualifier, has a
+contract, or mentions a class that (transitively, through type arguments and supertypes) does; a
+call of `Map.put` or `Map.containsKey`; a record pattern; a variable declared outside the method.
+The enclosing classes and the field values of the initial store are examined as well. Relevance of
+an element is cached for the compilation.
+
+On the Guava 33.5.0 sources (Nullness Checker, JDK 21) the rule is asked about 10,731 methods and
+rejects 357 of them; 10,374 of the 12,884 method analyses and 362 of the 394 lambda analyses of the
+Key For Checker are skipped. The rule itself takes 1.7 s in total.
+
+| | master | skip | change |
+| --- | ---: | ---: | ---: |
+| Wall, median of 8 interleaved rounds | 73.91 s | 70.31 s | -4.9% |
+| Wall, mean paired difference | | -3.28 s (se 0.67) | -4.4% |
+| Allocation, median of 3 | 29,660 MB | 28,036 MB | -5.5% |
+
+The diagnostics are identical (1,009 warnings). A temporary verify mode that ran the analysis for
+every skipped method and compared the values found no refined value in a skipped method on Guava
+or in the `:checker:test` and `:framework:test` inputs (9,480 of 17,594 Key For method analyses
+skipped there). `checker/tests/nullness/KeyForFlowSources.java` has one method per source of a key;
+with a rule that skips every method, all 20 of them report an error.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a
 workload not previously considered, or a measurement that contradicts
 the prior finding. A fresh hypothesis is not new evidence.
+
+- **Skipping the Key For Checker's visitor for the bodies of methods without keys (November
+  2026).** After the dataflow analysis of such a method is skipped (see *Key For Checker: no
+  dataflow analysis for methods without keys*), every expression in its body has the type
+  `@UnknownKeyFor`, so the visitor should have nothing to report there. A prototype that did not
+  scan these bodies measured 66.1 s against 70.7 s on Guava (one run), but 11 of the 1,009 warnings
+  disappeared. All 11 are `type.argument.type.incompatible` for a captured type argument: the lower
+  bound of a capture of a JDK type is `@KeyForBottom`, while the implicit lower bound of a type
+  parameter in source code is `@UnknownKeyFor` (the `@DefaultFor` on `@UnknownKeyFor`; eisop#1972).
+  These are false positives, but removing them is a behavior change that belongs to that issue.
+  The other reports that do not depend on qualifiers (`cast.redundant` with `-Alint=cast:redundant`,
+  `-Ashowchecks`, failures of type argument inference) would have to be kept as well. Revisit after
+  eisop#1972.
 
 - **Sharing `AnnotationFileElementTypes`'s method/constructor signature indexes across a
   compilation's type factories — measured-and-rejected (July 2026).** `methodSigIndexCache` and

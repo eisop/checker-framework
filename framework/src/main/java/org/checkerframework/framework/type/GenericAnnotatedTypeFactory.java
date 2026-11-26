@@ -503,6 +503,7 @@ public abstract class GenericAnnotatedTypeFactory<
         this.reachableNodes.clear();
         this.flowResult = null;
         this.finalLocalValuesByDeclarer.clear();
+        this.flowAnalysisSkippedMethods.clear();
         this.regularExitStores = new IdentityHashMap<>();
         this.exceptionalExitStores = new IdentityHashMap<>();
         this.returnStatementStores = new IdentityHashMap<>();
@@ -2059,6 +2060,87 @@ public abstract class GenericAnnotatedTypeFactory<
             };
 
     /**
+     * The methods of the current compilation unit whose dataflow analysis was skipped, because
+     * {@link #isFlowAnalysisRedundant} returned true for them. Compared by reference.
+     */
+    private final Set<MethodTree> flowAnalysisSkippedMethods =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /**
+     * Returns true if the dataflow analysis of {@code method} cannot refine any type: every value
+     * and every store that the analysis would compute contains no more information than the
+     * declared types. The analysis of such a method, and of the lambdas in it, is skipped.
+     *
+     * <p>An override must return false if the transfer functions of the analysis have another
+     * effect, such as reporting an error.
+     *
+     * <p>This method is only called for a method that is not a constructor and that has no captured
+     * store.
+     *
+     * @param method the method that is about to be analyzed
+     * @param fieldValues the abstract values of the fields of the class of {@code method}
+     * @return true if the dataflow analysis of {@code method} cannot refine any type
+     */
+    protected boolean isFlowAnalysisRedundant(
+            CFGMethod method, List<FieldInitialValue<Value>> fieldValues) {
+        return false;
+    }
+
+    /**
+     * Returns true if the dataflow analysis of {@code ast} is skipped.
+     *
+     * @param ast the AST that is about to be analyzed
+     * @param fieldValues the abstract values of the fields of the class of {@code ast}
+     * @param isInitializationCode whether {@code ast} is a field initializer, an initializer block,
+     *     or a constructor
+     * @param capturedStore the store of the captured variables, if any
+     * @return true if the dataflow analysis of {@code ast} is skipped
+     */
+    private boolean skipFlowAnalysis(
+            UnderlyingAST ast,
+            List<FieldInitialValue<Value>> fieldValues,
+            boolean isInitializationCode,
+            @Nullable Store capturedStore) {
+        // The CFG visualizer shows the stores of the analysis.
+        if (isInitializationCode || capturedStore != null || handleCFGViz) {
+            return false;
+        }
+        /* NO-AFU
+        // Whole-program inference records the types that the transfer functions see.
+        if (getWholeProgramInference() != null) {
+          return false;
+        }
+        */
+        if (ast.getKind() == UnderlyingAST.Kind.LAMBDA) {
+            MethodTree enclosingMethod = ((CFGLambda) ast).getEnclosingMethod();
+            return enclosingMethod != null && flowAnalysisSkippedMethods.contains(enclosingMethod);
+        }
+        if (ast.getKind() != UnderlyingAST.Kind.METHOD) {
+            return false;
+        }
+        CFGMethod method = (CFGMethod) ast;
+        if (flowAnalysisSkippedMethods.contains(method.getMethod())) {
+            return true;
+        }
+        // The initial store of a method contains the values of the effectively final local
+        // variables of its enclosing methods.
+        if (!finalLocalValuesByDeclarer.isEmpty()) {
+            for (Element e = TreeUtils.elementFromDeclaration(method.getMethod());
+                    e != null;
+                    e = e.getEnclosingElement()) {
+                if (finalLocalValuesByDeclarer.containsKey(e)) {
+                    return false;
+                }
+            }
+        }
+        if (!isFlowAnalysisRedundant(method, fieldValues)) {
+            return false;
+        }
+        flowAnalysisSkippedMethods.add(method.getMethod());
+        return true;
+    }
+
+    /**
      * Returns true if {@code path}'s leaf is (by reference) the given {@code tree}.
      *
      * @param path a tree path
@@ -2098,6 +2180,7 @@ public abstract class GenericAnnotatedTypeFactory<
             boolean updateInitializationStore,
             boolean isStatic,
             @Nullable Store capturedStore) {
+        boolean builtCfg = cfg == null;
         if (cfg == null) {
             // Prime the cache with this method body's path, built in O(1) from the enclosing class
             // path, so the getPath(root, code) lookups below (in CFCFGBuilder.build, and when the
@@ -2141,6 +2224,51 @@ public abstract class GenericAnnotatedTypeFactory<
                         });
             }
         }
+        if (skipFlowAnalysis(ast, fieldValues, isInitializationCode, capturedStore)) {
+            if (builtCfg) {
+                // Record which nodes belong to which tree; there are no values and no stores.
+                flowResult.combine(
+                        new AnalysisResult<Value, Store>(
+                                new IdentityHashMap<>(),
+                                new IdentityHashMap<>(),
+                                cfg.getTreeLookup(),
+                                cfg.getPostfixNodeLookup(),
+                                Collections.emptyMap()));
+            }
+        } else {
+            performAnalysis(
+                    ast,
+                    fieldValues,
+                    cfg,
+                    isInitializationCode,
+                    updateInitializationStore,
+                    isStatic,
+                    capturedStore);
+        }
+        queueDeclaredClassesAndLambdas(classQueue, lambdaQueue, ast, cfg);
+        return cfg;
+    }
+
+    /**
+     * Runs the dataflow analysis on {@code cfg} and stores the result.
+     *
+     * @param ast the AST to analyze
+     * @param fieldValues the abstract values for all fields of the same class
+     * @param cfg the control flow graph of {@code ast}
+     * @param isInitializationCode are we analyzing a (static/non-static) initializer block of a
+     *     class
+     * @param updateInitializationStore should the initialization store be updated
+     * @param isStatic are we analyzing a static construct
+     * @param capturedStore the input Store to use for captured variables, e.g. in a lambda
+     */
+    private void performAnalysis(
+            UnderlyingAST ast,
+            List<FieldInitialValue<Value>> fieldValues,
+            ControlFlowGraph cfg,
+            boolean isInitializationCode,
+            boolean updateInitializationStore,
+            boolean isStatic,
+            @Nullable Store capturedStore) {
         if (isInitializationCode) {
             Store initStore = !isStatic ? initializationStore : initializationStaticStore;
             if (initStore != null) {
@@ -2229,7 +2357,21 @@ public abstract class GenericAnnotatedTypeFactory<
                 initializationStaticStore = newInitStore;
             }
         }
+    }
 
+    /**
+     * Adds the classes and the lambdas that are declared in {@code cfg} to the queues.
+     *
+     * @param classQueue the queue for encountered class trees and their initial stores
+     * @param lambdaQueue the queue for encountered lambda expression trees and their initial stores
+     * @param ast the AST that {@code cfg} was built for
+     * @param cfg the control flow graph of {@code ast}
+     */
+    private void queueDeclaredClassesAndLambdas(
+            Queue<Pair<ClassTree, @Nullable Store>> classQueue,
+            Queue<Pair<LambdaExpressionTree, @Nullable Store>> lambdaQueue,
+            UnderlyingAST ast,
+            ControlFlowGraph cfg) {
         List<ClassTree> declaredClasses = cfg.getDeclaredClasses();
         List<LambdaExpressionTree> declaredLambdas = cfg.getDeclaredLambdas();
         if (!declaredClasses.isEmpty() || !declaredLambdas.isEmpty()) {
@@ -2256,7 +2398,6 @@ public abstract class GenericAnnotatedTypeFactory<
         for (LambdaExpressionTree lambda : declaredLambdas) {
             lambdaQueue.add(Pair.of(lambda, getStoreBefore(lambda)));
         }
-        return cfg;
     }
 
     /**

@@ -1,5 +1,6 @@
 package org.checkerframework.checker.nullness;
 
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
@@ -7,16 +8,19 @@ import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.KeyForBottom;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyKeyFor;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.dataflow.cfg.UnderlyingAST.CFGMethod;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.Unknown;
 import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
+import org.checkerframework.framework.flow.CFAbstractAnalysis.FieldInitialValue;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
@@ -36,6 +40,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -83,6 +88,9 @@ public class KeyForAnnotatedTypeFactory
      */
     private final boolean assumeKeyFor;
 
+    /** Decides whether the dataflow analysis of a method can refine any type. */
+    private final KeyForFlowRelevance flowRelevance;
+
     /**
      * Creates a new KeyForAnnotatedTypeFactory.
      *
@@ -93,6 +101,7 @@ public class KeyForAnnotatedTypeFactory
         super(checker, true);
 
         assumeKeyFor = checker.hasOption("assumeKeyFor");
+        flowRelevance = new KeyForFlowRelevance(this);
 
         // Add compatibility annotations:
         addAliasedTypeAnnotation(
@@ -106,6 +115,21 @@ public class KeyForAnnotatedTypeFactory
         // sideEffectsUnrefineAliases = true;
 
         this.postInit();
+    }
+
+    @Override
+    public void setRoot(@Nullable CompilationUnitTree root) {
+        super.setRoot(root);
+        flowRelevance.startCompilationUnit();
+    }
+
+    @Override
+    protected boolean isFlowAnalysisRedundant(
+            CFGMethod method, List<FieldInitialValue<KeyForValue>> fieldValues) {
+        // Unannotated source code does not have the type @UnknownKeyFor under conservative
+        // defaults.
+        return !checker.useConservativeDefault("source")
+                && flowRelevance.isFlowAnalysisRedundant(method, fieldValues);
     }
 
     @Override

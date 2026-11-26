@@ -7,6 +7,9 @@
 
 ### User-visible changes
 
+The Nullness Checker does not run the dataflow analysis of its Key For subchecker for methods that
+cannot refer to a map key: on the Guava 33.5.0 sources, 5% less time and 5% less allocation.
+
 ### Implementation details
 
 ### Closed issues
