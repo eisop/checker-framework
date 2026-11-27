@@ -877,27 +877,6 @@ project(":framework").afterEvaluate {
     ]
 }
 
-tasks.register("addFavicon", Exec) {
-    dependsOn("getHtmlTools")
-    dependsOn("allJavadoc")
-    workingDir = "${rootDir}/docs/api"
-    executable = "${htmlToolsHome}/html-add-favicon"
-    args += [
-        ".",
-        "favicon-checkerframework.png"
-    ]
-    def injectedFiles = project.objects.newInstance(InjectedFileOps)
-    def faviconSrc = layout.projectDirectory.file("docs/logo/Checkmark/CFCheckmark_favicon.png").asFile
-    def apiDir = layout.projectDirectory.dir("docs/api").asFile
-    doFirst {
-        injectedFiles.fs.copy {
-            from(faviconSrc)
-            rename("CFCheckmark_favicon.png", "favicon-checkerframework.png")
-            into(apiDir)
-        }
-    }
-}
-
 // `gradle allJavadoc` builds the Javadoc for all modules in `docs/api`.
 //   This is what is published to checkerframework.org.
 // `gradle javadoc` builds the Javadoc for each sub-project in <subproject>/build/docs/javadoc/ .
@@ -907,7 +886,7 @@ tasks.register("addFavicon", Exec) {
 tasks.register("allJavadoc", Javadoc) {
     group = "Documentation"
     description = "Generates API documentation that includes all the modules."
-    dependsOn(":checker:shadowJar", "getPlumeScripts")
+    dependsOn(":checker:shadowJar", "getPlumeScripts", "getHtmlTools")
     destinationDir = file("${rootDir}/docs/api")
     source javadocDirs
     source project(":framework").sourceSets.stubifier.allJava
@@ -935,7 +914,24 @@ tasks.register("allJavadoc", Javadoc) {
 
     options.noTimestamp = true
 
-    finalizedBy("addFavicon")
+    // Add the favicon in this task rather than in a later one: a later task that rewrote this
+    // task's output would make it out of date, so every build would regenerate all the Javadoc.
+    def injected = project.objects.newInstance(InjectedExecOps)
+    def injectedFiles = project.objects.newInstance(InjectedFileOps)
+    def faviconSrc = layout.projectDirectory.file("docs/logo/Checkmark/CFCheckmark_favicon.png").asFile
+    def apiDir = layout.projectDirectory.dir("docs/api").asFile
+    def addFavicon = "${htmlToolsHome}/html-add-favicon"
+    doLast {
+        injectedFiles.fs.copy {
+            from(faviconSrc)
+            rename("CFCheckmark_favicon.png", "favicon-checkerframework.png")
+            into(apiDir)
+        }
+        injected.execOps.exec {
+            workingDir = apiDir
+            commandLine(addFavicon, ".", "favicon-checkerframework.png")
+        }
+    }
 }
 
 // See documentation for allJavadoc task.

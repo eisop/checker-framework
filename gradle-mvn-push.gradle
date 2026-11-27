@@ -52,6 +52,25 @@ tasks.withType(Sign).configureEach {
     }
 }
 
+// Check what a publish needs before anything is built.  Otherwise a missing token or key is
+// reported only by the task that uses it, after the whole build has run.
+final requestedTasks = gradle.startParameter.taskNames.collect { it.tokenize(":").last() }
+final publishesToMavenCentral = requestedTasks.any { it == "publish" || it.endsWith("ToMavenRepository") }
+final missingToken = ["SONATYPE_NEXUS_USERNAME", "SONATYPE_NEXUS_PASSWORD"].findAll { !project.hasProperty(it) }
+if (publishesToMavenCentral && !missingToken.isEmpty()) {
+    throw new GradleException(
+    "${missingToken.join(" and ")} not set, so the upload to Maven Central would fail.\n" +
+    "Set them to your Central user token in ~/.gradle/gradle.properties.\n" +
+    "See docs/developer/maven-central-publishing.md.")
+}
+if (signReleases && !hasSigningKeyName && requestedTasks.any { it.startsWith("publish") || it.startsWith("sign") }) {
+    throw new GradleException(
+    "signing.gnupg.keyName is not set, so the release cannot be signed.\n" +
+    "Set it to your own key, either in ~/.gradle/gradle.properties or as\n" +
+    "-Psigning.gnupg.keyName=<key id or email>.\n" +
+    "See docs/developer/maven-central-publishing.md.")
+}
+
 // A project with several publications (such as dataflow) shares the sources and Javadoc jars among
 // them, so every Sign task writes the signatures of those jars, and every publish task uploads
 // them.  Gradle rejects a publish task that reads a Sign task's output without a dependency on it.
