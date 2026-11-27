@@ -551,7 +551,7 @@ def main(argv: list[str]) -> None:
             f" at {DEPLOYMENTS_URL}, and delete {deployment_file(new_cf_version)}."
         )
         raise ReleaseError(msg)
-    elif deployment_state in {"PENDING", "VALIDATING", "VALIDATED"}:
+    elif deployment_id is not None and deployment_state in {"PENDING", "VALIDATING", "VALIDATED"}:
         print(f"Deployment {deployment_id}, uploaded earlier, is {deployment_state}.")
         deployment_id = await_validation(deployment_id, new_cf_version)
         if deployment_id is None:
