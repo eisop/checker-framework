@@ -570,8 +570,8 @@ Alternately, you can get all of the jars mentioned in this section from Maven Ce
 Note the \<-all> classifier on that last URL.  On Maven Central,
 \<checker-\emph{version}-all.jar> is the self-contained jar, and it is the one
 that corresponds to \<checker/dist/checker.jar> in the release zip.  The plain
-\<checker-\emph{version}.jar> artifact is \emph{not} self-contained: it omits the
-qualifier and utility classes, declaring \<checker-qual> and \<checker-util> as
+\<checker-\emph{version}.jar> artifact is \emph{not} self-contained: it contains only
+the checkers, declaring \<framework-all>, \<checker-qual>, and \<checker-util> as
 Maven dependencies instead, so on its own it does not work as a processor path.
 Build tools that read the Maven metadata resolve those dependencies for you; a
 manual download does not.

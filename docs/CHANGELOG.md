@@ -7,6 +7,12 @@
 
 ### User-visible changes
 
+The `io.github.eisop:checker` Maven artifact contains only the checkers and depends on
+`framework-all`, `checker-qual`, and `checker-util`, like `framework` and `framework-all`.  Build
+tools that read the Maven metadata, such as Gradle, Maven, and Bazel, are unaffected.  A manually
+downloaded processor path needs the self-contained `checker-<version>-all.jar`, which is
+unchanged.
+
 ### Implementation details
 
 ### Closed issues

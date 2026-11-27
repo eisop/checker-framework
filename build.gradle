@@ -1364,13 +1364,8 @@ subprojects {
     // When checker:runtimeClasspath resolves project dependencies (e.g. framework), Gradle may
     // select shadowRuntimeElements, which points to the shadow jar (framework-VERSION-all.jar).
     // Change its Usage attribute so it doesn't conflict with standard runtimeElements.
-    //
-    // :checker is exempt: its published `checker` artifact IS the shadow jar, published via
-    // `components.shadow`, whose only runtime variant is shadowRuntimeElements. Renaming that
-    // variant's Usage there would leave the published module metadata with no variant a
-    // consumer can select for java-runtime, which is the failure PR #1822 reported.
     configurations.all {
-        if (name == "shadowRuntimeElements" && project.name != "checker") {
+        if (name == "shadowRuntimeElements") {
             attributes {
                 attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, "shadow-runtime-elements"))
             }
@@ -1381,9 +1376,9 @@ subprojects {
     // uses `from components.java` (dataflow, javacutil, framework) would therefore advertise
     // the fat "-all.jar" in its Gradle Module Metadata, under the placeholder Usage set above
     // that no consumer ever requests -- and really upload that jar, several MB per artifact.
-    // Nothing consumes those: :checker publishes its shadow jar deliberately through
-    // `components.shadow`, and framework-all is its own publication. Drop the variant so each
-    // module's metadata describes only the artifacts we actually intend to ship.
+    // Nothing consumes those: checker-all and framework-all are artifacts of their own
+    // publications. Drop the variant so each module's metadata describes only the artifacts we
+    // actually intend to ship.
     afterEvaluate {
         def javaComponent = components.findByName("java")
         def shadowRuntime = configurations.findByName("shadowRuntimeElements")
