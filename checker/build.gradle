@@ -156,7 +156,6 @@ gitProperties {
         "git.commit.id.abbrev",
         "git.commit.time",
         "git.dirty",
-        "git.tags",
     ]
 }
 

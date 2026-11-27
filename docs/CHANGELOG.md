@@ -7,8 +7,8 @@
 
 ### User-visible changes
 
-`-AprintGitProperties` prints only what the commit determines: the version, the commit and its
-time, and its tags.  It no longer prints who built the Checker Framework, on which machine.
+`-AprintGitProperties` prints only what the commit determines: the version, and the commit and its
+time.  It no longer prints who built the Checker Framework, on which machine, or the tags.
 
 ### Implementation details
 
