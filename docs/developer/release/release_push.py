@@ -322,7 +322,10 @@ def check_release_commit(tag: str, pushed: bool) -> None:
             release commit cannot be pushed.
     """
     head = execute_output(["git", "rev-parse", "HEAD"], CHECKER_FRAMEWORK).strip()
-    local_tag = execute_output(["git", "rev-parse", f"{tag}^{{commit}}"], CHECKER_FRAMEWORK).strip()
+    # git rev-parse fails if the tag does not exist.
+    local_tag = execute_output(
+        ["git", "rev-parse", f"{tag}^{{commit}}"], CHECKER_FRAMEWORK, check=False
+    ).strip()
     if local_tag != head:
         msg = f"{CHECKER_FRAMEWORK} is not at {tag}; run release_build.py."
         raise ReleaseError(msg)

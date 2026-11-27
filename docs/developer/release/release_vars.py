@@ -21,11 +21,20 @@ from release_errors import ReleaseError
 def execute_output(
     command: str | list[str],
     working_dir: Path | None = None,
+    check: bool = True,
 ) -> str:
     """Execute the given command.
 
+    Args:
+        command: the command
+        working_dir: the directory to run it in, or None for the current directory
+        check: if false, return the output also when the command fails
+
     Returns:
         the output
+
+    Raises:
+        ReleaseError: If check is true and the status code is non-zero.
     """
     if working_dir is not None:
         print(f"Executing in {working_dir}: {command}")
@@ -33,10 +42,11 @@ def execute_output(
         print(f"Executing: {command}")
     command_line = shlex.split(command) if isinstance(command, str) else command
 
-    process = subprocess.Popen(command_line, stdout=subprocess.PIPE, cwd=working_dir)
-    out = process.communicate()[0]
-    process.wait()
-    return out.decode("utf-8")
+    process = subprocess.run(command_line, stdout=subprocess.PIPE, cwd=working_dir, check=False)
+    if check and process.returncode:
+        msg = f"Error status {process.returncode} while executing {command} in {working_dir}"
+        raise ReleaseError(msg)
+    return process.stdout.decode("utf-8")
 
 
 def execute(
@@ -122,6 +132,7 @@ os.environ.setdefault("JAVA_21_HOME", "/usr/lib/jvm/java-21-openjdk/")
 os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
 os.environ["PATH"] = os.environ["JAVA_HOME"] + "/bin:" + os.environ["PATH"]
 
+# The first run absorbs the output of a download of the Gradle wrapper; see above.
 execute("./gradlew version -q -Prelease=true", SCRIPTS_CLONE)
 CF_VERSION = execute_output("./gradlew version -q -Prelease=true", SCRIPTS_CLONE).strip()
 

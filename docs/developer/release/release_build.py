@@ -183,7 +183,8 @@ def check_prerequisites() -> None:
     problems.extend(
         f"git config {name} is not set; the release commit needs it."
         for name in ("user.name", "user.email")
-        if not execute_output(["git", "config", name], CHECKER_FRAMEWORK).strip()
+        # git config fails for a name that is not set.
+        if not execute_output(["git", "config", name], CHECKER_FRAMEWORK, check=False).strip()
     )
 
     # A dry run still connects to GitHub and checks the permission to push.  Pushing the master
@@ -286,6 +287,7 @@ def check_master(cf_version: str) -> None:
             False,
         )
 
+    # The alerts can be read only with the security permissions of the repository.
     alerts = execute_output(
         [
             "gh",
@@ -293,7 +295,8 @@ def check_master(cf_version: str) -> None:
             f"repos/{GITHUB_REPO}/dependabot/alerts?state=open&per_page=100",
             "--jq",
             "length",
-        ]
+        ],
+        check=False,
     ).strip()
     dependabot = f"https://github.com/{GITHUB_REPO}/security/dependabot"
     if not alerts.isdigit():
