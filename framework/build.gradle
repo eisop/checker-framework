@@ -259,13 +259,13 @@ tasks.register("copyAndMinimizeAnnotatedJdkFiles", JavaExec) {
     }
 }
 
-tasks.named("sourcesJar").configure { dependsOn "copyAndMinimizeAnnotatedJdkFiles" }
 tasks.named("processResources").configure { dependsOn "copyAndMinimizeAnnotatedJdkFiles" }
+// The annotated JDK is data that the checkers read, not the source of a class in the jar.
+tasks.named("sourcesJar").configure { exclude("annotated-jdk/**") }
 if (skipAnnotatedJdk) {
     // An annotated JDK from an earlier build without -PskipAnnotatedJdk stays in the build
-    // directory, since copyAndMinimizeAnnotatedJdkFiles does not run; leave it out of the jars.
+    // directory, since copyAndMinimizeAnnotatedJdkFiles does not run; leave it out of the jar.
     tasks.named("processResources").configure { exclude("annotated-jdk/**") }
-    tasks.named("sourcesJar").configure { exclude("annotated-jdk/**") }
 }
 
 tasks.register("allSourcesJar", Jar) {
