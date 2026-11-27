@@ -101,9 +101,15 @@ def check_tools(tools: list[str]) -> None:
         raise ReleaseError(msg)
 
 
-def continue_or_exit(msg: str) -> None:
-    """Prompts the user whether to continue executing the script."""
-    if not prompt_yes_no(msg + " Continue ('no' will exit the script)?", True):
+def continue_or_exit(msg: str, default: bool = True) -> None:
+    """Prompts the user whether to continue executing the script.
+
+    Args:
+        msg: what the user should know, or do by hand, before continuing
+        default: the answer to an empty response; False for a problem that should stop the release
+            unless the user decides otherwise
+    """
+    if not prompt_yes_no(msg + " Continue ('no' will exit the script)?", default):
         raise ReleaseError("User elected NOT to continue at prompt: " + msg)
 
 

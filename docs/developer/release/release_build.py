@@ -250,7 +250,7 @@ def check_master(cf_version: str) -> None:
         states = [
             f"{run.get('status')} {run.get('conclusion') or ''} {run.get('url')}" for run in runs
         ]
-        continue_or_exit(f"CI has not passed on master, {commit}: {states or 'no run'}.")
+        continue_or_exit(f"CI has not passed on master, {commit}: {states or 'no run'}.", False)
 
     since = execute_output(
         ["gh", "api", f"repos/{GITHUB_REPO}/releases/latest", "--jq", ".published_at"]
@@ -282,7 +282,8 @@ def check_master(cf_version: str) -> None:
         print("\n".join(missing))
         continue_or_exit(
             "Add those that the release fixes to its Closed issues, in a pull request, and run"
-            " release_build.py again; or continue."
+            " release_build.py again; or continue.",
+            False,
         )
 
     alerts = execute_output(
@@ -298,7 +299,7 @@ def check_master(cf_version: str) -> None:
     if not alerts.isdigit():
         print(f"Could not read the Dependabot alerts; look at {dependabot}.")
     elif alerts != "0":
-        continue_or_exit(f"There are {alerts} open Dependabot alerts: {dependabot}.")
+        continue_or_exit(f"There are {alerts} open Dependabot alerts: {dependabot}.", False)
 
 
 def set_changelog_date(changelog: Path, version: str) -> None:

@@ -452,7 +452,8 @@ def main(argv: list[str]) -> None:
         continue_or_exit(
             "It appears that release_build.py has not been run since the last push to "
             "the Checker Framework repository.  Please ensure it has "
-            "been run."
+            "been run.",
+            False,
         )
 
     # A rerun continues a release that an earlier run left unfinished: each step that changes
@@ -512,7 +513,8 @@ def main(argv: list[str]) -> None:
     if website_problems:
         continue_or_exit(
             f"The web site generated from {release_zip.name} has the problems above.  It is in"
-            f" {GENERATED_SITE}; serve that directory with python3 -m http.server to look at it.\n"
+            f" {GENERATED_SITE}; serve that directory with python3 -m http.server to look at it.\n",
+            False,
         )
     else:
         print(f"The links of the web site generated in {GENERATED_SITE} work.")
@@ -576,7 +578,8 @@ def main(argv: list[str]) -> None:
     ):
         continue_or_exit(
             f"Publish deployment {deployment_id} by hand at {DEPLOYMENTS_URL}, or run"
-            " release_push.py again.\n"
+            " release_push.py again.\n",
+            False,
         )
 
     print_step(
@@ -658,7 +661,7 @@ def main(argv: list[str]) -> None:
     if not on_maven_central(new_cf_version):
         print(f"Waiting until Maven Central has published {new_cf_version}.")
         if deployment_id is None or not wait_until_published(deployment_id):
-            continue_or_exit(f"Check that Maven Central has published {new_cf_version}.")
+            continue_or_exit(f"Check that Maven Central has published {new_cf_version}.", False)
     email = TMP_DIR / f"announcement-{new_cf_version}.txt"
     email.write_text(announcement_email(new_cf_version), encoding="utf-8")
     continue_or_exit(
