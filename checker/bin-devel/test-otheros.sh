@@ -24,9 +24,9 @@ export -n SHELLOPTS
   || status=1
 
 # The examples build user projects with checker/bin/javac, Maven, Gradle, and Bazel.
-# docs/examples/publish-smoketest/ needs the artifacts in the local Maven repository.  addFavicon
-# runs a script that Windows cannot execute, and only post-processes the Javadoc.
-./gradlew publishToMavenLocal -x javadoc -x allJavadoc -x addFavicon --warning-mode=all || status=1
+# docs/examples/publish-smoketest/ needs the artifacts in the local Maven repository.  allJavadoc
+# runs a script that Windows cannot execute, to add the favicon.
+./gradlew publishToMavenLocal -x javadoc -x allJavadoc --warning-mode=all || status=1
 ./gradlew :checker:exampleTests --warning-mode=all || status=1
 
 exit $status
