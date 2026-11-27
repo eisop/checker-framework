@@ -224,7 +224,8 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
 
     /**
      * Returns true if {@code anno} is irrelevant: a value with only irrelevant qualifiers is what
-     * the type factory computes without the analysis.
+     * the type factory computes without the analysis, or what {@link
+     * GenericAnnotatedTypeFactory#addRedundantFlowAnalysisValues} supplies.
      *
      * @param anno a qualifier of the type system
      * @return true if {@code anno} is irrelevant

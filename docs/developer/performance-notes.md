@@ -2924,6 +2924,42 @@ or in the `:checker:test` and `:framework:test` inputs (9,480 of 17,594 Key For 
 skipped there). `checker/tests/nullness/KeyForFlowSources.java` has one method per source of a key;
 with a rule that skips every method, all 20 of them report an error.
 
+### Initialization Checker: no dataflow analysis for methods without initialization types (November 2026)
+
+The `InitializationFieldAccessSubchecker` runs the dataflow analysis that the Initialization
+Checker and the Nullness Checker share. In most methods every value that it computes is
+`@Initialized`. It skips those methods through `isFlowAnalysisRedundant`, with the same rule as the
+Key For Checker: `FlowAnalysisRelevance` with `@Initialized` as the only irrelevant qualifier.
+
+Unlike Key For, the type factory does not compute those values without the analysis: local
+variables have the top type `@UnknownInitialization` by default and get `@Initialized` only from
+the analysis. `GenericAnnotatedTypeFactory.addRedundantFlowAnalysisValues` lets a type factory
+supply the values of a skipped method. The Initialization factories supply `@Initialized` for every
+reachable `LocalVariableNode` and assignment to one, and an unannotated value for a local variable
+of a type variable type. Nodes in dead code get no value, as in the analysis, so a local variable in
+an unreachable `catch` block keeps the top type (`nullness-initialization/TryCatch.java`).
+
+On the Guava 33.5.0 sources (Nullness Checker, JDK 21), 7,456 method analyses and 248 lambda
+analyses of the subchecker are skipped. Interleaved 8-round A/B against the Key For skip above:
+
+| | Key For skip | plus Initialization skip | change |
+| --- | ---: | ---: | ---: |
+| Wall, median | 70.98 s | 68.37 s | -3.7% |
+| Wall, mean paired difference | | -3.60 s (se 0.98) | -5.0% |
+| User CPU, median | 178.70 s | 174.94 s | -2.1% |
+
+The diagnostics are identical (1,009 warnings). A temporary verify mode ran the analysis for every
+skipped method on Guava and compared its values with the supplied ones. They differ only for nodes
+without a tree (the temporary variables of postfix operations and switch statements, marker
+nodes), for assignment targets, which have no value in the analysis, for assignments of `null`
+(`@FBCBottom`), for variables captured by a lambda (the verify mode analyzed lambdas without their
+captured store), and for 101 nodes of a type variable type that the analysis gives a primary
+qualifier.
+`checker/tests/nullness-initialization/InitializationFlowSources.java` covers local variables of
+each kind and one method per source of an initialization type; without the supplied values, 17 of
+the 22 `NullnessTest` runs fail, and with a rule that skips every method, the 3 expected errors of
+that test and 13 of other tests are missing and 6 unexpected errors appear.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a
@@ -2942,6 +2978,15 @@ the prior finding. A fresh hypothesis is not new evidence.
   The other reports that do not depend on qualifiers (`cast.redundant` with `-Alint=cast:redundant`,
   `-Ashowchecks`, failures of type argument inference) would have to be kept as well. Revisit after
   eisop#1972.
+
+- **Skipping the Initialization Checker's visitor for the bodies of methods without
+  initialization types (November 2026).** After the analysis of such a method is skipped (see
+  *Initialization Checker: no dataflow analysis for methods without initialization types*), every
+  type in its body is `@Initialized`. A prototype that did not scan the body of such a method when
+  all of its nodes are reachable and it declares no class skipped 7,039 of 13,621 method bodies on
+  Guava, with identical diagnostics and all `:checker:test` tests passing, but measured +0.0% wall
+  (mean paired difference +0.03 s, se 0.78, 8 interleaved rounds). The visitor's work in these
+  bodies is cheap once their types need no analysis.
 
 - **Sharing `AnnotationFileElementTypes`'s method/constructor signature indexes across a
   compilation's type factories — measured-and-rejected (July 2026).** `methodSigIndexCache` and
