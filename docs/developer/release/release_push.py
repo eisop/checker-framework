@@ -16,6 +16,8 @@ import maven_central
 import release_utils
 from maven_central import (
     DEPLOYMENTS_URL,
+    await_validation,
+    deployment_file,
     on_maven_central,
     publish_deployment,
     saved_deployment,
@@ -542,8 +544,22 @@ def main(argv: list[str]) -> None:
         return
     if central_done:
         print(f"{new_cf_version} is on Maven Central already.")
-    elif deployment_state == "VALIDATED":
-        print(f"Deployment {deployment_id}, uploaded earlier, is validated.")
+    elif deployment_id is not None and deployment_state is None:
+        msg = (
+            f"The state of deployment {deployment_id}, uploaded earlier, is unknown.  Run"
+            " release_push.py again.  If the deployment was dropped, or is not published, drop it"
+            f" at {DEPLOYMENTS_URL}, and delete {deployment_file(new_cf_version)}."
+        )
+        raise ReleaseError(msg)
+    elif deployment_state in {"PENDING", "VALIDATING", "VALIDATED"}:
+        print(f"Deployment {deployment_id}, uploaded earlier, is {deployment_state}.")
+        deployment_id = await_validation(deployment_id, new_cf_version)
+        if deployment_id is None:
+            raise ReleaseError(
+                "The Maven artifacts are not validated, so nothing is pushed or published.  Fix"
+                " the problem and run release_push.py again, or publish by hand; see the release"
+                " process README."
+            )
     else:
         deployment_id = None
         if prompt_yes_no(

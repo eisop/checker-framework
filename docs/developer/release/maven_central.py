@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -565,19 +566,43 @@ def saved_deployment(version: str) -> tuple[str | None, str | None]:
     if not deployment_file(version).exists():
         return None, None
     deployment_id = deployment_file(version).read_text(encoding="utf-8").strip()
+    for attempt in range(3):
+        if attempt:
+            time.sleep(POLL_SECONDS)
+        try:
+            status = deployment_status(deployment_id, user_authorization())
+            return deployment_id, status.get("deploymentState")
+        except (OSError, ValueError, http.client.HTTPException) as e:
+            print(f"Could not get the state of deployment {deployment_id}: {e}")
+            if not is_transient(e):
+                break
+    return deployment_id, None
+
+
+def drop_deployment(deployment_id: str, version: str) -> str | None:
+    """Drop the given deployment of the given version, which is not published.
+
+    Returns:
+        a description of the problem, or None if the deployment is dropped
+    """
     try:
-        state = deployment_status(deployment_id, user_authorization()).get("deploymentState")
-    except (OSError, ValueError) as e:
-        print(f"Could not get the state of deployment {deployment_id}: {e}")
-        return deployment_id, None
-    return deployment_id, state
+        request("DELETE", f"{PORTAL_API}/deployment/{deployment_id}", user_authorization())
+    except OSError as e:
+        return (
+            f"Could not drop deployment {deployment_id}: {e}.  Drop it at {DEPLOYMENTS_URL}, and"
+            f" delete {deployment_file(version)}."
+        )
+    deployment_file(version).unlink(missing_ok=True)
+    print(f"Dropped deployment {deployment_id}.")
+    return None
 
 
 def drop_saved_deployment(version: str) -> str | None:
     """Drop the deployment of the given version that an earlier run of release_push.py uploaded.
 
     A new build of the release replaces the artifacts of that deployment, so release_push.py must
-    not publish it.  A deployment that is not published can be dropped.
+    not publish it.  A deployment that is not published can be dropped once it is validated or has
+    failed.
 
     Returns:
         a description of the problem, or None if there is no such deployment any more
@@ -590,16 +615,17 @@ def drop_saved_deployment(version: str) -> str | None:
             f"Deployment {deployment_id} of {version} is {state.lower()} on Maven Central;"
             " continue the release with release_push.py."
         )
-    by_hand = f"Drop it at {DEPLOYMENTS_URL}, and delete {deployment_file(version)}."
     if state is None:
-        return f"The state of deployment {deployment_id}, uploaded earlier, is unknown.  {by_hand}"
-    try:
-        request("DELETE", f"{PORTAL_API}/deployment/{deployment_id}", user_authorization())
-    except OSError as e:
-        return f"Could not drop deployment {deployment_id}, uploaded earlier: {e}.  {by_hand}"
-    deployment_file(version).unlink()
-    print(f"Dropped deployment {deployment_id}, which an earlier run of release_push.py uploaded.")
-    return None
+        return (
+            f"The state of deployment {deployment_id}, uploaded earlier, is unknown.  Drop it at"
+            f" {DEPLOYMENTS_URL}, and delete {deployment_file(version)}."
+        )
+    if state in {"PENDING", "VALIDATING"}:
+        print(f"Deployment {deployment_id}, uploaded earlier, is {state}; waiting to drop it.")
+        poll_deployment(
+            deployment_id, user_authorization(), "VALIDATED", VALIDATION_TIMEOUT_SECONDS
+        )
+    return drop_deployment(deployment_id, version)
 
 
 def on_maven_central(version: str) -> bool:
@@ -614,6 +640,18 @@ def on_maven_central(version: str) -> bool:
             return True
     except OSError:
         return False
+
+
+def is_transient(error: Exception) -> bool:
+    """Return true if a request to Maven Central that failed with the given error may succeed later.
+
+    Returns:
+        false for an HTTP error of the client, such as a rejected token, other than 429 Too Many
+        Requests; otherwise true
+    """
+    return not (
+        isinstance(error, urllib.error.HTTPError) and error.code < 500 and error.code != 429
+    )
 
 
 def poll_deployment(
@@ -632,12 +670,10 @@ def poll_deployment(
         status = None
         try:
             status = deployment_status(deployment_id, headers)
-        except urllib.error.HTTPError as e:
-            if e.code < 500:
+        except (OSError, ValueError, http.client.HTTPException) as e:
+            if not is_transient(e):
                 print(f"Could not get the state of deployment {deployment_id}: {e}")
                 return None
-            print(f"  {e}")
-        except (OSError, ValueError) as e:
             print(f"  {e}")
         if status is not None:
             state = status.get("deploymentState")
@@ -696,11 +732,24 @@ def upload_to_maven_central(version: str) -> str | None:
     except (OSError, ValueError, KeyError) as e:
         print(f"The request to Maven Central failed: {e}")
         return None
-    print(f"Deployment {deployment_id} is in the Portal; waiting for its validation.")
-    status = poll_deployment(deployment_id, headers, "VALIDATED", VALIDATION_TIMEOUT_SECONDS)
+    print(f"Deployment {deployment_id} is in the Portal.")
+    return await_validation(deployment_id, version)
+
+
+def await_validation(deployment_id: str, version: str) -> str | None:
+    """Wait until the given deployment of the given version is validated, and check its contents.
+
+    A deployment that does not consist of exactly the release's artifacts is dropped.
+
+    Returns:
+        the ID of the validated deployment, or None if it is not; the reason is printed
+    """
+    print(f"Waiting for the validation of deployment {deployment_id}.")
+    status = poll_deployment(
+        deployment_id, user_authorization(), "VALIDATED", VALIDATION_TIMEOUT_SECONDS
+    )
     if status is None:
         return None
-
     purls = status.get("purls", [])
     prefix = f"pkg:maven/{NAMESPACE}/"
     components = {
@@ -710,6 +759,9 @@ def upload_to_maven_central(version: str) -> str | None:
     }
     if len(components) != len(purls) or components != set(EXPECTED_ARTIFACTS):
         print(f"The deployment does not consist of the release's artifacts: {sorted(purls)}")
+        problem = drop_deployment(deployment_id, version)
+        if problem:
+            print(problem)
         return None
     print(f"The deployment is valid.  It contains the {len(purls)} artifacts of {version}.")
     return deployment_id

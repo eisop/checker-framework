@@ -452,7 +452,6 @@ def main(argv: list[str]) -> None:
     # AUTO Indicates the step is fully automated.
 
     check_release_dir(TMP_DIR)
-    delete_if_exists(RELEASE_BUILD_COMPLETED_FLAG_FILE)
 
     global dry_run
     dry_run = has_command_line_option(argv, "--dry-run")
@@ -503,10 +502,13 @@ def main(argv: list[str]) -> None:
     check_versions(old_cf_version, cf_version)
     if not dry_run:
         check_master(cf_version)
-    # release_push.py publishes the deployment that it uploaded, which this build replaces.
-    problem = drop_saved_deployment(cf_version)
-    if problem:
-        raise ReleaseError(problem)
+    # From here on, release_push.py needs this build.  It publishes the deployment that it
+    # uploaded, which this build replaces; a dry run changes nothing on Maven Central.
+    if not dry_run:
+        problem = drop_saved_deployment(cf_version)
+        if problem:
+            raise ReleaseError(problem)
+    delete_if_exists(RELEASE_BUILD_COMPLETED_FLAG_FILE)
 
     print_step("Build Step 5: Update the version numbers.")  # MANUAL
     update_version_numbers(old_cf_version)

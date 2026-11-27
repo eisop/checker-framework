@@ -719,7 +719,9 @@ python3 release_build.py</pre>
     <li><strong>Drop the deployment from Central</strong><br/>
       If the artifacts were uploaded but the deployment was not published, drop it (do NOT publish it) at
       <a href="https://central.sonatype.com/publishing/deployments">https://central.sonatype.com/publishing/deployments</a>.
-      A rerun of release_build drops it, because it rebuilds the artifacts.
+      A rerun of release_build drops it, because it rebuilds the artifacts.  After dropping it by
+      hand, delete <code>/tmp/$USER/cf-release/central-deployment-VERSION.txt</code>, which tells
+      release_push which deployment it uploaded.
     </li>
   </ul>
 
