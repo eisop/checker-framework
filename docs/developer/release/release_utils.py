@@ -101,6 +101,33 @@ def check_tools(tools: list[str]) -> None:
         raise ReleaseError(msg)
 
 
+def changelog_section_span(text: str, version: str) -> tuple[int, int]:
+    """Return where the section of the changelog for the given version starts and ends.
+
+    The section starts with its heading, "## Version VERSION (DATE)", and ends before the next
+    such heading or at the end of the changelog.
+
+    Args:
+        text: the text of docs/CHANGELOG.md
+        version: the version
+
+    Returns:
+        the start and the end of the section in text
+
+    Raises:
+        ReleaseError: If the changelog has no section for the version.
+    """
+    section = re.search(
+        "^## Version " + re.escape(version) + r" \(.*?(?=^## Version |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    if section is None:
+        msg = f"docs/CHANGELOG.md has no section for version {version}."
+        raise ReleaseError(msg)
+    return section.span()
+
+
 def continue_or_exit(msg: str, default: bool = True) -> None:
     """Prompts the user whether to continue executing the script.
 

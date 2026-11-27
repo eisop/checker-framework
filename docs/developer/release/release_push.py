@@ -25,6 +25,7 @@ from maven_central import (
 )
 from release_errors import ReleaseError
 from release_utils import (
+    changelog_section_span,
     check_release_dir,
     check_release_version,
     continue_or_exit,
@@ -124,9 +125,8 @@ def changelog_section(cf_version: str) -> str:
         the section of docs/CHANGELOG.md for the given version
     """
     changelog = CHANGELOG.read_text(encoding="utf-8")
-    start = changelog.index(f"## Version {cf_version} (")
-    end = changelog.find("\n## Version ", start)
-    return changelog[start:] if end == -1 else changelog[start : end + 1]
+    start, end = changelog_section_span(changelog, cf_version)
+    return changelog[start:end]
 
 
 def announcement_email(cf_version: str) -> str:

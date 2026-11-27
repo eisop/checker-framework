@@ -28,6 +28,7 @@ from maven_central import (
 )
 from release_errors import ReleaseError
 from release_utils import (
+    changelog_section_span,
     check_release_dir,
     check_release_version,
     check_tools,
@@ -267,9 +268,8 @@ def check_master(cf_version: str) -> None:
         or "[]"
     )
     text = CHANGELOG.read_text(encoding="utf-8")
-    start = text.index(f"## Version {cf_version} (")
-    end = text.find("\n## Version ", start)
-    section = text[start:end] if end != -1 else text[start:]
+    start, end = changelog_section_span(text, cf_version)
+    section = text[start:end]
     listed = {
         int(n) for n in re.findall(r"eisop#(\d+)", section.rpartition("### Closed issues")[2])
     }
@@ -332,15 +332,10 @@ def reflow_closed_issues(changelog: Path, version: str) -> None:
     issues do not conflict.  The release fills the list into lines of at most 100 characters.
     """
     text = changelog.read_text(encoding="utf-8")
-    section = re.compile(
-        "^## Version " + re.escape(version) + r" \(.*?(?=^## Version |\Z)", re.MULTILINE | re.DOTALL
-    ).search(text)
-    if section is None:
-        msg = f"{changelog} has no section for version {version}."
-        raise ReleaseError(msg)
+    start, end = changelog_section_span(text, version)
     issues = re.compile(
         r"^### Closed issues\n\n(.+?)(?=\n\n|\n*\Z)", re.MULTILINE | re.DOTALL
-    ).search(text, section.start(), section.end())
+    ).search(text, start, end)
     if issues is None:
         return
     filled = textwrap.fill(
