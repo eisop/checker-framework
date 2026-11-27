@@ -13,7 +13,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- These properties will be set by the Maven Dependency plugin -->
-    <checkerFrameworkVersion>3.49.5-eisop1</checkerFrameworkVersion>
+    <checkerFrameworkVersion>3.55.1-eisop1</checkerFrameworkVersion>
   </properties>
 
   <dependencies>
