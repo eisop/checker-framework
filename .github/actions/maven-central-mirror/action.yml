@@ -1,5 +1,5 @@
 name: 'Use Google''s mirror of Maven Central'
-description: 'Makes Gradle, Maven, and Coursier download from Google''s mirror of Maven Central; Gradle and Maven fall back to Maven Central'
+description: 'Makes Gradle and Maven download from Google''s mirror of Maven Central, falling back to Maven Central'
 
 # Other repositories, such as eisop/jspecify-reference-checker, can use this action, too:
 #   uses: eisop/checker-framework/.github/actions/maven-central-mirror@<ref>
@@ -11,8 +11,6 @@ runs:
     - name: Use Google's mirror of Maven Central
       shell: bash
       run: |
-        mkdir -p ~/.gradle/init.d ~/.m2 ~/.config/coursier
+        mkdir -p ~/.gradle/init.d ~/.m2
         cp "$GITHUB_ACTION_PATH/maven-central-mirror.gradle" ~/.gradle/init.d/
         cp "$GITHUB_ACTION_PATH/maven-settings.xml" ~/.m2/settings.xml
-        cp "$GITHUB_ACTION_PATH/coursier-mirror.properties" ~/.config/coursier/mirror.properties
-        echo "COURSIER_MIRRORS=$HOME/.config/coursier/mirror.properties" >> "$GITHUB_ENV"
