@@ -2741,6 +2741,36 @@ public class AnnotationFileElementTypes {
     }
 
     /**
+     * Returns true if the annotated JDK rooted at {@code jdkResourceURL} contains its source files.
+     * A released jar of the Checker Framework contains only the binary stub file of the annotated
+     * JDK.
+     *
+     * @param jdkResourceURL the URL of the annotated JDK's root directory or jar entry
+     * @return true if the annotated JDK contains its source files
+     */
+    private boolean annotatedJdkHasSources(URL jdkResourceURL) {
+        if (jdkResourceURL.getProtocol().contentEquals("jar")) {
+            String prefix = ANNOTATED_JDK_PATH + "/src/";
+            try (JarFile jarFile = getJarURLConnectionToJdk().getJarFile()) {
+                return jarFile.stream()
+                        .anyMatch(entry ->
+                                entry.getName().startsWith(prefix)
+                                        && entry.getName().endsWith(".java"));
+            } catch (IOException e) {
+                throw new BugInCF("cannot read the annotated JDK in " + jdkResourceURL, e);
+            }
+        }
+        if (jdkResourceURL.getProtocol().contentEquals("file")) {
+            try {
+                return Files.isDirectory(Paths.get(jdkResourceURL.toURI()).resolve("src"));
+            } catch (URISyntaxException e) {
+                throw new BugInCF("cannot read the annotated JDK in " + jdkResourceURL, e);
+            }
+        }
+        return false;
+    }
+
+    /**
      * Walk through the JDK directory and create a mapping, {@link #remainingJdkStubFiles}, from
      * file name to the class contained within it. Also, parses all {@code package-info.java} files.
      */
@@ -2778,12 +2808,25 @@ public class AnnotationFileElementTypes {
         //
         // -AmergeStubsWithSource makes the text parser apply the annotations of the private
         // classes that the minimized annotated JDK keeps (AnnotationFileParser#skipNode), which
-        // the binary stub file omits, so it too needs the text path. It matters only when checking
-        // the JDK's own source, which is the only code that can use a private JDK class.
+        // the binary stub file omits, so it uses the text path when the source files are there.
+        // It matters only when checking the JDK's own source, which is the only code that can use
+        // a private JDK class. A released jar contains only the binary stub file, which
+        // -AmergeStubsWithSource then uses.
         SourceChecker checker = atypeFactory.getChecker();
+        boolean binaryStubDiffCheck = checker.hasOption("binaryStubDiffCheck");
+        boolean mergeStubsWithSource = checker.hasOption("mergeStubsWithSource");
+        boolean hasSources = true;
+        if (binURL != null && (parseAllJdkFiles || binaryStubDiffCheck || mergeStubsWithSource)) {
+            hasSources = annotatedJdkHasSources(resourceURL);
+            if (!hasSources && (parseAllJdkFiles || binaryStubDiffCheck)) {
+                throw new UserError(
+                        "%s needs the source files of the annotated JDK, but %s contains only its"
+                                + " binary stub file. Use a Checker Framework built from source.",
+                        parseAllJdkFiles ? "-AparseAllJdk" : "-AbinaryStubDiffCheck", resourceURL);
+            }
+        }
         boolean skipBinary =
-                (parseAllJdkFiles && !checker.hasOption("binaryStubDiffCheck"))
-                        || checker.hasOption("mergeStubsWithSource");
+                (parseAllJdkFiles && !binaryStubDiffCheck) || (mergeStubsWithSource && hasSources);
         if (skipBinary) {
             // No warning: this is a deliberate request for the text path, not a missing binary.
             binURL = null;

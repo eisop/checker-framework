@@ -157,6 +157,25 @@ SMOKE_DIR="$TMP_DIR/smoke"
 mkdir -p "$SMOKE_DIR"
 # The same check that release_push.py runs on the release zip file.
 docs/developer/release/javac-sanity-check.sh "$CF_HOME" "$CF_HOME/docs/examples/NullnessExampleWithWarnings.java"
+
+## The release contains the annotated JDK only as its binary stub file.
+CHECKER_JAR_ENTRIES="$(unzip -Z1 "$CF_HOME/checker/dist/checker.jar")"
+grep -qx 'annotated-jdk/annotated-jdk.bin.gz' <<< "$CHECKER_JAR_ENTRIES" \
+  || fail "checker.jar does not contain the binary stub file of the annotated JDK."
+if grep -q '^annotated-jdk/src/' <<< "$CHECKER_JAR_ENTRIES"; then
+  fail "checker.jar contains the source files of the annotated JDK."
+fi
+printf 'import java.util.Map;\nclass MapGet {\n  String get(Map<String, Object> m) {\n    return m.get("k").toString();\n  }\n}\n' > "$SMOKE_DIR/MapGet.java"
+# -AmergeStubsWithSource uses the binary stub file, so the annotated JDK still applies.
+output="$("$CF_HOME/checker/bin/javac" -processor nullness -AmergeStubsWithSource -Anomsgtext \
+  -d "$SMOKE_DIR" "$SMOKE_DIR/MapGet.java" 2>&1)" || true
+grep -qF 'MapGet.java:4: error: (dereference.of.nullable)' <<< "$output" \
+  || fail "With -AmergeStubsWithSource, the annotated JDK did not apply: $output"
+# -AparseAllJdk needs the source files.
+output="$("$CF_HOME/checker/bin/javac" -processor nullness -AparseAllJdk \
+  -d "$SMOKE_DIR" "$SMOKE_DIR/MapGet.java" 2>&1)" || true
+grep -qF -- '-AparseAllJdk needs the source files of the annotated JDK' <<< "$output" \
+  || fail "-AparseAllJdk did not report that the release has no source files of the annotated JDK: $output"
 printf 'class Insert {\n  Object f;\n}\n' > "$SMOKE_DIR/Insert.java"
 printf 'package org.checkerframework.checker.nullness.qual:\nannotation @Nullable:\n\npackage :\nclass Insert:\n    field f: @org.checkerframework.checker.nullness.qual.Nullable\n' > "$SMOKE_DIR/Insert.jaif"
 (cd "$SMOKE_DIR" && "$AFU_HOME/bin/insert-annotations-to-source" -i Insert.jaif Insert.java)

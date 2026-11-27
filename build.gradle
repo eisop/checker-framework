@@ -1404,6 +1404,15 @@ subprojects {
         withSourcesJar()
     }
 
+    // A release ships the annotated JDK as its binary stub file only. Its source files are needed
+    // only by -AparseAllJdk and -AbinaryStubDiffCheck, debugging options for a Checker Framework
+    // built from source.
+    if (findProperty("release") == "true") {
+        tasks.withType(Jar).configureEach {
+            exclude("annotated-jdk/src/**")
+        }
+    }
+
     // Things in this block reference definitions in the subproject that do not exist,
     // until the project is evaluated.
     afterEvaluate {
