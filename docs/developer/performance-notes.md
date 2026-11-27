@@ -2914,8 +2914,8 @@ the frame on the stack, in two profiles before the change and one after it:
 | | `JavacTypes.isSubtype` | 163, 135 | 67 |
 
 Together, `CFGBuilder.build` goes from 3,460 and 3,471 samples (9.6% and 9.7%) to 2,686 (7.4%).
-A profile of a build with a sixth change, which was not kept, has 2,918 (8.0%), so two profiles
-of nearly the same code can differ by 0.6 percentage points.
+Profiles of nearly the same code differ by up to 0.6 percentage points in this frame.
+
 JMH on JDK 25, 12 forks per side, interleaved (4 warmup and 3 measurement iterations of 10 s;
 mean and 99.9% confidence interval over the 36 iterations; the paired difference is the mean of
 the 12 per-round differences and its standard error):
