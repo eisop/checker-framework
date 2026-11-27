@@ -192,6 +192,18 @@ if (useJdkVersionInt >= 22) {
     testDataflowAnalysis("unnamedPatternTest", "java22/unnamed-pattern", "reachingdef.ReachingDefinition", true)
 }
 
+// The shaded artifacts contain dataflow's classes under other package names, so dataflow's sources
+// and Javadoc, which name the original packages, document them.
+["sources", "javadoc"].each { classifier ->
+    String kind = classifier == "sources" ? "sources" : "Javadoc"
+    rootProject.registerPlaceholderJar(project, "shadedPlaceholder${classifier.capitalize()}Jar",
+            "dataflow-shaded", classifier, String.join(System.lineSeparator(),
+            "This artifact contains the classes of io.github.eisop:dataflow, with their packages",
+            "renamed from org.checkerframework to org.checkerframework.<name>, where <name> is the",
+            "part of this artifact's name after \"dataflow-\". The ${kind} jar of",
+            "io.github.eisop:dataflow has their ${kind}.", ""))
+}
+
 apply from: rootProject.file("gradle-mvn-push.gradle")
 
 /** Adds information to the publication for uploading the dataflow artifacts to Maven repositories. */
@@ -235,24 +247,24 @@ publishing {
         dataflowShaded(MavenPublication) {
             dataflowShadedPom(it, "shaded")
             artifact(tasks.named("dataflowshadedJar", Jar))
-            artifact(sourcesJar)
-            artifact(javadocJar)
+            artifact(tasks.named("shadedPlaceholderSourcesJar"))
+            artifact(tasks.named("shadedPlaceholderJavadocJar"))
         }
 
         dataflowShadednullaway(MavenPublication) {
             dataflowShadedPom(it, "nullaway")
 
             artifact(tasks.named("dataflownullawayJar", Jar))
-            artifact(sourcesJar)
-            artifact(javadocJar)
+            artifact(tasks.named("shadedPlaceholderSourcesJar"))
+            artifact(tasks.named("shadedPlaceholderJavadocJar"))
         }
 
         dataflowShadederrorprone(MavenPublication) {
             dataflowShadedPom(it, "errorprone")
 
             artifact(tasks.named("dataflowerrorproneJar", Jar))
-            artifact(sourcesJar)
-            artifact(javadocJar)
+            artifact(tasks.named("shadedPlaceholderSourcesJar"))
+            artifact(tasks.named("shadedPlaceholderJavadocJar"))
         }
     }
 }

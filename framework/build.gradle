@@ -415,6 +415,12 @@ tasks.register("frameworkAllJar", ShadowJar) {
 // frameworkAll publication's artifact list. This mirrors the reasoning for allJavadocJar and
 // allSourcesJar, which are likewise kept off `assemble`.
 
+rootProject.registerPlaceholderJar(project, "frameworkAllPlaceholderJavadocJar", "framework-all",
+        "javadoc", String.join(System.lineSeparator(),
+        "framework-all bundles the classes of the io.github.eisop artifacts framework, dataflow and",
+        "javacutil. Their Javadoc is in the Javadoc jars of those artifacts and at",
+        "https://eisop.github.io/cf/api/.", ""))
+
 apply from: rootProject.file("gradle-mvn-push.gradle")
 
 /**
@@ -476,7 +482,7 @@ publishing {
             rootProject.addCheckerQualDependencyToPom(it, version)
             artifact(tasks.named("frameworkAllJar"))
             artifact(tasks.named("allSourcesJar"))
-            artifact(tasks.named("allJavadocJar"))
+            artifact(tasks.named("frameworkAllPlaceholderJavadocJar"))
         }
     }
 }

@@ -187,8 +187,9 @@ for artifact in framework framework-all; do
   prefix="$MAVEN_LOCAL/$artifact/${VERSION}/$artifact-${VERSION}"
   check_stubifier_jar "$prefix.jar" class
   check_stubifier_jar "$prefix-sources.jar" java
-  check_stubifier_jar "$prefix-javadoc.jar" html
 done
+# The Javadoc jar of framework-all contains a README that names framework's.
+check_stubifier_jar "$MAVEN_LOCAL/framework/${VERSION}/framework-${VERSION}-javadoc.jar" html
 # The checker jar contains only the checkers, which use the tools from framework-all.
 check_stubifier_jar "$MAVEN_LOCAL/checker/${VERSION}/checker-${VERSION}-all.jar" class
 # The Annotation File Utilities do not depend on the checkers.

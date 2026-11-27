@@ -15,6 +15,12 @@ unchanged.
 
 ### Implementation details
 
+The Maven artifacts of a release are half as large, 38 MB instead of 76 MB: besides the smaller
+`checker` artifact, the shaded dataflow artifacts bundle only the dependency classes they use, the
+`framework` sources jar no longer contains the annotated JDK, and the Javadoc jars of
+`framework-all`, the shaded dataflow artifacts and `checker-qual-android`, and the sources jars of
+the shaded dataflow artifacts, contain a README that names the artifact with that documentation.
+
 ### Closed issues
 
 ## Version 3.55.1-eisop1 (November 24, 2026)
