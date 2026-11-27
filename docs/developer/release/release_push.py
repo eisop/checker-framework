@@ -517,7 +517,8 @@ def main(argv: list[str]) -> None:
         continue_or_exit(
             f"The web site generated from {release_zip.name} has the problems above.  It is in"
             f" {GENERATED_SITE}; serve that directory with python3 -m http.server to look at it.\n",
-            False,
+            # The generator is in another repository, which a dry run in CI does not gate on.
+            test_mode,
         )
     else:
         print(f"The links of the web site generated in {GENERATED_SITE} work.")
