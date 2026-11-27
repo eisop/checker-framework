@@ -95,6 +95,10 @@ checksum of each, which it uploads with the Portal's publisher API:
    `POST …/api/v1/publisher/deployment/<deployment id>` publishes the deployment.
    This cannot be undone. Step 11 waits until its state is `PUBLISHED`.
 
+A rerun of release_push.py resumes with the deployment that an earlier run uploaded. A rerun of
+release_build.py rebuilds the artifacts, so it drops that deployment with
+`DELETE …/api/v1/publisher/deployment/<deployment id>`.
+
 All requests carry `Authorization: Bearer <base64 of user-token-name:user-token-password>`.
 
 By hand, the bundle (`/tmp/$USER/cf-release/central-bundle-VERSION.zip`) can be

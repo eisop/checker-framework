@@ -21,6 +21,7 @@ import release_utils
 from maven_central import (
     check_central_token,
     clear_local_artifacts,
+    drop_saved_deployment,
     gradle_user_properties,
     verify_local_artifacts,
     verify_with_published_key,
@@ -503,6 +504,10 @@ def main(argv: list[str]) -> None:
     check_versions(old_cf_version, cf_version)
     if not dry_run:
         check_master(cf_version)
+    # release_push.py publishes the deployment that it uploaded, which this build replaces.
+    problem = drop_saved_deployment(cf_version)
+    if problem:
+        raise ReleaseError(problem)
 
     print_step("Build Step 5: Update the version numbers.")  # MANUAL
     update_version_numbers(old_cf_version)

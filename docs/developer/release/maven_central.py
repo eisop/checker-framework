@@ -573,6 +573,35 @@ def saved_deployment(version: str) -> tuple[str | None, str | None]:
     return deployment_id, state
 
 
+def drop_saved_deployment(version: str) -> str | None:
+    """Drop the deployment of the given version that an earlier run of release_push.py uploaded.
+
+    A new build of the release replaces the artifacts of that deployment, so release_push.py must
+    not publish it.  A deployment that is not published can be dropped.
+
+    Returns:
+        a description of the problem, or None if there is no such deployment any more
+    """
+    deployment_id, state = saved_deployment(version)
+    if deployment_id is None:
+        return None
+    if state in {"PUBLISHING", "PUBLISHED"}:
+        return (
+            f"Deployment {deployment_id} of {version} is {state.lower()} on Maven Central;"
+            " continue the release with release_push.py."
+        )
+    by_hand = f"Drop it at {DEPLOYMENTS_URL}, and delete {deployment_file(version)}."
+    if state is None:
+        return f"The state of deployment {deployment_id}, uploaded earlier, is unknown.  {by_hand}"
+    try:
+        request("DELETE", f"{PORTAL_API}/deployment/{deployment_id}", user_authorization())
+    except OSError as e:
+        return f"Could not drop deployment {deployment_id}, uploaded earlier: {e}.  {by_hand}"
+    deployment_file(version).unlink()
+    print(f"Dropped deployment {deployment_id}, which an earlier run of release_push.py uploaded.")
+    return None
+
+
 def on_maven_central(version: str) -> bool:
     """Return true if Maven Central serves the given version of the checker artifact.
 
