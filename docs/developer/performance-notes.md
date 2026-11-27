@@ -2899,8 +2899,8 @@ never asks for initialization code, for an AST with a captured store, for a meth
 anonymous class whose enclosing method has final local variables with values, or with `-Acfgviz`
 or `-Aflowdotdir`.
 
-`KeyForFlowRelevance` implements the rule: a method is relevant if a qualifier other than
-`@UnknownKeyFor` can flow into it or it can establish a key. It scans the method once, stopping at
+`KeyForFlowRelevance` implements the rule as a subclass of `FlowAnalysisRelevance`: a method is
+relevant if a qualifier other than `@UnknownKeyFor` can flow into it or it can establish a key. It scans the method once, stopping at
 the first relevant construct: a Key For annotation or `@DefaultQualifier`; a use of a field, method,
 constructor, method reference, or lambda function type whose type mentions such a qualifier, has a
 contract, or mentions a class that (transitively, through type arguments and supertypes) does; a
