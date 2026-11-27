@@ -616,27 +616,57 @@ def on_maven_central(version: str) -> bool:
         return False
 
 
+def poll_deployment(
+    deployment_id: str, headers: dict[str, str], wanted: str, timeout_seconds: int
+) -> dict | None:
+    """Ask Maven Central for the state of the given deployment until it is the wanted state.
+
+    A request that fails because of the network or the server is repeated until the timeout, since
+    a wait can take an hour.
+
+    Returns:
+        the status of the deployment in the wanted state, or None; the reason is printed
+    """
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        status = None
+        try:
+            status = deployment_status(deployment_id, headers)
+        except urllib.error.HTTPError as e:
+            if e.code < 500:
+                print(f"Could not get the state of deployment {deployment_id}: {e}")
+                return None
+            print(f"  {e}")
+        except (OSError, ValueError) as e:
+            print(f"  {e}")
+        if status is not None:
+            state = status.get("deploymentState")
+            print(f"  {state}")
+            if state == wanted:
+                return status
+            if state == "FAILED":
+                print(json.dumps(status.get("errors", status), indent=2))
+                return None
+        if time.monotonic() > deadline:
+            print(
+                f"Deployment {deployment_id} is not {wanted} after {timeout_seconds // 60} minutes."
+            )
+            return None
+        time.sleep(POLL_SECONDS)
+
+
 def wait_until_published(deployment_id: str) -> bool:
     """Wait until Maven Central has published the given deployment.
 
     Returns:
         true if the deployment is published; otherwise the reason is printed
     """
-    deadline = time.monotonic() + PUBLICATION_TIMEOUT_SECONDS
-    try:
-        while True:
-            status = deployment_status(deployment_id, user_authorization())
-            state = status.get("deploymentState")
-            print(f"  {state}")
-            if state == "PUBLISHED":
-                return True
-            if state == "FAILED" or time.monotonic() > deadline:
-                print(json.dumps(status.get("errors", status), indent=2))
-                return False
-            time.sleep(POLL_SECONDS)
-    except (OSError, ValueError) as e:
-        print(f"Could not get the state of deployment {deployment_id}: {e}")
-        return False
+    return (
+        poll_deployment(
+            deployment_id, user_authorization(), "PUBLISHED", PUBLICATION_TIMEOUT_SECONDS
+        )
+        is not None
+    )
 
 
 def upload_to_maven_central(version: str) -> str | None:
@@ -663,20 +693,12 @@ def upload_to_maven_central(version: str) -> str | None:
         print(f"Uploading {bundle} ({bundle.stat().st_size // 1_000_000} MB).")
         deployment_id = upload_bundle(bundle, version, headers)
         deployment_file(version).write_text(deployment_id + "\n", encoding="utf-8")
-        print(f"Deployment {deployment_id} is in the Portal; waiting for its validation.")
-        deadline = time.monotonic() + VALIDATION_TIMEOUT_SECONDS
-        while True:
-            status = deployment_status(deployment_id, headers)
-            state = status.get("deploymentState")
-            print(f"  {state}")
-            if state == "VALIDATED":
-                break
-            if state == "FAILED" or time.monotonic() > deadline:
-                print(json.dumps(status.get("errors", status), indent=2))
-                return None
-            time.sleep(POLL_SECONDS)
     except (OSError, ValueError, KeyError) as e:
         print(f"The request to Maven Central failed: {e}")
+        return None
+    print(f"Deployment {deployment_id} is in the Portal; waiting for its validation.")
+    status = poll_deployment(deployment_id, headers, "VALIDATED", VALIDATION_TIMEOUT_SECONDS)
+    if status is None:
         return None
 
     purls = status.get("purls", [])
