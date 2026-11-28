@@ -3015,17 +3015,17 @@ anonymous class whose enclosing method has final local variables with values, or
 or `-Aflowdotdir`.
 
 `KeyForFlowRelevance` implements the rule as a subclass of `FlowAnalysisRelevance`: a method is
-relevant if a qualifier other than `@UnknownKeyFor` can flow into it or it can establish a key. It scans the method once, stopping at
-the first relevant construct: a Key For annotation or `@DefaultQualifier`; a use of a field, method,
-constructor, method reference, or lambda function type whose type mentions such a qualifier, has a
-contract, or mentions a class that (transitively, through type arguments and supertypes) does; a
-call of `Map.put` or `Map.containsKey`; a record pattern; a variable declared outside the method.
-The enclosing classes and the field values of the initial store are examined as well. Relevance of
-an element is cached for the compilation.
+relevant if a qualifier other than `@UnknownKeyFor` can flow into it or it can establish a key. It
+scans the method once, stopping at the first relevant construct: a Key For annotation or
+`@DefaultQualifier`; a use of a field, method, constructor, method reference, or lambda function
+type whose type mentions such a qualifier, has a contract, or mentions a class that (transitively,
+through type arguments and supertypes) does; a call of `Map.put` or `Map.containsKey`; a record
+pattern; a variable declared outside the method. The enclosing classes and the field values of the
+initial store are examined as well. Relevance of an element is cached for the compilation.
 
-On the Guava 33.5.0 sources (Nullness Checker, JDK 21) the rule is asked about 10,731 methods and
-rejects 357 of them; 10,374 of the 12,884 method analyses and 362 of the 394 lambda analyses of the
-Key For Checker are skipped. The rule itself takes 1.7 s in total.
+On the Guava 33.5.0 sources (Nullness Checker, JDK 21, master `e81ccb2a9e`) the rule is asked about
+10,731 methods and rejects 357 of them; 10,374 of the 12,884 method analyses and 362 of the 394
+lambda analyses of the Key For Checker are skipped. The rule itself takes 1.7 s in total.
 
 | | master | skip | change |
 | --- | ---: | ---: | ---: |
@@ -3052,13 +3052,14 @@ constructor still is relevant: a method that declares a local or anonymous class
 because the initialization code of that class starts from the values of the method's local
 variables, which a skipped method does not record.
 
-Unlike Key For, the type factory does not compute those values without the analysis: local
-variables have the top type `@UnknownInitialization` by default and get `@Initialized` only from
-the analysis. `GenericAnnotatedTypeFactory.addRedundantFlowAnalysisValues` lets a type factory
-supply the values of a skipped method. `InitializationFieldAccessAnnotatedTypeFactory` supplies
-`@Initialized` for every reachable `LocalVariableNode` and assignment to one, and an unannotated value for a local variable
-of a type variable type. Nodes in dead code get no value, as in the analysis, so a local variable in
-an unreachable `catch` block keeps the top type (`nullness-initialization/TryCatch.java`).
+Unlike Key For, the type factory does not compute those values without the analysis: local variables
+have the top type `@UnknownInitialization` by default and get `@Initialized` only from the analysis.
+`GenericAnnotatedTypeFactory.addRedundantFlowAnalysisValues` lets a type factory supply the values
+of a skipped method. `InitializationFieldAccessAnnotatedTypeFactory` supplies `@Initialized` for
+every reachable `LocalVariableNode` and assignment to one, and an unannotated value for a local
+variable of a type variable type. Nodes in dead code get no value, as in the analysis, so a local
+variable in an unreachable `catch` block keeps the top type
+(`nullness-initialization/TryCatch.java`).
 
 On the Guava 33.5.0 sources (Nullness Checker, JDK 21), the rule is asked about 9,993 methods and
 skips the analysis of 9,394 of them; without the special case for constructor uses, it skips 7,378.
@@ -3076,12 +3077,12 @@ The special case for constructor uses accounts for 2.1% of the allocation (all 3
 for -0.9% of the wall clock (paired difference -0.69 s, se 0.69).
 
 The diagnostics are identical (1,009 warnings). Before the special case for constructor uses, a
-temporary verify mode ran the analysis for every skipped method on Guava and compared its values with the supplied ones. They differ only for nodes
-without a tree (the temporary variables of postfix operations and switch statements, marker
-nodes), for assignment targets, which have no value in the analysis, for assignments of `null`
-(`@FBCBottom`), for variables captured by a lambda (the verify mode analyzed lambdas without their
-captured store), and for 101 nodes of a type variable type that the analysis gives a primary
-qualifier.
+temporary verify mode ran the analysis for every skipped method on Guava and compared its values
+with the supplied ones. They differ only for nodes without a tree (the temporary variables of
+postfix operations and switch statements, marker nodes), for assignment targets, which have no value
+in the analysis, for assignments of `null` (`@FBCBottom`), for variables captured by a lambda (the
+verify mode analyzed lambdas without their captured store), and for 101 nodes of a type variable
+type that the analysis gives a primary qualifier.
 `checker/tests/nullness-initialization/InitializationFlowSources.java` covers local variables of
 each kind and one method per source of an initialization type; without the supplied values, 17 of
 the 22 `NullnessTest` runs fail, and with a rule that skips every method, the 3 expected errors of
