@@ -2940,6 +2940,39 @@ scan that creates the nodes (4.4% of the samples), then phase three (1.3%) and p
 `BlockImpl.addPredecessor` (`ArraySet.add`, a linear search) is in 0.3% of the samples before the
 changes and in 0.5% after them; why its count rises was not established.
 
+### Nullness Checker: one type check per class (November 2026)
+
+The Nullness Checker is four checkers with a type factory and a visitor each: the
+`InitializationChecker` at the top, the `NullnessNoInitSubchecker`, and below that the
+`KeyForSubchecker` and the `InitializationFieldAccessSubchecker`. A JFR recording of the Nullness
+Checker on the Guava 33.5.0 sources (606 files, JDK 25, 5767 execution samples, no truncated
+stacks; checkers told apart by marker frames around each checker's `typeProcess`) splits the
+samples as follows, before the change of this section:
+
+| Checker | Samples | Share | CFG build | `performAnalysis` | Other flow | Visitor |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Key For | 1609 | 27.9% | 110 | 689 | 70 | 740 |
+| Initialization field access | 1324 | 23.0% | 0 | 609 | 53 | 662 |
+| Nullness (no initialization) | 1422 | 24.7% | 4 | 649 | 54 | 715 |
+| Initialization (top) | 905 | 15.7% | 0 | 0 | 0 | 905 |
+| Outside the checkers (javac) | 507 | 8.8% | | | | |
+
+The control flow graph is built once, by the Key For Checker, and takes 2% of the samples; the
+three analyses cost about the same, as do the four visitors. Frames of `AnnotatedTypeCopier`,
+`deepCopy` and `shallowCopy` are on 15.3% of the samples and allocate 38% of the bytes.
+
+The `InitializationFieldAccessVisitor` scanned each class with the inherited `BaseTypeVisitor`
+logic and discarded every diagnostic: a second, unobserved type check of the whole program by a
+checker that only exists to run a dataflow analysis. 660 samples (11.4%) were in that scan. The
+visitor is now a scanner that does not check anything and only triggers the analysis and the
+post-processing of each class, including classes that are not members of a class.
+
+Interleaved A/B on that workload with JDK 21 (12 rounds per side; allocation is the deterministic
+`jdk.ThreadAllocationStatistics` total): wall-clock median 74.1 s to 67.1 s (-9.5%; paired
+difference -7.3 s, standard error 0.6 s); allocation 29663 MB to 25981 MB (-12.4%). The
+diagnostics (1009 warnings) are identical. No effect with `-AassumeInitialized` or
+`-Amode=jspecify`, under which the visitor already did nothing.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a
