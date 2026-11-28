@@ -431,7 +431,8 @@ def zip_jar_problems(jar: Path, artifact: str, version: str) -> list[str]:
                 for info in maven.infolist()
                 if not info.is_dir()
                 and in_zip.get(info.filename) != info.CRC
-                # The manifest of the checker artifact names its dependencies in its Class-Path.
+                # The jar of the checker artifact has a manifest of its own, without the
+                # Main-Class of the self-contained checker.jar.
                 and not (artifact == "checker" and info.filename == "META-INF/MANIFEST.MF")
             ]
     if differing:

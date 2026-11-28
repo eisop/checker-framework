@@ -324,12 +324,8 @@ tasks.register("checkerThinJar", Jar) {
         exclude("META-INF/MANIFEST.MF")
         exclude { FileTreeElement element -> frameworkAllEntries.get().contains(element.path) }
     }
-    manifest {
-        attributes("Main-Class": "org.checkerframework.framework.util.CheckerMain")
-        attributes("Class-Path": ["framework-all", "checker-qual", "checker-util"].collect {
-            "${it}-${project.version}.jar"
-        }.join(" "))
-    }
+    // No Main-Class: CheckerMain, which is in framework-all, runs from the self-contained
+    // checker.jar, next to which it finds checker-qual.jar and checker-util.jar.
 }
 
 tasks.named("jar") {
@@ -1211,7 +1207,8 @@ apply from: rootProject.file("gradle-mvn-push.gradle")
 /** Adds information to the publication for uploading to Maven repositories. */
 final checkerPom(publication) {
     rootProject.sharedPublicationConfiguration(publication)
-    // Don't use publication.from components.java which would publish the skinny jar as checker.jar.
+    // Not publication.from(components.java), which would publish the output of the disabled `jar`
+    // task; the publication below names its jars.
     publication.pom {
         name = "Checker Framework"
         description =
