@@ -7,6 +7,29 @@
 
 ### User-visible changes
 
+`-AprintGitProperties` prints only what the commit determines: the version, and the commit and its
+time.  It no longer prints who built the Checker Framework, on which machine, or the tags.
+
+The dataflow framework builds the control flow graph of a method with less work. With the
+`dataflow-nullaway` artifact, NullAway's JMH benchmarks that compile Caffeine and NullAway itself
+allocate about 2% less and run 1-2% faster; the effect on the checkers of the Checker Framework is
+within measurement noise.
+
+The Nullness Checker no longer type-checks every class a second time in its subchecker for field
+initialization: on the Guava 33.5.0 sources, 9% less time and 12% less allocation.
+
+Subtype checks of two declared types copy fewer types: for the Nullness Checker on the Guava
+33.5.0 sources, 2% less time and 5% less allocation.
+
+An override check under the permissive defaults for unchecked code
+(`-AusePermissiveDefaultsForUncheckedCode`, or `-Amode=jspecify` of the Nullness Checker) no longer
+crashes with a `StackOverflowError` if a type variable in the signature of the overridden method has
+a recursive bound, such as `E extends Entry<E>`.
+
+The Nullness Checker does not run the dataflow analysis of its Key For subchecker for methods that
+cannot refer to a map key, nor that of its Initialization subchecker for methods in which every type
+is `@Initialized`: on the Guava 33.5.0 sources, 10% less time and 13% less allocation.
+
 The `io.github.eisop:checker` Maven artifact contains only the checkers and depends on
 `framework-all`, `checker-qual`, and `checker-util`, like `framework` and `framework-all`.  Build
 tools that read the Maven metadata, such as Gradle, Maven, and Bazel, are unaffected.  A manually
@@ -22,6 +45,8 @@ The Maven artifacts of a release are half as large, 38 MB instead of 76 MB: besi
 the shaded dataflow artifacts, contain a README that names the artifact with that documentation.
 
 ### Closed issues
+
+eisop#2695
 
 ## Version 3.55.1-eisop1 (November 24, 2026)
 

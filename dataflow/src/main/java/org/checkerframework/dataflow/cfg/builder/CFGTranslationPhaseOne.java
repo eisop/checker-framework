@@ -407,6 +407,21 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     protected final Set<TypeMirror> arrayAccessExceptionTypes;
 
     /**
+     * The key of {@link #typeMirrorCache} in the compiler's {@link Context}, which makes the cache
+     * per-compilation and shared by all {@code CFGTranslationPhaseOne} instances of the
+     * compilation.
+     */
+    private static final Context.Key<IdentityHashMap<Class<?>, TypeMirror>> TYPE_MIRROR_CACHE_KEY =
+            new Context.Key<>();
+
+    /**
+     * The results of {@link #getTypeMirror} and {@link #maybeGetTypeMirror}, for the classes that
+     * are present. A {@code CFGTranslationPhaseOne} is created for every method, lambda, and
+     * initializer, and each one looks up the same classes.
+     */
+    private final IdentityHashMap<Class<?>, TypeMirror> typeMirrorCache;
+
+    /**
      * Creates {@link CFGTranslationPhaseOne}.
      *
      * @param treeBuilder builder for new AST nodes
@@ -433,6 +448,14 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         elements = env.getElementUtils();
         types = env.getTypeUtils();
         trees = Trees.instance(env);
+
+        Context context = ((JavacProcessingEnvironment) env).getContext();
+        IdentityHashMap<Class<?>, TypeMirror> cache = context.get(TYPE_MIRROR_CACHE_KEY);
+        if (cache == null) {
+            cache = new IdentityHashMap<>();
+            context.put(TYPE_MIRROR_CACHE_KEY, cache);
+        }
+        typeMirrorCache = cache;
 
         // initialize lists and maps
         treeToCfgNodes = new IdentityHashMap<>();
@@ -1387,13 +1410,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         boolean isLeftPrimitive = TypesUtils.isPrimitive(varType);
         // boolean isLeftBoxed = TypesUtils.isBoxedPrimitive(varType);
         boolean isLeftReference = varType instanceof ReferenceType;
-        boolean isSubtype = types.isSubtype(nodeType, varType);
 
-        if (isRightNumeric && isLeftNumeric && isSubtype) {
+        if (isRightNumeric && isLeftNumeric && types.isSubtype(nodeType, varType)) {
             node = widen(node, varType);
-        } else if (isRightReference && isLeftReference && isSubtype) {
-            // widening reference conversion is a no-op, but if it
-            // applies, then later conversions do not.
+        } else if (isRightReference && isLeftReference) {
+            // Widening reference conversion is a no-op.  No other conversion applies to two
+            // reference types, so whether the conversion is widening is not computed.
         } else if (isRightPrimitive && isLeftReference) {
             if (contextAllowsNarrowing && conversionRequiresNarrowing(varType, node)) {
                 node = narrowAndBox(node, varType);
@@ -4778,7 +4800,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * @return the TypeMirror for the class
      */
     protected TypeMirror getTypeMirror(Class<?> clazz) {
-        return TypesUtils.typeFromClass(clazz, types, elements);
+        TypeMirror result = typeMirrorCache.get(clazz);
+        if (result == null) {
+            result = TypesUtils.typeFromClass(clazz, types, elements);
+            typeMirrorCache.put(clazz, result);
+        }
+        return result;
     }
 
     /**
@@ -4792,12 +4819,17 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * @return the TypeMirror for the class, or {@code null} if the type is not present
      */
     protected @Nullable TypeMirror maybeGetTypeMirror(Class<?> clazz) {
-        String name = clazz.getCanonicalName();
-        assert name != null : clazz + " does not have a canonical name";
-        TypeElement element = elements.getTypeElement(name);
-        if (element == null) {
-            return null;
+        TypeMirror result = typeMirrorCache.get(clazz);
+        if (result == null) {
+            String name = clazz.getCanonicalName();
+            assert name != null : clazz + " does not have a canonical name";
+            TypeElement element = elements.getTypeElement(name);
+            if (element == null) {
+                return null;
+            }
+            result = element.asType();
+            typeMirrorCache.put(clazz, result);
         }
-        return element.asType();
+        return result;
     }
 }

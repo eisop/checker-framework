@@ -148,6 +148,15 @@ tasks.named("generateGitProperties") {
 }
 gitProperties {
     dotGitDirectory = project.rootProject.layout.projectDirectory.dir(".git")
+    // Only what the commit determines, so that the jar does not depend on who builds it, on which
+    // machine, or on the depth of the clone: the release's jars can be rebuilt from its tag.
+    keys = [
+        "git.build.version",
+        "git.commit.id",
+        "git.commit.id.abbrev",
+        "git.commit.time",
+        "git.dirty",
+    ]
 }
 
 tasks.named("jar") {
@@ -252,9 +261,6 @@ tasks.register("allJavadocJar", Jar) {
     description = "Creates javadoc jar including Javadoc for all of the Checker Framework"
     def allJavadoc = rootProject.tasks.named("allJavadoc", Javadoc)
     dependsOn(allJavadoc)
-    // TODO: This should not be required, but without it the addFavicon task is sometimes not run
-    // before this one.
-    dependsOn(rootProject.tasks.named("addFavicon"))
 
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = "checker-javadoc.jar"

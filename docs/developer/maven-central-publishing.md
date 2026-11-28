@@ -1,7 +1,7 @@
 # Publishing to Maven Central
 
-How publishing is wired, what a releaser still does by hand, and what it would
-take to automate the rest.
+How publishing is wired, how a release gets from the build to Maven Central, and
+what it would take to publish nightly snapshots.
 
 ## What the build does today
 
@@ -14,18 +14,14 @@ publishing plugin. The namespace is `io.github.eisop`.
 | `-SNAPSHOT` version | `https://central.sonatype.com/repository/maven-snapshots/` | no |
 | release version | `https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/` | yes |
 
-A release is made with
-
-````bash
-./gradlew publish -Prelease=true --no-parallel
-````
-
-`-Prelease=true` also selects the release version: without it, the version is
+`-Prelease=true` selects the release version: without it, the version is
 `releaseVersion` (in [`release.gradle`](../../release.gradle)) followed by
 `-SNAPSHOT`.
 
-The command uploads to a staging repository. The release is **not** live until a human
-opens <https://central.sonatype.com/publishing/deployments> and clicks Publish.
+A release does not use `./gradlew publish`. `release_build.py` runs
+`./gradlew publishToMavenLocal -Prelease=true`, and checks the signed artifacts
+in the local Maven repository; `release_push.py` uploads exactly those files to
+the Central Portal. See below.
 
 Snapshots need no publishing configuration of their own: the snapshot URL is
 already the Central Portal snapshot repository, and snapshots are deliberately
@@ -65,33 +61,63 @@ If signed CI publishing is ever wanted, the way to do it is an in-memory
 ASCII-armored key (`signing.key` / `signing.password`) from a dedicated project
 key held in repository secrets — not a maintainer's personal key.
 
-## Why the manual click exists, and how to remove it
+## From the local Maven repository to Maven Central
 
-`ossrh-staging-api.central.sonatype.com` is Sonatype's **compatibility layer**
-for publishers whose build plugins predate the Central Portal API. It accepts
-the old OSSRH staging upload, and then leaves the deployment sitting in the
-Portal for a human to release.
+`release_build.py` deletes the release version's artifacts from the local
+Maven repository, runs `./gradlew publishToMavenLocal -Prelease=true`, and
+checks what it published, with
+[`release/maven_central.py`](release/maven_central.py):
 
-The compatibility service has its own API for that last step, so the click is
-avoidable without changing how the build uploads anything:
+- every artifact in its `EXPECTED_ARTIFACTS` is there, and no other, each with
+  its POM, jar, sources jar, and Javadoc jar, and a signature for every file;
+- each POM has the name, description, URL, license, developer, and SCM URL that
+  Maven Central requires, and depends on no snapshot, on its own artifacts of
+  the same version, and on none of their `org.checkerframework` counterparts;
+- every file in the `checker`, `checker-qual`, `checker-util`, and
+  `annotation-file-utilities` jars is in the same jar in the release zip
+  files, with the same contents;
+- every signature verifies with the signer's public key from
+  `keyserver.ubuntu.com`, as users and Central see it, not only the local key.
+
+A problem stops the build, before anything is pushed or uploaded.
+
+`release_push.py` (step 5, before anything is pushed) checks the files again and puts exactly those files
+into a bundle in the layout of a Maven repository, with an MD5 and SHA-1
+checksum of each, which it uploads with the Portal's publisher API:
+
+1. `POST https://central.sonatype.com/api/v1/publisher/upload?publishingType=USER_MANAGED`
+   (multipart, field `bundle`) returns the deployment ID.
+2. `POST …/api/v1/publisher/status?id=<deployment id>` until `deploymentState`
+   is `VALIDATED` (or `FAILED`, with `errors`). The response lists the
+   components as `purls`, which must be exactly the expected artifacts at the
+   release version.
+3. After the push to GitHub (step 6), and after the releaser confirms (step 7),
+   `POST …/api/v1/publisher/deployment/<deployment id>` publishes the deployment.
+   This cannot be undone. Step 11 waits until its state is `PUBLISHED`.
+
+A rerun of release_push.py resumes with the deployment that an earlier run uploaded. A rerun of
+release_build.py rebuilds the artifacts, so it drops that deployment with
+`DELETE …/api/v1/publisher/deployment/<deployment id>`.
+
+All requests carry `Authorization: Bearer <base64 of user-token-name:user-token-password>`.
+
+By hand, the bundle (`/tmp/$USER/cf-release/central-bundle-VERSION.zip`) can be
+uploaded at <https://central.sonatype.com/publishing/deployments> with "Publish
+Component", and the deployment published there with Publish; Drop discards an
+unpublished deployment.
+
+`./gradlew publish -Prelease=true` still works, too, through Sonatype's OSSRH
+staging API, a compatibility layer for older build plugins. It keeps the upload
+in a staging repository that does **not** show up in the Portal until a request
+from the uploading machine (the repository is tied to its IP) moves it there:
 
 ````text
-POST https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.eisop?publishing_type=automatic
+POST https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.eisop?publishing_type=user_managed
 Authorization: Bearer <base64 of user-token-name:user-token-password>
 ````
 
-`publishing_type=automatic` uploads the staging repository to the Portal and
-releases it to Maven Central if validation passes. `publishing_type=portal_api`
-does the upload but leaves it for a status poll, which is the better choice for
-a large deployment.
-
-There is also a native Portal API — `POST /api/v1/publisher/upload` with
-`publishingType=AUTOMATIC` — but it takes a pre-built bundle, which is a
-different upload path than the build currently uses.
-
-So the recommended change is small: keep `./gradlew publish -Prelease=true`
-exactly as it is, and follow it with the one `POST` above. That is the whole
-difference between today's release and a hands-off one.
+That path uploads what the build produces at that moment, unchecked, so the
+release scripts do not use it.
 
 ## Nightly snapshots
 
@@ -162,28 +188,25 @@ repository content filter so a previously released artifact of the same version
 cannot mask a broken local publish, and type-checks a source set with the Value
 Checker loaded out of the published `framework-all` jar. That last part is what
 catches a POM missing a dependency the artifact needs at run time, which no
-in-repo test can see. But it runs against `publishToMavenLocal` output, via
-`:checker:exampleTests` in `test-cftests-nonjunit.sh` — so it verifies the
-artifacts the build *would* publish, not that what reached Central is what the
-build produced. Once nightly snapshots exist, pointing the same smoke test at
-the published snapshot repository would close that gap, and would fail on the
-day a publication breaks rather than at the next release.
+in-repo test can see. It runs against `publishToMavenLocal` output, via
+`:checker:exampleTests` in `test-cftests-nonjunit.sh`.  For a release, that is
+what reaches Central: `release_push.py` uploads exactly the files that
+`release_build.py` published locally and checked.  Snapshots are uploaded by
+`./gradlew publish`, so pointing the same smoke test at the published snapshot
+repository would still catch a snapshot publication that breaks.
 
 The `annotation-file-utilities` artifact has a check of its own in
 `checker/bin-devel/test-release.sh` (the `release` CI job): its POM and jar
 contents, and a run of the annotator from the locally published artifact by the
-consumer project `docs/examples/afu-consumer/`. It has the same limitation: it
-runs against `publishToMavenLocal` output.
+consumer project `docs/examples/afu-consumer/`.
 
 **The website is generated from the GitHub releases.** The "Publish website"
 workflow of the `eisop.github.io` repository runs `EisopSiteGenerator` daily;
-`release_push.py` asks to run it right after the GitHub release is posted.
+`release_push.py` asks to run it right after the GitHub release is posted, and
+waits until the site shows the release.
 
 ## Open questions
 
 - Should the nightly job run only when master has moved since the last snapshot?
   Publishing an identical snapshot daily costs little, but it does churn the
   90-day window.
-- Should a release use `publishing_type=automatic` or `portal_api` plus a status
-  poll? Automatic is one call; a poll gives a build log that says whether
-  validation passed, rather than an email later.

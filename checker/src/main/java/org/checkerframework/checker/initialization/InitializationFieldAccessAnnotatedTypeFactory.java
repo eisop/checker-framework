@@ -4,11 +4,31 @@ import com.sun.source.tree.ClassTree;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.analysis.AnalysisResult;
+import org.checkerframework.dataflow.cfg.ControlFlowGraph;
+import org.checkerframework.dataflow.cfg.UnderlyingAST.CFGMethod;
+import org.checkerframework.dataflow.cfg.node.AssignmentNode;
+import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
+import org.checkerframework.dataflow.cfg.node.Node;
+import org.checkerframework.framework.flow.CFAbstractAnalysis.FieldInitialValue;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.flow.FlowRefinementSources;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
+
+import java.util.IdentityHashMap;
+import java.util.List;
+
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 
 /** The type factory for the {@link InitializationFieldAccessSubchecker}. */
 public class InitializationFieldAccessAnnotatedTypeFactory
         extends InitializationParentAnnotatedTypeFactory {
+
+    /**
+     * Decides whether the analysis of a method can compute a value other than {@code @Initialized}.
+     */
+    private final FlowRefinementSources<CFValue> flowRefinementSources;
 
     /**
      * Create a new InitializationFieldAccessAnnotatedTypeFactory.
@@ -18,7 +38,56 @@ public class InitializationFieldAccessAnnotatedTypeFactory
     @SuppressWarnings("this-escape")
     public InitializationFieldAccessAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
+        flowRefinementSources =
+                new FlowRefinementSources<CFValue>(this) {
+                    @Override
+                    protected boolean isIrrelevantQualifier(AnnotationMirror anno) {
+                        return isInitialized(anno);
+                    }
+
+                    // The tree annotator computes the type of an object creation from the types
+                    // of its arguments. The @UnderInitialization return type of a constructor
+                    // that is declared in a method still makes the method relevant. It has to be
+                    // analyzed, because the initialization code of the class starts from the
+                    // values of the method's local variables, which a skipped method does not
+                    // record.
+                    @Override
+                    protected boolean isConstructorResultQualifierUsed() {
+                        return false;
+                    }
+                };
         postInit();
+    }
+
+    @Override
+    protected boolean isFlowAnalysisRedundant(
+            CFGMethod method, List<FieldInitialValue<CFValue>> fieldValues) {
+        return flowRefinementSources.isFlowAnalysisRedundant(method, fieldValues);
+    }
+
+    /**
+     * In a method whose analysis is redundant, the analysis computes {@code @Initialized} for every
+     * local variable and every assignment to one. Their declared type is the top type, so the type
+     * factory needs these values. Nodes in dead code get no value, as in the analysis.
+     */
+    @Override
+    protected void addRedundantFlowAnalysisValues(
+            ControlFlowGraph cfg, IdentityHashMap<Node, CFValue> nodeValues) {
+        for (Node node : cfg.getAllNodes(this::isIgnoredExceptionType)) {
+            if (node instanceof LocalVariableNode
+                    || (node instanceof AssignmentNode
+                            && ((AssignmentNode) node).getTarget() instanceof LocalVariableNode)) {
+                TypeMirror type = node.getType();
+                // A type variable has no primary qualifier; its bounds are @Initialized.
+                CFValue value =
+                        type.getKind() == TypeKind.TYPEVAR
+                                ? analysis.createAbstractValue(AnnotationMirrorSet.emptySet(), type)
+                                : analysis.createSingleAnnotationValue(INITIALIZED, type);
+                if (value != null) {
+                    nodeValues.put(node, value);
+                }
+            }
+        }
     }
 
     @Override
