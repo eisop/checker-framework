@@ -20,6 +20,7 @@ import org.checkerframework.framework.flow.CFAbstractAnalysis.FieldInitialValue;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -35,6 +36,7 @@ import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
@@ -77,6 +79,13 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
      * not a key has not been examined, or was examined together with a relevant element.
      */
     private final IdentityHashMap<Element, Boolean> relevantElements = new IdentityHashMap<>();
+
+    /**
+     * Maps a constructor to whether a use of it is relevant, if {@link
+     * #isConstructorResultQualifierUsed} returns false. See {@link #isRelevantConstructorUse}.
+     */
+    private final IdentityHashMap<ExecutableElement, Boolean> relevantConstructorUses =
+            new IdentityHashMap<>();
 
     /** Maps an element to whether it has a {@code @DefaultQualifier} annotation. */
     private final IdentityHashMap<Element, Boolean> defaultQualifierElements =
@@ -261,6 +270,18 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
     }
 
     /**
+     * Returns true if the type of an object creation can have the primary qualifier of the return
+     * type of the constructor. If not, that qualifier does not make a use of the constructor
+     * relevant; it still makes the declaration of a constructor in the scanned method relevant.
+     *
+     * @return true if the type of an object creation can have the primary qualifier of the return
+     *     type of the constructor
+     */
+    protected boolean isConstructorResultQualifierUsed() {
+        return true;
+    }
+
+    /**
      * Returns true if {@code annos} contains a relevant qualifier.
      *
      * @param annos a set of annotations
@@ -344,15 +365,62 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
             pendingClasses.add((TypeElement) elt);
             relevant = false;
         } else {
-            relevant = typeScanner.visit(atypeFactory.getAnnotatedType(elt));
-            if (!relevant && elt instanceof ExecutableElement) {
-                relevant =
-                        !atypeFactory
-                                .getContractsFromMethod()
-                                .getContracts((ExecutableElement) elt)
-                                .isEmpty();
-            }
+            relevant = typeScanner.visit(atypeFactory.getAnnotatedType(elt)) || hasContract(elt);
         }
+        relevant = examinePendingClasses(relevant);
+        relevantElements.put(elt, relevant);
+        return relevant;
+    }
+
+    /**
+     * Returns true if a type with a relevant qualifier can flow from a use of {@code constructor},
+     * such as an object creation, into the code that contains the use. This is {@link
+     * #isRelevantElement}, except that the primary qualifier of the return type of the constructor
+     * is not considered if {@link #isConstructorResultQualifierUsed} returns false.
+     *
+     * @param constructor a constructor
+     * @return true if a type with a relevant qualifier can flow from a use of {@code constructor}
+     */
+    private boolean isRelevantConstructorUse(ExecutableElement constructor) {
+        if (isConstructorResultQualifierUsed()) {
+            return isRelevantElement(constructor);
+        }
+        Boolean known = relevantConstructorUses.get(constructor);
+        if (known != null) {
+            return known;
+        }
+        AnnotatedExecutableType type = atypeFactory.getAnnotatedType(constructor);
+        // getAnnotatedType returns a copy, which can be modified.
+        type.getReturnType().clearAnnotations();
+        boolean relevant =
+                examinePendingClasses(typeScanner.visit(type) || hasContract(constructor));
+        relevantConstructorUses.put(constructor, relevant);
+        return relevant;
+    }
+
+    /**
+     * Returns true if {@code elt} is a method or constructor that has a contract.
+     *
+     * @param elt a field, a method, or a constructor
+     * @return true if {@code elt} is a method or constructor that has a contract
+     */
+    private boolean hasContract(Element elt) {
+        return elt instanceof ExecutableElement
+                && !atypeFactory
+                        .getContractsFromMethod()
+                        .getContracts((ExecutableElement) elt)
+                        .isEmpty();
+    }
+
+    /**
+     * Examines the classes in {@link #pendingClasses} and the classes that they depend on, unless
+     * {@code relevant} is already true, and records the result for every examined class.
+     *
+     * @param relevant whether the element whose type added the pending classes is already known to
+     *     be relevant
+     * @return true if {@code relevant} is true or one of the examined classes is relevant
+     */
+    private boolean examinePendingClasses(boolean relevant) {
         while (!relevant && !pendingClasses.isEmpty()) {
             TypeElement typeElt = pendingClasses.remove();
             Boolean knownClass = relevantElements.get(typeElt);
@@ -382,7 +450,6 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
             }
         }
         examinedClasses.clear();
-        relevantElements.put(elt, relevant);
         return relevant;
     }
 
@@ -504,7 +571,7 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
 
         @Override
         public Void visitNewClass(NewClassTree tree, Void p) {
-            if (isRelevantElement(TreeUtils.getSuperConstructor(tree))) {
+            if (isRelevantConstructorUse(TreeUtils.getSuperConstructor(tree))) {
                 relevant = true;
                 return null;
             }
@@ -514,7 +581,10 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
         @Override
         public Void visitMemberReference(MemberReferenceTree tree, Void p) {
             Element elt = TreeUtils.elementFromTree((Tree) tree);
-            if (elt != null && isRelevantElement(elt)) {
+            if (elt != null
+                    && (elt.getKind() == ElementKind.CONSTRUCTOR
+                            ? isRelevantConstructorUse((ExecutableElement) elt)
+                            : isRelevantElement(elt))) {
                 relevant = true;
                 return null;
             }

@@ -44,6 +44,17 @@ public class InitializationFieldAccessAnnotatedTypeFactory
                     protected boolean isIrrelevantQualifier(AnnotationMirror anno) {
                         return isInitialized(anno);
                     }
+
+                    // The tree annotator computes the type of an object creation from the types
+                    // of its arguments. The @UnderInitialization return type of a constructor
+                    // that is declared in a method still makes the method relevant. It has to be
+                    // analyzed, because the initialization code of the class starts from the
+                    // values of the method's local variables, which a skipped method does not
+                    // record.
+                    @Override
+                    protected boolean isConstructorResultQualifierUsed() {
+                        return false;
+                    }
                 };
         postInit();
     }

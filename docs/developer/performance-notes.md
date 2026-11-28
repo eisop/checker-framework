@@ -3045,6 +3045,12 @@ The `InitializationFieldAccessSubchecker` runs the dataflow analysis that the In
 Checker and the Nullness Checker share. In most methods every value that it computes is
 `@Initialized`. It skips those methods through `isFlowAnalysisRedundant`, with the same rule as the
 Key For Checker: `FlowAnalysisRelevance` with `@Initialized` as the only irrelevant qualifier.
+The return type of every constructor is `@UnderInitialization`, but the tree annotator computes the
+type of an object creation from its arguments, so a use of a constructor is relevant only through
+its parameters and type parameters (`isConstructorResultQualifierUsed`). The declaration of a
+constructor still is relevant: a method that declares a local or anonymous class is analyzed,
+because the initialization code of that class starts from the values of the method's local
+variables, which a skipped method does not record.
 
 Unlike Key For, the type factory does not compute those values without the analysis: local
 variables have the top type `@UnknownInitialization` by default and get `@Initialized` only from

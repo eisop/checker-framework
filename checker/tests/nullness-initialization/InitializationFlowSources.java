@@ -50,6 +50,24 @@ class InitializationFlowSources {
             copy.toString();
         }
 
+        // The initialization code of a class declared in a method starts from the values of the
+        // method's local variables, so such a method is analyzed.
+        void capturedByClasses() {
+            String s = "a";
+            Object anonymous =
+                    new Object() {
+                        String f = s;
+                    };
+            class Local {
+                String f;
+
+                Local() {
+                    f = s;
+                }
+            }
+            new Local();
+        }
+
         Function<String, Integer> lambda() {
             return s -> {
                 String t = s.trim();
