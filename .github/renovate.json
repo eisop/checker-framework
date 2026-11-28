@@ -33,8 +33,8 @@
       "groupName": "GitHub Actions non-major updates"
     },
     {
-      "description": "Do not delay JDK EA builds to avoid downloading superseded/deleted binaries",
-      "matchPackageNames": ["openjdk/jdk"],
+      "description": "Do not delay JDK EA builds to avoid downloading superseded/deleted binaries. Their datasource has no release timestamps.",
+      "matchDepNames": ["openjdk/jdk"],
       "minimumReleaseAge": "0 days"
     },
     {
@@ -64,11 +64,12 @@
       "enabled": false
     },
     {
-      "description": "Make the JDK EA build-bump PR title (from the JDK_EA_BUILD custom manager below) show the full jdk-<major>+<build> tag: the default title would otherwise show only the bare build number (e.g. 'to v17'), which reads as a JDK major-version bump instead of an EA build bump. commitMessageTopic/commitMessageExtra must live in a packageRule, not on the custom manager itself. depTypeTemplate in the custom manager exposes the captured major version as {{{depType}}} for this template.",
+      "description": "Make the JDK EA build-bump PR title (from the JDK_EA_BUILD custom manager below) show the full jdk-<major>+<build> tag: the default title would otherwise show only the bare build number (e.g. 'to v17'), which reads as a JDK major-version bump instead of an EA build bump. commitMessageTopic/commitMessageExtra must live in a packageRule, not on the custom manager itself. depTypeTemplate in the custom manager exposes the captured major version as {{{depType}}} for this template. The jdk.java.net datasource has no source repository, so the PR body links the changes between the two tags.",
       "matchManagers": ["custom.regex"],
-      "matchPackageNames": ["openjdk/jdk"],
+      "matchDepNames": ["openjdk/jdk"],
       "commitMessageTopic": "openjdk/jdk EA build",
-      "commitMessageExtra": "to jdk-{{{depType}}}+{{{newValue}}}"
+      "commitMessageExtra": "to jdk-{{{depType}}}+{{{newValue}}}",
+      "prBodyNotes": ["Changes: https://github.com/openjdk/jdk/compare/jdk-{{{depType}}}+{{{currentValue}}}...jdk-{{{depType}}}+{{{newValue}}}"]
     }
   ],
   "customManagers": [
@@ -104,14 +105,21 @@
     },
     {
       "customType": "regex",
-      "description": "Update JDK_EA_BUILD in GitHub Actions",
+      "description": "Update JDK_EA_BUILD in GitHub Actions to the build that jdk.java.net offers for download. The openjdk/jdk git tag of a build appears days before its binaries, and CI downloads the binaries. The jdk.java.net page of the feature release links to the build on the early-access path, or on the GA path during the release-candidate phase.",
       "managerFilePatterns": ["/^\\.github/workflows/ci\\.yml$/"],
       "matchStrings": ["JDK_EA_MAJOR:\\s+\"(?<major>\\d+)\"[\\s\\S]*?JDK_EA_BUILD:\\s+\"(?<currentValue>\\d+)\""],
-      "datasourceTemplate": "github-tags",
+      "datasourceTemplate": "custom.jdk-java-net",
       "depNameTemplate": "openjdk/jdk",
+      "packageNameTemplate": "{{{major}}}",
       "depTypeTemplate": "{{{major}}}",
       "versioningTemplate": "loose",
-      "extractVersionTemplate": "^jdk-{{{major}}}\\+(?<version>\\d+)$"
+      "extractVersionTemplate": "^https://download\\.java\\.net/java/[^/]+/jdk{{{major}}}/(?:[0-9a-f]+/)?(?<version>\\d+)/GPL/openjdk-{{{major}}}(?:-ea\\+\\d+)?_linux-x64_bin\\.tar\\.gz$"
     }
-  ]
+  ],
+  "customDatasources": {
+    "jdk-java-net": {
+      "defaultRegistryUrlTemplate": "https://jdk.java.net/{{packageName}}/",
+      "format": "html"
+    }
+  }
 }
