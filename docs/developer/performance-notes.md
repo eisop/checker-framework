@@ -2887,11 +2887,234 @@ run for few trees, mostly in switch and pattern handling, and are left to eisop#
 
 `ElementUtils.qualifiedNameCache` was audited and left as is; see the Short list entry.
 
+### CFG construction for a client that uses only dataflow (NullAway, November 2026)
+
+NullAway uses the dataflow library without the framework, through the shaded `dataflow-nullaway`
+artifact. Its JMH benchmarks compile Caffeine (2,584 CFGs) and NullAway itself (1,235 CFGs) with
+NullAway as the only Error Prone check. In a JFR profile of both on JDK 25 (36,222 on-CPU
+samples), the innermost non-JDK frame belongs to javac in 66.7% of the samples, to NullAway in
+19.9%, to Error Prone in 3.3%, and to the library in 10.2%: `cfg.builder` 3.1%, `analysis` 2.8%,
+the shaded plume-util 2.0%, the rest of `cfg` 1.5%, `javacutil` 0.8%. A library frame is on the
+stack of 22.2% of the samples: `ForwardAnalysisImpl.performAnalysis`, which runs NullAway's
+transfer function, in 12.5% and `CFGBuilder.build` in 9.6%. A Checker Framework checker hides CFG
+construction under its type computation: on Guava, `CFGBuilder.build` is on the stack of 4.6% of
+the samples of the JSpecify Reference Checker and of 2.7% of those of the Nullness Checker.
+
+Five changes to CFG construction, each built and profiled alone. The counts are the samples with
+the frame on the stack, in two profiles before the change and one after it:
+
+| Change | Frame | Before | After |
+| --- | --- | ---: | ---: |
+| `CFGTranslationPhaseTwo` records missing edges in `ArrayList`s, not in an `ArraySet` and a `LinkedHashSet`: a `MissingEdge` has identity equality and is recorded once | `CFGTranslationPhaseTwo.process` | 519, 542 | 445 |
+| `BlockImpl.getPredecessors` copies with `ArraySet.clone`, not with the copy constructor, which compares every element with all earlier ones | `BlockImpl.getPredecessors` | 103, 147 | 2 |
+| `ExceptionBlockImpl.getSuccessors` adds to one set; it copied the regular successors, wrapped the exceptional ones, and searched the result twice per element | `ExceptionBlockImpl.getSuccessors` | 183, 172 | 85 |
+| The 15 type mirrors that the `CFGTranslationPhaseOne` constructor looks up by class name are cached in the javac `Context` | `CFGTranslationPhaseOne.<init>` | 386, 364 | 139 |
+| | `JavacElements.getTypeElement` | 275, 249 | 12 |
+| `CFGTranslationPhaseOne.commonConvert` calls `Types.isSubtype` only for two numeric types; for two reference types the result only selected a branch that does nothing | `CFGTranslationPhaseOne.commonConvert` | 308, 291 | 210 |
+| | `JavacTypes.isSubtype` | 163, 135 | 67 |
+
+Together, `CFGBuilder.build` goes from 3,460 and 3,471 samples (9.6% and 9.7%) to 2,686 (7.4%).
+Profiles of nearly the same code differ by up to 0.6 percentage points in this frame.
+
+JMH on JDK 25, 12 forks per side, interleaved (4 warmup and 3 measurement iterations of 10 s;
+mean and 99.9% confidence interval over the 36 iterations; the paired difference is the mean of
+the 12 per-round differences and its standard error):
+
+| Benchmark | Before (ms/op) | After (ms/op) | Paired difference | Allocation per op |
+| --- | ---: | ---: | ---: | ---: |
+| Caffeine | 541.6 ± 9.1 | 529.4 ± 9.4 | -2.2% (0.95) | -2.4% |
+| NullAway | 811.0 ± 21.1 | 787.9 ± 12.2 | -2.8% (0.87) | -2.1% |
+| AutoDispose | 80.7 ± 0.8 | 80.9 ± 1.5 | +0.2% (0.89) | -0.3% |
+
+The confidence intervals of the two sides overlap; the after side is faster in 11 of the 12
+rounds for Caffeine and in 10 for NullAway. AutoDispose does not change.
+
+The checkers of the Checker Framework gain less than the wall clock resolves. JSpecify Reference
+Checker on Guava (JDK 25, 5 profiles per side, about 11,200 samples each): `CFGBuilder.build` 515
+and 535 samples before, 463 after; allocation of the compile thread -1.3%. Nullness Checker on
+Guava (JDK 21): allocation 29,650 MB before, 29,563 MB after (-0.3%); 14 interleaved runs per
+side take 74.9 s and 74.6 s (medians; paired difference -1.0%, standard error 0.7).
+
+What remains in CFG construction on this workload is `CFGTranslationPhaseOne.process`, the tree
+scan that creates the nodes (4.4% of the samples), then phase three (1.3%) and phase two (1.2%).
+`BlockImpl.addPredecessor` (`ArraySet.add`, a linear search) is in 0.3% of the samples before the
+changes and in 0.5% after them; why its count rises was not established.
+
+### Nullness Checker: one type check per class (November 2026)
+
+The Nullness Checker is four checkers with a type factory and a visitor each: the
+`InitializationChecker` at the top, the `NullnessNoInitSubchecker`, and below that the
+`KeyForSubchecker` and the `InitializationFieldAccessSubchecker`. A JFR recording of the Nullness
+Checker on the Guava 33.5.0 sources (606 files, JDK 25, 5767 execution samples, no truncated
+stacks; checkers told apart by marker frames around each checker's `typeProcess`) splits the
+samples as follows, before the change of this section:
+
+| Checker | Samples | Share | CFG build | `performAnalysis` | Other flow | Visitor |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Key For | 1609 | 27.9% | 110 | 689 | 70 | 740 |
+| Initialization field access | 1324 | 23.0% | 0 | 609 | 53 | 662 |
+| Nullness (no initialization) | 1422 | 24.7% | 4 | 649 | 54 | 715 |
+| Initialization (top) | 905 | 15.7% | 0 | 0 | 0 | 905 |
+| Outside the checkers (javac) | 507 | 8.8% | | | | |
+
+The control flow graph is built once, by the Key For Checker, and takes 2% of the samples; the
+three analyses cost about the same, as do the four visitors. Frames of `AnnotatedTypeCopier`,
+`deepCopy` and `shallowCopy` are on 15.3% of the samples and allocate 38% of the bytes.
+
+The `InitializationFieldAccessVisitor` scanned each class with the inherited `BaseTypeVisitor`
+logic and discarded every diagnostic: a second, unobserved type check of the whole program by a
+checker that only exists to run a dataflow analysis. 660 samples (11.4%) were in that scan. The
+visitor is now a scanner that does not check anything and only triggers the analysis and the
+post-processing of each class, including classes that are not members of a class.
+
+Interleaved A/B on that workload with JDK 21 (12 rounds per side; allocation is the deterministic
+`jdk.ThreadAllocationStatistics` total): wall-clock median 74.1 s to 67.1 s (-9.5%; paired
+difference -7.3 s, standard error 0.6 s); allocation 29663 MB to 25981 MB (-12.4%). The
+diagnostics (1009 warnings) are identical. No effect with `-AassumeInitialized` or
+`-Amode=jspecify`, under which the visitor already did nothing.
+
+### `asSuper` copies in subtype checks (November 2026)
+
+A JFR recording of the Nullness Checker on the Guava 33.5.0 sources (606 files, JDK 25, 5767
+execution samples) has `AsSuperVisitor.asSuper` on 423 samples, with 3478 MB of the 29122 MB of
+sampled allocation. Two of its copies were removed:
+
+- `DefaultTypeHierarchy.visitTypeArgs` called `AnnotatedTypes.castedAsSuper` for every subtype
+  check of two declared types; it deep-copies both types. Of 418,134 calls, 69% have a supertype
+  whose class is not generic and has no enclosing type, so there are no type arguments to
+  compare, and 26% have a subtype that already is a type of the supertype's class, for which the
+  copy is only read. Both cases now skip the call.
+- `AsSuperVisitor.asSuper` deep-copied both of its arguments. For two declared types (768,000 of
+  809,000 calls) the visitor only reads the underlying type of the supertype, so that copy is
+  skipped.
+
+Interleaved A/B of both changes on that workload with JDK 21, against a master that has the change
+of the previous section (12 rounds per side; allocation is the median of 3 runs of the
+deterministic `jdk.ThreadAllocationStatistics` total): wall-clock median 67.2 s to 65.6 s (-2.4%;
+paired difference -1.9 s, standard error 0.9 s); allocation 25879 MB to 24664 MB (-4.7%). The
+diagnostics (1009 warnings) are identical. The first change accounts for about two thirds of the
+allocation saved.
+
+Remaining `asSuper` cost, by caller, from the recording before the changes (samples, allocation):
+`castedAsSuper` from `visitTypeArgs` 150 and 1388 MB (now mostly skipped); `asOuterSuper` from
+`AnnotatedTypes.addTypeVarMappings` 85 and 769 MB; `OverrideChecker`'s receiver check 73 and
+536 MB; `AbstractType.asSuper` in type argument inference 69 and 465 MB. These callers read the
+result too, but `asSuper` still copies its first argument for them; whether they can do without
+that copy has not been traced.
+
+### Key For Checker: no dataflow analysis for methods without keys (November 2026)
+
+The Nullness Checker runs the Key For Checker as a subchecker, and its dataflow analysis ran for
+every method although most methods never see a map key: every value that the analysis computes
+there is `@UnknownKeyFor`, which is what the type factory computes without the analysis.
+`GenericAnnotatedTypeFactory.isFlowAnalysisRedundant` lets a type factory say so for a method;
+`analyze` then builds the CFG (other checkers share it, and the tree-to-node lookup is still
+recorded) but does not run the analysis for the method or for the lambdas in it. The framework
+never asks for initialization code, for an AST with a captured store, for a method of a local or
+anonymous class whose enclosing method has final local variables with values, or with `-Acfgviz`
+or `-Aflowdotdir`.
+
+`KeyForFlowRefinementSources` implements the rule as a subclass of `FlowRefinementSources`: a
+method is relevant if a qualifier other than `@UnknownKeyFor` can flow into it or it can establish
+a key. It scans the method once, stopping at the first relevant construct: a Key For annotation or
+`@DefaultQualifier`; a use of a field, method, constructor, method reference, or lambda function
+type whose type mentions such a qualifier, has a contract, or mentions a class that (transitively,
+through type arguments and supertypes) does; a call of `Map.put` or `Map.containsKey`; a record
+pattern; a variable declared outside the method. The enclosing classes and the field values of the
+initial store are examined as well. Relevance of an element is cached for the compilation.
+
+On the Guava 33.5.0 sources (Nullness Checker, JDK 21, master `e81ccb2a9e`) the rule is asked about
+10,731 methods and rejects 357 of them; 10,374 of the 12,884 method analyses and 362 of the 394
+lambda analyses of the Key For Checker are skipped. The rule itself takes 1.7 s in total.
+
+| | master | skip | change |
+| --- | ---: | ---: | ---: |
+| Wall, median of 12 interleaved rounds | 66.4 s | 62.7 s | -5.5% |
+| Wall, mean paired difference | | -4.07 s (se 0.37) | -6.1% |
+| Allocation, median of 3 | 24,671 MB | 23,047 MB | -6.6% |
+
+The diagnostics are identical (1,009 warnings). A temporary verify mode that ran the analysis for
+every skipped method and compared the values found no refined value in a skipped method on Guava
+or in the `:checker:test` and `:framework:test` inputs (9,480 of 17,594 Key For method analyses
+skipped there). `checker/tests/nullness/KeyForFlowSources.java` has one method per source of a key;
+with a rule that skips every method, 21 errors appear.
+
+### Initialization Checker: no dataflow analysis for methods without initialization types (November 2026)
+
+The `InitializationFieldAccessSubchecker` runs the dataflow analysis that the Initialization
+Checker and the Nullness Checker share. In most methods every value that it computes is
+`@Initialized`. It skips those methods through `isFlowAnalysisRedundant`, with the same rule as the
+Key For Checker: `FlowRefinementSources` with `@Initialized` as the only irrelevant qualifier.
+The return type of every constructor is `@UnderInitialization`, but the tree annotator computes the
+type of an object creation from its arguments, so a use of a constructor is relevant only through
+its parameters and type parameters (`isConstructorResultQualifierUsed`). The declaration of a
+constructor still is relevant: a method that declares a local or anonymous class is analyzed,
+because the initialization code of that class starts from the values of the method's local
+variables, which a skipped method does not record.
+
+Unlike Key For, the type factory does not compute those values without the analysis: local variables
+have the top type `@UnknownInitialization` by default and get `@Initialized` only from the analysis.
+`GenericAnnotatedTypeFactory.addRedundantFlowAnalysisValues` lets a type factory supply the values
+of a skipped method. `InitializationFieldAccessAnnotatedTypeFactory` supplies `@Initialized` for
+every reachable `LocalVariableNode` and assignment to one, and an unannotated value for a local
+variable of a type variable type. Nodes in dead code get no value, as in the analysis, so a local
+variable in an unreachable `catch` block keeps the top type
+(`nullness-initialization/TryCatch.java`).
+
+On the Guava 33.5.0 sources (Nullness Checker, JDK 21), the rule is asked about 9,993 methods and
+skips the analysis of 9,394 of them; without the special case for constructor uses, it skips 7,378.
+Interleaved A/B of both skips together against master (10 rounds; allocation is the median of 3
+runs):
+
+| | master | both skips | change |
+| --- | ---: | ---: | ---: |
+| Wall, median | 65.8 s | 59.0 s | -10.5% |
+| Wall, mean paired difference | | -7.07 s (se 0.92) | -10.7% |
+| User CPU, median | 170.8 s | 162.9 s | -4.6% |
+| Allocation | 24,665 MB | 21,411 MB | -13.2% |
+
+The special case for constructor uses accounts for 2.1% of the allocation (all 3 runs lower) and
+for -0.9% of the wall clock (paired difference -0.69 s, se 0.69).
+
+The diagnostics are identical (1,009 warnings). Before the special case for constructor uses, a
+temporary verify mode ran the analysis for every skipped method on Guava and compared its values
+with the supplied ones. They differ only for nodes without a tree (the temporary variables of
+postfix operations and switch statements, marker nodes), for assignment targets, which have no value
+in the analysis, for assignments of `null` (`@FBCBottom`), for variables captured by a lambda (the
+verify mode analyzed lambdas without their captured store), and for 101 nodes of a type variable
+type that the analysis gives a primary qualifier.
+`checker/tests/nullness-initialization/InitializationFlowSources.java` covers local variables of
+each kind and one method per source of an initialization type; without the supplied values, 17 of
+the 22 `NullnessTest` runs fail, and with a rule that skips every method, the 3 expected errors of
+that test and 13 of other tests are missing and 6 unexpected errors appear.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a
 workload not previously considered, or a measurement that contradicts
 the prior finding. A fresh hypothesis is not new evidence.
+
+- **Skipping the Key For Checker's visitor for the bodies of methods without keys (November
+  2026).** After the dataflow analysis of such a method is skipped (see *Key For Checker: no
+  dataflow analysis for methods without keys*), every expression in its body has the type
+  `@UnknownKeyFor`, so the visitor should have nothing to report there. A prototype that did not
+  scan these bodies measured 66.1 s against 70.7 s on Guava (one run), but 11 of the 1,009 warnings
+  disappeared. All 11 are `type.argument.type.incompatible` for a captured type argument: the lower
+  bound of a capture of a JDK type is `@KeyForBottom`, while the implicit lower bound of a type
+  parameter in source code is `@UnknownKeyFor` (the `@DefaultFor` on `@UnknownKeyFor`; eisop#1972).
+  These are false positives, but removing them is a behavior change that belongs to that issue.
+  The other reports that do not depend on qualifiers (`cast.redundant` with `-Alint=cast:redundant`,
+  `-Ashowchecks`, failures of type argument inference) would have to be kept as well. Revisit after
+  eisop#1972.
+
+- **Skipping the Initialization Checker's visitor for the bodies of methods without
+  initialization types (November 2026).** After the analysis of such a method is skipped (see
+  *Initialization Checker: no dataflow analysis for methods without initialization types*), every
+  type in its body is `@Initialized`. A prototype that did not scan the body of such a method when
+  all of its nodes are reachable and it declares no class skipped 7,039 of 13,621 method bodies on
+  Guava, with identical diagnostics and all `:checker:test` tests passing, but measured +0.0% wall
+  (mean paired difference +0.03 s, se 0.78, 8 interleaved rounds). The visitor's work in these
+  bodies is cheap once their types need no analysis.
 
 - **Sharing `AnnotationFileElementTypes`'s method/constructor signature indexes across a
   compilation's type factories — measured-and-rejected (July 2026).** `methodSigIndexCache` and
@@ -3506,6 +3729,20 @@ the prior finding. A fresh hypothesis is not new evidence.
   stackless `Result` through the scanner frames costs no more than letting every pending `scan`
   call return through a flag check. Fix the retry paths for correctness
   (stop throwing in the first place) if ever, not for speed.
+- **Dataflow CFG construction for NullAway: three ideas not taken (November 2026).** See "CFG
+  construction for a client that uses only dataflow" for the workload (NullAway's JMH benchmarks,
+  about 36,000 on-CPU samples per profile).
+  - *`Trees` instance from the compiler context.* The `CFGTranslationPhaseOne` constructor calls
+    `Trees.instance(ProcessingEnvironment)`, which is in 62 and 70 samples (0.2%).
+    `JavacTrees.instance(Context)` halves that (30 and 33 samples), but it names a class of
+    `com.sun.tools.javac.api`, a package that a client of the dataflow library alone does not
+    have to export today: `:dataflow:busyExpressionTest` fails with an `IllegalAccessError`. A
+    new required export is not worth 0.1% of the samples.
+  - *Cache the depth-first order of the blocks in `ControlFlowGraph`.* NullAway runs one analysis
+    per CFG, so there is no second request to serve from a cache.
+  - *A hash-based or hybrid predecessor set for `BlockImpl.addPredecessor`.* The method is in
+    0.3-0.5% of the samples. A second representation for the blocks with many predecessors is
+    more code than that justifies.
 
 ---
 
