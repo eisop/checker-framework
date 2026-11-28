@@ -2988,11 +2988,12 @@ sampled allocation. Two of its copies were removed:
   809,000 calls) the visitor only reads the underlying type of the supertype, so that copy is
   skipped.
 
-Interleaved A/B of both changes on that workload with JDK 21 (12 rounds per side; allocation is
-the deterministic `jdk.ThreadAllocationStatistics` total): wall-clock median 74.1 s to 72.0 s
-(-2.9%; paired difference -2.1 s, standard error 0.6 s); allocation 29663 MB to 28208 MB (-4.9%).
-The diagnostics (1009 warnings) are identical. The first change accounts for about two thirds of
-the allocation saved.
+Interleaved A/B of both changes on that workload with JDK 21, against a master that has the change
+of the previous section (12 rounds per side; allocation is the median of 3 runs of the
+deterministic `jdk.ThreadAllocationStatistics` total): wall-clock median 67.2 s to 65.6 s (-2.4%;
+paired difference -1.9 s, standard error 0.9 s); allocation 25879 MB to 24664 MB (-4.7%). The
+diagnostics (1009 warnings) are identical. The first change accounts for about two thirds of the
+allocation saved.
 
 Remaining `asSuper` cost, by caller, from the recording before the changes (samples, allocation):
 `castedAsSuper` from `visitTypeArgs` 150 and 1388 MB (now mostly skipped); `asOuterSuper` from
