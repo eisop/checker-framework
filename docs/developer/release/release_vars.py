@@ -21,11 +21,20 @@ from release_errors import ReleaseError
 def execute_output(
     command: str | list[str],
     working_dir: Path | None = None,
+    check: bool = True,
 ) -> str:
     """Execute the given command.
 
+    Args:
+        command: the command
+        working_dir: the directory to run it in, or None for the current directory
+        check: if false, return the output also when the command fails
+
     Returns:
         the output
+
+    Raises:
+        ReleaseError: If check is true and the status code is non-zero.
     """
     if working_dir is not None:
         print(f"Executing in {working_dir}: {command}")
@@ -33,10 +42,11 @@ def execute_output(
         print(f"Executing: {command}")
     command_line = shlex.split(command) if isinstance(command, str) else command
 
-    process = subprocess.Popen(command_line, stdout=subprocess.PIPE, cwd=working_dir)
-    out = process.communicate()[0]
-    process.wait()
-    return out.decode("utf-8")
+    process = subprocess.run(command_line, stdout=subprocess.PIPE, cwd=working_dir, check=False)
+    if check and process.returncode:
+        msg = f"Error status {process.returncode} while executing {command} in {working_dir}"
+        raise ReleaseError(msg)
+    return process.stdout.decode("utf-8")
 
 
 def execute(
@@ -91,12 +101,17 @@ SANITY_DIR = TMP_DIR / "sanity"
 RELEASE_BUILD_COMPLETED_FLAG_FILE = TMP_DIR / "release-build-completed"
 
 # The GitHub repository of the Checker Framework, which includes the AFU.
-LIVE_CHECKER_REPO = "git@github.com:eisop/checker-framework.git"
+GITHUB_REPO = "eisop/checker-framework"
+LIVE_CHECKER_REPO = f"git@github.com:{GITHUB_REPO}.git"
+
+# The annotated JDK, which the build expects next to the Checker Framework, in BUILD_DIR.
+ANNOTATED_JDK_REPO = "https://github.com/eisop/jdk.git"
 
 # The clone in which release_build.py builds, commits, and tags the release, and from which
 # release_push.py pushes it to LIVE_CHECKER_REPO.
 BUILD_DIR = TMP_DIR / "build"
 CHECKER_FRAMEWORK = BUILD_DIR / "checker-framework"
+CHANGELOG = CHECKER_FRAMEWORK / "docs" / "CHANGELOG.md"
 
 # The version of the release.  Without -Prelease=true, the build's version is a -SNAPSHOT version.
 # If a new Gradle wrapper was recently installed, the first ./gradlew command may output:
@@ -108,6 +123,16 @@ if not (SCRIPTS_CLONE / "gradlew").is_file():
         " the Step by Step section of docs/developer/release/README-release-process.html."
     )
     raise ReleaseError(msg)
+
+os.environ["CHECKERFRAMEWORK"] = str(CHECKER_FRAMEWORK)
+os.environ["TEXINPUTS"] = ".:..:"
+# The JDK of the release build, also for the Gradle command below; the environment variable
+# JAVA_21_HOME overrides the default.
+os.environ.setdefault("JAVA_21_HOME", "/usr/lib/jvm/java-21-openjdk/")
+os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
+os.environ["PATH"] = os.environ["JAVA_HOME"] + "/bin:" + os.environ["PATH"]
+
+# The first run absorbs the output of a download of the Gradle wrapper; see above.
 execute("./gradlew version -q -Prelease=true", SCRIPTS_CLONE)
 CF_VERSION = execute_output("./gradlew version -q -Prelease=true", SCRIPTS_CLONE).strip()
 
@@ -115,16 +140,46 @@ CF_VERSION = execute_output("./gradlew version -q -Prelease=true", SCRIPTS_CLONE
 # which are attached to the GitHub release.  The web site is generated from them.
 RELEASE_FILES_DIR = TMP_DIR / "release-files"
 
-os.environ["CHECKERFRAMEWORK"] = str(CHECKER_FRAMEWORK)
-os.environ["TEXINPUTS"] = ".:..:"
-# The JDK of the release build; the environment variable JAVA_21_HOME overrides the default.
-os.environ.setdefault("JAVA_21_HOME", "/usr/lib/jvm/java-21-openjdk/")
-os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
+# The repositories that the build clones or updates, besides the Checker Framework, with the
+# Gradle task that does it.  Build Steps 1 and 3 get them once; the release tag records their
+# commits.
+HELPER_CLONES = {
+    BUILD_DIR / "jdk": ":framework:cloneAnnotatedJdk",
+    CHECKER_FRAMEWORK / "checker" / "bin-devel" / ".plume-scripts": ":getPlumeScripts",
+    CHECKER_FRAMEWORK / "checker" / "bin-devel" / ".html-tools": ":getHtmlTools",
+}
 
-PATH = os.environ["JAVA_HOME"] + "/bin:" + os.environ["PATH"]
-PATH = PATH + ":/usr/bin"
-PATH = PATH + ":."
-os.environ["PATH"] = PATH
+# The options of the Gradle commands that build, test, and publish the release.  -Prelease=true
+# makes the version releaseVersion rather than a -SNAPSHOT version.  Without the -x options, every
+# Gradle command would update the repositories in HELPER_CLONES again, and a change to one of them
+# between two commands would change the release.
+GRADLE_RELEASE_OPTIONS = ["-Prelease=true", "--console=plain"]
+for task in HELPER_CLONES.values():
+    GRADLE_RELEASE_OPTIONS += ["-x", task]
+
+# The local Maven repository to which release_build.py publishes, if not the user's; the
+# environment variable CF_RELEASE_MAVEN_REPO sets it.  CI sets it, so that a test run does not
+# leave a release version in the user's repository.
+LOCAL_MAVEN_REPO = os.environ.get("CF_RELEASE_MAVEN_REPO")
+MAVEN_REPO_OPTIONS = [f"-Dmaven.repo.local={LOCAL_MAVEN_REPO}"] if LOCAL_MAVEN_REPO else []
+GRADLE_RELEASE_OPTIONS += MAVEN_REPO_OPTIONS
+
+# The signing key, if not signing.gnupg.keyName in the user's gradle.properties; the environment
+# variable CF_RELEASE_SIGNING_KEY sets it.  (Gradle ignores an ORG_GRADLE_PROJECT_ environment
+# variable whose name contains a dot, such as one for signing.gnupg.keyName.)
+SIGNING_KEY = os.environ.get("CF_RELEASE_SIGNING_KEY")
+if SIGNING_KEY:
+    GRADLE_RELEASE_OPTIONS.append(f"-Psigning.gnupg.keyName={SIGNING_KEY}")
+
+
+def gradle_release(*tasks: str) -> list[str]:
+    """Return the Gradle command that runs the given tasks for the release.
+
+    Returns:
+        the Gradle command
+    """
+    return ["./gradlew", *tasks, *GRADLE_RELEASE_OPTIONS]
+
 
 # Tools that must be on your PATH (besides common Unix ones like grep)
 TOOLS = [
@@ -134,4 +189,7 @@ TOOLS = [
     "mvn",
     "git",
     "dot",
+    "gh",
+    "make",
+    "unzip",
 ]

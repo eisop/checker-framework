@@ -1,11 +1,15 @@
 #!/bin/bash
 
-# Runs the steps of the release build that need no credentials, so that a problem in them is found
-# by a pull request rather than during a release.  See docs/developer/release/release_build.py.
+# Runs the release scripts as a dry run, without credentials, so that a problem in them, or in the
+# build of the release, is found by a pull request rather than during a release.  See
+# docs/developer/release/README-release-process.html.
 #
-# The release scripts themselves are not run: they clone the repositories, ask questions, and push.
-# This script runs the Gradle tasks that they run, with a throw-away signing key and into
-# temporary directories, and checks the results.
+# release_build.py --dry-run builds, commits, tags, and checks the release in a temporary release
+# directory, from a clone of this checkout, signing with a throw-away key; release_push.py --dry-run
+# runs the sanity checks, generates the web site from the zip file and checks its links, and checks
+# the Maven artifacts, without pushing or publishing anything.  This script then checks what the
+# scripts do not: the contents of the zip files, and the published Annotation File Utilities.
+# The zip files are left in build/, for the nightly build.
 
 set -e
 # set -o verbose
@@ -26,34 +30,40 @@ fail() {
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-# The version of a release build, which is the one in release.gradle.
-VERSION="$(./gradlew -q :checker:properties -Prelease=true | sed -n 's/^version: //p')"
-if [ -z "${VERSION}" ] || [[ "${VERSION}" == *SNAPSHOT* ]]; then
-  fail "Could not determine the release version; got '${VERSION}'."
-fi
+# The version of the release, which is releaseVersion in release.gradle.
+VERSION="$(sed -n 's/^ *releaseVersion = "\(.*\)"$/\1/p' release.gradle)"
+[ -n "${VERSION}" ] || fail "Could not read releaseVersion from release.gradle."
 
-## Update the version numbers in the documentation.
-./gradlew updateVersionNumbers --console=plain --warning-mode=all
-if git status --porcelain | grep -v ' docs/'; then
-  fail "updateVersionNumbers changed files outside docs/."
-fi
-grep -q "annotation-file-utilities-${VERSION}" docs/annotation-file-utilities/annotation-file-utilities.html \
-  || fail "updateVersionNumbers did not update the version in the Annotation File Utilities manual."
-grep -q "checker-framework-${VERSION}" docs/checker-framework-webpage.html \
-  || fail "updateVersionNumbers did not update the version in the web page."
-# The changelog has a section for the release.  Its date may still be a placeholder here; the
-# release build (release_build.py) checks the date.
-grep -q "^## Version ${VERSION} (" docs/CHANGELOG.md \
-  || fail "docs/CHANGELOG.md has no section \"## Version ${VERSION} (...)\"."
+## Run the release scripts, as a dry run, in a release directory of their own.
+export CF_RELEASE_DIR="$TMP_DIR/cf-release"
+mkdir -m 700 "$CF_RELEASE_DIR"
+# The scripts run from a clone of the Checker Framework, and build its master branch: this checkout.
+SCRIPTS_CLONE="$CF_RELEASE_DIR/checker-framework"
+git clone --quiet "$ROOT_DIR" "$SCRIPTS_CLONE"
+git -C "$SCRIPTS_CLONE" checkout --quiet -B master "$(git rev-parse HEAD)"
+# Sign with a throw-away key.
+export GNUPGHOME="$TMP_DIR/gnupg"
+mkdir -m 700 "$GNUPGHOME"
+SIGNING_KEY="release-test@example.invalid"
+gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key "$SIGNING_KEY" default default never
+# Use a repository of its own, so that a release version is not left in the developer's ~/.m2.
+export CF_RELEASE_MAVEN_REPO="$TMP_DIR/m2"
+export JAVA_21_HOME="${JAVA_21_HOME:-${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk}}"
+# The release commit has the author of the checkout's commit, who is a contributor already.
+GIT_AUTHOR_NAME="$(git log -1 --format=%an)"
+GIT_AUTHOR_EMAIL="$(git log -1 --format=%ae)"
+export GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL
+export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+export CF_RELEASE_SIGNING_KEY="$SIGNING_KEY"
+python3 "$SCRIPTS_CLONE/docs/developer/release/release_build.py" --dry-run
+python3 "$SCRIPTS_CLONE/docs/developer/release/release_push.py" --dry-run
+git -C "$CF_RELEASE_DIR/build/checker-framework" tag --verify "checker-framework-${VERSION}" \
+  || fail "The release tag is not signed."
 
-## Build the release files.
-./gradlew buildAll -Prelease=true --console=plain --warning-mode=all
-# The source files of the tutorial, which its web page links to.
-make -C docs/tutorial
-
-## Create the zip files, which release_build.py attaches to the GitHub release.  The web site is
-## generated from them.
-./gradlew zip annotationFileUtilitiesZip -Prelease=true --console=plain --warning-mode=all
+## Keep the zip files for the nightly build.
+mkdir -p build
+cp "$CF_RELEASE_DIR/release-files/checker-framework-${VERSION}.zip" \
+  "$CF_RELEASE_DIR/release-files/annotation-file-utilities-${VERSION}.zip" build/
 
 ## Check the contents of the zip files.
 CF_ZIP="build/checker-framework-${VERSION}.zip"
@@ -148,15 +158,10 @@ check_stubifier_jar() {
 }
 check_stubifier_jar "$CF_HOME/checker/dist/checker.jar" class
 
-## Check the links of the pages that the zip ships.  The check of external links is online, so it
-## is left to the release build (release_build.py); here they are only checked for syntax.
-checker/bin-devel/check-release-links.py "$CF_HOME"
-
-## Run the tools from the unpacked zip files.
+## Run the Annotation File Utilities from the unpacked zip file.  release_push.py runs the
+## Checker Framework from it.
 SMOKE_DIR="$TMP_DIR/smoke"
 mkdir -p "$SMOKE_DIR"
-# The same check that release_push.py runs on the release zip file.
-docs/developer/release/javac-sanity-check.sh "$CF_HOME" "$CF_HOME/docs/examples/NullnessExampleWithWarnings.java"
 printf 'class Insert {\n  Object f;\n}\n' > "$SMOKE_DIR/Insert.java"
 printf 'package org.checkerframework.checker.nullness.qual:\nannotation @Nullable:\n\npackage :\nclass Insert:\n    field f: @org.checkerframework.checker.nullness.qual.Nullable\n' > "$SMOKE_DIR/Insert.jaif"
 (cd "$SMOKE_DIR" && "$AFU_HOME/bin/insert-annotations-to-source" -i Insert.jaif Insert.java)
@@ -166,23 +171,9 @@ grep -q '@Nullable' "$SMOKE_DIR/Insert.java" \
     fail "insert-annotations-to-source did not insert the annotation."
   }
 
-## Publish to a local Maven repository, signing with a throw-away key.
-export GNUPGHOME="$TMP_DIR/gnupg"
-mkdir -m 700 "$GNUPGHOME"
-SIGNING_KEY="release-test@example.invalid"
-gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key "$SIGNING_KEY" default default never
-# Use a repository of its own, so that a release version is not left in the developer's ~/.m2.
-MAVEN_REPO="$TMP_DIR/m2"
-./gradlew publishToMavenLocal -Prelease=true -Dmaven.repo.local="$MAVEN_REPO" \
-  -Psigning.gnupg.keyName="$SIGNING_KEY" -Psigning.gnupg.passphrase= --console=plain --warning-mode=all
-
+## Check the published artifacts that release_build.py does not check.
+MAVEN_REPO="$CF_RELEASE_MAVEN_REPO"
 MAVEN_LOCAL="$MAVEN_REPO/io/github/eisop"
-for artifact in annotation-file-utilities checker checker-qual checker-util framework dataflow javacutil; do
-  dir="$MAVEN_LOCAL/$artifact/${VERSION}"
-  for suffix in .pom .jar .jar.asc .pom.asc; do
-    [ -f "$dir/$artifact-${VERSION}$suffix" ] || fail "Maven publication is missing $dir/$artifact-${VERSION}$suffix."
-  done
-done
 for artifact in framework framework-all checker; do
   prefix="$MAVEN_LOCAL/$artifact/${VERSION}/$artifact-${VERSION}"
   check_stubifier_jar "$prefix.jar" class
@@ -219,30 +210,3 @@ fi
 (cd docs/examples/afu-consumer \
   && "$ROOT_DIR/gradlew" -Dmaven.repo.local="$MAVEN_REPO" -PafuVersion="${VERSION}" --console=plain \
     clean smoketest)
-
-## No published POM depends on org.checkerframework:checker-qual, the typetools artifact: a
-## consumer must get io.github.eisop:checker-qual only.  (Exclusions of it are fine.)
-for pom in "$MAVEN_LOCAL"/*/"${VERSION}"/*.pom; do
-  python3 - "$pom" << 'EOF' || fail "$pom depends on org.checkerframework:checker-qual."
-import sys
-import xml.etree.ElementTree as ET
-ns = {"m": "http://maven.apache.org/POM/4.0.0"}
-for dep in ET.parse(sys.argv[1]).getroot().findall("m:dependencies/m:dependency", ns):
-    if dep.findtext("m:groupId", "", ns) == "org.checkerframework" and dep.findtext("m:artifactId", "", ns) == "checker-qual":
-        sys.exit(1)
-EOF
-done
-
-## Compile the Maven example against the published artifacts, as release_push.py does: the
-## checker runs from the annotation processor path and reports the example's expected error.
-MAVEN_EXAMPLE_DIR="$TMP_DIR/maven-example"
-./gradlew updateCopyMavenExample -Prelease=true -PdestDir="$MAVEN_EXAMPLE_DIR" --console=plain --warning-mode=all
-# The example's build is supposed to fail; `-fn` makes mvn exit normally and the grep decides.
-(cd "$MAVEN_EXAMPLE_DIR/MavenExample" \
-  && mvn -B -fn -Dmaven.repo.local="$MAVEN_REPO" compile > "$TMP_DIR/maven-example.txt" 2>&1) || true
-grep -Eq 'MavenExample\.java:\[30,(29|30)\] \[assignment\.type\.incompatible\] incompatible types in assignment\.' \
-  "$TMP_DIR/maven-example.txt" \
-  || {
-    cat "$TMP_DIR/maven-example.txt"
-    fail "The Maven example did not report its expected error with the published artifacts."
-  }

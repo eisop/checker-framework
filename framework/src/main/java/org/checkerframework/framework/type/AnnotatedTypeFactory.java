@@ -1752,6 +1752,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private class UnwrittenLocationFiller extends DoubleAnnotatedTypeScanner<Void> {
 
+        /**
+         * The type parameters of the overridden method's signature whose upper bound is being
+         * scanned in place of a use of the type variable. The upper bound can use the type variable
+         * again, as in {@code E extends Entry<E>}.
+         */
+        private final Set<Element> typeParametersInScan =
+                Collections.newSetFromMap(new IdentityHashMap<>(2));
+
         /** Creates an UnwrittenLocationFiller. */
         UnwrittenLocationFiller() {}
 
@@ -1763,9 +1771,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             if (writtenPart.getKind() == TypeKind.TYPEVAR) {
                 if (overriderPart.getKind() != TypeKind.TYPEVAR) {
                     // An override by the erasure of the method, or of a method of a raw
-                    // supertype, which replaces the type variable by its upper bound.
-                    return scan(
-                            ((AnnotatedTypeVariable) writtenPart).getUpperBound(), overriderPart);
+                    // supertype, which replaces the type variable by its upper bound. A use of
+                    // the type variable within its own upper bound is not replaced again.
+                    Element typeParameter =
+                            ((TypeVariable) writtenPart.getUnderlyingType()).asElement();
+                    if (!typeParametersInScan.add(typeParameter)) {
+                        return null;
+                    }
+                    try {
+                        return scan(
+                                ((AnnotatedTypeVariable) writtenPart).getUpperBound(),
+                                overriderPart);
+                    } finally {
+                        typeParametersInScan.remove(typeParameter);
+                    }
                 }
                 if (!(((TypeVariable) writtenPart.getUnderlyingType())
                                 .asElement()
