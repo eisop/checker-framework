@@ -55,9 +55,20 @@ EXPECTED_ARTIFACTS = (
     "javacutil",
 )
 
+# The sources and Javadoc jars that contain only a README.md, which names the artifact whose jar
+# has those sources or that Javadoc: artifact -> kinds of jar.
+PLACEHOLDER_JARS = {
+    "checker-qual-android": {"javadoc"},
+    "dataflow-errorprone": {"sources", "javadoc"},
+    "dataflow-nullaway": {"sources", "javadoc"},
+    "dataflow-shaded": {"sources", "javadoc"},
+    "framework-all": {"javadoc"},
+}
+
 # The artifacts whose jar is also in a release zip file: artifact -> (zip file name, jar in it).
 # Every file in the artifact's jar must be in the zip's jar, with the same contents.  The zip's
-# checker.jar also contains the qualifiers, which the checker artifact takes from checker-qual.
+# checker.jar is self-contained: it also contains the classes that the checker artifact takes from
+# framework-all, checker-qual, and checker-util.
 JARS_IN_ZIP_FILES = {
     "checker": ("checker-framework", "checker/dist/checker.jar"),
     "checker-qual": ("checker-framework", "checker/dist/checker-qual.jar"),
@@ -363,12 +374,13 @@ def pom_problems(pom: Path, artifact: str, version: str) -> list[str]:
     return problems
 
 
-def jar_problems(jar: Path, kind: str) -> list[str]:
+def jar_problems(jar: Path, kind: str, placeholder: bool) -> list[str]:
     """Return what is wrong with the given jar of a release artifact.
 
     Args:
         jar: the jar
         kind: "classes", "sources", or "javadoc"
+        placeholder: whether the jar contains only a README.md
 
     Returns:
         a description of each problem
@@ -381,6 +393,13 @@ def jar_problems(jar: Path, kind: str) -> list[str]:
         return [f"{jar} is not a valid jar: {e}"]
     if corrupt is not None:
         return [f"{jar} is corrupt: {corrupt}"]
+    if placeholder:
+        files = [
+            name for name in names if not name.endswith("/") and not name.startswith("META-INF/")
+        ]
+        if files != ["README.md"]:
+            return [f"{jar} contains {files}, not only README.md."]
+        return []
     suffix = {"classes": ".class", "sources": ".java", "javadoc": "index.html"}[kind]
     if not any(name.endswith(suffix) for name in names):
         return [f"{jar} contains no {suffix} file."]
@@ -410,7 +429,10 @@ def zip_jar_problems(jar: Path, artifact: str, version: str) -> list[str]:
             differing = [
                 info.filename
                 for info in maven.infolist()
-                if not info.is_dir() and in_zip.get(info.filename) != info.CRC
+                if not info.is_dir()
+                and in_zip.get(info.filename) != info.CRC
+                # The manifest of the checker artifact names its dependencies in its Class-Path.
+                and not (artifact == "checker" and info.filename == "META-INF/MANIFEST.MF")
             ]
     if differing:
         return [
@@ -455,7 +477,7 @@ def verify_local_artifacts(version: str) -> list[str]:
             continue
         problems += pom_problems(pom, artifact, version)
         for kind, jar in jars.items():
-            problems += jar_problems(jar, kind)
+            problems += jar_problems(jar, kind, kind in PLACEHOLDER_JARS.get(artifact, set()))
         if artifact in JARS_IN_ZIP_FILES:
             problems += zip_jar_problems(jars["classes"], artifact, version)
         for file in sorted(directory.iterdir()):
