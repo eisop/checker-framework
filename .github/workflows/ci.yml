@@ -131,6 +131,9 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
           JAVA_VERSION: ${{ matrix.java.version }}
+          # The release scripts and the web site generator query the GitHub API, which limits
+          # requests without a token.
+          GITHUB_TOKEN: ${{ matrix.script == 'release' && github.token || '' }}
 
       # The zip files that test-release.sh built, for the nightly-zips job of the scheduled run.
       - name: Keep the zip files for the nightly build
