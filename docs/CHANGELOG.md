@@ -21,9 +21,16 @@ initialization: on the Guava 33.5.0 sources, 9% less time and 12% less allocatio
 Subtype checks of two declared types copy fewer types: for the Nullness Checker on the Guava
 33.5.0 sources, 2% less time and 5% less allocation.
 
+An override check under the permissive defaults for unchecked code
+(`-AusePermissiveDefaultsForUncheckedCode`, or `-Amode=jspecify` of the Nullness Checker) no longer
+crashes with a `StackOverflowError` if a type variable in the signature of the overridden method has
+a recursive bound, such as `E extends Entry<E>`.
+
 ### Implementation details
 
 ### Closed issues
+
+eisop#2695
 
 ## Version 3.55.1-eisop1 (November 24, 2026)
 
