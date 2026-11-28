@@ -43,10 +43,12 @@ public abstract class BlockImpl implements Block {
     }
 
     @Override
+    @SuppressWarnings("unchecked") // the result is a copy, so no BlockImpl-only alias exists
     public Set<Block> getPredecessors() {
-        // Not "Collections.unmodifiableSet(predecessors)" which has nondeterministic iteration
-        // order.
-        return new ArraySet<>(predecessors);
+        // Return a copy, because clients modify the predecessors while iterating over the result.
+        // ArraySet#clone copies the array; the copy constructor checks every element for
+        // duplicates, which is quadratic.
+        return (Set<Block>) (Set<? extends Block>) ((ArraySet<BlockImpl>) predecessors).clone();
     }
 
     public void addPredecessor(BlockImpl pred) {

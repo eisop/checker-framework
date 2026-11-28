@@ -2887,6 +2887,121 @@ run for few trees, mostly in switch and pattern handling, and are left to eisop#
 
 `ElementUtils.qualifiedNameCache` was audited and left as is; see the Short list entry.
 
+### CFG construction for a client that uses only dataflow (NullAway, November 2026)
+
+NullAway uses the dataflow library without the framework, through the shaded `dataflow-nullaway`
+artifact. Its JMH benchmarks compile Caffeine (2,584 CFGs) and NullAway itself (1,235 CFGs) with
+NullAway as the only Error Prone check. In a JFR profile of both on JDK 25 (36,222 on-CPU
+samples), the innermost non-JDK frame belongs to javac in 66.7% of the samples, to NullAway in
+19.9%, to Error Prone in 3.3%, and to the library in 10.2%: `cfg.builder` 3.1%, `analysis` 2.8%,
+the shaded plume-util 2.0%, the rest of `cfg` 1.5%, `javacutil` 0.8%. A library frame is on the
+stack of 22.2% of the samples: `ForwardAnalysisImpl.performAnalysis`, which runs NullAway's
+transfer function, in 12.5% and `CFGBuilder.build` in 9.6%. A Checker Framework checker hides CFG
+construction under its type computation: on Guava, `CFGBuilder.build` is on the stack of 4.6% of
+the samples of the JSpecify Reference Checker and of 2.7% of those of the Nullness Checker.
+
+Five changes to CFG construction, each built and profiled alone. The counts are the samples with
+the frame on the stack, in two profiles before the change and one after it:
+
+| Change | Frame | Before | After |
+| --- | --- | ---: | ---: |
+| `CFGTranslationPhaseTwo` records missing edges in `ArrayList`s, not in an `ArraySet` and a `LinkedHashSet`: a `MissingEdge` has identity equality and is recorded once | `CFGTranslationPhaseTwo.process` | 519, 542 | 445 |
+| `BlockImpl.getPredecessors` copies with `ArraySet.clone`, not with the copy constructor, which compares every element with all earlier ones | `BlockImpl.getPredecessors` | 103, 147 | 2 |
+| `ExceptionBlockImpl.getSuccessors` adds to one set; it copied the regular successors, wrapped the exceptional ones, and searched the result twice per element | `ExceptionBlockImpl.getSuccessors` | 183, 172 | 85 |
+| The 15 type mirrors that the `CFGTranslationPhaseOne` constructor looks up by class name are cached in the javac `Context` | `CFGTranslationPhaseOne.<init>` | 386, 364 | 139 |
+| | `JavacElements.getTypeElement` | 275, 249 | 12 |
+| `CFGTranslationPhaseOne.commonConvert` calls `Types.isSubtype` only for two numeric types; for two reference types the result only selected a branch that does nothing | `CFGTranslationPhaseOne.commonConvert` | 308, 291 | 210 |
+| | `JavacTypes.isSubtype` | 163, 135 | 67 |
+
+Together, `CFGBuilder.build` goes from 3,460 and 3,471 samples (9.6% and 9.7%) to 2,686 (7.4%).
+Profiles of nearly the same code differ by up to 0.6 percentage points in this frame.
+
+JMH on JDK 25, 12 forks per side, interleaved (4 warmup and 3 measurement iterations of 10 s;
+mean and 99.9% confidence interval over the 36 iterations; the paired difference is the mean of
+the 12 per-round differences and its standard error):
+
+| Benchmark | Before (ms/op) | After (ms/op) | Paired difference | Allocation per op |
+| --- | ---: | ---: | ---: | ---: |
+| Caffeine | 541.6 ± 9.1 | 529.4 ± 9.4 | -2.2% (0.95) | -2.4% |
+| NullAway | 811.0 ± 21.1 | 787.9 ± 12.2 | -2.8% (0.87) | -2.1% |
+| AutoDispose | 80.7 ± 0.8 | 80.9 ± 1.5 | +0.2% (0.89) | -0.3% |
+
+The confidence intervals of the two sides overlap; the after side is faster in 11 of the 12
+rounds for Caffeine and in 10 for NullAway. AutoDispose does not change.
+
+The checkers of the Checker Framework gain less than the wall clock resolves. JSpecify Reference
+Checker on Guava (JDK 25, 5 profiles per side, about 11,200 samples each): `CFGBuilder.build` 515
+and 535 samples before, 463 after; allocation of the compile thread -1.3%. Nullness Checker on
+Guava (JDK 21): allocation 29,650 MB before, 29,563 MB after (-0.3%); 14 interleaved runs per
+side take 74.9 s and 74.6 s (medians; paired difference -1.0%, standard error 0.7).
+
+What remains in CFG construction on this workload is `CFGTranslationPhaseOne.process`, the tree
+scan that creates the nodes (4.4% of the samples), then phase three (1.3%) and phase two (1.2%).
+`BlockImpl.addPredecessor` (`ArraySet.add`, a linear search) is in 0.3% of the samples before the
+changes and in 0.5% after them; why its count rises was not established.
+
+### Nullness Checker: one type check per class (November 2026)
+
+The Nullness Checker is four checkers with a type factory and a visitor each: the
+`InitializationChecker` at the top, the `NullnessNoInitSubchecker`, and below that the
+`KeyForSubchecker` and the `InitializationFieldAccessSubchecker`. A JFR recording of the Nullness
+Checker on the Guava 33.5.0 sources (606 files, JDK 25, 5767 execution samples, no truncated
+stacks; checkers told apart by marker frames around each checker's `typeProcess`) splits the
+samples as follows, before the change of this section:
+
+| Checker | Samples | Share | CFG build | `performAnalysis` | Other flow | Visitor |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Key For | 1609 | 27.9% | 110 | 689 | 70 | 740 |
+| Initialization field access | 1324 | 23.0% | 0 | 609 | 53 | 662 |
+| Nullness (no initialization) | 1422 | 24.7% | 4 | 649 | 54 | 715 |
+| Initialization (top) | 905 | 15.7% | 0 | 0 | 0 | 905 |
+| Outside the checkers (javac) | 507 | 8.8% | | | | |
+
+The control flow graph is built once, by the Key For Checker, and takes 2% of the samples; the
+three analyses cost about the same, as do the four visitors. Frames of `AnnotatedTypeCopier`,
+`deepCopy` and `shallowCopy` are on 15.3% of the samples and allocate 38% of the bytes.
+
+The `InitializationFieldAccessVisitor` scanned each class with the inherited `BaseTypeVisitor`
+logic and discarded every diagnostic: a second, unobserved type check of the whole program by a
+checker that only exists to run a dataflow analysis. 660 samples (11.4%) were in that scan. The
+visitor is now a scanner that does not check anything and only triggers the analysis and the
+post-processing of each class, including classes that are not members of a class.
+
+Interleaved A/B on that workload with JDK 21 (12 rounds per side; allocation is the deterministic
+`jdk.ThreadAllocationStatistics` total): wall-clock median 74.1 s to 67.1 s (-9.5%; paired
+difference -7.3 s, standard error 0.6 s); allocation 29663 MB to 25981 MB (-12.4%). The
+diagnostics (1009 warnings) are identical. No effect with `-AassumeInitialized` or
+`-Amode=jspecify`, under which the visitor already did nothing.
+
+### `asSuper` copies in subtype checks (November 2026)
+
+A JFR recording of the Nullness Checker on the Guava 33.5.0 sources (606 files, JDK 25, 5767
+execution samples) has `AsSuperVisitor.asSuper` on 423 samples, with 3478 MB of the 29122 MB of
+sampled allocation. Two of its copies were removed:
+
+- `DefaultTypeHierarchy.visitTypeArgs` called `AnnotatedTypes.castedAsSuper` for every subtype
+  check of two declared types; it deep-copies both types. Of 418,134 calls, 69% have a supertype
+  whose class is not generic and has no enclosing type, so there are no type arguments to
+  compare, and 26% have a subtype that already is a type of the supertype's class, for which the
+  copy is only read. Both cases now skip the call.
+- `AsSuperVisitor.asSuper` deep-copied both of its arguments. For two declared types (768,000 of
+  809,000 calls) the visitor only reads the underlying type of the supertype, so that copy is
+  skipped.
+
+Interleaved A/B of both changes on that workload with JDK 21, against a master that has the change
+of the previous section (12 rounds per side; allocation is the median of 3 runs of the
+deterministic `jdk.ThreadAllocationStatistics` total): wall-clock median 67.2 s to 65.6 s (-2.4%;
+paired difference -1.9 s, standard error 0.9 s); allocation 25879 MB to 24664 MB (-4.7%). The
+diagnostics (1009 warnings) are identical. The first change accounts for about two thirds of the
+allocation saved.
+
+Remaining `asSuper` cost, by caller, from the recording before the changes (samples, allocation):
+`castedAsSuper` from `visitTypeArgs` 150 and 1388 MB (now mostly skipped); `asOuterSuper` from
+`AnnotatedTypes.addTypeVarMappings` 85 and 769 MB; `OverrideChecker`'s receiver check 73 and
+536 MB; `AbstractType.asSuper` in type argument inference 69 and 465 MB. These callers read the
+result too, but `asSuper` still copies its first argument for them; whether they can do without
+that copy has not been traced.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a
@@ -3506,6 +3621,20 @@ the prior finding. A fresh hypothesis is not new evidence.
   stackless `Result` through the scanner frames costs no more than letting every pending `scan`
   call return through a flag check. Fix the retry paths for correctness
   (stop throwing in the first place) if ever, not for speed.
+- **Dataflow CFG construction for NullAway: three ideas not taken (November 2026).** See "CFG
+  construction for a client that uses only dataflow" for the workload (NullAway's JMH benchmarks,
+  about 36,000 on-CPU samples per profile).
+  - *`Trees` instance from the compiler context.* The `CFGTranslationPhaseOne` constructor calls
+    `Trees.instance(ProcessingEnvironment)`, which is in 62 and 70 samples (0.2%).
+    `JavacTrees.instance(Context)` halves that (30 and 33 samples), but it names a class of
+    `com.sun.tools.javac.api`, a package that a client of the dataflow library alone does not
+    have to export today: `:dataflow:busyExpressionTest` fails with an `IllegalAccessError`. A
+    new required export is not worth 0.1% of the samples.
+  - *Cache the depth-first order of the blocks in `ControlFlowGraph`.* NullAway runs one analysis
+    per CFG, so there is no second request to serve from a cache.
+  - *A hash-based or hybrid predecessor set for `BlockImpl.addPredecessor`.* The method is in
+    0.3-0.5% of the samples. A second representation for the blocks with many predecessors is
+    more code than that justifies.
 
 ---
 
