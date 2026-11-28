@@ -2,7 +2,7 @@ package org.checkerframework.checker.nullness;
 
 import com.sun.source.tree.MethodInvocationTree;
 
-import org.checkerframework.framework.flow.FlowAnalysisRelevance;
+import org.checkerframework.framework.flow.FlowRefinementSources;
 import org.checkerframework.javacutil.AnnotationUtils;
 
 import java.util.Set;
@@ -14,17 +14,17 @@ import javax.lang.model.element.AnnotationMirror;
  * other than {@code @UnknownKeyFor} is relevant, and so are the calls of {@code Map.put} and {@code
  * Map.containsKey}, which establish a key.
  */
-final class KeyForFlowRelevance extends FlowAnalysisRelevance<KeyForValue> {
+final class KeyForFlowRefinementSources extends FlowRefinementSources<KeyForValue> {
 
     /** The type factory. */
     private final KeyForAnnotatedTypeFactory atypeFactory;
 
     /**
-     * Creates a KeyForFlowRelevance.
+     * Creates a KeyForFlowRefinementSources.
      *
      * @param atypeFactory the type factory
      */
-    KeyForFlowRelevance(KeyForAnnotatedTypeFactory atypeFactory) {
+    KeyForFlowRefinementSources(KeyForAnnotatedTypeFactory atypeFactory) {
         super(atypeFactory);
         this.atypeFactory = atypeFactory;
     }

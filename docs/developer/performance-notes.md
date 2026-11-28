@@ -3014,9 +3014,9 @@ never asks for initialization code, for an AST with a captured store, for a meth
 anonymous class whose enclosing method has final local variables with values, or with `-Acfgviz`
 or `-Aflowdotdir`.
 
-`KeyForFlowRelevance` implements the rule as a subclass of `FlowAnalysisRelevance`: a method is
-relevant if a qualifier other than `@UnknownKeyFor` can flow into it or it can establish a key. It
-scans the method once, stopping at the first relevant construct: a Key For annotation or
+`KeyForFlowRefinementSources` implements the rule as a subclass of `FlowRefinementSources`: a
+method is relevant if a qualifier other than `@UnknownKeyFor` can flow into it or it can establish
+a key. It scans the method once, stopping at the first relevant construct: a Key For annotation or
 `@DefaultQualifier`; a use of a field, method, constructor, method reference, or lambda function
 type whose type mentions such a qualifier, has a contract, or mentions a class that (transitively,
 through type arguments and supertypes) does; a call of `Map.put` or `Map.containsKey`; a record
@@ -3044,7 +3044,7 @@ with a rule that skips every method, 21 errors appear.
 The `InitializationFieldAccessSubchecker` runs the dataflow analysis that the Initialization
 Checker and the Nullness Checker share. In most methods every value that it computes is
 `@Initialized`. It skips those methods through `isFlowAnalysisRedundant`, with the same rule as the
-Key For Checker: `FlowAnalysisRelevance` with `@Initialized` as the only irrelevant qualifier.
+Key For Checker: `FlowRefinementSources` with `@Initialized` as the only irrelevant qualifier.
 The return type of every constructor is `@UnderInitialization`, but the tree annotator computes the
 type of an object creation from its arguments, so a use of a constructor is relevant only through
 its parameters and type parameters (`isConstructorResultQualifierUsed`). The declaration of a

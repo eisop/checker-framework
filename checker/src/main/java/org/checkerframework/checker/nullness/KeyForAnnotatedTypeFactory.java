@@ -87,7 +87,7 @@ public class KeyForAnnotatedTypeFactory
     private final boolean assumeKeyFor;
 
     /** Decides whether the dataflow analysis of a method can refine any type. */
-    private final KeyForFlowRelevance flowRelevance;
+    private final KeyForFlowRefinementSources flowRefinementSources;
 
     /**
      * Creates a new KeyForAnnotatedTypeFactory.
@@ -99,7 +99,7 @@ public class KeyForAnnotatedTypeFactory
         super(checker, true);
 
         assumeKeyFor = checker.hasOption("assumeKeyFor");
-        flowRelevance = new KeyForFlowRelevance(this);
+        flowRefinementSources = new KeyForFlowRefinementSources(this);
 
         // Add compatibility annotations:
         addAliasedTypeAnnotation(
@@ -118,7 +118,7 @@ public class KeyForAnnotatedTypeFactory
     @Override
     protected boolean isFlowAnalysisRedundant(
             CFGMethod method, List<FieldInitialValue<KeyForValue>> fieldValues) {
-        return flowRelevance.isFlowAnalysisRedundant(method, fieldValues);
+        return flowRefinementSources.isFlowAnalysisRedundant(method, fieldValues);
     }
 
     @Override

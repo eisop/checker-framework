@@ -11,7 +11,7 @@ import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.framework.flow.CFAbstractAnalysis.FieldInitialValue;
 import org.checkerframework.framework.flow.CFValue;
-import org.checkerframework.framework.flow.FlowAnalysisRelevance;
+import org.checkerframework.framework.flow.FlowRefinementSources;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import java.util.IdentityHashMap;
@@ -28,7 +28,7 @@ public class InitializationFieldAccessAnnotatedTypeFactory
     /**
      * Decides whether the analysis of a method can compute a value other than {@code @Initialized}.
      */
-    private final FlowAnalysisRelevance<CFValue> flowRelevance;
+    private final FlowRefinementSources<CFValue> flowRefinementSources;
 
     /**
      * Create a new InitializationFieldAccessAnnotatedTypeFactory.
@@ -38,8 +38,8 @@ public class InitializationFieldAccessAnnotatedTypeFactory
     @SuppressWarnings("this-escape")
     public InitializationFieldAccessAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
-        flowRelevance =
-                new FlowAnalysisRelevance<CFValue>(this) {
+        flowRefinementSources =
+                new FlowRefinementSources<CFValue>(this) {
                     @Override
                     protected boolean isIrrelevantQualifier(AnnotationMirror anno) {
                         return isInitialized(anno);
@@ -62,7 +62,7 @@ public class InitializationFieldAccessAnnotatedTypeFactory
     @Override
     protected boolean isFlowAnalysisRedundant(
             CFGMethod method, List<FieldInitialValue<CFValue>> fieldValues) {
-        return flowRelevance.isFlowAnalysisRedundant(method, fieldValues);
+        return flowRefinementSources.isFlowAnalysisRedundant(method, fieldValues);
     }
 
     /**

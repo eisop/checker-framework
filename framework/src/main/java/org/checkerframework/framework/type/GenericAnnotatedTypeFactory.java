@@ -53,6 +53,7 @@ import org.checkerframework.framework.flow.CFCFGBuilder;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.flow.FlowRefinementSources;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
@@ -2083,6 +2084,8 @@ public abstract class GenericAnnotatedTypeFactory<
      * store, and whose initial store has no values of final local variables of an enclosing method,
      * and not with {@code -Acfgviz} or {@code -Aflowdotdir}.
      *
+     * <p>{@link FlowRefinementSources} implements an override.
+     *
      * @param method the method that is about to be analyzed
      * @param fieldValues the abstract values of the fields of the class of {@code method}
      * @return true if the dataflow analysis of {@code method} cannot refine any type
@@ -3480,6 +3483,9 @@ public abstract class GenericAnnotatedTypeFactory<
      * write type qualifiers on elements of the type.
      *
      * <p>Subclasses should override {@code #isRelevantImpl} instead of this method.
+     *
+     * <p>The relevant qualifiers of {@link FlowRefinementSources} are a different notion: they are
+     * the qualifiers from which the dataflow analysis can refine a type.
      *
      * @param tm a type
      * @return true if users can write type annotations from this type system directly on the given

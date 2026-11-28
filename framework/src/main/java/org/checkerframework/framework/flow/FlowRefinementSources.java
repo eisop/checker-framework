@@ -54,9 +54,14 @@ import javax.lang.model.type.TypeKind;
  * declaration that the method refers to, from a class that it mentions, from a supertype of such a
  * class, from a type that is written in the method, from a default, or from the initial store.
  *
+ * <p>A type factory uses this class to implement {@link
+ * GenericAnnotatedTypeFactory#isFlowAnalysisRedundant}. Relevance here is about qualifiers, not
+ * about the Java types to which a type system applies; those are given by {@link
+ * GenericAnnotatedTypeFactory#isRelevant(javax.lang.model.type.TypeMirror)}.
+ *
  * @param <V> the type of the abstract values of the analysis
  */
-public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
+public abstract class FlowRefinementSources<V extends CFAbstractValue<V>> {
 
     /** The tree kind of a record deconstruction pattern, or null before Java 21. */
     private static final Tree.@Nullable Kind DECONSTRUCTION_PATTERN = deconstructionPatternKind();
@@ -134,12 +139,12 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
     private @Nullable CompilationUnitTree root;
 
     /**
-     * Creates a FlowAnalysisRelevance.
+     * Creates a FlowRefinementSources.
      *
      * @param atypeFactory the type factory
      */
     @SuppressWarnings("this-escape") // the type scanner runs after construction
-    protected FlowAnalysisRelevance(GenericAnnotatedTypeFactory<V, ?, ?, ?> atypeFactory) {
+    protected FlowRefinementSources(GenericAnnotatedTypeFactory<V, ?, ?, ?> atypeFactory) {
         this.atypeFactory = atypeFactory;
         this.conservativeSourceDefaults =
                 atypeFactory.getChecker().useConservativeDefault("source");
