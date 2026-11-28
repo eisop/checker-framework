@@ -2742,8 +2742,7 @@ public class AnnotationFileElementTypes {
 
     /**
      * Returns true if the annotated JDK rooted at {@code jdkResourceURL} contains its source files.
-     * A released jar of the Checker Framework contains only the binary stub file of the annotated
-     * JDK.
+     * The self-contained jars of a release contain only the binary stub file of the annotated JDK.
      *
      * @param jdkResourceURL the URL of the annotated JDK's root directory or jar entry
      * @return true if the annotated JDK contains its source files
@@ -2810,7 +2809,8 @@ public class AnnotationFileElementTypes {
         // classes that the minimized annotated JDK keeps (AnnotationFileParser#skipNode), which
         // the binary stub file omits, so it uses the text path when the source files are there.
         // It matters only when checking the JDK's own source, which is the only code that can use
-        // a private JDK class. A released jar contains only the binary stub file, which
+        // a private JDK class. A self-contained jar of a release contains only the binary stub
+        // file, which
         // -AmergeStubsWithSource then uses.
         SourceChecker checker = atypeFactory.getChecker();
         boolean binaryStubDiffCheck = checker.hasOption("binaryStubDiffCheck");

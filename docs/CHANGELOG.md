@@ -36,18 +36,19 @@ tools that read the Maven metadata, such as Gradle, Maven, and Bazel, are unaffe
 downloaded processor path needs the self-contained `checker-<version>-all.jar`, which is
 unchanged.
 
-A release contains the annotated JDK only as its binary stub file, not its source files.
-`-AmergeStubsWithSource` then uses the binary stub file, and `-AparseAllJdk`, a debugging option,
-needs a Checker Framework built from source.
+The self-contained jars of a release, `checker.jar` in the zip file, `checker-<version>-all.jar`,
+and `framework-all`, contain the annotated JDK only as its binary stub file, not its source files.
+With them, `-AmergeStubsWithSource` uses the binary stub file, and `-AparseAllJdk` and
+`-AbinaryStubDiffCheck`, debugging options, need a Checker Framework built from source.
 
 ### Implementation details
 
-The Maven artifacts of a release are less than half as large, 31 MB instead of 76 MB: besides the
-smaller `checker` artifact and the annotated JDK without its source files, the shaded dataflow
-artifacts bundle only the dependency classes they use, the `framework` sources jar no longer
-contains the annotated JDK, and the Javadoc jars of `framework-all`, the shaded dataflow artifacts
-and `checker-qual-android`, and the sources jars of the shaded dataflow artifacts, contain a README
-that names the artifact with that documentation.
+The Maven artifacts of a release are less than half as large, 33 MB instead of 76 MB: besides the
+smaller `checker` artifact and the self-contained jars without the source files of the annotated
+JDK, the shaded dataflow artifacts bundle only the dependency classes they use, the `framework`
+sources jar no longer contains the annotated JDK, and the Javadoc jars of `framework-all`, the
+shaded dataflow artifacts and `checker-qual-android`, and the sources jars of the shaded dataflow
+artifacts, contain a README that names the artifact with that documentation.
 
 ### Closed issues
 

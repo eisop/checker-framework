@@ -1400,11 +1400,13 @@ subprojects {
         withSourcesJar()
     }
 
-    // A release ships the annotated JDK as its binary stub file only. Its source files are needed
-    // only by -AparseAllJdk and -AbinaryStubDiffCheck, debugging options for a Checker Framework
-    // built from source.
+    // The self-contained jars of a release, framework-all and checker-all, contain the annotated
+    // JDK as its binary stub file only. Its source files are needed only by -AparseAllJdk and
+    // -AbinaryStubDiffCheck, debugging options for a Checker Framework built from source. The
+    // framework jar keeps them, because the tests of the other projects run on it, also in a
+    // release build.
     if (findProperty("release") == "true") {
-        tasks.withType(Jar).configureEach {
+        tasks.withType(com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configureEach {
             exclude("annotated-jdk/src/**")
         }
     }

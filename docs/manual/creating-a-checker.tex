@@ -2445,9 +2445,9 @@ Interchange Format).
   don't issue an error if no annotated JDK can be found.
 
 \item \code{-AparseAllJdk}:
-  parse all JDK files at startup rather than as needed.  This requires a
-  Checker Framework built from source, because a released Checker Framework
-  contains the annotated JDK only as its binary stub file.
+  parse all JDK files at startup rather than as needed.  This requires the
+  source files of the annotated JDK, which a Checker Framework built from
+  source contains, but not the \<checker.jar> of a release.
 
 \item \code{-AstubDebug}:
   Print debugging messages while processing stub files.

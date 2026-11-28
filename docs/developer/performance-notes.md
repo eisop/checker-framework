@@ -737,8 +737,10 @@ so small per-call wins paid back substantially.
      records through the same per-class lazy dispatch the JDK uses. Precedence hazard: a
      lazy design must consult built-in data before JDK data per class, since some option
      stubs deliberately override the JDK.
-  2. *Drop text stubs from `checker.jar`* (~1.5 MB) once the binary format has soaked.
-     Blocked on `-AparseAllJdk`, which needs the text stubs.
+  2. *Drop text stubs from `checker.jar`*: applied. A release build leaves the source files
+     of the annotated JDK out of the self-contained jars (`checker.jar`,
+     `checker-<version>-all.jar`, `framework-all`); `-AparseAllJdk` and `-AbinaryStubDiffCheck` report that they need
+     them, and `-AmergeStubsWithSource` uses the binary stub file.
   3. `JavaExpressionParseUtil.parseExpression` (dependent-type/contract expression
      strings) is the only stubparser use left on the default checking path; has never
      surfaced above the JFR sampling floor.
