@@ -1360,13 +1360,8 @@ subprojects {
     // When checker:runtimeClasspath resolves project dependencies (e.g. framework), Gradle may
     // select shadowRuntimeElements, which points to the shadow jar (framework-VERSION-all.jar).
     // Change its Usage attribute so it doesn't conflict with standard runtimeElements.
-    //
-    // :checker is exempt: its published `checker` artifact IS the shadow jar, published via
-    // `components.shadow`, whose only runtime variant is shadowRuntimeElements. Renaming that
-    // variant's Usage there would leave the published module metadata with no variant a
-    // consumer can select for java-runtime, which is the failure PR #1822 reported.
     configurations.all {
-        if (name == "shadowRuntimeElements" && project.name != "checker") {
+        if (name == "shadowRuntimeElements") {
             attributes {
                 attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, "shadow-runtime-elements"))
             }
@@ -1377,9 +1372,9 @@ subprojects {
     // uses `from components.java` (dataflow, javacutil, framework) would therefore advertise
     // the fat "-all.jar" in its Gradle Module Metadata, under the placeholder Usage set above
     // that no consumer ever requests -- and really upload that jar, several MB per artifact.
-    // Nothing consumes those: :checker publishes its shadow jar deliberately through
-    // `components.shadow`, and framework-all is its own publication. Drop the variant so each
-    // module's metadata describes only the artifacts we actually intend to ship.
+    // Nothing consumes those: checker-all and framework-all are artifacts of their own
+    // publications. Drop the variant so each module's metadata describes only the artifacts we
+    // actually intend to ship.
     afterEvaluate {
         def javaComponent = components.findByName("java")
         def shadowRuntime = configurations.findByName("shadowRuntimeElements")
@@ -1854,6 +1849,31 @@ final addCheckerQualDependencyToPom(MavenPublication publication, String checker
         .appendNode("artifactId", "checker-qual").parent()
         .appendNode("version", checkerQualVersion).parent()
         .appendNode("scope", "runtime")
+    }
+}
+
+/**
+ * Registers a task that builds a sources or Javadoc jar that contains only a README.md, for a
+ * publication whose sources or Javadoc are those of another artifact. Maven Central requires a
+ * sources and a Javadoc jar for every published jar, and accepts such a placeholder.
+ *
+ * @param project the project to register the task in
+ * @param taskName the name of the task
+ * @param archiveBaseName the base name of the jar, such as "framework-all"
+ * @param classifier "sources" or "javadoc"
+ * @param readme the contents of README.md
+ */
+final registerPlaceholderJar(Project project, String taskName, String archiveBaseName,
+        String classifier, String readme) {
+    project.tasks.register(taskName, Jar) {
+        group = "Build"
+        description = "Builds a ${classifier} jar for ${archiveBaseName} that contains only a README.md."
+        it.archiveBaseName = archiveBaseName
+        archiveClassifier = classifier
+        destinationDirectory = project.layout.buildDirectory.dir("placeholder/${taskName}")
+        from(project.resources.text.fromString(readme)) {
+            rename { "README.md" }
+        }
     }
 }
 

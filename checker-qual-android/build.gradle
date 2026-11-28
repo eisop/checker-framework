@@ -50,6 +50,24 @@ sourceSets {
     }
 }
 
+// The Javadoc is that of checker-qual, so the Javadoc jar points there instead of repeating it.
+// The publication comes from components.java, which publishes the javadocJar task, so that task
+// gets the README instead of using registerPlaceholderJar from the root build.gradle.
+tasks.named("javadoc") {
+    enabled = false
+}
+tasks.named("javadocJar", Jar) {
+    // Not the output of an earlier build with the javadoc task enabled.
+    String javadocDir = tasks.named("javadoc", Javadoc).get().destinationDir.absolutePath
+    exclude { FileTreeElement element -> element.file.absolutePath.startsWith(javadocDir) }
+    from(resources.text.fromString(String.join(System.lineSeparator(),
+            "checker-qual-android contains the annotations of io.github.eisop:checker-qual, with",
+            "class instead of runtime retention. Their Javadoc is in the Javadoc jar of",
+            "io.github.eisop:checker-qual.", ""))) {
+        rename { "README.md" }
+    }
+}
+
 apply from: rootProject.file("gradle-mvn-push.gradle")
 
 /** Adds information to the publication for uploading to Maven repositories. */

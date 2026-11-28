@@ -259,13 +259,13 @@ tasks.register("copyAndMinimizeAnnotatedJdkFiles", JavaExec) {
     }
 }
 
-tasks.named("sourcesJar").configure { dependsOn "copyAndMinimizeAnnotatedJdkFiles" }
 tasks.named("processResources").configure { dependsOn "copyAndMinimizeAnnotatedJdkFiles" }
+// The annotated JDK is data that the checkers read, not the source of a class in the jar.
+tasks.named("sourcesJar").configure { exclude("annotated-jdk/**") }
 if (skipAnnotatedJdk) {
     // An annotated JDK from an earlier build without -PskipAnnotatedJdk stays in the build
-    // directory, since copyAndMinimizeAnnotatedJdkFiles does not run; leave it out of the jars.
+    // directory, since copyAndMinimizeAnnotatedJdkFiles does not run; leave it out of the jar.
     tasks.named("processResources").configure { exclude("annotated-jdk/**") }
-    tasks.named("sourcesJar").configure { exclude("annotated-jdk/**") }
 }
 
 tasks.register("allSourcesJar", Jar) {
@@ -415,6 +415,12 @@ tasks.register("frameworkAllJar", ShadowJar) {
 // frameworkAll publication's artifact list. This mirrors the reasoning for allJavadocJar and
 // allSourcesJar, which are likewise kept off `assemble`.
 
+rootProject.registerPlaceholderJar(project, "frameworkAllPlaceholderJavadocJar", "framework-all",
+        "javadoc", String.join(System.lineSeparator(),
+        "framework-all bundles the classes of the io.github.eisop artifacts framework, dataflow and",
+        "javacutil. Their Javadoc is in the Javadoc jars of those artifacts and at",
+        "https://eisop.github.io/cf/api/.", ""))
+
 apply from: rootProject.file("gradle-mvn-push.gradle")
 
 /**
@@ -476,7 +482,7 @@ publishing {
             rootProject.addCheckerQualDependencyToPom(it, version)
             artifact(tasks.named("frameworkAllJar"))
             artifact(tasks.named("allSourcesJar"))
-            artifact(tasks.named("allJavadocJar"))
+            artifact(tasks.named("frameworkAllPlaceholderJavadocJar"))
         }
     }
 }

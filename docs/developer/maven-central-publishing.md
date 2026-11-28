@@ -157,10 +157,9 @@ which is the same URL this repository already lists in its own
 
 **Do not adopt an opinionated publishing plugin.** The plugins that speak the
 Portal API natively configure publications for you. This build has 18
-publications and hand-tuned ones at that: `checker` publishes
-`components.shadow` rather than `components.java`, with a comment explaining
-that using the latter would ship the skinny jar under the fat jar's name, and
-with a Gradle attribute copied onto the shadow configuration by hand.
+publications and hand-tuned ones at that: `checker`, `framework-all` and the
+shaded dataflow artifacts publish jars that a Shadow task or a filtering `Jar`
+task assembles, with POM dependencies written by hand.
 Re-expressing that inside another plugin's model is real risk for no gain, since
 the upload itself already works.
 

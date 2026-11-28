@@ -91,12 +91,25 @@ sourceSets {
 
 dependencies {
     implementation("io.github.eisop:checker:${checkerVersion}")
+    annotationProcessor("io.github.eisop:checker:${checkerVersion}")
     publishedArtifacts.each { artifact ->
         add(configurationNameFor(artifact), "io.github.eisop:${artifact}:${checkerVersion}")
     }
 
     frameworkAllCompileOnly "io.github.eisop:checker-qual:${checkerVersion}"
     frameworkAllAnnotationProcessor "io.github.eisop:framework-all:${checkerVersion}"
+}
+
+// Run the Nullness Checker out of the published `checker` artifact, whose jar contains only the
+// classes that framework-all does not: this shows that the checkers' classes load against it.
+tasks.named("compileJava") {
+    description = "Type-checks src/main with the Nullness Checker loaded from the published checker artifact."
+    options.compilerArgs += ["-processor", "org.checkerframework.checker.nullness.NullnessChecker"]
+    // A checker reaches into javac's internals, which JDK 9+ does not export by default.
+    options.fork = true
+    options.forkOptions.jvmArgs += [
+        "api", "code", "comp", "file", "main", "model", "processing", "tree", "util",
+    ].collect { "--add-exports=jdk.compiler/com.sun.tools.javac." + it + "=ALL-UNNAMED" }
 }
 
 // Run a checker that lives in `framework` itself (not in `checker`) out of the published
@@ -154,16 +167,15 @@ tasks.register("verifyResolutions") {
             "    expected: ${expected}\n    actual:   ${frameworkAllFiles}"
         }
 
-        // `checker` must resolve to the same jar a Maven consumer gets from the POM, plus
-        // checker-qual and checker-util as separate jars. Serving the fat
-        // checker-VERSION-all.jar here instead would put every qualifier class on the
-        // classpath twice, since that jar bundles the two it also depends on.
+        // `checker` contains only what framework-all does not, so it must resolve to its own
+        // jar plus framework-all, checker-qual and checker-util. Serving the fat
+        // checker-VERSION-all.jar here instead would put every class on the classpath twice.
         def checkerFiles = resolved["checker"].get()
         def expectedChecker = ["checker-${version}.jar", "checker-qual-${version}.jar",
-                               "checker-util-${version}.jar"].toSorted()
+                               "checker-util-${version}.jar", "framework-all-${version}.jar"].toSorted()
         if (checkerFiles != expectedChecker) {
-            failures << "checker should resolve to its own jar plus checker-qual and " +
-            "checker-util.\n    expected: ${expectedChecker}\n    actual:   ${checkerFiles}"
+            failures << "checker should resolve to its own jar plus framework-all, checker-qual " +
+            "and checker-util.\n    expected: ${expectedChecker}\n    actual:   ${checkerFiles}"
         }
 
         // `framework` is the non-bundled counterpart, so it must declare what it needs.
