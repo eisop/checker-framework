@@ -64,11 +64,12 @@
       "enabled": false
     },
     {
-      "description": "Make the JDK EA build-bump PR title (from the JDK_EA_BUILD custom manager below) show the full jdk-<major>+<build> tag: the default title would otherwise show only the bare build number (e.g. 'to v17'), which reads as a JDK major-version bump instead of an EA build bump. commitMessageTopic/commitMessageExtra must live in a packageRule, not on the custom manager itself. depTypeTemplate in the custom manager exposes the captured major version as {{{depType}}} for this template.",
+      "description": "Make the JDK EA build-bump PR title (from the JDK_EA_BUILD custom manager below) show the full jdk-<major>+<build> tag: the default title would otherwise show only the bare build number (e.g. 'to v17'), which reads as a JDK major-version bump instead of an EA build bump. commitMessageTopic/commitMessageExtra must live in a packageRule, not on the custom manager itself. depTypeTemplate in the custom manager exposes the captured major version as {{{depType}}} for this template. The jdk.java.net datasource has no source repository, so the PR body links the changes between the two tags.",
       "matchManagers": ["custom.regex"],
       "matchDepNames": ["openjdk/jdk"],
       "commitMessageTopic": "openjdk/jdk EA build",
-      "commitMessageExtra": "to jdk-{{{depType}}}+{{{newValue}}}"
+      "commitMessageExtra": "to jdk-{{{depType}}}+{{{newValue}}}",
+      "prBodyNotes": ["Changes: https://github.com/openjdk/jdk/compare/jdk-{{{depType}}}+{{{currentValue}}}...jdk-{{{depType}}}+{{{newValue}}}"]
     }
   ],
   "customManagers": [
