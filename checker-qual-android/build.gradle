@@ -51,6 +51,8 @@ sourceSets {
 }
 
 // The Javadoc is that of checker-qual, so the Javadoc jar points there instead of repeating it.
+// The publication comes from components.java, which publishes the javadocJar task, so that task
+// gets the README instead of using registerPlaceholderJar from the root build.gradle.
 tasks.named("javadoc") {
     enabled = false
 }
