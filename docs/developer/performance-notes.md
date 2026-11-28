@@ -3029,9 +3029,9 @@ Key For Checker are skipped. The rule itself takes 1.7 s in total.
 
 | | master | skip | change |
 | --- | ---: | ---: | ---: |
-| Wall, median of 8 interleaved rounds | 73.91 s | 70.31 s | -4.9% |
-| Wall, mean paired difference | | -3.28 s (se 0.67) | -4.4% |
-| Allocation, median of 3 | 29,660 MB | 28,036 MB | -5.5% |
+| Wall, median of 12 interleaved rounds | 66.4 s | 62.7 s | -5.5% |
+| Wall, mean paired difference | | -4.07 s (se 0.37) | -6.1% |
+| Allocation, median of 3 | 24,671 MB | 23,047 MB | -6.6% |
 
 The diagnostics are identical (1,009 warnings). A temporary verify mode that ran the analysis for
 every skipped method and compared the values found no refined value in a skipped method on Guava
@@ -3060,17 +3060,23 @@ supply the values of a skipped method. `InitializationFieldAccessAnnotatedTypeFa
 of a type variable type. Nodes in dead code get no value, as in the analysis, so a local variable in
 an unreachable `catch` block keeps the top type (`nullness-initialization/TryCatch.java`).
 
-On the Guava 33.5.0 sources (Nullness Checker, JDK 21), 7,456 method analyses and 248 lambda
-analyses of the subchecker are skipped. Interleaved 8-round A/B against the Key For skip above:
+On the Guava 33.5.0 sources (Nullness Checker, JDK 21), the rule is asked about 9,993 methods and
+skips the analysis of 9,394 of them; without the special case for constructor uses, it skips 7,378.
+Interleaved A/B of both skips together against master (10 rounds; allocation is the median of 3
+runs):
 
-| | Key For skip | plus Initialization skip | change |
+| | master | both skips | change |
 | --- | ---: | ---: | ---: |
-| Wall, median | 70.98 s | 68.37 s | -3.7% |
-| Wall, mean paired difference | | -3.60 s (se 0.98) | -5.0% |
-| User CPU, median | 178.70 s | 174.94 s | -2.1% |
+| Wall, median | 65.8 s | 59.0 s | -10.5% |
+| Wall, mean paired difference | | -7.07 s (se 0.92) | -10.7% |
+| User CPU, median | 170.8 s | 162.9 s | -4.6% |
+| Allocation | 24,665 MB | 21,411 MB | -13.2% |
 
-The diagnostics are identical (1,009 warnings). A temporary verify mode ran the analysis for every
-skipped method on Guava and compared its values with the supplied ones. They differ only for nodes
+The special case for constructor uses accounts for 2.1% of the allocation (all 3 runs lower) and
+for -0.9% of the wall clock (paired difference -0.69 s, se 0.69).
+
+The diagnostics are identical (1,009 warnings). Before the special case for constructor uses, a
+temporary verify mode ran the analysis for every skipped method on Guava and compared its values with the supplied ones. They differ only for nodes
 without a tree (the temporary variables of postfix operations and switch statements, marker
 nodes), for assignment targets, which have no value in the analysis, for assignments of `null`
 (`@FBCBottom`), for variables captured by a lambda (the verify mode analyzed lambdas without their
