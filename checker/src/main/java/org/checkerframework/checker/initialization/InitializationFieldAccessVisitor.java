@@ -62,7 +62,9 @@ public class InitializationFieldAccessVisitor
 
         @Override
         public Void visitClass(ClassTree tree, Void p) {
-            // The visitor is not positioned at the class, so it looks up the path of the class.
+            // The visitor is not positioned at the class, so visitClass looks up the path of the
+            // class in the TreePathCacher. Record it there, so that the lookup does not search the
+            // compilation unit.
             checker.getTreePathCacher().addPath(tree, getCurrentPath());
             InitializationFieldAccessVisitor.this.visitClass(tree, null);
             return null;

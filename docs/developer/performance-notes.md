@@ -2971,7 +2971,7 @@ Interleaved A/B on that workload with JDK 21 (12 rounds per side; allocation is 
 `jdk.ThreadAllocationStatistics` total): wall-clock median 74.1 s to 67.1 s (-9.5%; paired
 difference -7.3 s, standard error 0.6 s); allocation 29663 MB to 25981 MB (-12.4%). The
 diagnostics (1009 warnings) are identical. No effect with `-AassumeInitialized` or
-`-Amode=jspecify`, which do not run this subchecker.
+`-Amode=jspecify`, under which the visitor already did nothing.
 
 ## Tried and rejected
 
