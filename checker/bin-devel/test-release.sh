@@ -158,10 +158,30 @@ check_stubifier_jar() {
 }
 check_stubifier_jar "$CF_HOME/checker/dist/checker.jar" class
 
-## Run the Annotation File Utilities from the unpacked zip file.  release_push.py runs the
-## Checker Framework from it.
 SMOKE_DIR="$TMP_DIR/smoke"
 mkdir -p "$SMOKE_DIR"
+
+## The release contains the annotated JDK only as its binary stub file.
+CHECKER_JAR_ENTRIES="$(unzip -Z1 "$CF_HOME/checker/dist/checker.jar")"
+grep -qx 'annotated-jdk/annotated-jdk.bin.gz' <<< "$CHECKER_JAR_ENTRIES" \
+  || fail "checker.jar does not contain the binary stub file of the annotated JDK."
+if grep -q '^annotated-jdk/src/' <<< "$CHECKER_JAR_ENTRIES"; then
+  fail "checker.jar contains the source files of the annotated JDK."
+fi
+printf 'import java.util.Map;\nclass MapGet {\n  String get(Map<String, Object> m) {\n    return m.get("k").toString();\n  }\n}\n' > "$SMOKE_DIR/MapGet.java"
+# -AmergeStubsWithSource uses the binary stub file, so the annotated JDK still applies.
+output="$("$CF_HOME/checker/bin/javac" -processor nullness -AmergeStubsWithSource -Anomsgtext \
+  -d "$SMOKE_DIR" "$SMOKE_DIR/MapGet.java" 2>&1)" || true
+grep -qF 'MapGet.java:4: error: (dereference.of.nullable)' <<< "$output" \
+  || fail "With -AmergeStubsWithSource, the annotated JDK did not apply: $output"
+# -AparseAllJdk needs the source files.
+output="$("$CF_HOME/checker/bin/javac" -processor nullness -AparseAllJdk \
+  -d "$SMOKE_DIR" "$SMOKE_DIR/MapGet.java" 2>&1)" || true
+grep -qF -- '-AparseAllJdk needs the source files of the annotated JDK' <<< "$output" \
+  || fail "-AparseAllJdk did not report that the release has no source files of the annotated JDK: $output"
+
+## Run the Annotation File Utilities from the unpacked zip file.  release_push.py runs the
+## Checker Framework from it.
 printf 'class Insert {\n  Object f;\n}\n' > "$SMOKE_DIR/Insert.java"
 printf 'package org.checkerframework.checker.nullness.qual:\nannotation @Nullable:\n\npackage :\nclass Insert:\n    field f: @org.checkerframework.checker.nullness.qual.Nullable\n' > "$SMOKE_DIR/Insert.jaif"
 (cd "$SMOKE_DIR" && "$AFU_HOME/bin/insert-annotations-to-source" -i Insert.jaif Insert.java)
@@ -174,12 +194,15 @@ grep -q '@Nullable' "$SMOKE_DIR/Insert.java" \
 ## Check the published artifacts that release_build.py does not check.
 MAVEN_REPO="$CF_RELEASE_MAVEN_REPO"
 MAVEN_LOCAL="$MAVEN_REPO/io/github/eisop"
-for artifact in framework framework-all checker; do
+for artifact in framework framework-all; do
   prefix="$MAVEN_LOCAL/$artifact/${VERSION}/$artifact-${VERSION}"
   check_stubifier_jar "$prefix.jar" class
   check_stubifier_jar "$prefix-sources.jar" java
-  check_stubifier_jar "$prefix-javadoc.jar" html
 done
+# The Javadoc jar of framework-all contains a README that names framework's.
+check_stubifier_jar "$MAVEN_LOCAL/framework/${VERSION}/framework-${VERSION}-javadoc.jar" html
+# The checker jar contains only the checkers, which use the tools from framework-all.
+check_stubifier_jar "$MAVEN_LOCAL/checker/${VERSION}/checker-${VERSION}-all.jar" class
 # The Annotation File Utilities do not depend on the checkers.
 if grep -E '<artifactId>(checker|framework)</artifactId>' \
   "$MAVEN_LOCAL/annotation-file-utilities/${VERSION}/annotation-file-utilities-${VERSION}.pom"; then

@@ -1,8 +1,7 @@
 // Trivial consumer of the published `checker` artifact. Compiling this
-// (under Java 8 source/target, see ../build.gradle) is the actual
-// regression test: it fails at dependency-resolution time, before javac
-// even runs, if the published Gradle Module Metadata is broken -- see
-// https://github.com/eisop/checker-framework/pull/1822.
+// (under Java 8 source/target, see ../build.gradle) with the Nullness Checker
+// fails at dependency-resolution time if the published metadata is broken, and
+// when the checker is loaded if its jar lacks a class that it needs.
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Smoke {

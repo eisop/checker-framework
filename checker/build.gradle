@@ -302,6 +302,32 @@ tasks.register("checkerJar", ShadowJar) {
     minimize()
 }
 
+// The published checker-VERSION.jar: the entries of checkerJar that framework-all does not
+// contain, which are the checkers and the relocated dependency classes that only the checkers use.
+// Both jars relocate the dependencies the same way, so the checkers' classes link against
+// framework-all, which the checker POM declares as a dependency.
+tasks.register("checkerThinJar", Jar) {
+    group = "Build"
+    description = "Builds checker-${project.version}.jar, which depends on framework-all, checker-qual and checker-util."
+    archiveBaseName = "checker"
+    destinationDirectory = layout.buildDirectory.dir("thin")
+    def checkerJarFile = tasks.named("checkerJar", ShadowJar).flatMap { it.archiveFile }
+    def frameworkAllJarFile = project(":framework").tasks.named("frameworkAllJar", ShadowJar).flatMap { it.archiveFile }
+    inputs.file(frameworkAllJarFile).withPropertyName("frameworkAllJar")
+    def frameworkAllEntries = frameworkAllJarFile.map { jar ->
+        new java.util.zip.ZipFile(jar.asFile).withCloseable { zip ->
+            zip.entries().collect { it.name } as Set
+        }
+    }
+    def archives = project.objects.newInstance(InjectedFileOps).archives
+    from(checkerJarFile.map { archives.zipTree(it) }) {
+        exclude("META-INF/MANIFEST.MF")
+        exclude { FileTreeElement element -> frameworkAllEntries.get().contains(element.path) }
+    }
+    // No Main-Class: CheckerMain, which is in framework-all, runs from the self-contained
+    // checker.jar, next to which it finds checker-qual.jar and checker-util.jar.
+}
+
 tasks.named("jar") {
     dependsOn("checkerJar")
     // Never build the skinny jar.
@@ -1181,7 +1207,8 @@ apply from: rootProject.file("gradle-mvn-push.gradle")
 /** Adds information to the publication for uploading to Maven repositories. */
 final checkerPom(publication) {
     rootProject.sharedPublicationConfiguration(publication)
-    // Don't use publication.from components.java which would publish the skinny jar as checker.jar.
+    // Not publication.from(components.java), which would publish the output of the disabled `jar`
+    // task; the publication below names its jars.
     publication.pom {
         name = "Checker Framework"
         description =
@@ -1195,86 +1222,12 @@ final checkerPom(publication) {
     }
 }
 
-// `components.shadow` (used for the `checker` publication below) only
-// declares a single `shadowRuntimeElements` variant for the shadow jar,
-// with java-runtime usage; see ShadowJavaPlugin#configureComponents() in
-// the Shadow plugin. There is no matching compile-time (java-api) variant,
-// so once the project correctly declares its target JVM version (see
-// `sourceCompatibility`/`targetCompatibility` above), a consuming Gradle
-// build resolving `compileClasspath` against the published module
-// metadata finds a version-compatible variant, but not one usable for
-// compile-time, and fails with "no matching variant" -- this is a known
-// Shadow plugin limitation, see https://github.com/GradleUp/shadow/issues/847.
-//
-// Register a `shadowApiElements` configuration to supply that missing
-// compile-time variant, and point both variants at `checkerJar`
-// (checker-VERSION.jar) rather than at `shadowJar` (checker-VERSION-all.jar).
-//
-// Both variants must serve checkerJar, because the variants also carry the
-// `shadow` configuration's dependencies on checker-qual and checker-util.
-// shadowJar *bundles* those two, so serving it alongside those dependencies
-// puts every qualifier class on a Gradle consumer's classpath twice -- once
-// inside checker-VERSION-all.jar and once as its own jar -- while a Maven
-// consumer, who gets checker-VERSION.jar from the POM, sees them once.
-// checkerJar excludes checker-qual and checker-util for exactly this reason,
-// so serving it makes the two consumers agree.
-//
-// checker-VERSION-all.jar is still published, as a plain classified artifact
-// outside any variant: it is the self-contained download that
-// docs/manual/external-tools.tex points users at.
-import org.gradle.api.attributes.Bundling
-import org.gradle.api.attributes.Category
-import org.gradle.api.attributes.LibraryElements
-import org.gradle.api.attributes.Usage
-import org.gradle.api.attributes.java.TargetJvmVersion
-import org.gradle.api.component.AdhocComponentWithVariants
-
-configurations {
-    shadowApiElements {
-        canBeConsumed = true
-        canBeResolved = false
-        // The Shadow plugin makes shadowRuntimeElements extend `shadow`, whose dependencies
-        // (checker-qual, checker-util) are the ones that appear in the POM. The compile-time
-        // variant needs them too: it serves checkerJar, which deliberately excludes those two,
-        // so without this a Gradle consumer compiling against `checker` would have no
-        // qualifier classes on its compile classpath.
-        extendsFrom configurations.shadow
-        attributes {
-            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_API))
-            attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
-            attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
-            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling, Bundling.SHADOWED))
-        }
-        outgoing.artifact(tasks.named("checkerJar"))
-    }
-}
-
-// Must run after the Shadow plugin's own `afterEvaluate` block, which sets
-// the TargetJvmVersion attribute on `shadowRuntimeElements` and adds that
-// configuration to `components.shadow`. Copy the resulting attribute onto
-// `shadowApiElements` so both variants agree on the target JVM version,
-// then add it as the missing compile-time variant.
+// The java plugin's own variants advertise checker-VERSION-skinny.jar, from the `jar` task disabled
+// above. That file is never produced, so a build that substitutes this project for the
+// io.github.eisop:checker coordinate -- any consumer using --include-build -- resolves a path that
+// does not exist and fails when it loads a class from it. Serve checkerJar, the self-contained
+// jar without checker-qual and checker-util, from these variants instead.
 afterEvaluate {
-    def runtimeJvmVersion = configurations.shadowRuntimeElements.attributes
-    .getAttribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE)
-    if (runtimeJvmVersion != null) {
-        configurations.shadowApiElements.attributes {
-            attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, runtimeJvmVersion)
-        }
-    }
-    (components.shadow as AdhocComponentWithVariants).addVariantsFromConfiguration(configurations.shadowApiElements) {
-        it.mapToMavenScope("compile")
-    }
-
-    // Repoint the Shadow plugin's own runtime variant at checkerJar too; see above.
-    configurations.shadowRuntimeElements.outgoing.artifacts.clear()
-    configurations.shadowRuntimeElements.outgoing.artifact(tasks.named("checkerJar"))
-
-    // The java plugin's own variants advertise checker-VERSION-skinny.jar, from the `jar` task
-    // disabled above. That file is never produced, so a build that substitutes this project for
-    // the io.github.eisop:checker coordinate -- any consumer using --include-build -- resolves a
-    // path that does not exist and fails when it loads a class from it. Serve checkerJar, the
-    // artifact this project actually builds, from these variants as well.
     ["apiElements", "runtimeElements"].each { variantName ->
         def variant = configurations.findByName(variantName)
         if (variant != null) {
@@ -1287,12 +1240,22 @@ afterEvaluate {
 publishing {
     publications {
         checker(MavenPublication) {
-            from(components.shadow)
             checkerPom(it)
-            // checkerJar is the artifact of both variants above, so it needs no entry here.
+            artifact(tasks.named("checkerThinJar"))
             artifact(tasks.named("shadowJar"))
-            artifact(tasks.named("allSourcesJar"))
-            artifact(tasks.named("allJavadocJar"))
+            artifact(tasks.named("sourcesJar"))
+            artifact(tasks.named("javadocJar"))
+            String checkerVersion = project.version
+            pom.withXml {
+                def dependencies = asNode().appendNode("dependencies")
+                ["framework-all", "checker-qual", "checker-util"].each { artifactId ->
+                    dependencies.appendNode("dependency")
+                            .appendNode("groupId", "io.github.eisop").parent()
+                            .appendNode("artifactId", artifactId).parent()
+                            .appendNode("version", checkerVersion).parent()
+                            .appendNode("scope", "compile")
+                }
+            }
         }
     }
 }

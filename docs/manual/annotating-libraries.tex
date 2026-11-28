@@ -368,6 +368,15 @@ JDK, without a warning, when \<-AparseAllJdk> or \<-AmergeStubsWithSource> is
 supplied.  The binary stub file omits the JDK's private classes, whose
 annotations \<-AmergeStubsWithSource> applies.
 
+The self-contained jars of a release, \<checker.jar> in the zip file,
+\<checker-\emph{version}-all.jar>, and \<framework-all>, contain the annotated
+JDK only as its binary stub file.  With
+them, \<-AmergeStubsWithSource> uses the binary stub file instead.  The
+difference, the annotations of the JDK's private classes, matters only when
+checking the JDK's own source.  \<-AparseAllJdk> needs the source files of the
+annotated JDK, which a Checker Framework built from source
+(Section~\ref{build-source}) and the \<framework> Maven artifact contain.
+
 
 \sectionAndLabel{Compiling partially-annotated libraries}{compiling-libraries}
 
