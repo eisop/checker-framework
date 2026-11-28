@@ -613,11 +613,32 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
             boolean subtypeRaw,
             boolean supertypeRaw) {
         AnnotatedTypeFactory typeFactory = subtype.atypeFactory;
+        Types types = typeFactory.types;
+        TypeMirror subtypeErasure = types.erasure(subtype.getUnderlyingType());
+        TypeMirror supertypeErasure = types.erasure(supertype.getUnderlyingType());
 
         // JLS 11: 4.10.2. Subtyping among Class and Interface Types
         // 4th paragraph, bullet 1.
-        AnnotatedDeclaredType subtypeAsSuper =
-                AnnotatedTypes.castedAsSuper(typeFactory, subtype, supertype);
+        AnnotatedDeclaredType subtypeAsSuper;
+        if (types.isSameType(subtypeErasure, supertypeErasure)
+                && !AnnotatedTypes.isEnum(supertype)) {
+            // subtype is a type of the class of supertype, so castedAsSuper would return a copy of
+            // subtype. This method only reads subtypeAsSuper, so it does not need a copy.
+            subtypeAsSuper = subtype;
+        } else if (supertype.getEnclosingType() == null
+                && ((TypeElement) supertype.getUnderlyingType().asElement())
+                        .getTypeParameters()
+                        .isEmpty()
+                && types.isSubtype(subtypeErasure, supertypeErasure)) {
+            // The class of supertype is not generic, and supertype has no enclosing type. So
+            // neither supertype nor subtype as a type of that class has a type argument, and there
+            // is nothing to compare.
+            return true;
+        } else {
+            // If subtype is not an erased subtype of supertype, then castedAsSuper throws an
+            // exception, which isContainedWithinBounds and visitTypevar_Type handle.
+            subtypeAsSuper = AnnotatedTypes.castedAsSuper(typeFactory, subtype, supertype);
+        }
 
         if (ignoreRawTypes && (subtypeRaw || supertypeRaw)) {
             return true;

@@ -5,7 +5,6 @@ import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.javacutil.BugInCF;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.ArraySet;
-import org.plumelib.util.CollectionsPlume;
 
 import java.util.Collections;
 import java.util.List;
@@ -80,9 +79,12 @@ public class ExceptionBlockImpl extends SingleSuccessorBlockImpl implements Exce
 
     @Override
     public Set<Block> getSuccessors() {
-        Set<Block> result = new ArraySet<>(super.getSuccessors());
-        for (Set<? extends Block> blocks : getExceptionalSuccessors().values()) {
-            CollectionsPlume.adjoinAll(result, blocks);
+        Set<Block> result = new ArraySet<>(4);
+        if (successor != null) {
+            result.add(successor);
+        }
+        for (Set<Block> blocks : exceptionalSuccessors.values()) {
+            result.addAll(blocks);
         }
         return result;
     }

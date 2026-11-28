@@ -11,12 +11,14 @@ import org.checkerframework.checker.nullness.qual.PolyKeyFor;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.dataflow.cfg.UnderlyingAST.CFGMethod;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.JavaExpressionParseException;
 import org.checkerframework.dataflow.expression.Unknown;
 import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
+import org.checkerframework.framework.flow.CFAbstractAnalysis.FieldInitialValue;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
@@ -36,6 +38,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -83,6 +86,9 @@ public class KeyForAnnotatedTypeFactory
      */
     private final boolean assumeKeyFor;
 
+    /** Decides whether the dataflow analysis of a method can refine any type. */
+    private final KeyForFlowRefinementSources flowRefinementSources;
+
     /**
      * Creates a new KeyForAnnotatedTypeFactory.
      *
@@ -93,6 +99,7 @@ public class KeyForAnnotatedTypeFactory
         super(checker, true);
 
         assumeKeyFor = checker.hasOption("assumeKeyFor");
+        flowRefinementSources = new KeyForFlowRefinementSources(this);
 
         // Add compatibility annotations:
         addAliasedTypeAnnotation(
@@ -106,6 +113,12 @@ public class KeyForAnnotatedTypeFactory
         // sideEffectsUnrefineAliases = true;
 
         this.postInit();
+    }
+
+    @Override
+    protected boolean isFlowAnalysisRedundant(
+            CFGMethod method, List<FieldInitialValue<KeyForValue>> fieldValues) {
+        return flowRefinementSources.isFlowAnalysisRedundant(method, fieldValues);
     }
 
     @Override
