@@ -3037,7 +3037,7 @@ The diagnostics are identical (1,009 warnings). A temporary verify mode that ran
 every skipped method and compared the values found no refined value in a skipped method on Guava
 or in the `:checker:test` and `:framework:test` inputs (9,480 of 17,594 Key For method analyses
 skipped there). `checker/tests/nullness/KeyForFlowSources.java` has one method per source of a key;
-with a rule that skips every method, all 20 of them report an error.
+with a rule that skips every method, 21 errors appear.
 
 ### Initialization Checker: no dataflow analysis for methods without initialization types (November 2026)
 
@@ -3049,8 +3049,8 @@ Key For Checker: `FlowAnalysisRelevance` with `@Initialized` as the only irrelev
 Unlike Key For, the type factory does not compute those values without the analysis: local
 variables have the top type `@UnknownInitialization` by default and get `@Initialized` only from
 the analysis. `GenericAnnotatedTypeFactory.addRedundantFlowAnalysisValues` lets a type factory
-supply the values of a skipped method. The Initialization factories supply `@Initialized` for every
-reachable `LocalVariableNode` and assignment to one, and an unannotated value for a local variable
+supply the values of a skipped method. `InitializationFieldAccessAnnotatedTypeFactory` supplies
+`@Initialized` for every reachable `LocalVariableNode` and assignment to one, and an unannotated value for a local variable
 of a type variable type. Nodes in dead code get no value, as in the analysis, so a local variable in
 an unreachable `catch` block keeps the top type (`nullness-initialization/TryCatch.java`).
 

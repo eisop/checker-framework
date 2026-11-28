@@ -1,9 +1,7 @@
 package org.checkerframework.checker.initialization;
 
 import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.CompilationUnitTree;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.analysis.AnalysisResult;
 import org.checkerframework.dataflow.cfg.ControlFlowGraph;
@@ -51,16 +49,9 @@ public class InitializationFieldAccessAnnotatedTypeFactory
     }
 
     @Override
-    public void setRoot(@Nullable CompilationUnitTree root) {
-        super.setRoot(root);
-        flowRelevance.startCompilationUnit();
-    }
-
-    @Override
     protected boolean isFlowAnalysisRedundant(
             CFGMethod method, List<FieldInitialValue<CFValue>> fieldValues) {
-        return !checker.useConservativeDefault("source")
-                && flowRelevance.isFlowAnalysisRedundant(method, fieldValues);
+        return flowRelevance.isFlowAnalysisRedundant(method, fieldValues);
     }
 
     /**

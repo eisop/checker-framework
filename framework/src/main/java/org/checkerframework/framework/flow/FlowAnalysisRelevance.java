@@ -2,6 +2,7 @@ package org.checkerframework.framework.flow;
 
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MemberReferenceTree;
@@ -114,6 +115,15 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
     /** Scans a method. */
     private final MethodScanner methodScanner = new MethodScanner();
 
+    /** Whether conservative defaults apply to unannotated source code. */
+    private final boolean conservativeSourceDefaults;
+
+    /**
+     * The compilation unit of the methods in {@link #methodsInRedundantMethods} and of {@link
+     * #examinedFieldValues}.
+     */
+    private @Nullable CompilationUnitTree root;
+
     /**
      * Creates a FlowAnalysisRelevance.
      *
@@ -122,6 +132,8 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
     @SuppressWarnings("this-escape") // the type scanner runs after construction
     protected FlowAnalysisRelevance(GenericAnnotatedTypeFactory<V, ?, ?, ?> atypeFactory) {
         this.atypeFactory = atypeFactory;
+        this.conservativeSourceDefaults =
+                atypeFactory.getChecker().useConservativeDefault("source");
         this.thisName = atypeFactory.getElementUtils().getName("this");
         this.superName = atypeFactory.getElementUtils().getName("super");
         this.className = atypeFactory.getElementUtils().getName("class");
@@ -144,12 +156,6 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
         return null;
     }
 
-    /** Forgets the methods of the previous compilation unit. */
-    public void startCompilationUnit() {
-        methodsInRedundantMethods.clear();
-        examinedFieldValues = null;
-    }
-
     /**
      * Returns true if the dataflow analysis of {@code method} cannot compute a value that has a
      * relevant qualifier.
@@ -159,8 +165,19 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
      * @return true if the dataflow analysis of {@code method} cannot compute a value that has a
      *     relevant qualifier
      */
+    @SuppressWarnings("interning:not.interned") // compilation units are compared by reference
     public boolean isFlowAnalysisRedundant(
             CFGMethod method, List<FieldInitialValue<V>> fieldValues) {
+        // Under conservative defaults, unannotated source code does not have the irrelevant types.
+        if (conservativeSourceDefaults) {
+            return false;
+        }
+        CompilationUnitTree currentRoot = atypeFactory.getRoot();
+        if (currentRoot != root) {
+            root = currentRoot;
+            methodsInRedundantMethods.clear();
+            examinedFieldValues = null;
+        }
         if (anyRelevantFieldValue(fieldValues)) {
             return false;
         }
@@ -249,7 +266,7 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
      * @param annos a set of annotations
      * @return true if {@code annos} contains a relevant qualifier
      */
-    protected final boolean isRelevantAnnotationSet(AnnotationMirrorSet annos) {
+    private boolean isRelevantAnnotationSet(AnnotationMirrorSet annos) {
         for (AnnotationMirror anno : annos) {
             if (!isIrrelevantQualifier(anno)) {
                 return true;
@@ -267,8 +284,8 @@ public abstract class FlowAnalysisRelevance<V extends CFAbstractValue<V>> {
      * @return true if {@code type} itself makes a declaration relevant
      */
     private boolean isRelevantTypeComponent(AnnotatedTypeMirror type) {
-        // The null type is only the implicit lower bound of a type variable or wildcard. No
-        // expression has that type.
+        // In a declared type, the null type is only the implicit lower bound of a type variable or
+        // wildcard, which flows into no expression.
         if (type.getKind() != TypeKind.NULL && isRelevantAnnotationSet(type.getAnnotations())) {
             return true;
         }

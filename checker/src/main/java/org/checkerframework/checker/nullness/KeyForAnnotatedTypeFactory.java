@@ -1,6 +1,5 @@
 package org.checkerframework.checker.nullness;
 
-import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
@@ -8,7 +7,6 @@ import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.KeyForBottom;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyKeyFor;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.checkerframework.checker.signature.qual.CanonicalName;
@@ -118,18 +116,9 @@ public class KeyForAnnotatedTypeFactory
     }
 
     @Override
-    public void setRoot(@Nullable CompilationUnitTree root) {
-        super.setRoot(root);
-        flowRelevance.startCompilationUnit();
-    }
-
-    @Override
     protected boolean isFlowAnalysisRedundant(
             CFGMethod method, List<FieldInitialValue<KeyForValue>> fieldValues) {
-        // Unannotated source code does not have the type @UnknownKeyFor under conservative
-        // defaults.
-        return !checker.useConservativeDefault("source")
-                && flowRelevance.isFlowAnalysisRedundant(method, fieldValues);
+        return flowRelevance.isFlowAnalysisRedundant(method, fieldValues);
     }
 
     @Override

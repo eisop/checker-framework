@@ -2076,10 +2076,12 @@ public abstract class GenericAnnotatedTypeFactory<
      * analysis of such a method, and of the lambdas in it, is skipped.
      *
      * <p>An override must return false if the transfer functions of the analysis have another
-     * effect, such as reporting an error.
+     * effect, such as reporting an error. It must also return false for a method that has a
+     * postcondition: a skipped method has no exit stores, so its postconditions are not checked.
      *
-     * <p>This method is only called for a method that is not a constructor and that has no captured
-     * store.
+     * <p>This method is only called for a method that is not a constructor, that has no captured
+     * store, and whose initial store has no values of final local variables of an enclosing method,
+     * and not with {@code -Acfgviz} or {@code -Aflowdotdir}.
      *
      * @param method the method that is about to be analyzed
      * @param fieldValues the abstract values of the fields of the class of {@code method}
@@ -2118,7 +2120,8 @@ public abstract class GenericAnnotatedTypeFactory<
             List<FieldInitialValue<Value>> fieldValues,
             boolean isInitializationCode,
             @Nullable Store capturedStore) {
-        // The CFG visualizer shows the stores of the analysis.
+        // The analysis of initialization code updates the initialization store, a captured store
+        // can have refined values, and the CFG visualizer shows the stores of the analysis.
         if (isInitializationCode || capturedStore != null || handleCFGViz) {
             return false;
         }
