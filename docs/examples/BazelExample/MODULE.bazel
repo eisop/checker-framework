@@ -6,6 +6,13 @@ maven.install(
         "io.github.eisop:checker-qual:3.55.1-eisop1",
         "io.github.eisop:checker:3.55.1-eisop1",
     ],
+    # Google's mirror of Maven Central comes first because Maven Central rate-limits GitHub's
+    # runners, which run this example in CI.  Maven Central alone works, too, and it provides what
+    # the mirror does not have yet.
+    repositories = [
+        "https://maven-central.storage-download.googleapis.com/maven2",
+        "https://repo1.maven.org/maven2",
+    ],
 )
 
 use_repo(maven, "maven")
