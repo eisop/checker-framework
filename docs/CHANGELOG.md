@@ -7,6 +7,17 @@
 
 ### User-visible changes
 
+`-AprintGitProperties` prints only what the commit determines: the version, and the commit and its
+time.  It no longer prints who built the Checker Framework, on which machine, or the tags.
+
+The dataflow framework builds the control flow graph of a method with less work. With the
+`dataflow-nullaway` artifact, NullAway's JMH benchmarks that compile Caffeine and NullAway itself
+allocate about 2% less and run 1-2% faster; the effect on the checkers of the Checker Framework is
+within measurement noise.
+
+The Nullness Checker no longer type-checks every class a second time in its subchecker for field
+initialization: on the Guava 33.5.0 sources, 9% less time and 12% less allocation.
+
 Subtype checks of two declared types copy fewer types: for the Nullness Checker on the Guava
 33.5.0 sources, 3% less time and 5% less allocation.
 

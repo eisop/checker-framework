@@ -23,6 +23,7 @@ external links are not fetched.
 import argparse
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -100,17 +101,24 @@ def check_external(url: str, online: bool, errors: list[str], where: str) -> Non
         return
     request_url = urldefrag(url)[0]
     last = None
-    for method in ("HEAD", "GET"):
-        req = urllib.request.Request(
-            request_url, method=method, headers={"User-Agent": "Mozilla/5.0 check-release-links"}
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=30):
-                return
-        except urllib.error.HTTPError as e:
-            last = f"HTTP {e.code}"
-        except (urllib.error.URLError, OSError) as e:
-            last = str(e)
+    # A site that is down for a moment would otherwise fail the release build, so each link is
+    # tried three times, a little apart.
+    for attempt in range(3):
+        if attempt:
+            time.sleep(10 * attempt)
+        for method in ("HEAD", "GET"):
+            req = urllib.request.Request(
+                request_url,
+                method=method,
+                headers={"User-Agent": "Mozilla/5.0 check-release-links"},
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=30):
+                    return
+            except urllib.error.HTTPError as e:
+                last = f"HTTP {e.code}"
+            except (urllib.error.URLError, OSError) as e:
+                last = str(e)
     errors.append(f"{where}: cannot fetch {url}: {last}")
 
 
