@@ -2009,7 +2009,10 @@ public abstract class GenericAnnotatedTypeFactory<
             }
 
             if (!anyLambdaResultChanged
-                    || (firstIteration && containsAllVoidLambdas(lambdaToCFG.keySet()))) {
+                    || (firstIteration && containsAllVoidLambdas(lambdaToCFG.keySet()))
+                    // Without the analysis of the method, the result types of its lambdas do not
+                    // change.
+                    || flowAnalysisSkippedMethods.contains(methodTree)) {
                 classQueue.addAll(classQueueInMethod);
                 break; // Done with this method.
             } else {
