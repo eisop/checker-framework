@@ -2973,6 +2973,35 @@ difference -7.3 s, standard error 0.6 s); allocation 29663 MB to 25981 MB (-12.4
 diagnostics (1009 warnings) are identical. No effect with `-AassumeInitialized` or
 `-Amode=jspecify`, under which the visitor already did nothing.
 
+### `asSuper` copies in subtype checks (November 2026)
+
+A JFR recording of the Nullness Checker on the Guava 33.5.0 sources (606 files, JDK 25, 5767
+execution samples) has `AsSuperVisitor.asSuper` on 423 samples, with 3478 MB of the 29122 MB of
+sampled allocation. Two of its copies were removed:
+
+- `DefaultTypeHierarchy.visitTypeArgs` called `AnnotatedTypes.castedAsSuper` for every subtype
+  check of two declared types; it deep-copies both types. Of 418,134 calls, 69% have a supertype
+  whose class is not generic and has no enclosing type, so there are no type arguments to
+  compare, and 26% have a subtype that already is a type of the supertype's class, for which the
+  copy is only read. Both cases now skip the call.
+- `AsSuperVisitor.asSuper` deep-copied both of its arguments. For two declared types (768,000 of
+  809,000 calls) the visitor only reads the underlying type of the supertype, so that copy is
+  skipped.
+
+Interleaved A/B of both changes on that workload with JDK 21, against a master that has the change
+of the previous section (12 rounds per side; allocation is the median of 3 runs of the
+deterministic `jdk.ThreadAllocationStatistics` total): wall-clock median 67.2 s to 65.6 s (-2.4%;
+paired difference -1.9 s, standard error 0.9 s); allocation 25879 MB to 24664 MB (-4.7%). The
+diagnostics (1009 warnings) are identical. The first change accounts for about two thirds of the
+allocation saved.
+
+Remaining `asSuper` cost, by caller, from the recording before the changes (samples, allocation):
+`castedAsSuper` from `visitTypeArgs` 150 and 1388 MB (now mostly skipped); `asOuterSuper` from
+`AnnotatedTypes.addTypeVarMappings` 85 and 769 MB; `OverrideChecker`'s receiver check 73 and
+536 MB; `AbstractType.asSuper` in type argument inference 69 and 465 MB. These callers read the
+result too, but `asSuper` still copies its first argument for them; whether they can do without
+that copy has not been traced.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a

@@ -18,6 +18,9 @@ within measurement noise.
 The Nullness Checker no longer type-checks every class a second time in its subchecker for field
 initialization: on the Guava 33.5.0 sources, 9% less time and 12% less allocation.
 
+Subtype checks of two declared types copy fewer types: for the Nullness Checker on the Guava
+33.5.0 sources, 2% less time and 5% less allocation.
+
 ### Implementation details
 
 ### Closed issues
