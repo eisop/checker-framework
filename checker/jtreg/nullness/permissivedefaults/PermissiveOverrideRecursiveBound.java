@@ -5,6 +5,7 @@
  *
  * @compile -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=source PermissiveOverrideRecursiveBound.java
  * @compile -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Amode=jspecify PermissiveOverrideRecursiveBound.java
+ * @compile -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker PermissiveOverrideRecursiveBound.java
  */
 
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -86,6 +87,14 @@ public class PermissiveOverrideRecursiveBound {
         @Override
         public First second() {
             return new First();
+        }
+    }
+
+    // An override with the same generic signature.
+    static class GenericOrdering extends RecursiveBoundLib.Ordering {
+        @Override
+        <T extends Comparable<T>> T max(T a, T b) {
+            return a;
         }
     }
 
