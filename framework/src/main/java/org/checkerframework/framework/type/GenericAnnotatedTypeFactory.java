@@ -2072,7 +2072,8 @@ public abstract class GenericAnnotatedTypeFactory<
     /**
      * Returns true if the dataflow analysis of {@code method} cannot refine any type: every value
      * and every store that the analysis would compute contains no more information than the
-     * declared types. The analysis of such a method, and of the lambdas in it, is skipped.
+     * declared types and the values that {@link #addRedundantFlowAnalysisValues} supplies. The
+     * analysis of such a method, and of the lambdas in it, is skipped.
      *
      * <p>An override must return false if the transfer functions of the analysis have another
      * effect, such as reporting an error.
@@ -2088,6 +2089,19 @@ public abstract class GenericAnnotatedTypeFactory<
             CFGMethod method, List<FieldInitialValue<Value>> fieldValues) {
         return false;
     }
+
+    /**
+     * Adds the values that the dataflow analysis of {@code cfg} computes to {@code nodeValues}, for
+     * a method or a lambda whose analysis is skipped because {@link #isFlowAnalysisRedundant}
+     * returned true. An override supplies the values that are more precise than the declared types,
+     * such as the values of local variables in a type system whose local variables have the top
+     * type by default.
+     *
+     * @param cfg the control flow graph whose analysis is skipped
+     * @param nodeValues the values of the nodes of {@code cfg}
+     */
+    protected void addRedundantFlowAnalysisValues(
+            ControlFlowGraph cfg, IdentityHashMap<Node, Value> nodeValues) {}
 
     /**
      * Returns true if the dataflow analysis of {@code ast} is skipped.
@@ -2229,10 +2243,12 @@ public abstract class GenericAnnotatedTypeFactory<
         }
         if (skipFlowAnalysis(ast, fieldValues, isInitializationCode, capturedStore)) {
             if (builtCfg) {
-                // Record which nodes belong to which tree; there are no values and no stores.
+                // Record which nodes belong to which tree; there are no stores.
+                IdentityHashMap<Node, Value> redundantValues = new IdentityHashMap<>();
+                addRedundantFlowAnalysisValues(cfg, redundantValues);
                 flowResult.combine(
                         new AnalysisResult<Value, Store>(
-                                new IdentityHashMap<>(),
+                                redundantValues,
                                 new IdentityHashMap<>(),
                                 cfg.getTreeLookup(),
                                 cfg.getPostfixNodeLookup(),

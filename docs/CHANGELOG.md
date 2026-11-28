@@ -29,6 +29,9 @@ a recursive bound, such as `E extends Entry<E>`.
 The Nullness Checker does not run the dataflow analysis of its Key For subchecker for methods that
 cannot refer to a map key: on the Guava 33.5.0 sources, 5% less time and 5% less allocation.
 
+The Nullness Checker does not run the dataflow analysis of its Initialization subchecker for
+methods in which every type is `@Initialized`: on the Guava 33.5.0 sources, a further 4% less time.
+
 ### Implementation details
 
 ### Closed issues
