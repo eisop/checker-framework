@@ -26,6 +26,10 @@ An override check under the permissive defaults for unchecked code
 crashes with a `StackOverflowError` if a type variable in the signature of the overridden method has
 a recursive bound, such as `E extends Entry<E>`.
 
+The Nullness Checker does not run the dataflow analysis of its Key For subchecker for methods that
+cannot refer to a map key, nor that of its Initialization subchecker for methods in which every type
+is `@Initialized`: on the Guava 33.5.0 sources, 10% less time and 13% less allocation.
+
 ### Implementation details
 
 ### Closed issues

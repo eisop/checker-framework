@@ -3002,11 +3002,119 @@ Remaining `asSuper` cost, by caller, from the recording before the changes (samp
 result too, but `asSuper` still copies its first argument for them; whether they can do without
 that copy has not been traced.
 
+### Key For Checker: no dataflow analysis for methods without keys (November 2026)
+
+The Nullness Checker runs the Key For Checker as a subchecker, and its dataflow analysis ran for
+every method although most methods never see a map key: every value that the analysis computes
+there is `@UnknownKeyFor`, which is what the type factory computes without the analysis.
+`GenericAnnotatedTypeFactory.isFlowAnalysisRedundant` lets a type factory say so for a method;
+`analyze` then builds the CFG (other checkers share it, and the tree-to-node lookup is still
+recorded) but does not run the analysis for the method or for the lambdas in it. The framework
+never asks for initialization code, for an AST with a captured store, for a method of a local or
+anonymous class whose enclosing method has final local variables with values, or with `-Acfgviz`
+or `-Aflowdotdir`.
+
+`KeyForFlowRefinementSources` implements the rule as a subclass of `FlowRefinementSources`: a
+method is relevant if a qualifier other than `@UnknownKeyFor` can flow into it or it can establish
+a key. It scans the method once, stopping at the first relevant construct: a Key For annotation or
+`@DefaultQualifier`; a use of a field, method, constructor, method reference, or lambda function
+type whose type mentions such a qualifier, has a contract, or mentions a class that (transitively,
+through type arguments and supertypes) does; a call of `Map.put` or `Map.containsKey`; a record
+pattern; a variable declared outside the method. The enclosing classes and the field values of the
+initial store are examined as well. Relevance of an element is cached for the compilation.
+
+On the Guava 33.5.0 sources (Nullness Checker, JDK 21, master `e81ccb2a9e`) the rule is asked about
+10,731 methods and rejects 357 of them; 10,374 of the 12,884 method analyses and 362 of the 394
+lambda analyses of the Key For Checker are skipped. The rule itself takes 1.7 s in total.
+
+| | master | skip | change |
+| --- | ---: | ---: | ---: |
+| Wall, median of 12 interleaved rounds | 66.4 s | 62.7 s | -5.5% |
+| Wall, mean paired difference | | -4.07 s (se 0.37) | -6.1% |
+| Allocation, median of 3 | 24,671 MB | 23,047 MB | -6.6% |
+
+The diagnostics are identical (1,009 warnings). A temporary verify mode that ran the analysis for
+every skipped method and compared the values found no refined value in a skipped method on Guava
+or in the `:checker:test` and `:framework:test` inputs (9,480 of 17,594 Key For method analyses
+skipped there). `checker/tests/nullness/KeyForFlowSources.java` has one method per source of a key;
+with a rule that skips every method, 21 errors appear.
+
+### Initialization Checker: no dataflow analysis for methods without initialization types (November 2026)
+
+The `InitializationFieldAccessSubchecker` runs the dataflow analysis that the Initialization
+Checker and the Nullness Checker share. In most methods every value that it computes is
+`@Initialized`. It skips those methods through `isFlowAnalysisRedundant`, with the same rule as the
+Key For Checker: `FlowRefinementSources` with `@Initialized` as the only irrelevant qualifier.
+The return type of every constructor is `@UnderInitialization`, but the tree annotator computes the
+type of an object creation from its arguments, so a use of a constructor is relevant only through
+its parameters and type parameters (`isConstructorResultQualifierUsed`). The declaration of a
+constructor still is relevant: a method that declares a local or anonymous class is analyzed,
+because the initialization code of that class starts from the values of the method's local
+variables, which a skipped method does not record.
+
+Unlike Key For, the type factory does not compute those values without the analysis: local variables
+have the top type `@UnknownInitialization` by default and get `@Initialized` only from the analysis.
+`GenericAnnotatedTypeFactory.addRedundantFlowAnalysisValues` lets a type factory supply the values
+of a skipped method. `InitializationFieldAccessAnnotatedTypeFactory` supplies `@Initialized` for
+every reachable `LocalVariableNode` and assignment to one, and an unannotated value for a local
+variable of a type variable type. Nodes in dead code get no value, as in the analysis, so a local
+variable in an unreachable `catch` block keeps the top type
+(`nullness-initialization/TryCatch.java`).
+
+On the Guava 33.5.0 sources (Nullness Checker, JDK 21), the rule is asked about 9,993 methods and
+skips the analysis of 9,394 of them; without the special case for constructor uses, it skips 7,378.
+Interleaved A/B of both skips together against master (10 rounds; allocation is the median of 3
+runs):
+
+| | master | both skips | change |
+| --- | ---: | ---: | ---: |
+| Wall, median | 65.8 s | 59.0 s | -10.5% |
+| Wall, mean paired difference | | -7.07 s (se 0.92) | -10.7% |
+| User CPU, median | 170.8 s | 162.9 s | -4.6% |
+| Allocation | 24,665 MB | 21,411 MB | -13.2% |
+
+The special case for constructor uses accounts for 2.1% of the allocation (all 3 runs lower) and
+for -0.9% of the wall clock (paired difference -0.69 s, se 0.69).
+
+The diagnostics are identical (1,009 warnings). Before the special case for constructor uses, a
+temporary verify mode ran the analysis for every skipped method on Guava and compared its values
+with the supplied ones. They differ only for nodes without a tree (the temporary variables of
+postfix operations and switch statements, marker nodes), for assignment targets, which have no value
+in the analysis, for assignments of `null` (`@FBCBottom`), for variables captured by a lambda (the
+verify mode analyzed lambdas without their captured store), and for 101 nodes of a type variable
+type that the analysis gives a primary qualifier.
+`checker/tests/nullness-initialization/InitializationFlowSources.java` covers local variables of
+each kind and one method per source of an initialization type; without the supplied values, 17 of
+the 22 `NullnessTest` runs fail, and with a rule that skips every method, the 3 expected errors of
+that test and 13 of other tests are missing and 6 unexpected errors appear.
+
 ## Tried and rejected
 
 Bring new evidence before revisiting any of these — a JFR trace on a
 workload not previously considered, or a measurement that contradicts
 the prior finding. A fresh hypothesis is not new evidence.
+
+- **Skipping the Key For Checker's visitor for the bodies of methods without keys (November
+  2026).** After the dataflow analysis of such a method is skipped (see *Key For Checker: no
+  dataflow analysis for methods without keys*), every expression in its body has the type
+  `@UnknownKeyFor`, so the visitor should have nothing to report there. A prototype that did not
+  scan these bodies measured 66.1 s against 70.7 s on Guava (one run), but 11 of the 1,009 warnings
+  disappeared. All 11 are `type.argument.type.incompatible` for a captured type argument: the lower
+  bound of a capture of a JDK type is `@KeyForBottom`, while the implicit lower bound of a type
+  parameter in source code is `@UnknownKeyFor` (the `@DefaultFor` on `@UnknownKeyFor`; eisop#1972).
+  These are false positives, but removing them is a behavior change that belongs to that issue.
+  The other reports that do not depend on qualifiers (`cast.redundant` with `-Alint=cast:redundant`,
+  `-Ashowchecks`, failures of type argument inference) would have to be kept as well. Revisit after
+  eisop#1972.
+
+- **Skipping the Initialization Checker's visitor for the bodies of methods without
+  initialization types (November 2026).** After the analysis of such a method is skipped (see
+  *Initialization Checker: no dataflow analysis for methods without initialization types*), every
+  type in its body is `@Initialized`. A prototype that did not scan the body of such a method when
+  all of its nodes are reachable and it declares no class skipped 7,039 of 13,621 method bodies on
+  Guava, with identical diagnostics and all `:checker:test` tests passing, but measured +0.0% wall
+  (mean paired difference +0.03 s, se 0.78, 8 interleaved rounds). The visitor's work in these
+  bodies is cheap once their types need no analysis.
 
 - **Sharing `AnnotationFileElementTypes`'s method/constructor signature indexes across a
   compilation's type factories — measured-and-rejected (July 2026).** `methodSigIndexCache` and
