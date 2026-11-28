@@ -10,6 +10,11 @@
 `-AprintGitProperties` prints only what the commit determines: the version, and the commit and its
 time.  It no longer prints who built the Checker Framework, on which machine, or the tags.
 
+The dataflow framework builds the control flow graph of a method with less work. With the
+`dataflow-nullaway` artifact, NullAway's JMH benchmarks that compile Caffeine and NullAway itself
+allocate about 2% less and run 1-2% faster; the effect on the checkers of the Checker Framework is
+within measurement noise.
+
 ### Implementation details
 
 ### Closed issues
