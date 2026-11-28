@@ -38,6 +38,10 @@ jobs:
           java-version: '21'
           distribution: 'zulu'
 
+      # After setup-java, which writes its own ~/.m2/settings.xml.
+      - name: Use Google's mirror of Maven Central
+        uses: ./.github/actions/maven-central-mirror
+
       - name: Generate and submit dependency graph
         uses: gradle/actions/dependency-submission@v6
         with:
